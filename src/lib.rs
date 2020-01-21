@@ -9,18 +9,29 @@ use std::pin::Pin;
 pub type MiddlewareStatus<'a> =
     Pin<Box<dyn 'a + Future<Output = Result<(), Infallible>> + Sync + Send>>;
 
-pub type Next<D> = dyn for<'b> Fn(&'b mut Context<D>) -> MiddlewareStatus<'b> + Sync + Send;
+pub type Next<'a, 'b: 'a, D> =
+    &'a (dyn Fn(&'b mut Context<D>) -> MiddlewareStatus<'b> + Sync + Send);
 
 pub trait Middleware<D: Default>:
-    Sync + Send + for<'a> Fn(&'a mut Context<D>, &'a Next<D>) -> MiddlewareStatus<'a>
+    Sync + Send + for<'a, 'b: 'a> Fn(&'b mut Context<D>, Next<'a, 'b, D>) -> MiddlewareStatus<'b>
 {
-    fn gate<'a>(&'a self, ctx: &'a mut Context<D>, next: &'a Next<D>) -> MiddlewareStatus<'a>;
+    fn gate<'a, 'b: 'a>(
+        &'b self,
+        ctx: &'b mut Context<D>,
+        next: Next<'a, 'b, D>,
+    ) -> MiddlewareStatus<'b>;
 }
 impl<D: Default, T> Middleware<D> for T
 where
-    T: Sync + Send + for<'a> Fn(&'a mut Context<D>, &'a Next<D>) -> MiddlewareStatus<'a>,
+    T: Sync
+        + Send
+        + for<'a, 'b: 'a> Fn(&'b mut Context<D>, Next<'a, 'b, D>) -> MiddlewareStatus<'b>,
 {
-    fn gate<'a>(&'a self, ctx: &'a mut Context<D>, next: &'a Next<D>) -> MiddlewareStatus<'a> {
+    fn gate<'a, 'b: 'a>(
+        &'b self,
+        ctx: &'b mut Context<D>,
+        next: Next<'a, 'b, D>,
+    ) -> MiddlewareStatus<'b> {
         self(ctx, next)
     }
 }
@@ -41,12 +52,17 @@ pub struct Context<D: Default = ()> {
 impl<D: Default + Sync + Send + 'static> Roa<D> {
     pub fn new() -> Self {
         Self {
-            handler: Box::new(|ctx, next| Box::pin(async { next(ctx).await })),
+            handler: Box::new(|ctx, next| next(ctx)),
         }
     }
 
-    pub fn register(&mut self, middleware: impl Middleware<D>) {
-        unimplemented!()
+    pub fn register(self, middleware: impl Middleware<D> + 'static) -> Self {
+        Self {
+            handler: Box::new(move |ctx, next| {
+                let current: Next<D> = &|ctx| middleware(ctx, next);
+                (self.handler)(ctx, current)
+            }),
+        }
     }
 
     async fn handle(&self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
