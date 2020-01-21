@@ -6,67 +6,67 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
 
+trait Model: Sync + Send + Sized {
+    fn init(app: &Roa<Self>) -> Self;
+}
+
+impl Model for () {
+    fn init(app: &Roa<Self>) -> Self {
+        ()
+    }
+}
+
 pub type MiddlewareStatus<'a> =
     Pin<Box<dyn 'a + Future<Output = Result<(), Infallible>> + Sync + Send>>;
 
-pub type Next<'a, 'b: 'a, D> =
-    &'a (dyn Fn(&'b mut Context<D>) -> MiddlewareStatus<'b> + Sync + Send);
+pub type Next<'a, M> = &'a (dyn Fn(&'a mut Context<'a, M>) -> MiddlewareStatus<'a> + Sync + Send);
 
-pub trait Middleware<D: Default>:
-    Sync + Send + for<'a, 'b: 'a> Fn(&'b mut Context<D>, Next<'a, 'b, D>) -> MiddlewareStatus<'b>
+pub trait Middleware<M: Model>:
+    Sync + Send + for<'a> Fn(&'a mut Context<'a, M>, Next<'a, M>) -> MiddlewareStatus<'a>
 {
-    fn gate<'a, 'b: 'a>(
-        &'b self,
-        ctx: &'b mut Context<D>,
-        next: Next<'a, 'b, D>,
-    ) -> MiddlewareStatus<'b>;
+    fn gate<'a>(&'a self, ctx: &'a mut Context<'a, M>, next: Next<'a, M>) -> MiddlewareStatus<'a>;
 }
-impl<D: Default, T> Middleware<D> for T
+impl<M: Model, T> Middleware<M> for T
 where
-    T: Sync
-        + Send
-        + for<'a, 'b: 'a> Fn(&'b mut Context<D>, Next<'a, 'b, D>) -> MiddlewareStatus<'b>,
+    T: Sync + Send + for<'a> Fn(&'a mut Context<'a, M>, Next<'a, M>) -> MiddlewareStatus<'a>,
 {
-    fn gate<'a, 'b: 'a>(
-        &'b self,
-        ctx: &'b mut Context<D>,
-        next: Next<'a, 'b, D>,
-    ) -> MiddlewareStatus<'b> {
+    fn gate<'a>(&'a self, ctx: &'a mut Context<'a, M>, next: Next<'a, M>) -> MiddlewareStatus<'a> {
         self(ctx, next)
     }
 }
 
-pub struct Roa<D: Default = ()> {
-    handler: Box<dyn Middleware<D>>,
+pub struct Roa<M: Model = ()> {
+    handler: Box<dyn Middleware<M>>,
 }
 
-fn _next<D: Default>(_ctx: &mut Context<D>) -> MiddlewareStatus {
+fn _next<'a, M: Model>(_ctx: &'a mut Context<'a, M>) -> MiddlewareStatus<'a> {
     Box::pin(async { Ok(()) })
 }
 
-pub struct Context<D: Default = ()> {
+pub struct Context<'a, M: Model = ()> {
     request: Request<Body>,
-    data: D,
+    app: &'a Roa<M>,
+    model: M,
 }
 
-impl<D: Default + Sync + Send + 'static> Roa<D> {
+impl<M: Model + Sync + Send + 'static> Roa<M> {
     pub fn new() -> Self {
         Self {
             handler: Box::new(|ctx, next| next(ctx)),
         }
     }
 
-    pub fn register(self, middleware: impl Middleware<D> + 'static) -> Self {
+    pub fn register(self, middleware: impl Middleware<M> + 'static) -> Self {
         Self {
             handler: Box::new(move |ctx, next| {
-                let current: Next<D> = &|ctx| middleware(ctx, next);
+                let current: Next<M> = &|ctx| middleware(ctx, next);
                 (self.handler)(ctx, current)
             }),
         }
     }
 
     async fn handle(&self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
-        let mut context = Context::new(req);
+        let mut context = Context::new(req, self);
         (self.handler)(&mut context, &_next).await?;
         Ok(Response::new(Body::empty()))
     }
@@ -82,17 +82,12 @@ impl<D: Default + Sync + Send + 'static> Roa<D> {
     }
 }
 
-impl<D: Default> Context<D> {
-    pub fn new(request: Request<Body>) -> Self {
+impl<'a, M: Model> Context<'a, M> {
+    pub fn new(request: Request<Body>, app: &'a Roa<M>) -> Self {
         Self {
             request,
-            data: Default::default(),
+            app,
+            model: Model::init(app),
         }
-    }
-}
-
-impl<D: Default> Clone for Roa<D> {
-    fn clone(&self) -> Self {
-        unimplemented!()
     }
 }
