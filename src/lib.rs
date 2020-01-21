@@ -11,13 +11,18 @@ pub type MiddlewareStatus<'a> =
 
 pub type Next<D> = dyn for<'b> Fn(&'b mut Context<D>) -> MiddlewareStatus<'b> + Sync + Send;
 
-pub trait Middleware<D>:
+pub trait Middleware<D: Default>:
     Sync + Send + for<'a> Fn(&'a mut Context<D>, &'a Next<D>) -> MiddlewareStatus<'a>
 {
+    fn gate<'a>(&'a self, ctx: &'a mut Context<D>, next: &'a Next<D>) -> MiddlewareStatus<'a>;
 }
-impl<D, T> Middleware<D> for T where
-    T: Sync + Send + for<'a> Fn(&'a mut Context<D>, &'a Next<D>) -> MiddlewareStatus<'a>
+impl<D: Default, T> Middleware<D> for T
+where
+    T: Sync + Send + for<'a> Fn(&'a mut Context<D>, &'a Next<D>) -> MiddlewareStatus<'a>,
 {
+    fn gate<'a>(&'a self, ctx: &'a mut Context<D>, next: &'a Next<D>) -> MiddlewareStatus<'a> {
+        self(ctx, next)
+    }
 }
 
 pub struct Roa<D: Default = ()> {
@@ -40,7 +45,7 @@ impl<D: Default + Sync + Send + 'static> Roa<D> {
         }
     }
 
-    pub fn gate(&mut self, middleware: impl Middleware<D>) {
+    pub fn register(&mut self, middleware: impl Middleware<D>) {
         unimplemented!()
     }
 
