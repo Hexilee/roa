@@ -18,7 +18,6 @@ where
 pub trait DynMiddleware<M: Model>:
     'static + Sync + Send + for<'a> Fn(&'a mut Context<M>, Next<M>) -> MiddlewareStatus<'a>
 {
-    fn gate<'a>(&self, ctx: &'a mut Context<M>, next: Next<M>) -> MiddlewareStatus<'a>;
 }
 
 impl<'a, M, F, T> Middleware<'a, M, F> for T
@@ -29,11 +28,7 @@ where
 {
 }
 
-impl<M: Model, T> DynMiddleware<M> for T
-where
-    T: 'static + Sync + Send + for<'a> Fn(&'a mut Context<M>, Next<M>) -> MiddlewareStatus<'a>,
+impl<M: Model, T> DynMiddleware<M> for T where
+    T: 'static + Sync + Send + for<'a> Fn(&'a mut Context<M>, Next<M>) -> MiddlewareStatus<'a>
 {
-    fn gate<'a>(&self, ctx: &'a mut Context<M>, next: Next<M>) -> MiddlewareStatus<'a> {
-        self(ctx, next)
-    }
 }

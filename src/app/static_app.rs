@@ -18,13 +18,12 @@ impl<M: Model> StaticApp<M> {
     }
 
     // TODO: replace DynMiddleware with Middleware
-    pub fn register<'a, F: 'a>(self, middleware: impl Middleware<'a, M, F>) -> Self
+    pub fn register<'a, F: 'a>(self, middleware: impl DynMiddleware<M>) -> Self
     where
         M: Model,
         F: 'a + Future<Output = Result<(), Infallible>> + Sync + Send,
     {
-        let middleware: Arc<dyn DynMiddleware<M>> =
-            Arc::new(move |ctx, next| Box::pin(middleware(ctx, next)));
+        let middleware = Arc::new(middleware);
         Self {
             handler: Box::new(move |ctx, next| {
                 let middleware_ref = middleware.clone();
