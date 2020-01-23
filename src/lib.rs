@@ -6,7 +6,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
 
-trait Model: Sync + Send + Sized {
+pub trait Model: Sync + Send + Sized {
     fn init(app: &Roa<Self>) -> Self;
 }
 
@@ -50,20 +50,20 @@ pub struct Context<'a, M: Model = ()> {
 }
 
 impl<M: Model + Sync + Send + 'static> Roa<M> {
-    pub fn new() -> Self {
-        Self {
-            handler: Box::new(|ctx, next| next(ctx)),
-        }
-    }
-
-    pub fn register(self, middleware: impl Middleware<M> + 'static) -> Self {
-        Self {
-            handler: Box::new(move |ctx, next| {
-                let current: Next<M> = &|ctx| middleware(ctx, next);
-                (self.handler)(ctx, current)
-            }),
-        }
-    }
+    //    pub fn new() -> Self {
+    //        Self {
+    //            handler: Box::new(|ctx, next| next(ctx)),
+    //        }
+    //    }
+    //
+    //    pub fn register(self, middleware: impl Middleware<M> + 'static) -> Self {
+    //        Self {
+    //            handler: Box::new(move |ctx, next| {
+    //                let current: Next<M> = &|ctx| middleware(ctx, next);
+    //                (self.handler)(ctx, current)
+    //            }),
+    //        }
+    //    }
 
     async fn handle(&self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
         let mut context = Context::new(req, self);
@@ -71,12 +71,15 @@ impl<M: Model + Sync + Send + 'static> Roa<M> {
         Ok(Response::new(Body::empty()))
     }
 
-    pub fn listen<'a>(
-        &'a self,
-        addr: &'a SocketAddr,
-    ) -> impl 'a + Future<Output = Result<(), Error>> {
-        let make_svc = make_service_fn(|_conn| {
-            future::ok::<_, Infallible>(service_fn(|req| self.handle(req)))
+    pub fn listen(
+        &'static self,
+        addr: &SocketAddr,
+    ) -> impl 'static + Future<Output = Result<(), Error>> {
+        let make_svc = make_service_fn(move |_conn| {
+            future::ok::<_, Infallible>(service_fn(move |req| self.handle(req)))
+            //            future::ok::<_, Infallible>(service_fn(|req| {
+            //                future::ok::<_, Infallible>(Response::new(Body::empty()))
+            //            }))
         });
         Server::bind(addr).serve(make_svc)
     }
