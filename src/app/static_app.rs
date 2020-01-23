@@ -1,4 +1,3 @@
-use super::Application;
 use crate::{Context, Middleware, Model, Next, _next};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Request, Response, Server};
@@ -11,15 +10,11 @@ pub struct StaticApp<M: Model = ()> {
     handler: Box<dyn Middleware<M>>,
 }
 
-impl<M: Model + Sync + Send + 'static> StaticApp<M> {
+impl<M: Model> StaticApp<M> {
     pub fn new() -> Self {
         Self {
             handler: Box::new(|ctx, next| next(ctx)),
         }
-    }
-
-    pub fn leak(self) -> &'static Self {
-        Box::leak(Box::new(self))
     }
 
     pub fn register(self, middleware: impl Middleware<M>) -> Self {
@@ -39,7 +34,11 @@ impl<M: Model + Sync + Send + 'static> StaticApp<M> {
         Ok(Response::new(Body::empty()))
     }
 
-    pub fn listen_static(
+    pub fn leak(self) -> &'static Self {
+        Box::leak(Box::new(self))
+    }
+
+    pub fn listen(
         &'static self,
         addr: &SocketAddr,
     ) -> impl 'static + Future<Output = Result<(), Error>> {
@@ -49,8 +48,6 @@ impl<M: Model + Sync + Send + 'static> StaticApp<M> {
         Server::bind(addr).serve(make_svc)
     }
 }
-
-impl<M: Model> Application for StaticApp<M> {}
 
 #[cfg(test)]
 mod tests {

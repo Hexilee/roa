@@ -4,7 +4,7 @@ mod middleware;
 mod model;
 mod next;
 
-pub use app::Application;
+pub use app::{new, StaticApp};
 pub use context::Context;
 pub use middleware::{Middleware, MiddlewareStatus};
 pub use model::Model;
