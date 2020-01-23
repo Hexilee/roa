@@ -1,10 +1,11 @@
 use super::Application;
-use crate::{Context, Middleware, Model, _next};
+use crate::{Context, Middleware, Model, Next, _next};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Request, Response, Server};
 use std::convert::Infallible;
 use std::future::Future;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 pub struct StaticApp<M: Model = ()> {
     handler: Box<dyn Middleware<M>>,
@@ -21,18 +22,20 @@ impl<M: Model + Sync + Send + 'static> StaticApp<M> {
         Box::leak(Box::new(self))
     }
 
-    //    pub fn register(self, middleware: impl Middleware<M>) -> Self {
-    //        Self {
-    //            handler: Box::new(move |ctx, next| {
-    //                let current = &|ctx| middleware(ctx, next);
-    //                (self.handler)(ctx, current)
-    //            }),
-    //        }
-    //    }
+    pub fn register(self, middleware: impl Middleware<M>) -> Self {
+        let middleware = Arc::new(middleware);
+        Self {
+            handler: Box::new(move |ctx, next| {
+                let middleware_ref = middleware.clone();
+                let current: Next<M> = Box::new(move |ctx| middleware_ref(ctx, next));
+                (self.handler)(ctx, current)
+            }),
+        }
+    }
 
     async fn handle(&self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
         let mut context = Context::new(req, self);
-        (self.handler)(&mut context, &_next).await?;
+        (self.handler)(&mut context, Box::new(_next)).await?;
         Ok(Response::new(Body::empty()))
     }
 
