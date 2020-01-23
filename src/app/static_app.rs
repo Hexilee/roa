@@ -1,4 +1,4 @@
-use crate::{Context, DynMiddleware, Middleware, Model, Next, _next};
+use crate::{Context, DynMiddleware, Model, Next, _next};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Request, Response, Server};
 use std::convert::Infallible;
@@ -18,11 +18,7 @@ impl<M: Model> StaticApp<M> {
     }
 
     // TODO: replace DynMiddleware with Middleware
-    pub fn register<'a, F: 'a>(self, middleware: impl DynMiddleware<M>) -> Self
-    where
-        M: Model,
-        F: 'a + Future<Output = Result<(), Infallible>> + Sync + Send,
-    {
+    pub fn register(self, middleware: impl DynMiddleware<M>) -> Self {
         let middleware = Arc::new(middleware);
         Self {
             handler: Box::new(move |ctx, next| {
