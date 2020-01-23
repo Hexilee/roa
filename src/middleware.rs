@@ -7,11 +7,11 @@ pub type MiddlewareStatus<'a> =
     Pin<Box<dyn 'a + Future<Output = Result<(), Infallible>> + Sync + Send>>;
 
 // TODO: constraint F with 'b
-pub trait Middleware<M, F>:
-    'static + Sync + Send + for<'b> Fn(&'b mut Context<'b, M>, Next<M>) -> F
+pub trait Middleware<'a, M, F>:
+    'static + Sync + Send + Fn(&'a mut Context<'a, M>, Next<M>) -> F
 where
     M: Model,
-    F: Future<Output = Result<(), Infallible>> + Sync + Send,
+    F: 'a + Future<Output = Result<(), Infallible>> + Sync + Send,
 {
 }
 
@@ -21,11 +21,11 @@ pub trait DynMiddleware<M: Model>:
     fn gate<'a>(&self, ctx: &'a mut Context<'a, M>, next: Next<M>) -> MiddlewareStatus<'a>;
 }
 
-impl<M, F, T> Middleware<M, F> for T
+impl<'a, M, F, T> Middleware<'a, M, F> for T
 where
     M: Model,
-    F: Future<Output = Result<(), Infallible>> + Sync + Send,
-    T: 'static + Sync + Send + Fn(&mut Context<M>, Next<M>) -> F,
+    F: 'a + Future<Output = Result<(), Infallible>> + Sync + Send,
+    T: 'static + Sync + Send + Fn(&'a mut Context<'a, M>, Next<M>) -> F,
 {
 }
 
