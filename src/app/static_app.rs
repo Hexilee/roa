@@ -1,4 +1,4 @@
-use crate::{Context, Middleware, Model, Next, _next};
+use crate::{Context, DynMiddleware, Model, Next, _next};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Request, Response, Server};
 use std::convert::Infallible;
@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 pub struct StaticApp<M: Model = ()> {
-    handler: Box<dyn Middleware<M>>,
+    handler: Box<dyn DynMiddleware<M>>,
 }
 
 impl<M: Model> StaticApp<M> {
@@ -17,7 +17,8 @@ impl<M: Model> StaticApp<M> {
         }
     }
 
-    pub fn register(self, middleware: impl Middleware<M>) -> Self {
+    // TODO: replace DynMiddleware with Middleware
+    pub fn register(self, middleware: impl DynMiddleware<M>) -> Self {
         let middleware = Arc::new(middleware);
         Self {
             handler: Box::new(move |ctx, next| {
