@@ -8,7 +8,7 @@ pub type MiddlewareStatus<'a> =
 
 // TODO: constraint F with 'b
 pub trait Middleware<'a, M, F>:
-    'static + Sync + Send + Fn(&'a mut Context<'a, M>, Next<M>) -> F
+    'static + Sync + Send + Fn(&'a mut Context<M>, Next<M>) -> F
 where
     M: Model,
     F: 'a + Future<Output = Result<(), Infallible>> + Sync + Send,
@@ -16,24 +16,24 @@ where
 }
 
 pub trait DynMiddleware<M: Model>:
-    'static + Sync + Send + for<'a> Fn(&'a mut Context<'a, M>, Next<M>) -> MiddlewareStatus<'a>
+    'static + Sync + Send + for<'a> Fn(&'a mut Context<M>, Next<M>) -> MiddlewareStatus<'a>
 {
-    fn gate<'a>(&self, ctx: &'a mut Context<'a, M>, next: Next<M>) -> MiddlewareStatus<'a>;
+    fn gate<'a>(&self, ctx: &'a mut Context<M>, next: Next<M>) -> MiddlewareStatus<'a>;
 }
 
 impl<'a, M, F, T> Middleware<'a, M, F> for T
 where
     M: Model,
     F: 'a + Future<Output = Result<(), Infallible>> + Sync + Send,
-    T: 'static + Sync + Send + Fn(&'a mut Context<'a, M>, Next<M>) -> F,
+    T: 'static + Sync + Send + Fn(&'a mut Context<M>, Next<M>) -> F,
 {
 }
 
 impl<M: Model, T> DynMiddleware<M> for T
 where
-    T: 'static + Sync + Send + for<'a> Fn(&'a mut Context<'a, M>, Next<M>) -> MiddlewareStatus<'a>,
+    T: 'static + Sync + Send + for<'a> Fn(&'a mut Context<M>, Next<M>) -> MiddlewareStatus<'a>,
 {
-    fn gate<'a>(&self, ctx: &'a mut Context<'a, M>, next: Next<M>) -> MiddlewareStatus<'a> {
+    fn gate<'a>(&self, ctx: &'a mut Context<M>, next: Next<M>) -> MiddlewareStatus<'a> {
         self(ctx, next)
     }
 }

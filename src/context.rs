@@ -1,14 +1,14 @@
-use crate::{Model, StaticApp};
+use crate::{App, Model};
 use hyper::{Body, Request};
 
-pub struct Context<'a, M: Model = ()> {
+pub struct Context<M: Model = ()> {
     request: Request<Body>,
-    app: &'a StaticApp<M>,
+    app: &'static App<M>,
     model: M,
 }
 
-impl<'a, M: Model> Context<'a, M> {
-    pub fn new(request: Request<Body>, app: &'a StaticApp<M>) -> Self {
+impl<M: Model> Context<M> {
+    pub fn new(request: Request<Body>, app: &'static App<M>) -> Self {
         Self {
             request,
             app,

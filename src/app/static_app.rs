@@ -34,7 +34,7 @@ impl<M: Model> StaticApp<M> {
         }
     }
 
-    async fn handle(&self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    async fn handle(&'static self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
         let mut context = Context::new(req, self);
         (self.handler)(&mut context, Box::new(_next)).await?;
         Ok(Response::new(Body::empty()))
