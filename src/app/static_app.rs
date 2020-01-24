@@ -29,7 +29,7 @@ impl<M: Model> StaticApp<M> {
         Self {
             handler: Box::new(move |ctx, next| {
                 let middleware_ref = middleware.clone();
-                let current: Next<M> = Box::new(move |ctx| middleware_ref(ctx, next));
+                let current: Next<M> = Box::new(move |ctx| middleware_ref.gate(ctx, next));
                 (self.handler)(ctx, current)
             }),
         }
@@ -50,7 +50,7 @@ impl<M: Model> StaticApp<M> {
 
     pub async fn serve(&'static self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
         let mut context = Context::new(req, self);
-        (self.handler)(&mut context, Box::new(_next)).await?;
+        self.handler.gate(&mut context, Box::new(_next)).await?;
         Ok(Response::new(Body::empty()))
     }
 
