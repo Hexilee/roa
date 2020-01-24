@@ -73,14 +73,16 @@ impl<M: Model> StaticApp<M> {
 mod tests {
     use super::StaticApp;
     use crate::Next;
+    use futures::lock::Mutex;
     use hyper::{Body, Request};
     use std::convert::Infallible;
+    use std::sync::Arc;
     use std::time::Instant;
     use tokio::prelude::*;
 
     #[tokio::test]
     async fn test_app_simple() -> Result<(), Infallible> {
-        let resp = StaticApp::<()>::new()
+        let _resp = StaticApp::<()>::new()
             .gate(|ctx, next| {
                 Box::pin(async move {
                     let inbound = Instant::now();
@@ -92,6 +94,30 @@ mod tests {
             .leak()
             .serve(Request::new(Body::empty()))
             .await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_middleware_order() -> Result<(), Infallible> {
+        let vector = Arc::new(Mutex::new(Vec::new()));
+        let mut app = StaticApp::<()>::new();
+        for i in 0..100 {
+            let vec = vector.clone();
+            app = app.gate(move |ctx, next| {
+                let vec = vec.clone();
+                Box::pin(async move {
+                    vec.lock().await.push(i);
+                    next(ctx).await?;
+                    vec.lock().await.push(i);
+                    Ok(())
+                })
+            });
+        }
+        let _resp = app.leak().serve(Request::new(Body::empty())).await?;
+        for i in 0..100 {
+            assert_eq!(i, vector.lock().await[i]);
+            assert_eq!(i, vector.lock().await[199 - i]);
+        }
         Ok(())
     }
 }
