@@ -1,4 +1,4 @@
-use crate::{Context, DynMiddleware, Model, Next, _next};
+use crate::{Context, DynMiddleware, MiddlewareStatus, Model, Next, _next};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Request, Response, Server};
 use std::convert::Infallible;
@@ -18,7 +18,13 @@ impl<M: Model> StaticApp<M> {
     }
 
     // TODO: replace DynMiddleware with Middleware
-    pub fn register(self, middleware: impl DynMiddleware<M>) -> Self {
+    pub fn register(
+        self,
+        middleware: impl 'static
+            + Sync
+            + Send
+            + for<'a> Fn(&'a mut Context<M>, Next<M>) -> MiddlewareStatus<'a>,
+    ) -> Self {
         let middleware = Arc::new(middleware);
         Self {
             handler: Box::new(move |ctx, next| {
@@ -29,7 +35,7 @@ impl<M: Model> StaticApp<M> {
         }
     }
 
-    async fn handle(&'static self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    pub async fn handle(&'static self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
         let mut context = Context::new(req, self);
         (self.handler)(&mut context, Box::new(_next)).await?;
         Ok(Response::new(Body::empty()))
@@ -53,8 +59,26 @@ impl<M: Model> StaticApp<M> {
 #[cfg(test)]
 mod tests {
     use super::StaticApp;
-    #[test]
-    fn test_app() {
-        let app = StaticApp::<()>::new().register(|ctx, next| Box::pin(async move {}));
+    use crate::Next;
+    use hyper::{Body, Request};
+    use std::convert::Infallible;
+    use std::time::Instant;
+    use tokio::prelude::*;
+
+    #[tokio::test]
+    async fn test_app_simple() -> Result<(), Infallible> {
+        let resp = StaticApp::<()>::new()
+            .register(|ctx, next| {
+                Box::pin(async move {
+                    let inbound = Instant::now();
+                    next(ctx).await?;
+                    println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+                    Ok(())
+                })
+            })
+            .leak()
+            .handle(Request::new(Body::empty()))
+            .await?;
+        Ok(())
     }
 }

@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 hyper = "0.13"
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["full"] }
