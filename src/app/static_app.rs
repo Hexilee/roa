@@ -1,6 +1,6 @@
-use crate::{Context, DynMiddleware, MiddlewareStatus, Model, Next, _next};
+use crate::{Context, DynMiddleware, MiddlewareStatus, Model, Next, Request, Response, _next};
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Error, Request, Response, Server};
+use hyper::{self, Body, Error, Server};
 use std::convert::Infallible;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -17,7 +17,6 @@ impl<M: Model> StaticApp<M> {
         }
     }
 
-    // TODO: replace DynMiddleware with Middleware
     pub fn gate(
         self,
         middleware: impl 'static
@@ -35,23 +34,10 @@ impl<M: Model> StaticApp<M> {
         }
     }
 
-    //    fn handle<'a, F>(
-    //        self,
-    //        handler: impl 'static + Sync + Send + Fn(&'a mut Context<M>) -> F + 'a,
-    //    ) -> Self
-    //    where
-    //        F: Future<Output = Result<(), Infallible>> + Sync + Send,
-    //    {
-    //        let handler = Box::new(move |ctx| Box::pin(handler(ctx)));
-    //        Self {
-    //            handler: Box::new(move |ctx, _next| handler(ctx)),
-    //        }
-    //    }
-
-    pub async fn serve(&'static self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
-        let mut context = Context::new(req, self);
+    pub async fn serve(&'static self, req: hyper::Request<Body>) -> Result<Response, Infallible> {
+        let mut context = Context::new(Request::new(req), self);
         self.handler.gate(&mut context, Box::new(_next)).await?;
-        Ok(Response::new(Body::empty()))
+        Ok(Response::new())
     }
 
     pub fn leak(self) -> &'static Self {
@@ -63,7 +49,11 @@ impl<M: Model> StaticApp<M> {
         addr: &SocketAddr,
     ) -> impl 'static + Future<Output = Result<(), Error>> {
         let make_svc = make_service_fn(move |_conn| {
-            async move { Ok::<_, Infallible>(service_fn(move |req| self.serve(req))) }
+            async move {
+                Ok::<_, Infallible>(service_fn(move |req| {
+                    async move { Ok::<_, Infallible>(self.serve(req).await?.into_resp()) }
+                }))
+            }
         });
         Server::bind(addr).serve(make_svc)
     }
@@ -72,16 +62,14 @@ impl<M: Model> StaticApp<M> {
 #[cfg(test)]
 mod tests {
     use super::StaticApp;
-    use crate::Next;
     use futures::lock::Mutex;
     use hyper::{Body, Request};
     use std::convert::Infallible;
     use std::sync::Arc;
     use std::time::Instant;
-    use tokio::prelude::*;
 
     #[tokio::test]
-    async fn test_app_simple() -> Result<(), Infallible> {
+    async fn test_gate_simple() -> Result<(), Infallible> {
         let _resp = StaticApp::<()>::new()
             .gate(|ctx, next| {
                 Box::pin(async move {
