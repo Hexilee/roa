@@ -18,7 +18,7 @@ impl<M: Model> StaticApp<M> {
     }
 
     // TODO: replace DynMiddleware with Middleware
-    pub fn register(
+    pub fn gate(
         self,
         middleware: impl 'static
             + Sync
@@ -35,7 +35,20 @@ impl<M: Model> StaticApp<M> {
         }
     }
 
-    pub async fn handle(&'static self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    //    fn handle<'a, F>(
+    //        self,
+    //        handler: impl 'static + Sync + Send + Fn(&'a mut Context<M>) -> F + 'a,
+    //    ) -> Self
+    //    where
+    //        F: Future<Output = Result<(), Infallible>> + Sync + Send,
+    //    {
+    //        let handler = Box::new(move |ctx| Box::pin(handler(ctx)));
+    //        Self {
+    //            handler: Box::new(move |ctx, _next| handler(ctx)),
+    //        }
+    //    }
+
+    pub async fn serve(&'static self, req: Request<Body>) -> Result<Response<Body>, Infallible> {
         let mut context = Context::new(req, self);
         (self.handler)(&mut context, Box::new(_next)).await?;
         Ok(Response::new(Body::empty()))
@@ -50,7 +63,7 @@ impl<M: Model> StaticApp<M> {
         addr: &SocketAddr,
     ) -> impl 'static + Future<Output = Result<(), Error>> {
         let make_svc = make_service_fn(move |_conn| {
-            async move { Ok::<_, Infallible>(service_fn(move |req| self.handle(req))) }
+            async move { Ok::<_, Infallible>(service_fn(move |req| self.serve(req))) }
         });
         Server::bind(addr).serve(make_svc)
     }
@@ -68,7 +81,7 @@ mod tests {
     #[tokio::test]
     async fn test_app_simple() -> Result<(), Infallible> {
         let resp = StaticApp::<()>::new()
-            .register(|ctx, next| {
+            .gate(|ctx, next| {
                 Box::pin(async move {
                     let inbound = Instant::now();
                     next(ctx).await?;
@@ -77,7 +90,7 @@ mod tests {
                 })
             })
             .leak()
-            .handle(Request::new(Body::empty()))
+            .serve(Request::new(Body::empty()))
             .await?;
         Ok(())
     }
