@@ -25,15 +25,12 @@ pub struct Service<S: State> {
 impl<S: State> Server<S> {
     pub fn new() -> Self {
         Self {
-            middleware: Arc::from(make_dyn_middleware(|ctx, next| next(ctx))),
+            middleware: Arc::from(make_dyn_middleware(|_ctx, next| next())),
             status_handler: make_status_handler(make_dyn(default_status_handler)),
         }
     }
 
-    pub fn handle_fn<F>(
-        self,
-        next: impl 'static + Sync + Send + Fn(Context<S>, Next<S>) -> F,
-    ) -> Self
+    pub fn handle_fn<F>(self, next: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F) -> Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
@@ -42,7 +39,8 @@ impl<S: State> Server<S> {
         Self {
             middleware: Arc::from(make_dyn_middleware(move |ctx, next| {
                 let next_ref = next_middleware.clone();
-                let current = Box::new(move |ctx| next_ref(ctx, next));
+                let ctx_cloned = ctx.clone();
+                let current = Box::new(move || next_ref(ctx_cloned, next));
                 current_middleware.handle(ctx, current)
             })),
             ..self
@@ -151,10 +149,10 @@ mod tests {
     #[async_std::test]
     async fn gate_simple() -> Result<(), Infallible> {
         let _resp = Server::<()>::new()
-            .handle_fn(|ctx, next| {
+            .handle_fn(|_ctx, next| {
                 async move {
                     let inbound = Instant::now();
-                    next(ctx).await?;
+                    next().await?;
                     println!("time elapsed: {} ms", inbound.elapsed().as_millis());
                     Ok(())
                 }
@@ -171,11 +169,11 @@ mod tests {
         let mut app = Server::<()>::new();
         for i in 0..100 {
             let vec = vector.clone();
-            app = app.handle_fn(move |ctx, next| {
+            app = app.handle_fn(move |_ctx, next| {
                 let vec = vec.clone();
                 Box::pin(async move {
                     vec.lock().await.push(i);
-                    next(ctx).await?;
+                    next().await?;
                     vec.lock().await.push(i);
                     Ok(())
                 })

@@ -17,34 +17,6 @@ impl<S: State> Context<S> {
             inner: Rc::new(UnsafeCell::new(inner)),
         }
     }
-
-    //    pub fn request(&self) -> &Request {
-    //        &self.inner.borrow().deref().request
-    //    }
-    //
-    //    pub fn request_mut(&mut self) -> &mut Request {
-    //        &mut self.inner.borrow_mut().request
-    //    }
-    //
-    //    pub fn response(&self) -> &Response {
-    //        &self.inner.borrow().response
-    //    }
-    //
-    //    pub fn response_mut(&mut self) -> &mut Response {
-    //        &mut self.inner.borrow_mut().response
-    //    }
-    //
-    //    pub fn app(&self) -> &Service<S> {
-    //        &self.inner.borrow().app
-    //    }
-    //
-    //    pub fn state(&self) -> &S {
-    //        &self.inner.borrow().state
-    //    }
-    //
-    //    pub fn state_mut(&mut self) -> &mut S {
-    //        &mut self.inner.borrow_mut().state
-    //    }
 }
 
 impl<S: State> Clone for Context<S> {
