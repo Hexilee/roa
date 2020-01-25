@@ -1,21 +1,25 @@
-use crate::{
-    Context, DynMiddleware, Error, MiddlewareStatus, Model, Next, Request, Response, _next,
-};
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{self, Body, Server};
+use crate::{Context, DynMiddleware, MiddlewareStatus, Model, Next, Request, Response, _next};
+
+use async_std::net::{TcpListener, ToSocketAddrs};
+use async_std::task;
+use http_service::HttpService;
 use std::convert::Infallible;
 use std::future::Future;
-use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
 
-pub struct StaticApp<M: Model = ()> {
-    handler: Box<dyn DynMiddleware<M>>,
+pub struct Server<M: Model = ()> {
+    middleware: Box<dyn DynMiddleware<M>>,
 }
 
-impl<M: Model> StaticApp<M> {
+pub struct Service<M: Model = ()> {
+    handler: Arc<dyn Fn(&mut Context<M>) -> MiddlewareStatus + Sync + Send>,
+}
+
+impl<M: Model> Server<M> {
     pub fn new() -> Self {
         Self {
-            handler: Box::new(|ctx, next| next(ctx)),
+            middleware: Box::new(|ctx, next| next(ctx)),
         }
     }
 
@@ -28,53 +32,100 @@ impl<M: Model> StaticApp<M> {
     ) -> Self {
         let middleware = Arc::new(middleware);
         Self {
-            handler: Box::new(move |ctx, next| {
+            middleware: Box::new(move |ctx, next| {
                 let middleware_ref = middleware.clone();
                 let current: Next<M> = Box::new(move |ctx| middleware_ref.gate(ctx, next));
-                (self.handler)(ctx, current)
+                (self.middleware)(ctx, current)
             }),
         }
     }
 
-    pub async fn serve(&'static self, req: hyper::Request<Body>) -> Result<Response, hyper::Error> {
-        let mut context = Context::new(Request::new(req), self);
-        if let Err(err) = self.handler.gate(&mut context, Box::new(_next)).await {
+    pub fn into_service(self) -> Service<M> {
+        Service::new(self)
+    }
+}
+
+impl<M: Model> Service<M> {
+    pub fn new(app: Server<M>) -> Self {
+        let Server { middleware } = app;
+        Self {
+            handler: Arc::new(move |ctx| middleware.gate(ctx, Box::new(_next))),
+        }
+    }
+
+    pub async fn serve(&self, req: http_service::Request) -> Response {
+        let mut context = Context::new(Request::new(req), self.clone());
+        let app = self.clone();
+        if let Err(err) = (app.handler)(&mut context).await {
             // TODO: deal with err
         }
-        Ok(context.response)
+        context.response
     }
 
-    pub fn leak(self) -> &'static Self {
-        Box::leak(Box::new(self))
-    }
+    pub async fn listen(&self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
+        let http_service = self.clone();
+        #[derive(Copy, Clone)]
+        struct Spawner;
 
-    pub fn listen(
-        &'static self,
-        addr: &SocketAddr,
-    ) -> impl 'static + Future<Output = Result<(), hyper::Error>> {
-        let make_svc = make_service_fn(move |_conn| {
-            async move {
-                Ok::<_, Infallible>(service_fn(move |req| {
-                    async move { Ok::<_, hyper::Error>(self.serve(req).await?.into_resp()?) }
-                }))
+        impl futures::task::Spawn for &Spawner {
+            fn spawn_obj(
+                &self,
+                future: futures::future::FutureObj<'static, ()>,
+            ) -> Result<(), futures::task::SpawnError> {
+                task::spawn(Box::pin(future));
+                Ok(())
             }
-        });
-        Server::bind(addr).serve(make_svc)
+        }
+
+        let listener = TcpListener::bind(addr).await?;
+        log::info!("Server is listening on: http://{}", listener.local_addr()?);
+        let res = http_service_hyper::Server::builder(listener.incoming())
+            .with_spawner(Spawner {})
+            .serve(http_service)
+            .await;
+
+        res.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        Ok(())
+    }
+}
+
+impl<M: Model> HttpService for Service<M> {
+    type Connection = ();
+    type ConnectionFuture =
+        Pin<Box<dyn 'static + Future<Output = Result<(), Infallible>> + Sync + Send>>;
+    fn connect(&self) -> Self::ConnectionFuture {
+        Box::pin(async { Ok(()) })
+    }
+
+    type ResponseFuture =
+        Pin<Box<dyn 'static + Future<Output = Result<http_service::Response, http::Error>> + Send>>;
+
+    fn respond(&self, _conn: &mut (), req: http_service::Request) -> Self::ResponseFuture {
+        let service = self.clone();
+        Box::pin(async move { service.serve(req).await.into_resp() })
+    }
+}
+
+impl<M: Model> Clone for Service<M> {
+    fn clone(&self) -> Self {
+        Self {
+            handler: self.handler.clone(),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::StaticApp;
+    use super::Server;
     use futures::lock::Mutex;
-    use hyper::{Body, Request};
+    use http_service::{Body, Request};
     use std::convert::Infallible;
     use std::sync::Arc;
     use std::time::Instant;
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_gate_simple() -> Result<(), Infallible> {
-        let _resp = StaticApp::<()>::new()
+        let _resp = Server::<()>::new()
             .gate(|ctx, next| {
                 Box::pin(async move {
                     let inbound = Instant::now();
@@ -83,16 +134,16 @@ mod tests {
                     Ok(())
                 })
             })
-            .leak()
+            .into_service()
             .serve(Request::new(Body::empty()))
-            .await?;
+            .await;
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_middleware_order() -> Result<(), Infallible> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut app = StaticApp::<()>::new();
+        let mut app = Server::<()>::new();
         for i in 0..100 {
             let vec = vector.clone();
             app = app.gate(move |ctx, next| {
@@ -105,7 +156,7 @@ mod tests {
                 })
             });
         }
-        let _resp = app.leak().serve(Request::new(Body::empty())).await?;
+        let _resp = app.into_service().serve(Request::new(Body::empty())).await;
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);

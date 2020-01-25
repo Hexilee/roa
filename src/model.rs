@@ -1,11 +1,11 @@
-use crate::App;
+use crate::Service;
 
 pub trait Model: 'static + Sync + Send + Sized {
-    fn init(app: &App<Self>) -> Self;
+    fn init(app: &Service<Self>) -> Self;
 }
 
 impl Model for () {
-    fn init(_app: &App<Self>) -> Self {
+    fn init(_app: &Service<Self>) -> Self {
         ()
     }
 }

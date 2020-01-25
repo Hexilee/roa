@@ -1,8 +1,7 @@
 use bytes::Bytes;
 use futures::task::{Context, Poll};
-use futures::{AsyncBufRead, AsyncRead, Stream};
+use futures::{AsyncRead, Stream};
 use http::response::Builder;
-use http::Error;
 use std::pin::Pin;
 
 pub struct Body {
@@ -24,11 +23,9 @@ impl Response {
         }
     }
 
-    pub fn into_resp(self) -> Result<http::Response<hyper::Body>, hyper::Error> {
+    pub fn into_resp(self) -> Result<http_service::Response, http::Error> {
         let Self { builder, segments } = self;
-        builder
-            .body(hyper::Body::wrap_stream(Body::new(segments.into_iter())))
-            .map_err(|err| -> hyper::Error { unimplemented!() })
+        unimplemented!()
     }
 }
 

@@ -7,7 +7,7 @@ mod next;
 mod request;
 mod response;
 
-pub use app::StaticApp as App;
+pub use app::{Server, Service};
 pub use context::Context;
 pub use err::{Error, ErrorKind};
 pub use middleware::{DynMiddleware, Middleware, MiddlewareStatus};
