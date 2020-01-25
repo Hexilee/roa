@@ -54,7 +54,6 @@ impl Body {
     }
 }
 
-// TODO: complete it
 impl Read for Body {
     fn poll_read(
         self: Pin<&mut Self>,
