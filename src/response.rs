@@ -1,4 +1,4 @@
-use async_std::io::BufReader;
+use futures::io::{BufReader, Cursor};
 use futures::task::{Context, Poll};
 use futures::AsyncRead as Read;
 use http::response::Builder;
@@ -27,6 +27,11 @@ impl Response {
 
     pub fn write(&mut self, reader: impl Read + Send + Unpin + 'static) {
         self.segments.push(Box::new(reader));
+    }
+
+    pub fn write_str(&mut self, data: impl ToString) {
+        self.segments
+            .push(Box::new(Cursor::new(data.to_string().into_bytes())));
     }
 
     pub fn into_resp(self) -> Result<http_service::Response, http::Error> {
@@ -119,6 +124,16 @@ mod tests {
         let mut data = String::new();
         Body::new(resp.segments).read_to_string(&mut data).await?;
         assert_eq!("Hello, Hexilee.", data);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn response_write_str() -> std::io::Result<()> {
+        let mut resp = Response::new();
+        let mut data = String::new();
+        resp.write_str("Hello, World");
+        Body::new(resp.segments).read_to_string(&mut data).await?;
+        assert_eq!("Hello, World", data);
         Ok(())
     }
 }
