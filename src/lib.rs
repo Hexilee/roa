@@ -9,6 +9,7 @@ mod response;
 
 pub use app::StaticApp as App;
 pub use context::Context;
+pub use err::{Error, ErrorKind};
 pub use middleware::{DynMiddleware, Middleware, MiddlewareStatus};
 pub use model::Model;
 pub use next::Next;

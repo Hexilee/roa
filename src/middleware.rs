@@ -1,17 +1,16 @@
+use crate::Error;
 use crate::{Context, Model, Next};
-use std::convert::Infallible;
 use std::future::Future;
 use std::pin::Pin;
 
-pub type MiddlewareStatus<'a> =
-    Pin<Box<dyn 'a + Future<Output = Result<(), Infallible>> + Sync + Send>>;
+pub type MiddlewareStatus<'a> = Pin<Box<dyn 'a + Future<Output = Result<(), Error>> + Sync + Send>>;
 
 // TODO: constraint F with 'b
 pub trait Middleware<'a, M, F>:
     'static + Sync + Send + Fn(&'a mut Context<M>, Next<M>) -> F
 where
     M: Model,
-    F: 'a + Future<Output = Result<(), Infallible>> + Sync + Send,
+    F: 'a + Future<Output = Result<(), Error>> + Sync + Send,
 {
 }
 
@@ -24,7 +23,7 @@ pub trait DynMiddleware<M: Model>:
 impl<'a, M, F, T> Middleware<'a, M, F> for T
 where
     M: Model,
-    F: 'a + Future<Output = Result<(), Infallible>> + Sync + Send,
+    F: 'a + Future<Output = Result<(), Error>> + Sync + Send,
     T: 'static + Sync + Send + Fn(&'a mut Context<M>, Next<M>) -> F,
 {
 }

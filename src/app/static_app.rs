@@ -1,6 +1,8 @@
-use crate::{Context, DynMiddleware, MiddlewareStatus, Model, Next, Request, Response, _next};
+use crate::{
+    Context, DynMiddleware, Error, MiddlewareStatus, Model, Next, Request, Response, _next,
+};
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{self, Body, Error, Server};
+use hyper::{self, Body, Server};
 use std::convert::Infallible;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -34,10 +36,12 @@ impl<M: Model> StaticApp<M> {
         }
     }
 
-    pub async fn serve(&'static self, req: hyper::Request<Body>) -> Result<Response, Infallible> {
+    pub async fn serve(&'static self, req: hyper::Request<Body>) -> Result<Response, hyper::Error> {
         let mut context = Context::new(Request::new(req), self);
-        self.handler.gate(&mut context, Box::new(_next)).await?;
-        Ok(Response::new())
+        if let Err(err) = self.handler.gate(&mut context, Box::new(_next)).await {
+            // TODO: deal with err
+        }
+        Ok(context.response)
     }
 
     pub fn leak(self) -> &'static Self {
@@ -47,11 +51,11 @@ impl<M: Model> StaticApp<M> {
     pub fn listen(
         &'static self,
         addr: &SocketAddr,
-    ) -> impl 'static + Future<Output = Result<(), Error>> {
+    ) -> impl 'static + Future<Output = Result<(), hyper::Error>> {
         let make_svc = make_service_fn(move |_conn| {
             async move {
                 Ok::<_, Infallible>(service_fn(move |req| {
-                    async move { Ok::<_, Infallible>(self.serve(req).await?.into_resp()) }
+                    async move { Ok::<_, hyper::Error>(self.serve(req).await?.into_resp()?) }
                 }))
             }
         });
