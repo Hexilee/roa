@@ -7,10 +7,10 @@ use std::pin::Pin;
 
 pub struct Body {
     counter: usize,
-    segments: Vec<Segment>,
+    pub(crate) segments: Vec<Segment>,
 }
 
-pub type Segment = Pin<Box<dyn Read + Send + 'static>>;
+pub type Segment = Box<dyn Read + Send + Unpin + 'static>;
 
 pub struct Response {
     builder: Builder,
@@ -23,6 +23,10 @@ impl Response {
             builder: Builder::new(),
             segments: Vec::new(),
         }
+    }
+
+    pub fn write(&mut self, reader: impl Read + Send + Unpin + 'static) {
+        self.segments.push(Box::new(reader));
     }
 
     pub fn into_resp(self) -> Result<http_service::Response, http::Error> {
@@ -57,7 +61,7 @@ impl Read for Body {
         if counter >= self_mut.segments.len() {
             return Poll::Ready(Ok(0));
         }
-        let reader = self_mut.segments[counter].as_mut();
+        let reader = Pin::new(self_mut.segments[counter].as_mut());
         match reader.poll_read(cx, buf) {
             Poll::Ready(Ok(0)) => {
                 self_mut.counter += 1;
@@ -65,5 +69,56 @@ impl Read for Body {
             }
             ret => ret,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Body, Response};
+    use async_std::fs::File;
+    use futures::AsyncReadExt;
+
+    #[async_std::test]
+    async fn body_empty() -> std::io::Result<()> {
+        let resp = Response::new();
+        let mut data = String::new();
+        Body::new(resp.segments).read_to_string(&mut data).await?;
+        assert_eq!("", data);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn body_single() -> std::io::Result<()> {
+        let mut resp = Response::new();
+        let mut data = String::new();
+        resp.write(b"Hello, World".as_ref());
+        Body::new(resp.segments).read_to_string(&mut data).await?;
+        assert_eq!("Hello, World", data);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn body_multiple() -> std::io::Result<()> {
+        let mut resp = Response::new();
+        resp.write(b"He".as_ref());
+        resp.write(b"llo, ".as_ref());
+        resp.write(b"World".as_ref());
+        let mut data = String::new();
+        Body::new(resp.segments).read_to_string(&mut data).await?;
+        assert_eq!("Hello, World", data);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn body_composed() -> std::io::Result<()> {
+        let mut resp = Response::new();
+        resp.write(b"He".as_ref());
+        resp.write(b"llo, ".as_ref());
+        resp.write(File::open("assets/test_data.txt").await?);
+        resp.write(b".".as_ref());
+        let mut data = String::new();
+        Body::new(resp.segments).read_to_string(&mut data).await?;
+        assert_eq!("Hello, Hexilee.", data);
+        Ok(())
     }
 }

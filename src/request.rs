@@ -25,7 +25,7 @@ mod tests {
     use std::convert::Infallible;
 
     #[async_std::test]
-    async fn test_body_stream() -> Result<(), Infallible> {
+    async fn body_read() -> Result<(), Infallible> {
         let _resp = Server::<()>::new()
             .gate(|ctx, _next| {
                 Box::pin(async move {

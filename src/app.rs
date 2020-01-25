@@ -127,7 +127,7 @@ mod tests {
     use std::time::Instant;
 
     #[async_std::test]
-    async fn test_gate_simple() -> Result<(), Infallible> {
+    async fn gate_simple() -> Result<(), Infallible> {
         let _resp = Server::<()>::new()
             .gate(|ctx, next| {
                 Box::pin(async move {
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_middleware_order() -> Result<(), Infallible> {
+    async fn middleware_order() -> Result<(), Infallible> {
         let vector = Arc::new(Mutex::new(Vec::new()));
         let mut app = Server::<()>::new();
         for i in 0..100 {
