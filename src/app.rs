@@ -1,4 +1,4 @@
-use crate::{Context, DynMiddleware, MiddlewareStatus, Model, Next, Request, Response, _next};
+use crate::{Context, DynMiddleware, Model, Next, Request, Response, Status, StatusFuture, _next};
 
 use async_std::net::{TcpListener, ToSocketAddrs};
 use async_std::task;
@@ -13,7 +13,7 @@ pub struct Server<M: Model = ()> {
 }
 
 pub struct Service<M: Model = ()> {
-    handler: Arc<dyn Fn(&mut Context<M>) -> MiddlewareStatus + Sync + Send>,
+    handler: Arc<dyn Fn(&mut Context<M>) -> StatusFuture + Sync + Send>,
 }
 
 impl<M: Model> Server<M> {
@@ -28,7 +28,7 @@ impl<M: Model> Server<M> {
         middleware: impl 'static
             + Sync
             + Send
-            + for<'a> Fn(&'a mut Context<M>, Next<M>) -> MiddlewareStatus<'a>,
+            + for<'a> Fn(&'a mut Context<M>, Next<M>) -> StatusFuture<'a>,
     ) -> Self {
         let middleware = Arc::new(middleware);
         Self {
@@ -53,13 +53,16 @@ impl<M: Model> Service<M> {
         }
     }
 
-    pub async fn serve(&self, req: http_service::Request) -> Response {
+    pub async fn serve(&self, req: http_service::Request) -> Result<Response, Status> {
         let mut context = Context::new(Request::new(req), self.clone());
         let app = self.clone();
         if let Err(err) = (app.handler)(&mut context).await {
-            // TODO: deal with err
+            // TODO: change status code by error
+            if err.need_throw() {
+                return Err(err);
+            }
         }
-        context.response
+        Ok(context.response)
     }
 
     pub async fn listen(&self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
@@ -98,11 +101,11 @@ impl<M: Model> HttpService for Service<M> {
     }
 
     type ResponseFuture =
-        Pin<Box<dyn 'static + Future<Output = Result<http_service::Response, http::Error>> + Send>>;
+        Pin<Box<dyn 'static + Future<Output = Result<http_service::Response, Status>> + Send>>;
 
     fn respond(&self, _conn: &mut (), req: http_service::Request) -> Self::ResponseFuture {
         let service = self.clone();
-        Box::pin(async move { service.serve(req).await.into_resp() })
+        Box::pin(async move { Ok(service.serve(req).await?.into_resp()?) })
     }
 }
 

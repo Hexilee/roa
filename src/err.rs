@@ -2,70 +2,76 @@ use http::StatusCode;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
-pub struct Error {
+pub struct Status {
     pub status_code: StatusCode,
-    pub kind: ErrorKind,
-    pub cause: Box<dyn std::error::Error + Send + Sync>,
+    pub kind: StatusKind,
+    pub data: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    /// [[RFC7231, Section 6.2.1](https://tools.ietf.org/html/rfc7231#section-6.2)]
+pub enum StatusKind {
+    /// [[RFC7231, Section 6.2](https://tools.ietf.org/html/rfc7231#section-6.2)]
     Informational,
 
-    /// [[RFC7231, Section 6.2.1](https://tools.ietf.org/html/rfc7231#section-6.4)]
+    /// [[RFC7231, Section 6.3](https://tools.ietf.org/html/rfc7231#section-6.3)]
+    Successful,
+
+    /// [[RFC7231, Section 6.4](https://tools.ietf.org/html/rfc7231#section-6.4)]
     Redirection,
 
-    /// [[RFC7231, Section 6.2.1](https://tools.ietf.org/html/rfc7231#section-6.5)]
+    /// [[RFC7231, Section 6.5](https://tools.ietf.org/html/rfc7231#section-6.5)]
     ClientError,
 
-    /// [[RFC7231, Section 6.2.1](https://tools.ietf.org/html/rfc7231#section-6.6)]
+    /// [[RFC7231, Section 6.6](https://tools.ietf.org/html/rfc7231#section-6.6)]
     ServerError,
+
+    Unknown,
 }
 
-impl Error {
-    pub fn new(
-        status_code: StatusCode,
-        kind: ErrorKind,
-        cause: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-    ) -> Self {
-        Self {
-            status_code,
-            kind,
-            cause: cause.into(),
+impl StatusKind {
+    fn infer(status_code: StatusCode) -> Self {
+        use StatusKind::*;
+        match status_code.as_u16() / 100 {
+            1 => Informational,
+            2 => Successful,
+            3 => Redirection,
+            4 => ClientError,
+            5 => ServerError,
+            _ => Unknown,
         }
     }
 }
 
-impl From<hyper::Error> for Error {
-    fn from(err: hyper::Error) -> Self {
-        let (status_code, kind) = if err.is_parse() || err.is_incomplete_message() {
-            (StatusCode::BAD_REQUEST, ErrorKind::ClientError)
-        } else {
-            (StatusCode::INTERNAL_SERVER_ERROR, ErrorKind::ServerError)
-        };
+impl Status {
+    pub fn new(status_code: StatusCode, data: String) -> Self {
         Self {
             status_code,
-            kind,
-            cause: Box::new(err),
+            kind: StatusKind::infer(status_code),
+            data,
         }
+    }
+
+    pub(crate) fn need_throw(&self) -> bool {
+        self.kind == StatusKind::ServerError || self.kind == StatusKind::Unknown
     }
 }
 
-impl From<std::io::Error> for Error {
+impl From<std::io::Error> for Status {
     fn from(err: std::io::Error) -> Self {
-        Self {
-            status_code: StatusCode::INTERNAL_SERVER_ERROR,
-            kind: ErrorKind::ServerError,
-            cause: Box::new(err),
-        }
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
     }
 }
 
-impl Display for Error {
+impl From<http::Error> for Status {
+    fn from(err: http::Error) -> Self {
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+    }
+}
+
+impl Display for Status {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        f.write_str(&format!("{}: {}", self.status_code, self.cause))
+        f.write_str(&format!("{}: {}", self.status_code, self.data))
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for Status {}

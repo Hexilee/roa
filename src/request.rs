@@ -30,7 +30,7 @@ mod tests {
             .gate(|ctx, _next| {
                 Box::pin(async move {
                     let mut data = String::new();
-                    ctx.request.body().read_to_string(&mut data).await.unwrap();
+                    ctx.request.body().read_to_string(&mut data).await?;
                     assert_eq!("Hello, World!", data);
                     Ok(())
                 })
