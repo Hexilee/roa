@@ -1,14 +1,16 @@
-use bytes::Bytes;
+use async_std::io::BufReader;
 use futures::task::{Context, Poll};
-use futures::{AsyncRead, Stream};
+use futures::AsyncRead as Read;
 use http::response::Builder;
+use std::io::Error;
 use std::pin::Pin;
 
 pub struct Body {
-    segments: Box<dyn Iterator<Item = Segment> + Sync + Send + 'static>,
+    counter: usize,
+    segments: Vec<Segment>,
 }
 
-pub type Segment = Pin<Box<dyn AsyncRead + Sync + Send + 'static>>;
+pub type Segment = Pin<Box<dyn Read + Send + 'static>>;
 
 pub struct Response {
     builder: Builder,
@@ -24,23 +26,44 @@ impl Response {
     }
 
     pub fn into_resp(self) -> Result<http_service::Response, http::Error> {
-        let Self { builder, segments } = self;
-        unimplemented!()
+        let Self {
+            mut builder,
+            segments,
+        } = self;
+        builder.body(http_service::Body::from_reader(BufReader::new(Body::new(
+            segments,
+        ))))
     }
 }
 
 impl Body {
-    pub fn new(segments: impl Iterator<Item = Segment> + Sync + Send + 'static) -> Self {
+    pub fn new(segments: Vec<Segment>) -> Self {
         Self {
-            segments: Box::new(segments),
+            counter: 0,
+            segments,
         }
     }
 }
 
 // TODO: complete it
-impl Stream for Body {
-    type Item = std::io::Result<Bytes>;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        unimplemented!()
+impl Read for Body {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<Result<usize, Error>> {
+        let self_mut = self.get_mut();
+        let counter = self_mut.counter;
+        if counter >= self_mut.segments.len() {
+            return Poll::Ready(Ok(0));
+        }
+        let reader = self_mut.segments[counter].as_mut();
+        match reader.poll_read(cx, buf) {
+            Poll::Ready(Ok(0)) => {
+                self_mut.counter += 1;
+                Pin::new(self_mut).poll_read(cx, buf)
+            }
+            ret => ret,
+        }
     }
 }
