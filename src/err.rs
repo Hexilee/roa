@@ -5,7 +5,12 @@ use std::fmt::{Display, Formatter};
 pub struct Status {
     pub status_code: StatusCode,
     pub kind: StatusKind,
-    pub data: String,
+
+    // response body if self.expose
+    pub message: String,
+
+    // if message exposed
+    pub expose: bool,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -43,11 +48,12 @@ impl StatusKind {
 }
 
 impl Status {
-    pub fn new(status_code: StatusCode, data: String) -> Self {
+    pub fn new(status_code: StatusCode, message: String, expose: bool) -> Self {
         Self {
             status_code,
             kind: StatusKind::infer(status_code),
-            data,
+            message,
+            expose,
         }
     }
 
@@ -58,19 +64,19 @@ impl Status {
 
 impl From<std::io::Error> for Status {
     fn from(err: std::io::Error) -> Self {
-        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string(), false)
     }
 }
 
 impl From<http::Error> for Status {
     fn from(err: http::Error) -> Self {
-        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string(), false)
     }
 }
 
 impl Display for Status {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        f.write_str(&format!("{}: {}", self.status_code, self.data))
+        f.write_str(&format!("{}: {}", self.status_code, self.message))
     }
 }
 

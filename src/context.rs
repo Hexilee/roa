@@ -1,4 +1,5 @@
-use crate::{Request, Response, Service};
+use crate::{Request, Response, Service, Status};
+use http::StatusCode;
 
 pub struct Context<S: State> {
     pub request: Request,
@@ -15,6 +16,10 @@ impl<S: State> Context<S> {
             app,
             state: Default::default(),
         }
+    }
+
+    pub fn throw(&mut self, status_code: StatusCode, message: impl ToString) -> Result<(), Status> {
+        Err(Status::new(status_code, message.to_string(), true))
     }
 }
 

@@ -2,6 +2,7 @@ use futures::io::{BufReader, Cursor};
 use futures::task::{Context, Poll};
 use futures::AsyncRead as Read;
 use http::response::Builder;
+use http::StatusCode;
 use std::io::Error;
 use std::pin::Pin;
 
@@ -25,13 +26,18 @@ impl Response {
         }
     }
 
-    pub fn write(&mut self, reader: impl Read + Send + Unpin + 'static) {
-        self.segments.push(Box::new(reader));
+    pub fn status(&mut self, status_code: StatusCode) -> &mut Self {
+        self.builder.status(status_code);
+        self
     }
 
-    pub fn write_str(&mut self, data: impl ToString) {
-        self.segments
-            .push(Box::new(Cursor::new(data.to_string().into_bytes())));
+    pub fn write(&mut self, reader: impl Read + Send + Unpin + 'static) -> &mut Self {
+        self.segments.push(Box::new(reader));
+        self
+    }
+
+    pub fn write_str(&mut self, data: impl ToString) -> &mut Self {
+        self.write(Box::new(Cursor::new(data.to_string().into_bytes())))
     }
 
     pub fn into_resp(self) -> Result<http_service::Response, http::Error> {
@@ -104,9 +110,9 @@ mod tests {
     #[async_std::test]
     async fn body_multiple() -> std::io::Result<()> {
         let mut resp = Response::new();
-        resp.write(b"He".as_ref());
-        resp.write(b"llo, ".as_ref());
-        resp.write(b"World".as_ref());
+        resp.write(b"He".as_ref())
+            .write(b"llo, ".as_ref())
+            .write(b"World".as_ref());
         let mut data = String::new();
         Body::new(resp.segments).read_to_string(&mut data).await?;
         assert_eq!("Hello, World", data);
@@ -116,10 +122,10 @@ mod tests {
     #[async_std::test]
     async fn body_composed() -> std::io::Result<()> {
         let mut resp = Response::new();
-        resp.write(b"He".as_ref());
-        resp.write(b"llo, ".as_ref());
-        resp.write(File::open("assets/test_data.txt").await?);
-        resp.write(b".".as_ref());
+        resp.write(b"He".as_ref())
+            .write(b"llo, ".as_ref())
+            .write(File::open("assets/test_data.txt").await?)
+            .write(b".".as_ref());
         let mut data = String::new();
         Body::new(resp.segments).read_to_string(&mut data).await?;
         assert_eq!("Hello, Hexilee.", data);

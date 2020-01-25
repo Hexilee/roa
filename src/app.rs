@@ -8,18 +8,35 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+pub trait StatusHandler<S: State>: 'static + Send + Sync {
+    fn handle<'a>(&self, status: Status, ctx: &'a mut Context<S>) -> StatusFuture<'a>;
+}
+
+impl<T, S> StatusHandler<S> for T
+where
+    S: State,
+    T: 'static + Send + Sync + for<'a> Fn(Status, &'a mut Context<S>) -> StatusFuture<'a>,
+{
+    fn handle<'a>(&self, status: Status, ctx: &'a mut Context<S>) -> StatusFuture<'a> {
+        self(status, ctx)
+    }
+}
+
 pub struct Server<S: State = ()> {
-    middleware: Box<dyn DynMiddleware<S>>,
+    middleware: Arc<dyn DynMiddleware<S>>,
+    status_handler: Box<dyn StatusHandler<S>>,
 }
 
 pub struct Service<S: State> {
     handler: Arc<dyn Fn(&mut Context<S>) -> StatusFuture + Sync + Send>,
+    status_handler: Arc<dyn StatusHandler<S>>,
 }
 
 impl<S: State> Server<S> {
     pub fn new() -> Self {
         Self {
-            middleware: Box::new(|ctx, next| next(ctx)),
+            middleware: Arc::new(|ctx, next| next(ctx)),
+            status_handler: Box::new(default_status_handler),
         }
     }
 
@@ -30,13 +47,15 @@ impl<S: State> Server<S> {
             + Send
             + for<'a> Fn(&'a mut Context<S>, Next<S>) -> StatusFuture<'a>,
     ) -> Self {
+        let current_middleware = self.middleware.clone();
         let middleware = Arc::new(middleware);
         Self {
-            middleware: Box::new(move |ctx, next| {
+            middleware: Arc::new(move |ctx, next| {
                 let middleware_ref = middleware.clone();
                 let current: Next<S> = Box::new(move |ctx| middleware_ref.gate(ctx, next));
-                (self.middleware)(ctx, current)
+                current_middleware.gate(ctx, current)
             }),
+            ..self
         }
     }
 
@@ -49,22 +68,37 @@ impl<S: State> Server<S> {
     }
 }
 
+fn default_status_handler<S: State>(status: Status, context: &mut Context<S>) -> StatusFuture {
+    Box::pin(async move {
+        context.response.status(status.status_code);
+        if status.expose {
+            context.response.write_str(&status.message);
+        }
+        if status.need_throw() {
+            Err(status)
+        } else {
+            Ok(())
+        }
+    })
+}
+
 impl<S: State> Service<S> {
     pub fn new(app: Server<S>) -> Self {
-        let Server { middleware } = app;
+        let Server {
+            middleware,
+            status_handler,
+        } = app;
         Self {
             handler: Arc::new(move |ctx| middleware.gate(ctx, Box::new(_next))),
+            status_handler: Arc::from(status_handler),
         }
     }
 
     pub async fn serve(&self, req: http_service::Request) -> Result<Response, Status> {
         let mut context = Context::new(Request::new(req), self.clone());
         let app = self.clone();
-        if let Err(err) = (app.handler)(&mut context).await {
-            // TODO: change status code by error
-            if err.need_throw() {
-                return Err(err);
-            }
+        if let Err(status) = (app.handler)(&mut context).await {
+            app.status_handler.handle(status, &mut context).await?;
         }
         Ok(context.response)
     }
@@ -117,6 +151,7 @@ impl<S: State> Clone for Service<S> {
     fn clone(&self) -> Self {
         Self {
             handler: self.handler.clone(),
+            status_handler: self.status_handler.clone(),
         }
     }
 }
