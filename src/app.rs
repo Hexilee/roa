@@ -43,6 +43,10 @@ impl<M: Model> Server<M> {
     pub fn into_service(self) -> Service<M> {
         Service::new(self)
     }
+
+    pub async fn listen(self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
+        self.into_service().listen(addr).await
+    }
 }
 
 impl<M: Model> Service<M> {
