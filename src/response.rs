@@ -60,6 +60,12 @@ impl Body {
     }
 }
 
+impl Default for Response {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Read for Body {
     fn poll_read(
         self: Pin<&mut Self>,

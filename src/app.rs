@@ -1,6 +1,7 @@
 use crate::{
     Context, DynMiddleware, Next, Request, Response, State, Status, StatusFuture, _next,
-    make_dyn_middleware,
+    default_status_handler, make_dyn, make_dyn_middleware, make_status_handler, Middleware,
+    StatusHandler,
 };
 
 use async_std::net::{TcpListener, ToSocketAddrs};
@@ -11,27 +12,13 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-pub trait StatusHandler<S: State>: 'static + Send + Sync {
-    fn handle<'a>(&self, status: Status, ctx: &'a mut Context<S>) -> StatusFuture<'a>;
-}
-
-impl<T, S> StatusHandler<S> for T
-where
-    S: State,
-    T: 'static + Send + Sync + for<'a> Fn(Status, &'a mut Context<S>) -> StatusFuture<'a>,
-{
-    fn handle<'a>(&self, status: Status, ctx: &'a mut Context<S>) -> StatusFuture<'a> {
-        self(status, ctx)
-    }
-}
-
 pub struct Server<S: State = ()> {
     middleware: Arc<dyn DynMiddleware<S>>,
     status_handler: Box<dyn StatusHandler<S>>,
 }
 
 pub struct Service<S: State> {
-    handler: Arc<dyn Fn(&mut Context<S>) -> StatusFuture + Sync + Send>,
+    handler: Arc<dyn Fn(Context<S>) -> StatusFuture + Sync + Send>,
     status_handler: Arc<dyn StatusHandler<S>>,
 }
 
@@ -39,30 +26,33 @@ impl<S: State> Server<S> {
     pub fn new() -> Self {
         Self {
             middleware: Arc::from(make_dyn_middleware(|ctx, next| next(ctx))),
-            status_handler: Box::new(default_status_handler),
+            status_handler: make_status_handler(make_dyn(default_status_handler)),
         }
     }
 
-    pub fn handle_fn(
+    pub fn handle_fn<F>(
         self,
-        middleware: impl 'static
-            + Sync
-            + Send
-            + for<'a> Fn(&'a mut Context<S>, Next<S>) -> StatusFuture<'a>,
-    ) -> Self {
+        next: impl 'static + Sync + Send + Fn(Context<S>, Next<S>) -> F,
+    ) -> Self
+    where
+        F: 'static + Future<Output = Result<(), Status>> + Send,
+    {
         let current_middleware = self.middleware.clone();
-        let middleware = Arc::new(middleware);
+        let next_middleware = Arc::new(make_dyn(next));
         Self {
             middleware: Arc::from(make_dyn_middleware(move |ctx, next| {
-                let middleware_ref = middleware.clone();
-                let current: Next<S> = Box::new(move |ctx| middleware_ref(ctx, next));
+                let next_ref = next_middleware.clone();
+                let current = Box::new(move |ctx| next_ref(ctx, next));
                 current_middleware.handle(ctx, current)
             })),
             ..self
         }
     }
 
-    pub fn handle(self, middleware: impl DynMiddleware<S>) -> Self {
+    pub fn handle<F>(self, middleware: impl Middleware<S, StatusFuture = F>) -> Self
+    where
+        F: 'static + Future<Output = Result<(), Status>> + Send,
+    {
         self.handle_fn(move |ctx, next| middleware.handle(ctx, next))
     }
 
@@ -73,20 +63,6 @@ impl<S: State> Server<S> {
     pub async fn listen(self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
         self.into_service().listen(addr).await
     }
-}
-
-fn default_status_handler<S: State>(status: Status, context: &mut Context<S>) -> StatusFuture {
-    Box::pin(async move {
-        context.response.status(status.status_code);
-        if status.expose {
-            context.response.write_str(&status.message);
-        }
-        if status.need_throw() {
-            Err(status)
-        } else {
-            Ok(())
-        }
-    })
 }
 
 impl<S: State> Service<S> {
@@ -104,10 +80,10 @@ impl<S: State> Service<S> {
     pub async fn serve(&self, req: http_service::Request) -> Result<Response, Status> {
         let mut context = Context::new(Request::new(req), self.clone());
         let app = self.clone();
-        if let Err(status) = (app.handler)(&mut context).await {
-            app.status_handler.handle(status, &mut context).await?;
+        if let Err(status) = (app.handler)(context.clone()).await {
+            app.status_handler.handle(context.clone(), status).await?;
         }
-        Ok(context.response)
+        Ok(std::mem::take(&mut context.response))
     }
 
     pub async fn listen(&self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {

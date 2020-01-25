@@ -1,6 +1,10 @@
 use http::StatusCode;
 use std::fmt::{Display, Formatter};
 
+pub fn throw(status_code: StatusCode, message: impl ToString) -> Result<(), Status> {
+    Err(Status::new(status_code, message.to_string(), true))
+}
+
 #[derive(Debug)]
 pub struct Status {
     pub status_code: StatusCode,
