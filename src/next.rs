@@ -1,6 +1,6 @@
-use crate::{Context, Model, StatusFuture};
+use crate::{Context, State, StatusFuture};
 
-pub type Next<M> = Box<dyn FnOnce(&mut Context<M>) -> StatusFuture + Sync + Send>;
-pub fn _next<M: Model>(_ctx: &mut Context<M>) -> StatusFuture {
+pub type Next<S> = Box<dyn FnOnce(&mut Context<S>) -> StatusFuture + Sync + Send>;
+pub fn _next<S: State>(_ctx: &mut Context<S>) -> StatusFuture {
     Box::pin(async { Ok(()) })
 }

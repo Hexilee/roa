@@ -1,38 +1,38 @@
-use crate::Status;
-use crate::{Context, Model, Next};
+use crate::{Context, Next, State, Status};
 use std::future::Future;
 use std::pin::Pin;
 
 pub type StatusFuture<'a> = Pin<Box<dyn 'a + Future<Output = Result<(), Status>> + Send>>;
 
 // TODO: constraint F with 'b
-pub trait Middleware<'a, M, F>:
-    'static + Sync + Send + Fn(&'a mut Context<M>, Next<M>) -> F
+pub trait Middleware<'a, S, F>:
+    'static + Sync + Send + Fn(&'a mut Context<S>, Next<S>) -> F
 where
-    M: Model,
+    S: State,
     F: 'a + Future<Output = Result<(), Status>> + Send,
 {
 }
 
-pub trait DynMiddleware<M: Model>:
-    'static + Sync + Send + for<'a> Fn(&'a mut Context<M>, Next<M>) -> StatusFuture<'a>
+pub trait DynMiddleware<S: State>:
+    'static + Sync + Send + for<'a> Fn(&'a mut Context<S>, Next<S>) -> StatusFuture<'a>
 {
-    fn gate<'a>(&self, ctx: &'a mut Context<M>, next: Next<M>) -> StatusFuture<'a>;
+    fn gate<'a>(&self, ctx: &'a mut Context<S>, next: Next<S>) -> StatusFuture<'a>;
 }
 
-impl<'a, M, F, T> Middleware<'a, M, F> for T
+impl<'a, S, F, T> Middleware<'a, S, F> for T
 where
-    M: Model,
+    S: State,
     F: 'a + Future<Output = Result<(), Status>> + Send,
-    T: 'static + Sync + Send + Fn(&'a mut Context<M>, Next<M>) -> F,
+    T: 'static + Sync + Send + Fn(&'a mut Context<S>, Next<S>) -> F,
 {
 }
 
-impl<M: Model, T> DynMiddleware<M> for T
+impl<S, T> DynMiddleware<S> for T
 where
-    T: 'static + Sync + Send + for<'a> Fn(&'a mut Context<M>, Next<M>) -> StatusFuture<'a>,
+    S: State,
+    T: 'static + Sync + Send + for<'a> Fn(&'a mut Context<S>, Next<S>) -> StatusFuture<'a>,
 {
-    fn gate<'a>(&self, ctx: &'a mut Context<M>, next: Next<M>) -> StatusFuture<'a> {
+    fn gate<'a>(&self, ctx: &'a mut Context<S>, next: Next<S>) -> StatusFuture<'a> {
         (self)(ctx, next)
     }
 }

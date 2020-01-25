@@ -1,20 +1,22 @@
-use crate::{Model, Request, Response, Service};
+use crate::{Request, Response, Service};
 
-pub struct Context<M: Model = ()> {
+pub struct Context<S: State> {
     pub request: Request,
     pub response: Response,
-    pub app: Service<M>,
-    pub model: M,
+    pub app: Service<S>,
+    pub state: S,
 }
 
-impl<M: Model> Context<M> {
-    pub fn new(request: Request, app: Service<M>) -> Self {
-        let model = Model::init(&app);
+impl<S: State> Context<S> {
+    pub fn new(request: Request, app: Service<S>) -> Self {
         Self {
             request,
             response: Response::new(),
             app,
-            model,
+            state: Default::default(),
         }
     }
 }
+
+pub trait State: 'static + Send + Default {}
+impl<T> State for T where T: 'static + Send + Default {}

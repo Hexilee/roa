@@ -1,4 +1,4 @@
-use crate::{Context, DynMiddleware, Model, Next, Request, Response, Status, StatusFuture, _next};
+use crate::{Context, DynMiddleware, Next, Request, Response, State, Status, StatusFuture, _next};
 
 use async_std::net::{TcpListener, ToSocketAddrs};
 use async_std::task;
@@ -8,15 +8,15 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-pub struct Server<M: Model = ()> {
-    middleware: Box<dyn DynMiddleware<M>>,
+pub struct Server<S: State = ()> {
+    middleware: Box<dyn DynMiddleware<S>>,
 }
 
-pub struct Service<M: Model = ()> {
-    handler: Arc<dyn Fn(&mut Context<M>) -> StatusFuture + Sync + Send>,
+pub struct Service<S: State> {
+    handler: Arc<dyn Fn(&mut Context<S>) -> StatusFuture + Sync + Send>,
 }
 
-impl<M: Model> Server<M> {
+impl<S: State> Server<S> {
     pub fn new() -> Self {
         Self {
             middleware: Box::new(|ctx, next| next(ctx)),
@@ -28,19 +28,19 @@ impl<M: Model> Server<M> {
         middleware: impl 'static
             + Sync
             + Send
-            + for<'a> Fn(&'a mut Context<M>, Next<M>) -> StatusFuture<'a>,
+            + for<'a> Fn(&'a mut Context<S>, Next<S>) -> StatusFuture<'a>,
     ) -> Self {
         let middleware = Arc::new(middleware);
         Self {
             middleware: Box::new(move |ctx, next| {
                 let middleware_ref = middleware.clone();
-                let current: Next<M> = Box::new(move |ctx| middleware_ref.gate(ctx, next));
+                let current: Next<S> = Box::new(move |ctx| middleware_ref.gate(ctx, next));
                 (self.middleware)(ctx, current)
             }),
         }
     }
 
-    pub fn into_service(self) -> Service<M> {
+    pub fn into_service(self) -> Service<S> {
         Service::new(self)
     }
 
@@ -49,8 +49,8 @@ impl<M: Model> Server<M> {
     }
 }
 
-impl<M: Model> Service<M> {
-    pub fn new(app: Server<M>) -> Self {
+impl<S: State> Service<S> {
+    pub fn new(app: Server<S>) -> Self {
         let Server { middleware } = app;
         Self {
             handler: Arc::new(move |ctx| middleware.gate(ctx, Box::new(_next))),
@@ -96,7 +96,7 @@ impl<M: Model> Service<M> {
     }
 }
 
-impl<M: Model> HttpService for Service<M> {
+impl<S: State> HttpService for Service<S> {
     type Connection = ();
     type ConnectionFuture =
         Pin<Box<dyn 'static + Future<Output = Result<(), Infallible>> + Sync + Send>>;
@@ -113,7 +113,7 @@ impl<M: Model> HttpService for Service<M> {
     }
 }
 
-impl<M: Model> Clone for Service<M> {
+impl<S: State> Clone for Service<S> {
     fn clone(&self) -> Self {
         Self {
             handler: self.handler.clone(),
