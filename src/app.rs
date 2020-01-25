@@ -171,12 +171,12 @@ mod tests {
             let vec = vector.clone();
             app = app.handle_fn(move |_ctx, next| {
                 let vec = vec.clone();
-                Box::pin(async move {
+                async move {
                     vec.lock().await.push(i);
                     next().await?;
                     vec.lock().await.push(i);
                     Ok(())
-                })
+                }
             });
         }
         let _resp = app.into_service().serve(Request::new(Body::empty())).await;
