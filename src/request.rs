@@ -27,7 +27,7 @@ mod tests {
     #[async_std::test]
     async fn body_read() -> Result<(), Infallible> {
         let _resp = Server::<()>::new()
-            .gate(|ctx, _next| {
+            .handle_fn(|ctx, _next| {
                 Box::pin(async move {
                     let mut data = String::new();
                     ctx.request.body().read_to_string(&mut data).await?;

@@ -1,4 +1,7 @@
-use crate::{Context, DynMiddleware, Next, Request, Response, State, Status, StatusFuture, _next};
+use crate::{
+    Context, DynMiddleware, Next, Request, Response, State, Status, StatusFuture, _next,
+    make_dyn_middleware,
+};
 
 use async_std::net::{TcpListener, ToSocketAddrs};
 use async_std::task;
@@ -35,12 +38,12 @@ pub struct Service<S: State> {
 impl<S: State> Server<S> {
     pub fn new() -> Self {
         Self {
-            middleware: Arc::new(|ctx, next| next(ctx)),
+            middleware: Arc::from(make_dyn_middleware(|ctx, next| next(ctx))),
             status_handler: Box::new(default_status_handler),
         }
     }
 
-    pub fn gate(
+    pub fn handle_fn(
         self,
         middleware: impl 'static
             + Sync
@@ -50,13 +53,17 @@ impl<S: State> Server<S> {
         let current_middleware = self.middleware.clone();
         let middleware = Arc::new(middleware);
         Self {
-            middleware: Arc::new(move |ctx, next| {
+            middleware: Arc::from(make_dyn_middleware(move |ctx, next| {
                 let middleware_ref = middleware.clone();
-                let current: Next<S> = Box::new(move |ctx| middleware_ref.gate(ctx, next));
-                current_middleware.gate(ctx, current)
-            }),
+                let current: Next<S> = Box::new(move |ctx| middleware_ref(ctx, next));
+                current_middleware.handle(ctx, current)
+            })),
             ..self
         }
+    }
+
+    pub fn handle(self, middleware: impl DynMiddleware<S>) -> Self {
+        self.handle_fn(move |ctx, next| middleware.handle(ctx, next))
     }
 
     pub fn into_service(self) -> Service<S> {
@@ -89,7 +96,7 @@ impl<S: State> Service<S> {
             status_handler,
         } = app;
         Self {
-            handler: Arc::new(move |ctx| middleware.gate(ctx, Box::new(_next))),
+            handler: Arc::new(move |ctx| middleware.handle(ctx, Box::new(_next))),
             status_handler: Arc::from(status_handler),
         }
     }
@@ -168,7 +175,7 @@ mod tests {
     #[async_std::test]
     async fn gate_simple() -> Result<(), Infallible> {
         let _resp = Server::<()>::new()
-            .gate(|ctx, next| {
+            .handle_fn(|ctx, next| {
                 Box::pin(async move {
                     let inbound = Instant::now();
                     next(ctx).await?;
@@ -188,7 +195,7 @@ mod tests {
         let mut app = Server::<()>::new();
         for i in 0..100 {
             let vec = vector.clone();
-            app = app.gate(move |ctx, next| {
+            app = app.handle_fn(move |ctx, next| {
                 let vec = vec.clone();
                 Box::pin(async move {
                     vec.lock().await.push(i);
