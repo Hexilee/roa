@@ -152,12 +152,12 @@ mod tests {
     async fn gate_simple() -> Result<(), Infallible> {
         let _resp = Server::<()>::new()
             .handle_fn(|ctx, next| {
-                Box::pin(async move {
+                async move {
                     let inbound = Instant::now();
                     next(ctx).await?;
                     println!("time elapsed: {} ms", inbound.elapsed().as_millis());
                     Ok(())
-                })
+                }
             })
             .into_service()
             .serve(Request::new(Body::empty()))

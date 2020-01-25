@@ -27,13 +27,13 @@ mod tests {
     #[async_std::test]
     async fn body_read() -> Result<(), Infallible> {
         let _resp = Server::<()>::new()
-            .handle_fn(|ctx, _next| {
-                Box::pin(async move {
+            .handle_fn(|mut ctx, _next| {
+                async move {
                     let mut data = String::new();
                     ctx.request.body().read_to_string(&mut data).await?;
                     assert_eq!("Hello, World!", data);
                     Ok(())
-                })
+                }
             })
             .into_service()
             .serve(Request::new(Body::from(b"Hello, World!".to_vec())))
