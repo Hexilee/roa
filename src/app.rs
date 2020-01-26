@@ -54,6 +54,19 @@ impl<S: State> Server<S> {
         self.handle_fn(move |ctx, next| middleware.handle(ctx, next))
     }
 
+    pub fn handle_status<F>(
+        self,
+        handler: impl 'static + Sync + Send + Fn(Context<S>, Status) -> F,
+    ) -> Self
+    where
+        F: 'static + Future<Output = Result<(), Status>> + Send,
+    {
+        Self {
+            status_handler: make_status_handler(make_dyn(handler)),
+            ..self
+        }
+    }
+
     pub fn into_service(self) -> Service<S> {
         Service::new(self)
     }
