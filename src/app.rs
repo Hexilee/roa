@@ -63,6 +63,12 @@ impl<S: State> Server<S> {
     }
 }
 
+impl<S: State> Default for Server<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<S: State> Service<S> {
     pub fn new(app: Server<S>) -> Self {
         let Server {
