@@ -1,23 +1,26 @@
 use crate::{Context, State, Status, StatusFuture};
+use std::future::Future;
 
-pub trait StatusHandler<S: State>: 'static + Send + Sync {
-    fn handle(&self, ctx: Context<S>, status: Status) -> StatusFuture;
-}
+pub type DynStatusHandler<S> = dyn 'static + Sync + Send + Fn(Context<S>, Status) -> StatusFuture;
 
-impl<T, S> StatusHandler<S> for T
-where
-    S: State,
-    T: 'static + Send + Sync + Fn(Context<S>, Status) -> StatusFuture,
-{
-    fn handle(&self, ctx: Context<S>, status: Status) -> StatusFuture {
-        self(ctx, status)
+pub trait StatusHandler<S: State>: 'static + Sync + Send {
+    type StatusFuture: 'static + Future<Output = Result<(), Status>> + Send;
+    fn handle(&self, ctx: Context<S>, status: Status) -> Self::StatusFuture;
+    fn dynamic(self: Box<Self>) -> Box<DynStatusHandler<S>> {
+        Box::new(move |ctx, status| Box::pin(self.handle(ctx, status)))
     }
 }
 
-pub fn make_status_handler<S: State>(
-    handler: impl 'static + Sync + Send + Fn(Context<S>, Status) -> StatusFuture,
-) -> Box<dyn StatusHandler<S>> {
-    Box::new(handler)
+impl<S, F, T> StatusHandler<S> for T
+where
+    S: State,
+    F: 'static + Future<Output = Result<(), Status>> + Send,
+    T: 'static + Sync + Send + Fn(Context<S>, Status) -> F,
+{
+    type StatusFuture = F;
+    fn handle(&self, ctx: Context<S>, status: Status) -> Self::StatusFuture {
+        (self)(ctx, status)
+    }
 }
 
 pub async fn default_status_handler<S: State>(

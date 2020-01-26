@@ -1,26 +1,14 @@
-use crate::{Context, Next, State, Status};
+use crate::{Context, Next, State, Status, StatusFuture};
 use std::future::Future;
-use std::pin::Pin;
 
-pub type StatusFuture = Pin<Box<dyn 'static + Future<Output = Result<(), Status>> + Send>>;
-
-pub trait DynMiddleware<S: State>: 'static + Sync + Send {
-    fn handle(&self, ctx: Context<S>, next: Next) -> StatusFuture;
-}
-
-impl<S, T> DynMiddleware<S> for T
-where
-    S: State,
-    T: 'static + Sync + Send + Fn(Context<S>, Next) -> StatusFuture,
-{
-    fn handle(&self, ctx: Context<S>, next: Next) -> StatusFuture {
-        (self)(ctx, next)
-    }
-}
+pub type DynMiddleware<S> = dyn 'static + Sync + Send + Fn(Context<S>, Next) -> StatusFuture;
 
 pub trait Middleware<S: State>: 'static + Sync + Send {
     type StatusFuture: 'static + Future<Output = Result<(), Status>> + Send;
     fn handle(&self, ctx: Context<S>, next: Next) -> Self::StatusFuture;
+    fn dynamic(self: Box<Self>) -> Box<DynMiddleware<S>> {
+        Box::new(move |ctx, next| Box::pin(self.handle(ctx, next)))
+    }
 }
 
 impl<S, F, T> Middleware<S> for T
@@ -35,18 +23,6 @@ where
     }
 }
 
-pub fn make_dyn<S, F, T>(
-    handler: impl 'static + Sync + Send + Fn(Context<S>, T) -> F,
-) -> impl 'static + Sync + Send + Fn(Context<S>, T) -> StatusFuture
-where
-    S: State,
-    F: 'static + Future<Output = Result<(), Status>> + Send,
-{
-    move |ctx, next| Box::pin(handler(ctx, next))
-}
-
-pub fn make_dyn_middleware<S: State>(
-    handler: impl 'static + Sync + Send + Fn(Context<S>, Next) -> StatusFuture,
-) -> Box<dyn DynMiddleware<S>> {
-    Box::new(handler)
+pub async fn first_middleware<S: State>(_ctx: Context<S>, next: Next) -> Result<(), Status> {
+    next().await
 }

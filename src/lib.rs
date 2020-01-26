@@ -9,10 +9,10 @@ mod status_handler;
 
 pub use app::{Server, Service};
 pub use context::{Context, Ctx, State};
-pub use err::{throw, Status, StatusKind};
-pub use middleware::{make_dyn, make_dyn_middleware, DynMiddleware, Middleware, StatusFuture};
+pub use err::{throw, Status, StatusFuture, StatusKind};
+pub use middleware::{first_middleware, DynMiddleware, Middleware};
+pub(crate) use next::last;
 pub use next::Next;
-pub(crate) use next::_next;
 pub use request::Request;
 pub use response::Response;
-pub use status_handler::{default_status_handler, make_status_handler, StatusHandler};
+pub use status_handler::{default_status_handler, DynStatusHandler, StatusHandler};

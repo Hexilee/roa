@@ -1,7 +1,6 @@
 use crate::{
-    Context, DynMiddleware, Next, Request, Response, State, Status, StatusFuture, _next,
-    default_status_handler, make_dyn, make_dyn_middleware, make_status_handler, Middleware,
-    StatusHandler,
+    default_status_handler, first_middleware, last, Context, DynMiddleware, DynStatusHandler,
+    Middleware, Next, Request, Response, State, Status, StatusFuture, StatusHandler,
 };
 
 use async_std::net::{TcpListener, ToSocketAddrs};
@@ -13,58 +12,68 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 pub struct Server<S: State = ()> {
-    middleware: Arc<dyn DynMiddleware<S>>,
-    status_handler: Box<dyn StatusHandler<S>>,
+    middleware: Arc<DynMiddleware<S>>,
+    status_handler: Box<DynStatusHandler<S>>,
 }
 
 pub struct Service<S: State> {
     handler: Arc<dyn Fn(Context<S>) -> StatusFuture + Sync + Send>,
-    status_handler: Arc<dyn StatusHandler<S>>,
+    status_handler: Arc<DynStatusHandler<S>>,
 }
 
 impl<S: State> Server<S> {
     pub fn new() -> Self {
         Self {
-            middleware: Arc::from(make_dyn_middleware(|_ctx, next| next())),
-            status_handler: make_status_handler(make_dyn(default_status_handler)),
+            middleware: Arc::from(Box::new(first_middleware).dynamic()),
+            status_handler: Box::new(default_status_handler).dynamic(),
         }
     }
 
-    pub fn handle_fn<F>(self, next: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F) -> Self
+    pub fn handle_fn<F>(
+        self,
+        middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
+    ) -> Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
-        let current_middleware = self.middleware.clone();
-        let next_middleware = Arc::new(make_dyn(next));
-        Self {
-            middleware: Arc::from(make_dyn_middleware(move |ctx, next| {
-                let next_ref = next_middleware.clone();
-                let ctx_cloned = ctx.clone();
-                let current = Box::new(move || next_ref(ctx_cloned, next));
-                current_middleware.handle(ctx, current)
-            })),
-            ..self
-        }
+        self.handle(middleware)
     }
 
     pub fn handle<F>(self, middleware: impl Middleware<S, StatusFuture = F>) -> Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
-        self.handle_fn(move |ctx, next| middleware.handle(ctx, next))
+        let current_middleware = self.middleware.clone();
+        let next_middleware: Arc<DynMiddleware<S>> = Arc::from(Box::new(middleware).dynamic());
+        Self {
+            middleware: Arc::from(move |ctx: Context<S>, next| {
+                let next_ref = next_middleware.clone();
+                let ctx_cloned = ctx.clone();
+                let current = Box::new(move || next_ref(ctx_cloned, next));
+                current_middleware(ctx, current)
+            }),
+            ..self
+        }
     }
 
-    pub fn handle_status<F>(
+    pub fn handle_status<F>(self, handler: impl StatusHandler<S, StatusFuture = F>) -> Self
+    where
+        F: 'static + Future<Output = Result<(), Status>> + Send,
+    {
+        Self {
+            status_handler: Box::new(handler).dynamic(),
+            ..self
+        }
+    }
+
+    pub fn handle_status_fn<F>(
         self,
         handler: impl 'static + Sync + Send + Fn(Context<S>, Status) -> F,
     ) -> Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
-        Self {
-            status_handler: make_status_handler(make_dyn(handler)),
-            ..self
-        }
+        self.handle_status(handler)
     }
 
     pub fn into_service(self) -> Service<S> {
@@ -89,7 +98,7 @@ impl<S: State> Service<S> {
             status_handler,
         } = app;
         Self {
-            handler: Arc::new(move |ctx| middleware.handle(ctx, Box::new(_next))),
+            handler: Arc::new(move |ctx| middleware(ctx, Box::new(last))),
             status_handler: Arc::from(status_handler),
         }
     }
@@ -98,7 +107,7 @@ impl<S: State> Service<S> {
         let mut context = Context::new(Request::new(req), self.clone());
         let app = self.clone();
         if let Err(status) = (app.handler)(context.clone()).await {
-            app.status_handler.handle(context.clone(), status).await?;
+            (app.status_handler)(context.clone(), status).await?;
         }
         Ok(std::mem::take(&mut context.response))
     }

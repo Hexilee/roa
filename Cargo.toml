@@ -18,4 +18,4 @@ http-service-hyper = "0.4"
 async-std = { version = "1.4", features = ["attributes"] }
 log = "0.4"
 hyper = "0.12"
-
+async-trait = "0.1"
