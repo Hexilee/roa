@@ -8,7 +8,7 @@ mod response;
 
 pub use app::{Server, Service};
 pub use context::{Context, Ctx, State};
-pub use err::{throw, Status, StatusFuture, StatusKind};
+pub use err::{throw, Status, StatusCode, StatusFuture, StatusKind};
 pub(crate) use handler::{default_status_handler, first_middleware};
 pub use handler::{
     DynHandler, DynMiddleware, DynStatusHandler, DynTargetHandler, Handler, Middleware,

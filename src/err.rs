@@ -1,9 +1,9 @@
 use futures::Future;
-use http::StatusCode;
+pub use http::StatusCode;
 use std::fmt::{Display, Formatter};
 use std::pin::Pin;
 
-pub type StatusFuture = Pin<Box<dyn 'static + Future<Output = Result<(), Status>> + Send>>;
+pub type StatusFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R, Status>> + Send>>;
 
 pub fn throw(status_code: StatusCode, message: impl ToString) -> Result<(), Status> {
     Err(Status::new(status_code, message.to_string(), true))
