@@ -35,7 +35,7 @@ mod tests {
                     Ok(())
                 }
             })
-            .into_service()
+            .model(())
             .serve(Request::new(Body::from(b"Hello, World!".to_vec())))
             .await;
         Ok(())

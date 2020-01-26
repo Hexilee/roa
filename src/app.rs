@@ -1,6 +1,6 @@
 use crate::{
     default_status_handler, first_middleware, last, Context, DynHandler, DynMiddleware,
-    DynStatusHandler, Middleware, Next, Request, Response, State, Status, StatusHandler,
+    DynStatusHandler, Middleware, Model, Next, Request, Response, Status, StatusHandler,
     TargetHandler,
 };
 
@@ -12,17 +12,18 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-pub struct Server<S: State = ()> {
-    middleware: Arc<DynMiddleware<S>>,
-    status_handler: Box<DynStatusHandler<S>>,
+pub struct Server<M: Model = ()> {
+    middleware: Arc<DynMiddleware<M::State>>,
+    status_handler: Box<DynStatusHandler<M::State>>,
 }
 
-pub struct Service<S: State> {
-    handler: Arc<DynHandler<S>>,
-    status_handler: Arc<DynStatusHandler<S>>,
+pub struct Service<M: Model> {
+    handler: Arc<DynHandler<M::State>>,
+    status_handler: Arc<DynStatusHandler<M::State>>,
+    pub(crate) model: Arc<M>,
 }
 
-impl<S: State> Server<S> {
+impl<M: Model> Server<M> {
     pub fn new() -> Self {
         Self {
             middleware: Arc::from(Box::new(first_middleware).dynamic()),
@@ -32,7 +33,7 @@ impl<S: State> Server<S> {
 
     pub fn handle_fn<F>(
         self,
-        middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
+        middleware: impl 'static + Sync + Send + Fn(Context<M::State>, Next) -> F,
     ) -> Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
@@ -40,14 +41,15 @@ impl<S: State> Server<S> {
         self.handle(middleware)
     }
 
-    pub fn handle<F>(self, middleware: impl Middleware<S, StatusFuture = F>) -> Self
+    pub fn handle<F>(self, middleware: impl Middleware<M::State, StatusFuture = F>) -> Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
         let current_middleware = self.middleware.clone();
-        let next_middleware: Arc<DynMiddleware<S>> = Arc::from(Box::new(middleware).dynamic());
+        let next_middleware: Arc<DynMiddleware<M::State>> =
+            Arc::from(Box::new(middleware).dynamic());
         Self {
-            middleware: Arc::from(move |ctx: Context<S>, next| {
+            middleware: Arc::from(move |ctx: Context<M::State>, next| {
                 let next_ref = next_middleware.clone();
                 let ctx_cloned = ctx.clone();
                 let current = Box::new(move || next_ref(ctx_cloned, next));
@@ -57,7 +59,7 @@ impl<S: State> Server<S> {
         }
     }
 
-    pub fn handle_status<F>(self, handler: impl StatusHandler<S, StatusFuture = F>) -> Self
+    pub fn handle_status<F>(self, handler: impl StatusHandler<M::State, StatusFuture = F>) -> Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
@@ -69,7 +71,7 @@ impl<S: State> Server<S> {
 
     pub fn handle_status_fn<F>(
         self,
-        handler: impl 'static + Sync + Send + Fn(Context<S>, Status) -> F,
+        handler: impl 'static + Sync + Send + Fn(Context<M::State>, Status) -> F,
     ) -> Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
@@ -77,23 +79,25 @@ impl<S: State> Server<S> {
         self.handle_status(handler)
     }
 
-    pub fn into_service(self) -> Service<S> {
-        Service::new(self)
-    }
-
-    pub async fn listen(self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
-        self.into_service().listen(addr).await
+    pub fn model(self, model: M) -> Service<M> {
+        Service::new(self, model)
     }
 }
 
-impl<S: State> Default for Server<S> {
+impl Server<()> {
+    pub async fn listen(self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
+        self.model(()).listen(addr).await
+    }
+}
+
+impl<M: Model> Default for Server<M> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S: State> Service<S> {
-    pub fn new(app: Server<S>) -> Self {
+impl<M: Model> Service<M> {
+    pub fn new(app: Server<M>, model: M) -> Self {
         let Server {
             middleware,
             status_handler,
@@ -101,6 +105,7 @@ impl<S: State> Service<S> {
         Self {
             handler: Arc::new(move |ctx| middleware(ctx, Box::new(last))),
             status_handler: Arc::from(status_handler),
+            model: Arc::new(model),
         }
     }
 
@@ -140,7 +145,7 @@ impl<S: State> Service<S> {
     }
 }
 
-impl<S: State> HttpService for Service<S> {
+impl<M: Model> HttpService for Service<M> {
     type Connection = ();
     type ConnectionFuture =
         Pin<Box<dyn 'static + Future<Output = Result<(), Infallible>> + Sync + Send>>;
@@ -157,11 +162,12 @@ impl<S: State> HttpService for Service<S> {
     }
 }
 
-impl<S: State> Clone for Service<S> {
+impl<M: Model> Clone for Service<M> {
     fn clone(&self) -> Self {
         Self {
             handler: self.handler.clone(),
             status_handler: self.status_handler.clone(),
+            model: self.model.clone(),
         }
     }
 }
@@ -186,7 +192,7 @@ mod tests {
                     Ok(())
                 }
             })
-            .into_service()
+            .model(())
             .serve(Request::new(Body::empty()))
             .await;
         Ok(())
@@ -208,7 +214,7 @@ mod tests {
                 }
             });
         }
-        let _resp = app.into_service().serve(Request::new(Body::empty())).await;
+        let _resp = app.model(()).serve(Request::new(Body::empty())).await;
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);
