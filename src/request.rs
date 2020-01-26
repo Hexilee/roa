@@ -1,7 +1,7 @@
 use futures::AsyncRead as Read;
 use std::pin::Pin;
 
-pub type BodyRef<'a> = &'a mut (dyn Read + Send + 'static);
+pub type BodyRef<'a> = &'a mut (dyn Read + Send + Unpin + 'static);
 
 pub struct Request {
     req: http_service::Request,
@@ -13,7 +13,7 @@ impl Request {
     }
 
     pub fn body(&mut self) -> Pin<BodyRef> {
-        unsafe { Pin::new_unchecked(self.req.body_mut()) }
+        Pin::new(self.req.body_mut())
     }
 }
 
