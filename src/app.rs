@@ -1,6 +1,7 @@
 use crate::{
-    default_status_handler, first_middleware, last, Context, DynMiddleware, DynStatusHandler,
-    Middleware, Next, Request, Response, State, Status, StatusFuture, StatusHandler,
+    default_status_handler, first_middleware, last, Context, DynHandler, DynMiddleware,
+    DynStatusHandler, Middleware, Next, Request, Response, State, Status, StatusHandler,
+    TargetHandler,
 };
 
 use async_std::net::{TcpListener, ToSocketAddrs};
@@ -17,7 +18,7 @@ pub struct Server<S: State = ()> {
 }
 
 pub struct Service<S: State> {
-    handler: Arc<dyn Fn(Context<S>) -> StatusFuture + Sync + Send>,
+    handler: Arc<DynHandler<S>>,
     status_handler: Arc<DynStatusHandler<S>>,
 }
 
