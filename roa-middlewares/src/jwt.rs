@@ -1,10 +1,11 @@
 use jsonwebtoken::{dangerous_unsafe_decode, decode, Validation};
 pub use jsonwebtoken::{encode, Algorithm, Header};
 use roa::{
-    Context, DynHandler, DynMiddleware, DynTargetHandler, Next, State, Status, StatusCode,
+    Context, DynHandler, DynMiddleware, DynTargetHandler, Handler, Next, State, Status, StatusCode,
     StatusFuture, TargetHandler,
 };
 use serde::{de::DeserializeOwned, Serialize};
+use std::future::Future;
 use std::sync::Arc;
 
 pub struct JwtVerifier<S, C>
@@ -16,6 +17,38 @@ where
     validation_getter: Arc<DynHandler<S, Validation>>,
     secret_getter: Arc<DynTargetHandler<S, C, Vec<u8>>>,
     claim_setter: Arc<DynTargetHandler<S, C>>,
+}
+
+impl<S, C> JwtVerifier<S, C>
+where
+    S: State,
+    C: 'static + Serialize + DeserializeOwned,
+{
+    pub fn new<TG, TGF, SG, SGF>(token: TG, secret: SG) -> Self
+    where
+        TG: 'static + Send + Sync + Fn(Context<S>) -> TGF,
+        TGF: 'static + Send + Future<Output = Result<String, Status>>,
+        SG: 'static + Send + Sync + Fn(Context<S>, C) -> SGF,
+        SGF: 'static + Send + Future<Output = Result<Vec<u8>, Status>>,
+    {
+        Self {
+            token_getter: Arc::from(Box::new(token).dynamic()),
+            secret_getter: Arc::from(Box::new(secret).dynamic()),
+            validation_getter: Arc::from(
+                Box::new(|_ctx| async { Ok(Validation::default()) }).dynamic(),
+            ),
+            claim_setter: Arc::from(Box::new(|_ctx, _claim| async { Ok(()) }).dynamic()),
+        }
+    }
+
+    pub fn validation<VG, VGF>(&mut self, validation: VG) -> &mut Self
+    where
+        VG: 'static + Send + Sync + Fn(Context<S>) -> VGF,
+        VGF: 'static + Send + Future<Output = Result<Validation, Status>>,
+    {
+        self.validation_getter = Arc::from(Box::new(validation).dynamic());
+        self
+    }
 }
 
 impl<S, C> Clone for JwtVerifier<S, C>
