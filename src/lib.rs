@@ -2,7 +2,6 @@ mod app;
 mod body;
 mod context;
 mod err;
-mod executor;
 mod handler;
 mod model;
 mod next;
@@ -13,7 +12,6 @@ pub use app::{App, Builder as ServiceBuilder, HttpService};
 pub use body::Body;
 pub use context::{Context, Ctx};
 pub use err::{throw, Status, StatusCode, StatusFuture, StatusKind};
-pub(crate) use executor::Executor;
 pub(crate) use handler::{default_status_handler, first_middleware};
 pub use handler::{
     DynHandler, DynMiddleware, DynStatusHandler, DynTargetHandler, Handler, Middleware,

@@ -1,13 +1,12 @@
 use crate::{
     default_status_handler, first_middleware, last, Context, DynHandler, DynMiddleware,
-    DynStatusHandler, Executor, Middleware, Model, Next, Request, Response, Status, StatusHandler,
+    DynStatusHandler, Middleware, Model, Next, Request, Response, Status, StatusHandler,
     TargetHandler,
 };
-use async_std::net::{Incoming, TcpListener, TcpStream, ToSocketAddrs};
-use async_std::task;
 use futures::task::Poll;
 use futures::TryStreamExt;
 use http::{Request as HttpRequest, Response as HttpResponse};
+use hyper::server::conn::{AddrIncoming, AddrStream};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
 use hyper::Server;
@@ -125,27 +124,13 @@ impl<M: Model> App<M> {
         }
     }
 
-    pub async fn bind(&self, addr: impl ToSocketAddrs) -> Result<AddrIncoming<M>, std::io::Error> {
-        let app = self.clone();
-        let listener = TcpListener::bind(addr).await?;
-        let addr = listener.local_addr()?;
-        Ok(AddrIncoming(listener, addr, app))
+    pub fn listen(&self, addr: SocketAddr) -> hyper::Server<AddrIncoming, App<M>> {
+        log::info!("Server is listening on: http://{}", &addr);
+        hyper::Server::bind(&addr).serve(self.clone())
     }
 }
 
-struct AddrIncoming<M: Model>(TcpListener, SocketAddr, App<M>);
-
-impl<M: Model> AddrIncoming<M> {
-    pub fn listen(self) -> hyper::Server<Incoming<'static>, App<M>, Executor> {
-        let AddrIncoming(listener, addr, app) = self;
-        log::info!("Server is listening on: http://{}", addr);
-        hyper::Server::builder(listener.incoming())
-            .executor(Executor::new())
-            .serve(app)
-    }
-}
-
-impl<M: Model> Service<&TcpStream> for App<M> {
+impl<M: Model> Service<&AddrStream> for App<M> {
     type Response = HttpService<M>;
     type Error = std::io::Error;
     type Future =
@@ -154,10 +139,10 @@ impl<M: Model> Service<&TcpStream> for App<M> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, stream: &TcpStream) -> Self::Future {
-        let addr = stream.peer_addr();
+    fn call(&mut self, stream: &AddrStream) -> Self::Future {
+        let addr = stream.remote_addr();
         let app = self.clone();
-        Box::pin(async move { Ok(HttpService::new(app, addr?)) })
+        Box::pin(async move { Ok(HttpService::new(app, addr)) })
     }
 }
 
