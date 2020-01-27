@@ -17,9 +17,9 @@ impl Response {
         }
     }
 
+    // TODO: complete Response::status
     pub fn status(&mut self, status_code: StatusCode) -> &mut Self {
-        self.builder.status(status_code);
-        self
+        unimplemented!()
     }
 
     fn into_resp(self) -> Result<http::Response<hyper::Body>, http::Error> {
