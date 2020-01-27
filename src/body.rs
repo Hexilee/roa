@@ -32,39 +32,46 @@ impl Body {
         self.write_buf(BufReader::new(reader))
     }
 
-    pub fn write_bytes(&mut self, bytes: Vec<u8>) -> &mut Self {
-        self.write_buf(Cursor::new(bytes))
+    pub fn write_bytes(&mut self, bytes: impl Into<Vec<u8>>) -> &mut Self {
+        self.write_buf(Cursor::new(bytes.into()))
     }
 
     pub fn write_str(&mut self, data: impl ToString) -> &mut Self {
-        self.write_bytes(data.to_string().into_bytes())
+        self.write_bytes(data.to_string())
     }
 
     pub fn stream(self) -> BodyStream<Self> {
         BodyStream::new(self)
     }
+
+    pub fn poll_segment(&mut self, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
+        Pin::new(self.segments[self.counter].as_mut()).poll_fill_buf(cx)
+    }
 }
 
 impl BufRead for Body {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
-        let counter = self.counter;
         let mut_ref = self.get_mut();
-        let mut buf = b"".as_ref();
-        while buf.len() == 0 {
-            if counter >= mut_ref.segments.len() {
-                return Poll::Ready(Ok(buf));
+        let mut buf_len = 0;
+        let mut buf_ptr = b"".as_ref() as *const [u8];
+        loop {
+            if mut_ref.counter >= mut_ref.segments.len() {
+                break Poll::Ready(Ok(b"".as_ref()));
             }
-            let buf: &[u8] =
-                futures::ready!(Pin::new(mut_ref.segments[counter].as_mut()).poll_fill_buf(cx))?;
+            let buf = futures::ready!(mut_ref.poll_segment(cx))?;
+            buf_len = buf.len();
+            buf_ptr = buf as *const [u8];
+            if buf_len != 0 {
+                break Poll::Ready(Ok(unsafe { &*buf_ptr }));
+            }
+            mut_ref.counter += 1;
         }
-        Poll::Ready(Ok(buf))
     }
 
     fn consume(self: Pin<&mut Self>, amt: usize) {
         let self_mut = self.get_mut();
-        let counter = self_mut.counter;
-        if counter < self_mut.segments.len() {
-            Pin::new(self_mut.segments[counter].as_mut()).consume(amt)
+        if self_mut.counter < self_mut.segments.len() {
+            Pin::new(self_mut.segments[self_mut.counter].as_mut()).consume(amt)
         }
     }
 }
@@ -77,7 +84,7 @@ impl Read for Body {
     ) -> Poll<Result<usize, Error>> {
         let data: &[u8] = futures::ready!(self.as_mut().poll_fill_buf(cx))?;
         let nums = std::cmp::min(data.len(), buf.len());
-        buf.copy_from_slice(&data[0..nums]);
+        buf[0..nums].copy_from_slice(&data[0..nums]);
         self.consume(nums);
         Poll::Ready(Ok(nums))
     }
@@ -112,5 +119,71 @@ impl<R: BufRead + Unpin> futures::Stream for BodyStream<R> {
 impl<R: BufRead + Unpin + Send + Sync + 'static> From<BodyStream<R>> for hyper::Body {
     fn from(stream: BodyStream<R>) -> Self {
         hyper::Body::wrap_stream(stream)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Body;
+    use async_std::fs::File;
+    use futures::AsyncReadExt;
+
+    #[async_std::test]
+    async fn body_empty() -> std::io::Result<()> {
+        let mut body = Body::new();
+        let mut data = String::new();
+        body.read_to_string(&mut data).await?;
+        assert_eq!("", data);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn body_single() -> std::io::Result<()> {
+        let mut body = Body::new();
+        let mut data = String::new();
+        body.write_buf(b"Hello, World".as_ref())
+            .read_to_string(&mut data)
+            .await?;
+        println!("{}", &data);
+        assert_eq!("Hello, World", data);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn body_multiple() -> std::io::Result<()> {
+        let mut body = Body::new();
+        let mut data = String::new();
+        body.write_buf(b"He".as_ref())
+            .write_buf(b"llo, ".as_ref())
+            .write_buf(b"World".as_ref())
+            .read_to_string(&mut data)
+            .await?;
+        assert_eq!("Hello, World", data);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn body_composed() -> std::io::Result<()> {
+        let mut body = Body::new();
+        let mut data = String::new();
+        body.write_buf(b"He".as_ref())
+            .write_buf(b"llo, ".as_ref())
+            .write(File::open("assets/test_data.txt").await?)
+            .write_buf(b".".as_ref())
+            .read_to_string(&mut data)
+            .await?;
+        assert_eq!("Hello, Hexilee.", data);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn response_write_str() -> std::io::Result<()> {
+        let mut body = Body::new();
+        let mut data = String::new();
+        body.write_str("Hello, World")
+            .read_to_string(&mut data)
+            .await?;
+        assert_eq!("Hello, World", data);
+        Ok(())
     }
 }
