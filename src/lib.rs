@@ -19,4 +19,4 @@ pub(crate) use next::last;
 pub use next::Next;
 pub use request::Request;
 pub use response::Response;
-pub use service::{Builder as ServiceBuilder, Service};
+pub use service::{App, Builder as ServiceBuilder};

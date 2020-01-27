@@ -17,7 +17,7 @@ pub struct Builder<M: Model = ()> {
     status_handler: Box<DynStatusHandler<M::State>>,
 }
 
-pub struct Service<M: Model> {
+pub struct App<M: Model> {
     handler: Arc<DynHandler<M::State>>,
     status_handler: Arc<DynStatusHandler<M::State>>,
     pub(crate) model: Arc<M>,
@@ -79,12 +79,12 @@ impl<M: Model> Builder<M> {
         self.handle_status(handler)
     }
 
-    pub fn model(self, model: M) -> Service<M> {
+    pub fn model(self, model: M) -> App<M> {
         let Builder {
             middleware,
             status_handler,
         } = self;
-        Service::new(
+        App::new(
             Arc::new(move |ctx| middleware(ctx, Box::new(last))),
             Arc::from(status_handler),
             Arc::new(model),
@@ -98,7 +98,7 @@ impl<M: Model> Default for Builder<M> {
     }
 }
 
-impl<M: Model> Service<M> {
+impl<M: Model> App<M> {
     pub fn builder() -> Builder<M> {
         Builder::default()
     }
@@ -124,32 +124,32 @@ impl<M: Model> Service<M> {
         Ok(std::mem::take(&mut context.response))
     }
 
-    pub async fn listen(&self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
-        let http_service = self.clone();
-        #[derive(Copy, Clone)]
-        struct Spawner;
-
-        impl futures::task::Spawn for &Spawner {
-            fn spawn_obj(
-                &self,
-                future: futures::future::FutureObj<'static, ()>,
-            ) -> Result<(), futures::task::SpawnError> {
-                task::spawn(Box::pin(future));
-                Ok(())
-            }
-        }
-
-        let listener = TcpListener::bind(addr).await?;
-        log::info!("Server is listening on: http://{}", listener.local_addr()?);
-        http_service_hyper::Server::builder(listener.incoming())
-            .with_spawner(Spawner {})
-            .serve(http_service)
-            .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-    }
+    //    pub async fn listen(&self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
+    //        let http_service = self.clone();
+    //        #[derive(Copy, Clone)]
+    //        struct Spawner;
+    //
+    //        impl futures::task::Spawn for &Spawner {
+    //            fn spawn_obj(
+    //                &self,
+    //                future: futures::future::FutureObj<'static, ()>,
+    //            ) -> Result<(), futures::task::SpawnError> {
+    //                task::spawn(Box::pin(future));
+    //                Ok(())
+    //            }
+    //        }
+    //
+    //        let listener = TcpListener::bind(addr).await?;
+    //        log::info!("Server is listening on: http://{}", listener.local_addr()?);
+    //        http_service_hyper::Server::builder(listener.incoming())
+    //            .with_spawner(Spawner {})
+    //            .serve(http_service)
+    //            .await
+    //            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    //    }
 }
 
-impl<M: Model> HttpService for Service<M> {
+impl<M: Model> HttpService for App<M> {
     type Connection = ();
     type ConnectionFuture =
         Pin<Box<dyn 'static + Future<Output = Result<(), Infallible>> + Sync + Send>>;
@@ -166,7 +166,7 @@ impl<M: Model> HttpService for Service<M> {
     }
 }
 
-impl<M: Model> Clone for Service<M> {
+impl<M: Model> Clone for App<M> {
     fn clone(&self) -> Self {
         Self {
             handler: self.handler.clone(),
@@ -178,7 +178,7 @@ impl<M: Model> Clone for Service<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::Service;
+    use super::App;
     use futures::lock::Mutex;
     use http_service::{Body, Request};
     use std::convert::Infallible;
@@ -187,7 +187,7 @@ mod tests {
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Infallible> {
-        let _resp = Service::builder()
+        let _resp = App::builder()
             .handle_fn(|_ctx, next| {
                 async move {
                     let inbound = Instant::now();
@@ -205,7 +205,7 @@ mod tests {
     #[async_std::test]
     async fn middleware_order() -> Result<(), Infallible> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut builder = Service::builder();
+        let mut builder = App::builder();
         for i in 0..100 {
             let vec = vector.clone();
             builder = builder.handle_fn(move |_ctx, next| {
