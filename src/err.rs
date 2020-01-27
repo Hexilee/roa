@@ -68,6 +68,10 @@ impl Status {
     pub(crate) fn need_throw(&self) -> bool {
         self.kind == StatusKind::ServerError || self.kind == StatusKind::Unknown
     }
+
+    pub fn success(&self) -> bool {
+        self.kind == StatusKind::Successful
+    }
 }
 
 impl From<std::io::Error> for Status {

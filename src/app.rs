@@ -135,13 +135,11 @@ impl<M: Model> Service<M> {
 
         let listener = TcpListener::bind(addr).await?;
         log::info!("Server is listening on: http://{}", listener.local_addr()?);
-        let res = http_service_hyper::Server::builder(listener.incoming())
+        http_service_hyper::Server::builder(listener.incoming())
             .with_spawner(Spawner {})
             .serve(http_service)
-            .await;
-
-        res.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        Ok(())
+            .await
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
     }
 }
 
