@@ -1,12 +1,12 @@
 use crate::{
     default_status_handler, first_middleware, last, Context, DynHandler, DynMiddleware,
-    DynStatusHandler, Middleware, Model, Next, Request, Response, Status, StatusHandler,
+    DynStatusHandler, Executor, Middleware, Model, Next, Request, Response, Status, StatusHandler,
     TargetHandler,
 };
-
-use async_std::net::{TcpListener, TcpStream, ToSocketAddrs};
+use async_std::net::{Incoming, TcpListener, TcpStream, ToSocketAddrs};
 use async_std::task;
 use futures::task::Poll;
+use futures::TryStreamExt;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
@@ -125,29 +125,24 @@ impl<M: Model> App<M> {
         }
     }
 
-    //    pub async fn listen(&self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
-    //        let http_service = self.clone();
-    //        #[derive(Copy, Clone)]
-    //        struct Spawner;
-    //
-    //        impl futures::task::Spawn for &Spawner {
-    //            fn spawn_obj(
-    //                &self,
-    //                future: futures::future::FutureObj<'static, ()>,
-    //            ) -> Result<(), futures::task::SpawnError> {
-    //                task::spawn(Box::pin(future));
-    //                Ok(())
-    //            }
-    //        }
-    //
-    //        let listener = TcpListener::bind(addr).await?;
-    //        log::info!("Server is listening on: http://{}", listener.local_addr()?);
-    //        http_service_hyper::Server::builder(listener.incoming())
-    //            .with_spawner(Spawner {})
-    //            .serve(http_service)
-    //            .await
-    //            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-    //    }
+    pub async fn bind(&self, addr: impl ToSocketAddrs) -> Result<AddrIncoming<M>, std::io::Error> {
+        let app = self.clone();
+        let listener = TcpListener::bind(addr).await?;
+        let addr = listener.local_addr()?;
+        Ok(AddrIncoming(listener, addr, app))
+    }
+}
+
+struct AddrIncoming<M: Model>(TcpListener, SocketAddr, App<M>);
+
+impl<M: Model> AddrIncoming<M> {
+    pub fn listen(self) -> hyper::Server<Incoming<'static>, App<M>, Executor> {
+        let AddrIncoming(listener, addr, app) = self;
+        log::info!("Server is listening on: http://{}", addr);
+        hyper::Server::builder(listener.incoming())
+            .executor(Executor::new())
+            .serve(app)
+    }
 }
 
 impl<M: Model> Service<&TcpStream> for App<M> {
