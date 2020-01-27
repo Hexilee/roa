@@ -12,7 +12,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-pub struct Server<M: Model = ()> {
+pub struct Builder<M: Model = ()> {
     middleware: Arc<DynMiddleware<M::State>>,
     status_handler: Box<DynStatusHandler<M::State>>,
 }
@@ -23,7 +23,7 @@ pub struct Service<M: Model> {
     pub(crate) model: Arc<M>,
 }
 
-impl<M: Model> Server<M> {
+impl<M: Model> Builder<M> {
     pub fn new() -> Self {
         Self {
             middleware: Arc::from(Box::new(first_middleware).dynamic()),
@@ -80,32 +80,38 @@ impl<M: Model> Server<M> {
     }
 
     pub fn model(self, model: M) -> Service<M> {
-        Service::new(self, model)
+        let Builder {
+            middleware,
+            status_handler,
+        } = self;
+        Service::new(
+            Arc::new(move |ctx| middleware(ctx, Box::new(last))),
+            Arc::from(status_handler),
+            Arc::new(model),
+        )
     }
 }
 
-impl Server<()> {
-    pub async fn listen(self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
-        self.model(()).listen(addr).await
-    }
-}
-
-impl<M: Model> Default for Server<M> {
+impl<M: Model> Default for Builder<M> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<M: Model> Service<M> {
-    pub fn new(app: Server<M>, model: M) -> Self {
-        let Server {
-            middleware,
-            status_handler,
-        } = app;
+    pub fn builder() -> Builder<M> {
+        Builder::default()
+    }
+
+    pub fn new(
+        handler: Arc<DynHandler<M::State>>,
+        status_handler: Arc<DynStatusHandler<M::State>>,
+        model: Arc<M>,
+    ) -> Self {
         Self {
-            handler: Arc::new(move |ctx| middleware(ctx, Box::new(last))),
-            status_handler: Arc::from(status_handler),
-            model: Arc::new(model),
+            handler,
+            status_handler,
+            model,
         }
     }
 
@@ -172,7 +178,7 @@ impl<M: Model> Clone for Service<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::Server;
+    use super::Service;
     use futures::lock::Mutex;
     use http_service::{Body, Request};
     use std::convert::Infallible;
@@ -181,7 +187,7 @@ mod tests {
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Infallible> {
-        let _resp = Server::<()>::new()
+        let _resp = Service::builder()
             .handle_fn(|_ctx, next| {
                 async move {
                     let inbound = Instant::now();
@@ -199,10 +205,10 @@ mod tests {
     #[async_std::test]
     async fn middleware_order() -> Result<(), Infallible> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut app = Server::<()>::new();
+        let mut builder = Service::builder();
         for i in 0..100 {
             let vec = vector.clone();
-            app = app.handle_fn(move |_ctx, next| {
+            builder = builder.handle_fn(move |_ctx, next| {
                 let vec = vec.clone();
                 async move {
                     vec.lock().await.push(i);
@@ -212,7 +218,7 @@ mod tests {
                 }
             });
         }
-        let _resp = app.model(()).serve(Request::new(Body::empty())).await;
+        let _resp = builder.model(()).serve(Request::new(Body::empty())).await;
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);

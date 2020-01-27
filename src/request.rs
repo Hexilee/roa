@@ -19,14 +19,14 @@ impl Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::Server;
+    use crate::Service;
     use futures::AsyncReadExt;
     use http_service::{Body, Request};
     use std::convert::Infallible;
 
     #[async_std::test]
     async fn body_read() -> Result<(), Infallible> {
-        let _resp = Server::<()>::new()
+        let _resp = Service::builder()
             .handle_fn(|mut ctx, _next| {
                 async move {
                     let mut data = String::new();

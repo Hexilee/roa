@@ -7,7 +7,7 @@ mod next;
 mod request;
 mod response;
 
-pub use app::{Server, Service};
+pub use app::{Builder as ServiceBuilder, Service};
 pub use context::{Context, Ctx};
 pub use err::{throw, Status, StatusCode, StatusFuture, StatusKind};
 pub(crate) use handler::{default_status_handler, first_middleware};
