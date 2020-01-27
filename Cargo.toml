@@ -13,7 +13,6 @@ members = ["roa-middlewares"]
 futures = "0.3"
 bytes = "0.5"
 http = "0.1"
-http-service = "0.4"
 async-std = { version = "1.4", features = ["attributes"] }
 log = "0.4"
 hyper = "0.13"

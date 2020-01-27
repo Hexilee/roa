@@ -1,5 +1,6 @@
 use crate::{App, Model, Request, Response, State};
 use std::cell::UnsafeCell;
+use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
@@ -11,8 +12,8 @@ unsafe impl<S: State> Send for Context<S> {}
 unsafe impl<S: State> Sync for Context<S> {}
 
 impl<S: State> Context<S> {
-    pub fn new(request: Request, app: App<S::Model>) -> Self {
-        let inner = Ctx::new(request, app);
+    pub fn new(request: Request, app: App<S::Model>, ip: SocketAddr) -> Self {
+        let inner = Ctx::new(request, app, ip);
         Self {
             inner: Rc::new(UnsafeCell::new(inner)),
         }
@@ -45,16 +46,18 @@ pub struct Ctx<S: State> {
     pub response: Response,
     pub app: App<S::Model>,
     pub state: S,
+    pub ip: SocketAddr,
 }
 
 impl<S: State> Ctx<S> {
-    fn new(request: Request, app: App<S::Model>) -> Self {
+    fn new(request: Request, app: App<S::Model>, ip: SocketAddr) -> Self {
         let state = app.model.new_state();
         Self {
             request,
             response: Response::new(),
             app,
             state,
+            ip,
         }
     }
 }

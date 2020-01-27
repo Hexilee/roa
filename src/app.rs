@@ -4,11 +4,16 @@ use crate::{
     TargetHandler,
 };
 
-use async_std::net::{TcpListener, ToSocketAddrs};
+use async_std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use async_std::task;
-use http_service::HttpService;
-use std::convert::Infallible;
+use futures::task::Poll;
+use http::{Request as HttpRequest, Response as HttpResponse};
+use hyper::service::Service;
+use hyper::Body as HyperBody;
+use hyper::Server;
+use std::convert::{Infallible, TryInto};
 use std::future::Future;
+use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -21,6 +26,11 @@ pub struct App<M: Model> {
     handler: Arc<DynHandler<M::State>>,
     status_handler: Arc<DynStatusHandler<M::State>>,
     pub(crate) model: Arc<M>,
+}
+
+pub struct HttpService<M: Model> {
+    app: App<M>,
+    addr: SocketAddr,
 }
 
 impl<M: Model> Builder<M> {
@@ -115,15 +125,6 @@ impl<M: Model> App<M> {
         }
     }
 
-    pub async fn serve(&self, req: http_service::Request) -> Result<Response, Status> {
-        let mut context = Context::new(Request::new(req), self.clone());
-        let app = self.clone();
-        if let Err(status) = (app.handler)(context.clone()).await {
-            (app.status_handler)(context.clone(), status).await?;
-        }
-        Ok(std::mem::take(&mut context.response))
-    }
-
     //    pub async fn listen(&self, addr: impl ToSocketAddrs) -> Result<(), std::io::Error> {
     //        let http_service = self.clone();
     //        #[derive(Copy, Clone)]
@@ -149,20 +150,50 @@ impl<M: Model> App<M> {
     //    }
 }
 
-impl<M: Model> HttpService for App<M> {
-    type Connection = ();
-    type ConnectionFuture =
-        Pin<Box<dyn 'static + Future<Output = Result<(), Infallible>> + Sync + Send>>;
-    fn connect(&self) -> Self::ConnectionFuture {
-        Box::pin(async { Ok(()) })
+impl<M: Model> Service<&TcpStream> for App<M> {
+    type Response = HttpService<M>;
+    type Error = std::io::Error;
+    type Future =
+        Pin<Box<dyn 'static + Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
     }
 
-    type ResponseFuture =
-        Pin<Box<dyn 'static + Future<Output = Result<http_service::Response, Status>> + Send>>;
+    fn call(&mut self, stream: &TcpStream) -> Self::Future {
+        let addr = stream.peer_addr();
+        let app = self.clone();
+        Box::pin(async move { Ok(HttpService::new(app, addr?)) })
+    }
+}
 
-    fn respond(&self, _conn: &mut (), req: http_service::Request) -> Self::ResponseFuture {
-        let service = self.clone();
-        Box::pin(async move { Ok(service.serve(req).await?.into_resp()?) })
+impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
+    type Response = HttpResponse<HyperBody>;
+    type Error = Status;
+    type Future =
+        Pin<Box<dyn 'static + Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: HttpRequest<HyperBody>) -> Self::Future {
+        let mut service = self.clone();
+        Box::pin(async move { Ok(service.serve(req.into()).await?.try_into()?) })
+    }
+}
+
+impl<M: Model> HttpService<M> {
+    pub fn new(app: App<M>, addr: SocketAddr) -> Self {
+        Self { app, addr }
+    }
+
+    pub async fn serve(&self, req: Request) -> Result<Response, Status> {
+        let mut context = Context::new(req, self.app.clone(), self.addr);
+        let app = self.app.clone();
+        if let Err(status) = (app.handler)(context.clone()).await {
+            (app.status_handler)(context.clone(), status).await?;
+        }
+        Ok(std::mem::take(&mut context.response))
     }
 }
 
@@ -176,18 +207,28 @@ impl<M: Model> Clone for App<M> {
     }
 }
 
+impl<M: Model> Clone for HttpService<M> {
+    fn clone(&self) -> Self {
+        Self {
+            app: self.app.clone(),
+            addr: self.addr,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::App;
+    use super::{App, HttpService};
+    use crate::Request;
     use futures::lock::Mutex;
-    use http_service::{Body, Request};
     use std::convert::Infallible;
+    use std::net::SocketAddr;
     use std::sync::Arc;
     use std::time::Instant;
 
     #[async_std::test]
-    async fn gate_simple() -> Result<(), Infallible> {
-        let _resp = App::builder()
+    async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
+        let app = App::builder()
             .handle_fn(|_ctx, next| {
                 async move {
                     let inbound = Instant::now();
@@ -196,14 +237,15 @@ mod tests {
                     Ok(())
                 }
             })
-            .model(())
-            .serve(Request::new(Body::empty()))
-            .await;
+            .model(());
+        let _resp = HttpService::new(app, "127.0.0.1:8080".parse()?)
+            .serve(Request::new())
+            .await?;
         Ok(())
     }
 
     #[async_std::test]
-    async fn middleware_order() -> Result<(), Infallible> {
+    async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
         let mut builder = App::builder();
         for i in 0..100 {
@@ -218,7 +260,9 @@ mod tests {
                 }
             });
         }
-        let _resp = builder.model(()).serve(Request::new(Body::empty())).await;
+        let _resp = HttpService::new(builder.model(()), "127.0.0.1:8080".parse()?)
+            .serve(Request::new())
+            .await?;
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);
