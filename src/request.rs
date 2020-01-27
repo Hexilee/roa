@@ -63,8 +63,10 @@ mod tests {
                 }
             })
             .model(());
+        let mut request = Request::new();
+        request.write_str("Hello, World!");
         let _resp = HttpService::new(app, "127.0.0.1:8080".parse()?)
-            .serve(Request::new())
+            .serve(request)
             .await?;
         Ok(())
     }
