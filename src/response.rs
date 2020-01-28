@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 pub struct Response {
     pub status: StatusCode,
     pub version: Version,
-    headers: HeaderMap<HeaderValue>,
+    pub headers: HeaderMap<HeaderValue>,
     body: Body,
 }
 
