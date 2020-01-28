@@ -1,55 +1,55 @@
-use crate::{App, Model, Request, Response, State};
+use crate::{App, Model, Request, Response};
 use std::cell::UnsafeCell;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-pub struct Context<S: State>(Rc<UnsafeCell<Ctx<S>>>);
+pub struct Context<M: Model>(Rc<UnsafeCell<Ctx<M>>>);
 
-unsafe impl<S: State> Send for Context<S> {}
-unsafe impl<S: State> Sync for Context<S> {}
+unsafe impl<M: Model> Send for Context<M> {}
+unsafe impl<M: Model> Sync for Context<M> {}
 
-impl<S: State> Context<S> {
-    pub fn new(request: Request, app: App<S::Model>, ip: SocketAddr) -> Self {
+impl<M: Model> Context<M> {
+    pub fn new(request: Request, app: App<M>, ip: SocketAddr) -> Self {
         Ctx::new(request, app, ip).into()
     }
 }
 
-impl<S: State> Clone for Context<S> {
+impl<M: Model> Clone for Context<M> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<S: State> Deref for Context<S> {
-    type Target = Ctx<S>;
+impl<M: Model> Deref for Context<M> {
+    type Target = Ctx<M>;
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.0.get() }
     }
 }
 
-impl<S: State> DerefMut for Context<S> {
+impl<M: Model> DerefMut for Context<M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0.get() }
     }
 }
 
-impl<S: State> From<Ctx<S>> for Context<S> {
-    fn from(ctx: Ctx<S>) -> Self {
+impl<M: Model> From<Ctx<M>> for Context<M> {
+    fn from(ctx: Ctx<M>) -> Self {
         Self(Rc::new(UnsafeCell::new(ctx)))
     }
 }
 
-pub struct Ctx<S: State> {
+pub struct Ctx<M: Model> {
     pub request: Request,
     pub response: Response,
-    pub app: App<S::Model>,
-    pub state: S,
+    pub app: App<M>,
+    pub state: M::State,
     pub peer_addr: SocketAddr,
 }
 
-impl<S: State> Ctx<S> {
-    fn new(request: Request, app: App<S::Model>, peer_addr: SocketAddr) -> Self {
+impl<M: Model> Ctx<M> {
+    fn new(request: Request, app: App<M>, peer_addr: SocketAddr) -> Self {
         let state = app.model.new_state();
         Self {
             request,

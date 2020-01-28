@@ -14,8 +14,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 pub struct App<M: Model> {
-    handler: Arc<DynHandler<M::State>>,
-    status_handler: Arc<DynStatusHandler<M::State>>,
+    handler: Arc<DynHandler<M>>,
+    status_handler: Arc<DynStatusHandler<M>>,
     pub(crate) model: Arc<M>,
 }
 
@@ -25,7 +25,7 @@ pub struct HttpService<M: Model> {
 }
 
 impl<M: Model> App<M> {
-    pub fn new(handler: Arc<DynHandler<M::State>>, model: Arc<M>) -> Self {
+    pub fn new(handler: Arc<DynHandler<M>>, model: Arc<M>) -> Self {
         Self {
             handler,
             status_handler: Arc::from(Box::new(default_status_handler).dynamic()),
@@ -35,7 +35,7 @@ impl<M: Model> App<M> {
 
     pub fn handle_status<F>(
         &mut self,
-        handler: impl StatusHandler<M::State, StatusFuture = F>,
+        handler: impl StatusHandler<M, StatusFuture = F>,
     ) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
@@ -46,7 +46,7 @@ impl<M: Model> App<M> {
 
     pub fn handle_status_fn<F>(
         &mut self,
-        handler: impl 'static + Sync + Send + Fn(Context<M::State>, Status) -> F,
+        handler: impl 'static + Sync + Send + Fn(Context<M>, Status) -> F,
     ) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,

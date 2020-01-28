@@ -1,18 +1,18 @@
-use crate::{Context, DynTargetHandler, State, Status, TargetHandler};
+use crate::{Context, DynTargetHandler, Model, Status, TargetHandler};
 
-pub type DynStatusHandler<S> = DynTargetHandler<S, Status>;
+pub type DynStatusHandler<M> = DynTargetHandler<M, Status>;
 
-pub trait StatusHandler<S: State>: TargetHandler<S, Status> {}
+pub trait StatusHandler<M: Model>: TargetHandler<M, Status> {}
 
-impl<S, T> StatusHandler<S> for T
+impl<M, T> StatusHandler<M> for T
 where
-    S: State,
-    T: TargetHandler<S, Status>,
+    M: Model,
+    T: TargetHandler<M, Status>,
 {
 }
 
-pub async fn default_status_handler<S: State>(
-    mut context: Context<S>,
+pub async fn default_status_handler<M: Model>(
+    mut context: Context<M>,
     status: Status,
 ) -> Result<(), Status> {
     if !status.success() {

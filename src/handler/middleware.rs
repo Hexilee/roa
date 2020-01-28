@@ -1,12 +1,12 @@
-use crate::{DynTargetHandler, Next, State, TargetHandler};
+use crate::{DynTargetHandler, Next, Model, TargetHandler};
 
-pub type DynMiddleware<S> = DynTargetHandler<S, Next>;
+pub type DynMiddleware<M> = DynTargetHandler<M, Next>;
 
-pub trait Middleware<S: State>: TargetHandler<S, Next> {}
+pub trait Middleware<M: Model>: TargetHandler<M, Next> {}
 
-impl<S, T> Middleware<S> for T
+impl<M, T> Middleware<M> for T
 where
-    S: State,
-    T: TargetHandler<S, Next>,
+    M: Model,
+    T: TargetHandler<M, Next>,
 {
 }
