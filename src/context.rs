@@ -4,9 +4,7 @@ use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-pub struct Context<S: State>(
-    Rc<UnsafeCell<Ctx<S>>>,
-);
+pub struct Context<S: State>(Rc<UnsafeCell<Ctx<S>>>);
 
 unsafe impl<S: State> Send for Context<S> {}
 unsafe impl<S: State> Sync for Context<S> {}
@@ -19,9 +17,7 @@ impl<S: State> Context<S> {
 
 impl<S: State> Clone for Context<S> {
     fn clone(&self) -> Self {
-        Self (
-            self.0.clone(),
-        )
+        Self(self.0.clone())
     }
 }
 
@@ -74,7 +70,7 @@ impl Ctx<()> {
         Self {
             request,
             response: Response::new(),
-            app: App::builder().model(()),
+            app: App::builder().build(()),
             state: (),
             ip,
         }

@@ -1,7 +1,7 @@
 mod middleware;
 mod status_handler;
 use crate::{Context, State, Status, StatusFuture};
-pub use middleware::{first_middleware, DynMiddleware, Middleware};
+pub use middleware::{DynMiddleware, Middleware};
 pub use status_handler::{default_status_handler, DynStatusHandler, StatusHandler};
 use std::future::Future;
 

@@ -1,4 +1,4 @@
-use crate::{Context, DynTargetHandler, Next, State, Status, TargetHandler};
+use crate::{DynTargetHandler, Next, State, TargetHandler};
 
 pub type DynMiddleware<S> = DynTargetHandler<S, Next>;
 
@@ -9,8 +9,4 @@ where
     S: State,
     T: TargetHandler<S, Next>,
 {
-}
-
-pub async fn first_middleware<S: State>(_ctx: Context<S>, next: Next) -> Result<(), Status> {
-    next().await
 }

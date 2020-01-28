@@ -1,12 +1,12 @@
-use crate::{State, DynMiddleware, Context, Next, Status, Middleware, DynHandler, last};
-use std::sync::Arc;
+use crate::{last, App, Context, DynHandler, DynMiddleware, Middleware, Next, State, Status};
 use futures::Future;
+use std::sync::Arc;
 
-pub struct Group<S: State>(Vec<Box<DynMiddleware<S>>>);
+pub struct Group<S: State>(Vec<Arc<DynMiddleware<S>>>);
 
 impl<S: State> Group<S> {
     pub fn new() -> Self {
-        Self (Vec::new())
+        Self(Vec::new())
     }
 
     pub fn handle_fn<F>(
@@ -23,31 +23,35 @@ impl<S: State> Group<S> {
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
-        self.0.push(Box::new(middleware).dynamic());
+        self.0.push(Arc::from(Box::new(middleware).dynamic()));
         self
     }
 
-    pub fn handler(self) -> Arc<DynHandler<S>> {
-        let middlewares = self.0.into_iter().rev();
+    pub fn handler(&self) -> Arc<DynHandler<S>> {
         let mut handler: Arc<DynHandler<S>> = Arc::new(|_ctx| last());
-        for middleware in middlewares {
-            handler = Arc::new(move|ctx| {
+        for middleware in self.0.iter().rev() {
+            let current = middleware.clone();
+            handler = Arc::new(move |ctx| {
                 let ctx_cloned = ctx.clone();
                 let handler = handler.clone();
                 let next = Box::new(move || handler(ctx_cloned));
-                middleware(ctx, next)
+                current(ctx, next)
             })
         }
         handler
+    }
+
+    pub fn app(&self, model: S::Model) -> App<S::Model> {
+        App::new(self.handler(), Arc::new(model))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use super::Group;
+    use crate::{Ctx, Request};
     use futures::lock::Mutex;
-    use crate::{Request, Ctx};
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {

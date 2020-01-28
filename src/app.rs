@@ -1,7 +1,6 @@
 use crate::{
-    default_status_handler, first_middleware, last, Context, DynHandler, DynMiddleware,
-    DynStatusHandler, Middleware, Model, Next, Request, Response, Status, StatusHandler,
-    TargetHandler,
+    default_status_handler, Context, DynHandler, DynStatusHandler, Model, Request, Response,
+    Status, StatusHandler, TargetHandler,
 };
 use futures::task::Poll;
 use http::{Request as HttpRequest, Response as HttpResponse};
@@ -14,11 +13,6 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 
-pub struct Builder<M: Model = ()> {
-    middleware: Arc<DynMiddleware<M::State>>,
-    status_handler: Box<DynStatusHandler<M::State>>,
-}
-
 pub struct App<M: Model> {
     handler: Arc<DynHandler<M::State>>,
     status_handler: Arc<DynStatusHandler<M::State>>,
@@ -30,96 +24,34 @@ pub struct HttpService<M: Model> {
     addr: SocketAddr,
 }
 
-impl<M: Model> Builder<M> {
-    pub fn new() -> Self {
+impl<M: Model> App<M> {
+    pub fn new(handler: Arc<DynHandler<M::State>>, model: Arc<M>) -> Self {
         Self {
-            middleware: Arc::from(Box::new(first_middleware).dynamic()),
-            status_handler: Box::new(default_status_handler).dynamic(),
+            handler,
+            status_handler: Arc::from(Box::new(default_status_handler).dynamic()),
+            model,
         }
     }
 
-    pub fn handle_fn<F>(
-        self,
-        middleware: impl 'static + Sync + Send + Fn(Context<M::State>, Next) -> F,
-    ) -> Self
+    pub fn handle_status<F>(
+        &mut self,
+        handler: impl StatusHandler<M::State, StatusFuture = F>,
+    ) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
-        self.handle(middleware)
-    }
-
-    pub fn handle<F>(self, middleware: impl Middleware<M::State, StatusFuture = F>) -> Self
-    where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
-    {
-        let current_middleware = self.middleware.clone();
-        let next_middleware: Arc<DynMiddleware<M::State>> =
-            Arc::from(Box::new(middleware).dynamic());
-        Self {
-            middleware: Arc::from(move |ctx: Context<M::State>, next| {
-                let next_ref = next_middleware.clone();
-                let ctx_cloned = ctx.clone();
-                let current = Box::new(move || next_ref(ctx_cloned, next));
-                current_middleware(ctx, current)
-            }),
-            ..self
-        }
-    }
-
-    pub fn handle_status<F>(self, handler: impl StatusHandler<M::State, StatusFuture = F>) -> Self
-    where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
-    {
-        Self {
-            status_handler: Box::new(handler).dynamic(),
-            ..self
-        }
+        self.status_handler = Arc::from(Box::new(handler).dynamic());
+        self
     }
 
     pub fn handle_status_fn<F>(
-        self,
+        &mut self,
         handler: impl 'static + Sync + Send + Fn(Context<M::State>, Status) -> F,
-    ) -> Self
+    ) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
         self.handle_status(handler)
-    }
-
-    pub fn model(self, model: M) -> App<M> {
-        let Builder {
-            middleware,
-            status_handler,
-        } = self;
-        App::new(
-            Arc::new(move |ctx| middleware(ctx, Box::new(last))),
-            Arc::from(status_handler),
-            Arc::new(model),
-        )
-    }
-}
-
-impl<M: Model> Default for Builder<M> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<M: Model> App<M> {
-    pub fn builder() -> Builder<M> {
-        Builder::default()
-    }
-
-    pub fn new(
-        handler: Arc<DynHandler<M::State>>,
-        status_handler: Arc<DynStatusHandler<M::State>>,
-        model: Arc<M>,
-    ) -> Self {
-        Self {
-            handler,
-            status_handler,
-            model,
-        }
     }
 
     pub fn listen(&self, addr: SocketAddr) -> hyper::Server<AddrIncoming, App<M>> {
