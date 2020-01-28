@@ -70,7 +70,7 @@ impl Ctx<()> {
         Self {
             request,
             response: Response::new(),
-            app: App::builder().build(()),
+            app: crate::Group::new().app(()),
             state: (),
             ip,
         }

@@ -79,12 +79,12 @@ impl From<http::Request<hyper::Body>> for Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::{App, HttpService, Request};
+    use crate::{HttpService, Request, Group};
     use futures::AsyncReadExt;
 
     #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
-        let app = App::builder()
+        let app = Group::new()
             .handle_fn(|mut ctx, _next| {
                 async move {
                     let mut data = String::new();
@@ -93,7 +93,7 @@ mod tests {
                     Ok(())
                 }
             })
-            .model(());
+            .app(());
         let mut request = Request::new();
         request.write_str("Hello, World!");
         let _resp = HttpService::new(app, "127.0.0.1:8080".parse()?)

@@ -133,13 +133,13 @@ impl<M: Model> Clone for HttpService<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::{App, HttpService};
-    use crate::Request;
+    use super::HttpService;
+    use crate::{Request, Group};
     use std::time::Instant;
 
     #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let app = App::builder()
+        let app = Group::new()
             .handle_fn(|_ctx, next| {
                 async move {
                     let inbound = Instant::now();
@@ -148,7 +148,7 @@ mod tests {
                     Ok(())
                 }
             })
-            .model(());
+            .app(());
         let _resp = HttpService::new(app, "127.0.0.1:8080".parse()?)
             .serve(Request::new())
             .await?;

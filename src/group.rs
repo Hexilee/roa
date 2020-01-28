@@ -1,17 +1,17 @@
-use crate::{last, App, Context, DynHandler, DynMiddleware, Middleware, Next, State, Status};
+use crate::{last, App, Context, DynHandler, DynMiddleware, Middleware, Next, Status, Model};
 use futures::Future;
 use std::sync::Arc;
 
-pub struct Group<S: State>(Vec<Arc<DynMiddleware<S>>>);
+pub struct Group<M: Model>(Vec<Arc<DynMiddleware<M::State>>>);
 
-impl<S: State> Group<S> {
+impl<M: Model> Group<M> {
     pub fn new() -> Self {
         Self(Vec::new())
     }
 
     pub fn handle_fn<F>(
         &mut self,
-        middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
+        middleware: impl 'static + Sync + Send + Fn(Context<M::State>, Next) -> F,
     ) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
@@ -19,7 +19,7 @@ impl<S: State> Group<S> {
         self.handle(middleware)
     }
 
-    pub fn handle<F>(&mut self, middleware: impl Middleware<S, StatusFuture = F>) -> &mut Self
+    pub fn handle<F>(&mut self, middleware: impl Middleware<M::State, StatusFuture = F>) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
@@ -27,8 +27,8 @@ impl<S: State> Group<S> {
         self
     }
 
-    pub fn handler(&self) -> Arc<DynHandler<S>> {
-        let mut handler: Arc<DynHandler<S>> = Arc::new(|_ctx| last());
+    pub fn handler(&self) -> Arc<DynHandler<M::State>> {
+        let mut handler: Arc<DynHandler<M::State>> = Arc::new(|_ctx| last());
         for middleware in self.0.iter().rev() {
             let current = middleware.clone();
             handler = Arc::new(move |ctx| {
@@ -41,7 +41,7 @@ impl<S: State> Group<S> {
         handler
     }
 
-    pub fn app(&self, model: S::Model) -> App<S::Model> {
+    pub fn app(&self, model: M) -> App<M> {
         App::new(self.handler(), Arc::new(model))
     }
 }
