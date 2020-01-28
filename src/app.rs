@@ -9,7 +9,6 @@ use hyper::server::conn::{AddrIncoming, AddrStream};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
 use hyper::Server;
-use std::convert::TryInto;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -162,7 +161,7 @@ impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
     impl_poll_ready!();
     fn call(&mut self, req: HttpRequest<HyperBody>) -> Self::Future {
         let service = self.clone();
-        Box::pin(async move { Ok(service.serve(req.into()).await?.try_into()?) })
+        Box::pin(async move { Ok(service.serve(req.into()).await?.into()) })
     }
 }
 

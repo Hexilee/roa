@@ -1,18 +1,23 @@
 use crate::Body;
-use http::response::Builder;
-use http::StatusCode;
-use std::convert::TryFrom;
+use http::{Extensions, HeaderValue, StatusCode, Version};
+use hyper::HeaderMap;
 use std::ops::{Deref, DerefMut};
 
 pub struct Response {
-    builder: Builder,
+    pub status: StatusCode,
+    pub version: Version,
+    pub headers: HeaderMap<HeaderValue>,
+    pub extensions: Extensions,
     body: Body,
 }
 
 impl Response {
     pub fn new() -> Self {
         Self {
-            builder: Builder::new(),
+            status: StatusCode::default(),
+            version: Version::default(),
+            headers: HeaderMap::default(),
+            extensions: Extensions::default(),
             body: Body::new(),
         }
     }
@@ -22,9 +27,20 @@ impl Response {
         unimplemented!()
     }
 
-    fn into_resp(self) -> Result<http::Response<hyper::Body>, http::Error> {
-        let Self { builder, body } = self;
-        builder.body(body.stream().into())
+    fn into_resp(self) -> http::Response<hyper::Body> {
+        let (mut parts, _) = http::Response::new(()).into_parts();
+        let Response {
+            status,
+            version,
+            headers,
+            extensions,
+            body,
+        } = self;
+        parts.status = status;
+        parts.version = version;
+        parts.headers = headers;
+        parts.extensions = extensions;
+        http::Response::from_parts(parts, body.stream().into())
     }
 }
 
@@ -41,9 +57,8 @@ impl DerefMut for Response {
     }
 }
 
-impl TryFrom<Response> for http::Response<hyper::Body> {
-    type Error = http::Error;
-    fn try_from(value: Response) -> Result<Self, Self::Error> {
+impl From<Response> for http::Response<hyper::Body> {
+    fn from(value: Response) -> Self {
         value.into_resp()
     }
 }
