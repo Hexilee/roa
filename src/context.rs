@@ -34,6 +34,20 @@ impl<M: Model> DerefMut for Context<M> {
     }
 }
 
+
+impl<M: Model> Deref for Ctx<M> {
+    type Target = M::State;
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
+}
+
+impl<M: Model> DerefMut for Ctx<M> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.state
+    }
+}
+
 impl<M: Model> From<Ctx<M>> for Context<M> {
     fn from(ctx: Ctx<M>) -> Self {
         Self(Rc::new(UnsafeCell::new(ctx)))
