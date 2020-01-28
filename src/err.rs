@@ -80,6 +80,12 @@ impl From<std::io::Error> for Status {
     }
 }
 
+impl From<http::Error> for Status {
+    fn from(err: http::Error) -> Self {
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string(), false)
+    }
+}
+
 impl Display for Status {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.write_str(&format!("{}: {}", self.status_code, self.message))

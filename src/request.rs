@@ -1,13 +1,35 @@
 use crate::Body;
 use futures::TryStreamExt;
+use http::{HeaderValue, Method, Uri, Version};
+use hyper::HeaderMap;
 use std::io;
 use std::ops::{Deref, DerefMut};
 
-pub struct Request(http::Request<Body>);
+pub struct Request {
+    /// The request's method
+    pub method: Method,
+
+    /// The request's URI
+    pub uri: Uri,
+
+    /// The request's version
+    pub version: Version,
+
+    /// The request's headers
+    pub headers: HeaderMap<HeaderValue>,
+
+    body: Body,
+}
 
 impl Request {
     pub fn new() -> Self {
-        Self(http::Request::new(Body::new()))
+        Self {
+            method: Method::default(),
+            uri: Uri::default(),
+            version: Version::default(),
+            headers: HeaderMap::default(),
+            body: Body::new(),
+        }
     }
 }
 
@@ -20,19 +42,26 @@ impl Default for Request {
 impl Deref for Request {
     type Target = Body;
     fn deref(&self) -> &Self::Target {
-        self.0.body()
+        &self.body
     }
 }
 
 impl DerefMut for Request {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.body_mut()
+        &mut self.body
     }
 }
 
 impl From<http::Request<Body>> for Request {
     fn from(req: http::Request<Body>) -> Self {
-        Self(req)
+        let (parts, body) = req.into_parts();
+        Self {
+            method: parts.method,
+            uri: parts.uri,
+            version: parts.version,
+            headers: parts.headers,
+            body,
+        }
     }
 }
 

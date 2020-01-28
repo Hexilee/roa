@@ -20,11 +20,6 @@ impl Response {
         }
     }
 
-    // TODO: complete Response::status
-    pub fn status(&mut self, _status_code: StatusCode) -> &mut Self {
-        unimplemented!()
-    }
-
     fn into_resp(self) -> http::Response<hyper::Body> {
         let (mut parts, _) = http::Response::new(()).into_parts();
         let Response {
