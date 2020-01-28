@@ -170,7 +170,7 @@ mod tests {
         let mut data = String::new();
         body.write_buf(b"He".as_ref())
             .write_buf(b"llo, ".as_ref())
-            .write(File::open("assets/test_data.txt").await?)
+            .write(File::open("assets/author.txt").await?)
             .write_buf(b".".as_ref())
             .read_to_string(&mut data)
             .await?;
