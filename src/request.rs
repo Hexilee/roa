@@ -82,7 +82,7 @@ mod tests {
     use crate::{App, HttpService, Request};
     use futures::AsyncReadExt;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let app = App::builder()
             .handle_fn(|mut ctx, _next| {

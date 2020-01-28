@@ -207,7 +207,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::Instant;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         let app = App::builder()
             .handle_fn(|_ctx, next| {
@@ -225,7 +225,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
         let mut builder = App::builder();

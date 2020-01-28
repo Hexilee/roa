@@ -130,7 +130,7 @@ mod tests {
     use async_std::fs::File;
     use futures::AsyncReadExt;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_empty() -> std::io::Result<()> {
         let mut body = Body::new();
         let mut data = String::new();
@@ -139,7 +139,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_single() -> std::io::Result<()> {
         let mut body = Body::new();
         let mut data = String::new();
@@ -151,7 +151,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_multiple() -> std::io::Result<()> {
         let mut body = Body::new();
         let mut data = String::new();
@@ -164,7 +164,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_composed() -> std::io::Result<()> {
         let mut body = Body::new();
         let mut data = String::new();
@@ -178,7 +178,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn response_write_str() -> std::io::Result<()> {
         let mut body = Body::new();
         let mut data = String::new();
