@@ -205,8 +205,6 @@ mod tests {
     use super::{App, HttpService};
     use crate::Request;
     use futures::lock::Mutex;
-    use std::convert::Infallible;
-    use std::net::SocketAddr;
     use std::sync::Arc;
     use std::time::Instant;
 

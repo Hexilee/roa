@@ -52,7 +52,6 @@ impl From<http::Request<hyper::Body>> for Request {
 mod tests {
     use crate::{App, HttpService, Request};
     use futures::AsyncReadExt;
-    use std::convert::Infallible;
 
     #[async_std::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
