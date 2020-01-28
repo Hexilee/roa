@@ -18,12 +18,12 @@ impl Response {
     }
 
     // TODO: complete Response::status
-    pub fn status(&mut self, status_code: StatusCode) -> &mut Self {
+    pub fn status(&mut self, _status_code: StatusCode) -> &mut Self {
         unimplemented!()
     }
 
     fn into_resp(self) -> Result<http::Response<hyper::Body>, http::Error> {
-        let Self { mut builder, body } = self;
+        let Self { builder, body } = self;
         builder.body(body.stream().into())
     }
 }

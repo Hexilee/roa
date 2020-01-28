@@ -13,6 +13,8 @@ members = ["roa-middlewares"]
 futures = "0.3"
 bytes = "0.5"
 http = "0.2"
-async-std = { version = "1.4", features = ["attributes"] }
 log = "0.4"
 hyper = "0.13"
+
+[dev-dependencies]
+async-std = { version = "1.4", features = ["attributes"] }

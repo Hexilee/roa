@@ -4,13 +4,12 @@ use crate::{
     TargetHandler,
 };
 use futures::task::Poll;
-use futures::TryStreamExt;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
 use hyper::Server;
-use std::convert::{Infallible, TryInto};
+use std::convert::TryInto;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -126,8 +125,16 @@ impl<M: Model> App<M> {
 
     pub fn listen(&self, addr: SocketAddr) -> hyper::Server<AddrIncoming, App<M>> {
         log::info!("Server is listening on: http://{}", &addr);
-        hyper::Server::bind(&addr).serve(self.clone())
+        Server::bind(&addr).serve(self.clone())
     }
+}
+
+macro_rules! impl_poll_ready {
+    () => {
+        fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
+            Poll::Ready(Ok(()))
+        }
+    };
 }
 
 impl<M: Model> Service<&AddrStream> for App<M> {
@@ -135,10 +142,7 @@ impl<M: Model> Service<&AddrStream> for App<M> {
     type Error = std::io::Error;
     type Future =
         Pin<Box<dyn 'static + Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
+    impl_poll_ready!();
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
         let addr = stream.remote_addr();
         let app = self.clone();
@@ -151,13 +155,9 @@ impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
     type Error = Status;
     type Future =
         Pin<Box<dyn 'static + Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
+    impl_poll_ready!();
     fn call(&mut self, req: HttpRequest<HyperBody>) -> Self::Future {
-        let mut service = self.clone();
+        let service = self.clone();
         Box::pin(async move { Ok(service.serve(req.into()).await?.try_into()?) })
     }
 }

@@ -1,10 +1,7 @@
 use crate::Body;
-use futures::{AsyncRead as Read, TryStreamExt};
+use futures::TryStreamExt;
 use std::io;
 use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-
-pub type BodyRef<'a> = &'a mut (dyn Read + Send + Unpin + 'static);
 
 pub struct Request(http::Request<Body>);
 
@@ -36,7 +33,7 @@ impl From<http::Request<Body>> for Request {
 impl From<http::Request<hyper::Body>> for Request {
     fn from(req: http::Request<hyper::Body>) -> Self {
         let (parts, body) = req.into_parts();
-        let mut new_req = Self::new();
+        let mut new_req: Self = http::Request::from_parts(parts, Body::new()).into();
         new_req.write(
             body.map_err(|err| io::Error::new(io::ErrorKind::Other, err))
                 .into_async_read(),

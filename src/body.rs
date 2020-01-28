@@ -1,7 +1,6 @@
 use futures::io::{BufReader, Cursor};
 use futures::task::{Context, Poll};
-use futures::{AsyncBufRead as BufRead, AsyncBufReadExt, AsyncRead as Read, Stream};
-use std::borrow::BorrowMut;
+use futures::{AsyncBufRead as BufRead, AsyncRead as Read, Stream};
 use std::io::Error;
 use std::pin::Pin;
 
@@ -52,16 +51,13 @@ impl Body {
 impl BufRead for Body {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
         let mut_ref = self.get_mut();
-        let mut buf_len = 0;
-        let mut buf_ptr = b"".as_ref() as *const [u8];
         loop {
             if mut_ref.counter >= mut_ref.segments.len() {
                 break Poll::Ready(Ok(b"".as_ref()));
             }
             let buf = futures::ready!(mut_ref.poll_segment(cx))?;
-            buf_len = buf.len();
-            buf_ptr = buf as *const [u8];
-            if buf_len != 0 {
+            let buf_ptr = buf as *const [u8];
+            if buf.len() != 0 {
                 break Poll::Ready(Ok(unsafe { &*buf_ptr }));
             }
             mut_ref.counter += 1;
@@ -100,7 +96,7 @@ impl<R: BufRead> BodyStream<R> {
     }
 }
 
-impl<R: BufRead + Unpin> futures::Stream for BodyStream<R> {
+impl<R: BufRead + Unpin> Stream for BodyStream<R> {
     type Item = Result<Vec<u8>, std::io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
