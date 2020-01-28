@@ -54,6 +54,15 @@ impl<M: Model> App<M> {
         self.handle_status(handler)
     }
 
+    pub async fn serve(&self, req: Request, peer_addr: SocketAddr) -> Result<Response, Status> {
+        let mut context = Context::new(req, self.clone(), peer_addr);
+        let app = self.clone();
+        if let Err(status) = (app.handler)(context.clone()).await {
+            (app.status_handler)(context.clone(), status).await?;
+        }
+        Ok(std::mem::take(&mut context.response))
+    }
+
     pub fn listen(&self, addr: SocketAddr) -> hyper::Server<AddrIncoming, App<M>> {
         log::info!("Server is listening on: http://{}", &addr);
         Server::bind(&addr).serve(self.clone())
@@ -93,22 +102,13 @@ impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
     impl_poll_ready!();
     fn call(&mut self, req: HttpRequest<HyperBody>) -> Self::Future {
         let service = self.clone();
-        Box::pin(async move { Ok(service.serve(req.into()).await?.into()) })
+        Box::pin(async move { Ok(service.app.serve(req.into(), service.addr).await?.into()) })
     }
 }
 
 impl<M: Model> HttpService<M> {
     pub fn new(app: App<M>, addr: SocketAddr) -> Self {
         Self { app, addr }
-    }
-
-    pub async fn serve(&self, req: Request) -> Result<Response, Status> {
-        let mut context = Context::new(req, self.app.clone(), self.addr);
-        let app = self.app.clone();
-        if let Err(status) = (app.handler)(context.clone()).await {
-            (app.status_handler)(context.clone(), status).await?;
-        }
-        Ok(std::mem::take(&mut context.response))
     }
 }
 
@@ -134,7 +134,7 @@ impl<M: Model> Clone for HttpService<M> {
 #[cfg(test)]
 mod tests {
     use super::HttpService;
-    use crate::{Request, Group};
+    use crate::{Group, Request};
     use std::time::Instant;
 
     #[tokio::test]

@@ -1,4 +1,4 @@
-use crate::{last, App, Context, DynHandler, DynMiddleware, Middleware, Next, Status, Model};
+use crate::{last, App, Context, DynHandler, DynMiddleware, Middleware, Model, Next, Status};
 use futures::Future;
 use std::sync::Arc;
 

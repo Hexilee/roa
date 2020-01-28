@@ -1,4 +1,4 @@
-use crate::{DynTargetHandler, Next, Model, TargetHandler};
+use crate::{DynTargetHandler, Model, Next, TargetHandler};
 
 pub type DynMiddleware<M> = DynTargetHandler<M, Next>;
 

@@ -10,3 +10,8 @@ edition = "2018"
 roa = {path = ".."}
 jsonwebtoken = "6"
 serde = "1"
+url = "2.1.1"
+
+[dev-dependencies]
+tokio = {version = "0.2", features = ["full"]}
+hyper = "0.13"

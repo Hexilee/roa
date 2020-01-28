@@ -1,5 +1,4 @@
-pub trait State: 'static + Send + Sized {
-}
+pub trait State: 'static + Send + Sized {}
 
 pub trait Model: 'static + Send + Sync + Sized {
     type State: State;
@@ -11,5 +10,4 @@ impl Model for () {
     fn new_state(&self) -> Self::State {}
 }
 
-impl State for () {
-}
+impl<T: 'static + Send + Sized> State for T {}

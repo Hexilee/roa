@@ -79,7 +79,7 @@ impl From<http::Request<hyper::Body>> for Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::{HttpService, Request, Group};
+    use crate::{Group, HttpService, Request};
     use futures::AsyncReadExt;
 
     #[tokio::test]

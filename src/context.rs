@@ -10,8 +10,8 @@ unsafe impl<M: Model> Send for Context<M> {}
 unsafe impl<M: Model> Sync for Context<M> {}
 
 impl<M: Model> Context<M> {
-    pub fn new(request: Request, app: App<M>, ip: SocketAddr) -> Self {
-        Ctx::new(request, app, ip).into()
+    pub fn new(request: Request, app: App<M>, peer_addr: SocketAddr) -> Self {
+        Ctx::new(request, app, peer_addr).into()
     }
 }
 
@@ -33,7 +33,6 @@ impl<M: Model> DerefMut for Context<M> {
         unsafe { &mut *self.0.get() }
     }
 }
-
 
 impl<M: Model> Deref for Ctx<M> {
     type Target = M::State;
@@ -77,8 +76,7 @@ impl<M: Model> Ctx<M> {
 
 impl Ctx<()> {
     // construct fake Context for test.
-    #[cfg(test)]
-    pub(crate) fn fake(request: Request) -> Self {
+    pub fn fake(request: Request) -> Self {
         use std::net::{IpAddr, Ipv4Addr};
         let peer_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
         Self {

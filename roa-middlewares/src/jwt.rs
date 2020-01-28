@@ -1,34 +1,34 @@
 use jsonwebtoken::{dangerous_unsafe_decode, decode, Validation};
 pub use jsonwebtoken::{encode, Algorithm, Header};
 use roa::{
-    Context, DynHandler, DynMiddleware, DynTargetHandler, Handler, Next, State, Status, StatusCode,
+    Context, DynHandler, DynMiddleware, DynTargetHandler, Handler, Model, Next, Status, StatusCode,
     StatusFuture, TargetHandler,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::future::Future;
 use std::sync::Arc;
 
-pub struct JwtVerifier<S, C>
+pub struct JwtVerifier<M, C>
 where
-    S: State,
+    M: Model,
     C: 'static + Serialize + DeserializeOwned,
 {
-    token_getter: Arc<DynHandler<S, String>>,
-    validation_getter: Arc<DynHandler<S, Validation>>,
-    secret_getter: Arc<DynTargetHandler<S, C, Vec<u8>>>,
-    claim_setter: Arc<DynTargetHandler<S, C>>,
+    token_getter: Arc<DynHandler<M, String>>,
+    validation_getter: Arc<DynHandler<M, Validation>>,
+    secret_getter: Arc<DynTargetHandler<M, C, Vec<u8>>>,
+    claim_setter: Arc<DynTargetHandler<M, C>>,
 }
 
-impl<S, C> JwtVerifier<S, C>
+impl<M, C> JwtVerifier<M, C>
 where
-    S: State,
+    M: Model,
     C: 'static + Serialize + DeserializeOwned,
 {
     pub fn new<TG, TGF, SG, SGF>(token: TG, secret: SG) -> Self
     where
-        TG: 'static + Send + Sync + Fn(Context<S>) -> TGF,
+        TG: 'static + Send + Sync + Fn(Context<M>) -> TGF,
         TGF: 'static + Send + Future<Output = Result<String, Status>>,
-        SG: 'static + Send + Sync + Fn(Context<S>, C) -> SGF,
+        SG: 'static + Send + Sync + Fn(Context<M>, C) -> SGF,
         SGF: 'static + Send + Future<Output = Result<Vec<u8>, Status>>,
     {
         Self {
@@ -43,7 +43,7 @@ where
 
     pub fn validation<VG, VGF>(&mut self, validation: VG) -> &mut Self
     where
-        VG: 'static + Send + Sync + Fn(Context<S>) -> VGF,
+        VG: 'static + Send + Sync + Fn(Context<M>) -> VGF,
         VGF: 'static + Send + Future<Output = Result<Validation, Status>>,
     {
         self.validation_getter = Arc::from(Box::new(validation).dynamic());
@@ -51,9 +51,9 @@ where
     }
 }
 
-impl<S, C> Clone for JwtVerifier<S, C>
+impl<M, C> Clone for JwtVerifier<M, C>
 where
-    S: State,
+    M: Model,
     C: 'static + Serialize + DeserializeOwned,
 {
     fn clone(&self) -> Self {
@@ -66,13 +66,13 @@ where
     }
 }
 
-impl<S, C> TargetHandler<S, Next> for JwtVerifier<S, C>
+impl<M, C> TargetHandler<M, Next> for JwtVerifier<M, C>
 where
-    S: State,
+    M: Model,
     C: 'static + Serialize + DeserializeOwned + Send,
 {
     type StatusFuture = StatusFuture;
-    fn handle(&self, ctx: Context<S>, next: Next) -> Self::StatusFuture {
+    fn handle(&self, ctx: Context<M>, next: Next) -> Self::StatusFuture {
         let jwt = self.clone();
         Box::pin(async move {
             let token = (jwt.token_getter)(ctx.clone()).await?;
@@ -89,7 +89,7 @@ where
         })
     }
 
-    fn dynamic(self: Box<Self>) -> Box<DynMiddleware<S>> {
+    fn dynamic(self: Box<Self>) -> Box<DynMiddleware<M>> {
         Box::new(move |ctx, next| self.handle(ctx, next))
     }
 }
