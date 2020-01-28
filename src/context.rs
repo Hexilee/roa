@@ -45,18 +45,18 @@ pub struct Ctx<S: State> {
     pub response: Response,
     pub app: App<S::Model>,
     pub state: S,
-    pub ip: SocketAddr,
+    pub peer_addr: SocketAddr,
 }
 
 impl<S: State> Ctx<S> {
-    fn new(request: Request, app: App<S::Model>, ip: SocketAddr) -> Self {
+    fn new(request: Request, app: App<S::Model>, peer_addr: SocketAddr) -> Self {
         let state = app.model.new_state();
         Self {
             request,
             response: Response::new(),
             app,
             state,
-            ip,
+            peer_addr,
         }
     }
 }
@@ -66,13 +66,13 @@ impl Ctx<()> {
     #[cfg(test)]
     pub(crate) fn fake(request: Request) -> Self {
         use std::net::{IpAddr, Ipv4Addr};
-        let ip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+        let peer_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
         Self {
             request,
             response: Response::new(),
             app: crate::Group::new().app(()),
             state: (),
-            ip,
+            peer_addr,
         }
     }
 }
