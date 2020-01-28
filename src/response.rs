@@ -1,13 +1,12 @@
 use crate::Body;
-use http::{Extensions, HeaderValue, StatusCode, Version};
+use http::{HeaderValue, StatusCode, Version};
 use hyper::HeaderMap;
 use std::ops::{Deref, DerefMut};
 
 pub struct Response {
     pub status: StatusCode,
     pub version: Version,
-    pub headers: HeaderMap<HeaderValue>,
-    pub extensions: Extensions,
+    headers: HeaderMap<HeaderValue>,
     body: Body,
 }
 
@@ -17,7 +16,6 @@ impl Response {
             status: StatusCode::default(),
             version: Version::default(),
             headers: HeaderMap::default(),
-            extensions: Extensions::default(),
             body: Body::new(),
         }
     }
@@ -33,13 +31,11 @@ impl Response {
             status,
             version,
             headers,
-            extensions,
             body,
         } = self;
         parts.status = status;
         parts.version = version;
         parts.headers = headers;
-        parts.extensions = extensions;
         http::Response::from_parts(parts, body.stream().into())
     }
 }
