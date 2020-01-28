@@ -203,8 +203,6 @@ impl<M: Model> Clone for HttpService<M> {
 mod tests {
     use super::{App, HttpService};
     use crate::Request;
-    use futures::lock::Mutex;
-    use std::sync::Arc;
     use std::time::Instant;
 
     #[tokio::test]
@@ -222,32 +220,6 @@ mod tests {
         let _resp = HttpService::new(app, "127.0.0.1:8080".parse()?)
             .serve(Request::new())
             .await?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
-        let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut builder = App::builder();
-        for i in 0..100 {
-            let vec = vector.clone();
-            builder = builder.handle_fn(move |_ctx, next| {
-                let vec = vec.clone();
-                async move {
-                    vec.lock().await.push(i);
-                    next().await?;
-                    vec.lock().await.push(i);
-                    Ok(())
-                }
-            });
-        }
-        let _resp = HttpService::new(builder.model(()), "127.0.0.1:8080".parse()?)
-            .serve(Request::new())
-            .await?;
-        for i in 0..100 {
-            assert_eq!(i, vector.lock().await[i]);
-            assert_eq!(i, vector.lock().await[199 - i]);
-        }
         Ok(())
     }
 }

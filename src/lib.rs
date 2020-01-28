@@ -3,11 +3,11 @@ mod body;
 mod context;
 mod err;
 mod handler;
+mod group;
 mod model;
 mod next;
 mod request;
 mod response;
-
 pub use app::{App, Builder as ServiceBuilder, HttpService};
 pub use body::Body;
 pub use context::{Context, Ctx};
@@ -22,3 +22,4 @@ pub(crate) use next::last;
 pub use next::Next;
 pub use request::Request;
 pub use response::Response;
+pub use group::Group;
