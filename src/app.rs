@@ -137,11 +137,13 @@ macro_rules! impl_poll_ready {
     };
 }
 
+type AppFuture<M> =
+    Pin<Box<dyn 'static + Future<Output = Result<HttpService<M>, std::io::Error>> + Send>>;
+
 impl<M: Model> Service<&AddrStream> for App<M> {
     type Response = HttpService<M>;
     type Error = std::io::Error;
-    type Future =
-        Pin<Box<dyn 'static + Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = AppFuture<M>;
     impl_poll_ready!();
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
         let addr = stream.remote_addr();
@@ -150,11 +152,13 @@ impl<M: Model> Service<&AddrStream> for App<M> {
     }
 }
 
+type HttpFuture =
+    Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>, Status>> + Send>>;
+
 impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
     type Response = HttpResponse<HyperBody>;
     type Error = Status;
-    type Future =
-        Pin<Box<dyn 'static + Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = HttpFuture;
     impl_poll_ready!();
     fn call(&mut self, req: HttpRequest<HyperBody>) -> Self::Future {
         let service = self.clone();

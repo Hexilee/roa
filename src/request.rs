@@ -11,6 +11,12 @@ impl Request {
     }
 }
 
+impl Default for Request {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Deref for Request {
     type Target = Body;
     fn deref(&self) -> &Self::Target {

@@ -48,6 +48,12 @@ impl Body {
     }
 }
 
+impl Default for Body {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BufRead for Body {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
         let mut_ref = self.get_mut();
@@ -57,7 +63,7 @@ impl BufRead for Body {
             }
             let buf = futures::ready!(mut_ref.poll_segment(cx))?;
             let buf_ptr = buf as *const [u8];
-            if buf.len() != 0 {
+            if !buf.is_empty() {
                 break Poll::Ready(Ok(unsafe { &*buf_ptr }));
             }
             mut_ref.counter += 1;
@@ -103,7 +109,7 @@ impl<R: BufRead + Unpin> Stream for BodyStream<R> {
         let buf: &[u8] = futures::ready!(Pin::new(&mut self.body).poll_fill_buf(cx))?;
         let buf_len = buf.len();
         if buf_len == 0 {
-            return Poll::Ready(None);
+            Poll::Ready(None)
         } else {
             let data = buf.to_vec();
             Pin::new(&mut self.body).consume(buf_len);

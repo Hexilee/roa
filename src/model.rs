@@ -9,9 +9,7 @@ pub trait Model: 'static + Send + Sync + Sized {
 
 impl Model for () {
     type State = ();
-    fn new_state(&self) -> Self::State {
-        ()
-    }
+    fn new_state(&self) -> Self::State {}
 }
 
 impl State for () {
