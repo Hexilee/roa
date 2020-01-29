@@ -3,7 +3,18 @@ name = "roa"
 version = "0.1.0"
 authors = ["Hexilee <hexileee@gmail.com>"]
 edition = "2018"
-
+license = "MIT"
+readme = "./README.md"
+repository = "https://github.com/Hexilee/roa"
+documentation = "https://docs.rs/roa"
+homepage = "https://github.com/Hexilee/roa"
+description = """
+async web framework inspired by koajs, lightweight but powerful.
+"""
+keywords = ["http", "web", "framework", "async"]
+categories = ["network-programming", "asynchronous",
+              "web-programming::http-server"]
+exclude = ["/.travis.yml"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
