@@ -1,5 +1,5 @@
 [package]
-name = "roa-middlewares"
+name = "roa-basic"
 version = "0.1.0"
 authors = ["Hexilee <hexileee@gmail.com>"]
 edition = "2018"
@@ -7,11 +7,3 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-roa-core = {path = "../roa-core"}
-jsonwebtoken = "6"
-serde = "1"
-url = "2.1.1"
-
-[dev-dependencies]
-tokio = {version = "0.2", features = ["full"]}
-hyper = "0.13"

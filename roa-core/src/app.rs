@@ -133,7 +133,6 @@ impl<M: Model> Clone for HttpService<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::HttpService;
     use crate::{Group, Request};
     use std::time::Instant;
 
@@ -149,8 +148,7 @@ mod tests {
                 }
             })
             .app(());
-        let _resp = HttpService::new(app, "127.0.0.1:8080".parse()?)
-            .serve(Request::new())
+        let _resp = app.serve(Request::new(), "127.0.0.1:8080".parse()?)
             .await?;
         Ok(())
     }

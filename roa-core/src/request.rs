@@ -79,7 +79,7 @@ impl From<http::Request<hyper::Body>> for Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Group, HttpService, Request};
+    use crate::{Group, Request};
     use futures::AsyncReadExt;
 
     #[tokio::test]
@@ -96,8 +96,7 @@ mod tests {
             .app(());
         let mut request = Request::new();
         request.write_str("Hello, World!");
-        let _resp = HttpService::new(app, "127.0.0.1:8080".parse()?)
-            .serve(request)
+        let _resp = app.serve(request, "127.0.0.1:8080".parse()?)
             .await?;
         Ok(())
     }

@@ -1,4 +1,4 @@
-use roa::{Context, Model, Next, Status, StatusCode};
+use roa_core::{Context, Model, Next, Status, StatusCode};
 use url::Url;
 
 pub trait QueryStorage {
@@ -25,7 +25,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::query_parser::{query_parser, QueryStorage};
-    use roa::{Group, Model, Request};
+    use roa_core::{Group, Model, Request};
     use std::collections::HashMap;
 
     struct AppModel {}

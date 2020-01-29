@@ -1,6 +1,6 @@
 use jsonwebtoken::{dangerous_unsafe_decode, decode, Validation};
 pub use jsonwebtoken::{encode, Algorithm, Header};
-use roa::{
+use roa_core::{
     Context, DynHandler, DynMiddleware, DynTargetHandler, Handler, Model, Next, Status, StatusCode,
     StatusFuture, TargetHandler,
 };
