@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 use async_std::fs::File;
 use roa::Group;
 
@@ -6,9 +5,11 @@ use roa::Group;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     Group::new()
-        .handle_fn(async move |mut ctx, _next| {
-            ctx.response.write(File::open("assets/welcome.html").await?);
-            Ok(())
+        .handle_fn(|mut ctx, _next| {
+            async move {
+                ctx.response.write(File::open("assets/welcome.html").await?);
+                Ok(())
+            }
         })
         .app(())
         .listen("127.0.0.1:8000".parse()?)
