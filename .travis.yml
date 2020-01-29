@@ -1,13 +1,21 @@
 sudo: required
 language: rust
+dist: trusty
 
 # Cache cargo symbols for faster build
-cache: cargo
+cache:
+  cargo: true
+  apt: true
 
 rust:
   - stable
   - beta
   - nightly
+
+before_install:
+  - sudo add-apt-repository -y ppa:0k53d-karl-f830m/openssl
+  - sudo apt-get update -qq
+  - sudo apt-get install -y openssl libssl-dev libelf-dev libdw-dev cmake gcc binutils-dev libiberty-dev gcov
 
 before_cache: |
   if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
@@ -37,6 +45,7 @@ after_success:
 env:
   global:
     - TRAVIS_CARGO_NIGHTLY_FEATURE=
+    - OPENSSL_VERSION=openssl-1.0.2
 
 notifications:
   email:
