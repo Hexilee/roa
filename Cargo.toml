@@ -14,11 +14,14 @@ async web framework inspired by koajs, lightweight but powerful.
 keywords = ["http", "web", "framework", "async"]
 categories = ["network-programming", "asynchronous",
               "web-programming::http-server"]
-exclude = ["/.travis.yml"]
+exclude = [".travis.yml", "*.sh"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
 members = ["roa-basic", "roa-core"]
+
+[badges]
+travis-ci = { repository = "Hexilee/roa" }
 
 [dependencies]
 roa-core = {path = "./roa-core"}

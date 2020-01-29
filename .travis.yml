@@ -1,0 +1,36 @@
+sudo: required
+language: rust
+
+# Cache cargo symbols for faster build
+cache: cargo
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+before_script:
+  - export PATH=$HOME/.cargo/bin:$PATH
+  - cargo install cargo-update || echo "cargo-update already installed"
+  - cargo install-update -a # update outdated cached binaries
+
+script: # 集成脚本
+  - cargo install grcov || true
+  - export CARGO_INCREMENTAL=0
+  - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+  - cargo build --all --all-features
+  - cargo test --all --all-features
+
+after_success:
+  - bash ./cover.sh
+
+env:
+  global:
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=
+
+notifications:
+  email:
+    recipients:
+    - i@hexilee.me
+  on_success: change
+  on_failure: always
