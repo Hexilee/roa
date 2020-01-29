@@ -1,5 +1,5 @@
-use roa_core::{Context, Model, Next, Status, StatusCode};
-use url::Url;
+use roa_core::{Context, Model, Next, Status};
+use url::form_urlencoded::parse;
 
 pub trait QueryStorage {
     fn insert_pair(&mut self, key: &str, value: &str);
@@ -9,15 +9,10 @@ pub async fn query_parser<M: Model>(mut ctx: Context<M>, next: Next) -> Result<(
 where
     M::State: QueryStorage,
 {
-    let url = Url::parse(&ctx.request.uri.to_string()).map_err(|err| {
-        Status::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("this is a bug of crate http or url: {}", err),
-            false,
-        )
-    })?;
-    for (key, value) in url.query_pairs() {
-        ctx.insert_pair(&key, &value)
+    if let Some(query) = ctx.request.uri.query() {
+        for (key, value) in parse(query.to_string().as_bytes()) {
+            ctx.insert_pair(&key, &value)
+        }
     }
     next().await
 }
@@ -29,6 +24,7 @@ mod tests {
     use std::collections::HashMap;
 
     struct AppModel {}
+
     struct AppState {
         query: HashMap<String, String>,
     }
