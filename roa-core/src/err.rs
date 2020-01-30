@@ -1,4 +1,5 @@
 use futures::Future;
+use http::header::{InvalidHeaderName, InvalidHeaderValue, ToStrError};
 pub use http::StatusCode;
 use std::fmt::{Display, Formatter};
 use std::pin::Pin;
@@ -74,17 +75,21 @@ impl Status {
     }
 }
 
-impl From<std::io::Error> for Status {
-    fn from(err: std::io::Error) -> Self {
-        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
-    }
+macro_rules! internal_server_error {
+    ($error:ty) => {
+        impl From<$error> for Status {
+            fn from(err: $error) -> Self {
+                Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
+            }
+        }
+    };
 }
 
-impl From<http::Error> for Status {
-    fn from(err: http::Error) -> Self {
-        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
-    }
-}
+internal_server_error!(std::io::Error);
+internal_server_error!(http::Error);
+internal_server_error!(InvalidHeaderValue);
+internal_server_error!(InvalidHeaderName);
+internal_server_error!(ToStrError);
 
 impl Display for Status {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
