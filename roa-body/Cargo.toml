@@ -1,0 +1,22 @@
+[package]
+name = "roa-body"
+version = "0.1.0"
+authors = ["Hexilee <hexileee@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+roa-core = { path = "../roa-core", version = "0.1" }
+http = "0.2"
+mime = "0.3"
+serde = "1"
+async-trait = "0.1.22"
+askama = "0.9"
+serde_json = "1.0"
+serde_urlencoded = "0.6"
+futures = "0.3"
+async-std = "1.4"
+encoding = "0.2"
+mime_guess = "2.0"
+percent-encoding = "2.1"

@@ -18,15 +18,48 @@ exclude = [".travis.yml", "*.sh"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["roa-core"]
+members = [
+    "roa-core",
+
+    # contexts
+    "roa-query",
+    "roa-cookie",
+    "roa-forward",
+    "roa-body",
+
+    # middlewares
+    "roa-jwt",
+    "roa-logger",
+    "roa-router",
+    "roa-cors"
+]
 
 [badges]
 travis-ci = { repository = "Hexilee/roa" }
 
 [dependencies]
 roa-core = {path = "./roa-core", version = "0.1"}
+roa-query = { path = "./roa-query", version = "0.1" }
+roa-forward = { path = "./roa-forward", version = "0.1" }
+roa-logger = { path = "./roa-logger", version = "0.1" }
+roa-cors = { path = "./roa-cors", version = "0.1" }
+roa-cookie = { path = "./roa-cookie", version = "0.1", optional = true }
+roa-body = { path = "./roa-body", version = "0.1", optional = true }
+roa-router = { path = "./roa-router", version = "0.1", optional = true }
+roa-jwt = { path = "./roa-jwt", version = "0.1", optional = true }
 
 [dev-dependencies]
 tokio = {version = "0.2", features = ["full"]}
 async-std = "1.4"
 pretty_env_logger = "0.3"
+
+[features]
+default = ["router"]
+full = ["body", "cookie", "router", "jwt"]
+body = ["roa-body"]
+cookie = ["roa-cookie"]
+router = ["roa-router"]
+jwt = ["roa-jwt"]
+
+[package.metadata.docs.rs]
+features = ["full"]
