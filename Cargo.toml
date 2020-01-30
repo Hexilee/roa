@@ -18,7 +18,7 @@ exclude = [".travis.yml", "*.sh"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["roa-basic", "roa-core"]
+members = ["roa-core"]
 
 [badges]
 travis-ci = { repository = "Hexilee/roa" }
