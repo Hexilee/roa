@@ -15,9 +15,6 @@ pub async fn default_status_handler<M: Model>(
     mut context: Context<M>,
     status: Status,
 ) -> Result<(), Status> {
-    if !status.success() {
-        log::error!("{}", &status);
-    }
     context.response.status = status.status_code;
     if status.expose {
         context.response.write_str(&status.message);
