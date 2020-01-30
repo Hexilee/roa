@@ -5,8 +5,8 @@ use std::pin::Pin;
 
 pub type StatusFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R, Status>> + Send>>;
 
-pub fn throw(status_code: StatusCode, message: impl ToString) -> Result<(), Status> {
-    Err(Status::new(status_code, message.to_string(), true))
+pub fn throw<R>(status_code: StatusCode, message: impl ToString) -> Result<R, Status> {
+    Err(Status::new(status_code, message, true))
 }
 
 #[derive(Debug)]
@@ -56,11 +56,11 @@ impl StatusKind {
 }
 
 impl Status {
-    pub fn new(status_code: StatusCode, message: String, expose: bool) -> Self {
+    pub fn new(status_code: StatusCode, message: impl ToString, expose: bool) -> Self {
         Self {
             status_code,
             kind: StatusKind::infer(status_code),
-            message,
+            message: message.to_string(),
             expose,
         }
     }
@@ -76,13 +76,13 @@ impl Status {
 
 impl From<std::io::Error> for Status {
     fn from(err: std::io::Error) -> Self {
-        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string(), false)
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
     }
 }
 
 impl From<http::Error> for Status {
     fn from(err: http::Error) -> Self {
-        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err.to_string(), false)
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
     }
 }
 

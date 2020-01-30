@@ -148,8 +148,7 @@ mod tests {
                 }
             })
             .app(());
-        let _resp = app.serve(Request::new(), "127.0.0.1:8080".parse()?)
-            .await?;
+        let _resp = app.serve(Request::new(), "127.0.0.1:8080".parse()?).await?;
         Ok(())
     }
 }

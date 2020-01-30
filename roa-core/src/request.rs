@@ -96,8 +96,7 @@ mod tests {
             .app(());
         let mut request = Request::new();
         request.write_str("Hello, World!");
-        let _resp = app.serve(request, "127.0.0.1:8080".parse()?)
-            .await?;
+        let _resp = app.serve(request, "127.0.0.1:8080".parse()?).await?;
         Ok(())
     }
 }
