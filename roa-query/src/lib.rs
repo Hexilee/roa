@@ -67,7 +67,7 @@ impl Variable<'_> {
 #[cfg(test)]
 mod tests {
     use crate::Query;
-    use roa_core::{Context, Ctx, Middleware, Request};
+    use roa_core::{App, Context, Ctx, Request};
 
     #[test]
     fn query() -> Result<(), Box<dyn std::error::Error>> {
@@ -112,7 +112,7 @@ mod tests {
     async fn query_action() -> Result<(), Box<dyn std::error::Error>> {
         let mut request = Request::new();
         request.uri = "/?name=Hexilee&lang=rust".parse()?;
-        Middleware::<()>::new()
+        App::new(())
             .join(move |ctx, _next| {
                 async move {
                     assert_eq!("Hexilee", ctx.query("name")?.as_ref());
@@ -120,7 +120,6 @@ mod tests {
                     Ok(())
                 }
             })
-            .app(())
             .serve(request, "127.0.0.1:8000".parse()?)
             .await?;
         Ok(())

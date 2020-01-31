@@ -68,7 +68,7 @@ mod tests {
     use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use http::{HeaderValue, StatusCode};
     use jsonwebtoken::{encode, Header};
-    use roa_core::{Middleware, Model, Request, Status};
+    use roa_core::{App, Model, Request, Status};
     use serde::{Deserialize, Serialize};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -115,23 +115,21 @@ mod tests {
 
     #[tokio::test]
     async fn verify() -> Result<(), Box<dyn std::error::Error>> {
-        let app = Middleware::<AppModel>::new()
-            .join(jwt_verify)
-            .join(move |ctx, _next| {
-                async move {
-                    match ctx.user {
-                        None => panic!("ctx.usr should not be None"),
-                        Some(ref user) => {
-                            assert_eq!(0, user.id);
-                            assert_eq!("Hexilee", &user.name);
-                        }
+        let mut app = App::new(AppModel {
+            secret: SECRET.to_vec(),
+        });
+        app.join(jwt_verify).join(move |ctx, _next| {
+            async move {
+                match ctx.user {
+                    None => panic!("ctx.usr should not be None"),
+                    Some(ref user) => {
+                        assert_eq!(0, user.id);
+                        assert_eq!("Hexilee", &user.name);
                     }
-                    Ok(())
                 }
-            })
-            .app(AppModel {
-                secret: SECRET.to_vec(),
-            });
+                Ok(())
+            }
+        });
         let addr = "127.0.0.1:8000".parse()?;
         // no header value
         let resp = app.serve(Request::new(), addr).await?;
