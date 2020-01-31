@@ -1,11 +1,12 @@
 use http::Method;
-use roa_core::{Context, DynHandler, Handler, Model, Status};
+use roa_core::{Context, DynHandler, Handler, Middleware, Model, Next, Status};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 
 pub struct Endpoint<M: Model> {
     path: &'static str,
+    middleware: Middleware<M>,
     handle_map: HashMap<Method, Arc<DynHandler<M>>>,
 }
 
@@ -13,8 +14,20 @@ impl<M: Model> Endpoint<M> {
     pub fn new(path: &'static str) -> Self {
         Self {
             path,
+            middleware: Middleware::new(),
             handle_map: HashMap::new(),
         }
+    }
+
+    pub fn join<F>(
+        &mut self,
+        middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
+    ) -> &mut Self
+    where
+        F: 'static + Future<Output = Result<(), Status>> + Send,
+    {
+        self.middleware.join(middleware);
+        self
     }
 
     pub fn gate<F>(

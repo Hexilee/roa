@@ -3,15 +3,15 @@ mod path;
 
 pub use endpoint::Endpoint;
 pub use path::{Path, RegexPath};
-use roa_core::{Context, DynHandler, Handler, Middleware, Model, Status};
+use roa_core::{Context, Middleware, Model, Next, Status};
 
 use http::Method;
 use roa_query::Variable;
 use std::future::Future;
-use std::sync::Arc;
 
 pub struct Router<M: Model> {
     root: &'static str,
+    middleware: Middleware<M>,
     routers: Vec<Router<M>>,
     endpoints: Vec<Endpoint<M>>,
 }
@@ -20,9 +20,21 @@ impl<M: Model> Router<M> {
     pub fn new(path: &'static str) -> Self {
         Self {
             root: path,
+            middleware: Middleware::new(),
             routers: Vec::new(),
             endpoints: Vec::new(),
         }
+    }
+
+    pub fn join<F>(
+        &mut self,
+        middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
+    ) -> &mut Self
+    where
+        F: 'static + Future<Output = Result<(), Status>> + Send,
+    {
+        self.middleware.join(middleware);
+        self
     }
 
     pub fn on(&mut self, path: &'static str) -> &mut Endpoint<M> {
