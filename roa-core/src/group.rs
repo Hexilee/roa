@@ -2,6 +2,7 @@ use crate::{last, App, Context, DynHandler, DynMiddleware, Middleware, Model, Ne
 use futures::Future;
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct Group<M: Model>(Vec<Arc<DynMiddleware<M>>>);
 
 impl<M: Model> Group<M> {

@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 roa-core = { path = "../roa-core", version = "0.1" }
+roa-query = { path = "../roa-query", version = "0.1" }
+regex = "1.3"
+http = "0.2"
