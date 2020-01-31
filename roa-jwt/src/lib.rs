@@ -68,7 +68,7 @@ mod tests {
     use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use http::{HeaderValue, StatusCode};
     use jsonwebtoken::{encode, Header};
-    use roa_core::{Group, Model, Request, Status};
+    use roa_core::{Middleware, Model, Request, Status};
     use serde::{Deserialize, Serialize};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -115,9 +115,9 @@ mod tests {
 
     #[tokio::test]
     async fn verify() -> Result<(), Box<dyn std::error::Error>> {
-        let app = Group::<AppModel>::new()
-            .handle_fn(jwt_verify)
-            .handle_fn(move |ctx, _next| {
+        let app = Middleware::<AppModel>::new()
+            .join(jwt_verify)
+            .join(move |ctx, _next| {
                 async move {
                     match ctx.user {
                         None => panic!("ctx.usr should not be None"),

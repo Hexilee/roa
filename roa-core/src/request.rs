@@ -79,13 +79,13 @@ impl From<http::Request<hyper::Body>> for Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Group, Request};
+    use crate::{Middleware, Request};
     use futures::AsyncReadExt;
 
     #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
-        let app = Group::new()
-            .handle_fn(|mut ctx, _next| {
+        let app = Middleware::new()
+            .join(|mut ctx, _next| {
                 async move {
                     let mut data = String::new();
                     ctx.request.read_to_string(&mut data).await?;

@@ -1,8 +1,4 @@
-mod middleware;
-mod status_handler;
 use crate::{Context, Model, Status, StatusFuture};
-pub use middleware::{DynMiddleware, Middleware};
-pub use status_handler::{default_status_handler, DynStatusHandler, StatusHandler};
 use std::future::Future;
 
 pub type DynHandler<M, R = ()> = dyn 'static + Sync + Send + Fn(Context<M>) -> StatusFuture<R>;
@@ -46,5 +42,20 @@ where
     type StatusFuture = F;
     fn handle(&self, ctx: Context<M>, target: Target) -> Self::StatusFuture {
         (self)(ctx, target)
+    }
+}
+
+pub async fn default_status_handler<M: Model>(
+    mut context: Context<M>,
+    status: Status,
+) -> Result<(), Status> {
+    context.response.status = status.status_code;
+    if status.expose {
+        context.response.write_str(&status.message);
+    }
+    if status.need_throw() {
+        Err(status)
+    } else {
+        Ok(())
     }
 }

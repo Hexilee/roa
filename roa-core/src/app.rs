@@ -1,6 +1,6 @@
 use crate::{
-    default_status_handler, Context, DynHandler, DynStatusHandler, Model, Request, Response,
-    Status, StatusHandler, TargetHandler,
+    default_status_handler, Context, DynHandler, DynTargetHandler, Model, Request, Response,
+    Status, TargetHandler,
 };
 use futures::task::Poll;
 use http::{Request as HttpRequest, Response as HttpResponse};
@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 pub struct App<M: Model> {
     handler: Arc<DynHandler<M>>,
-    status_handler: Arc<DynStatusHandler<M>>,
+    status_handler: Arc<DynTargetHandler<M, Status>>,
     pub(crate) model: Arc<M>,
 }
 
@@ -35,7 +35,7 @@ impl<M: Model> App<M> {
 
     pub fn handle_status<F>(
         &mut self,
-        handler: impl StatusHandler<M, StatusFuture = F>,
+        handler: impl TargetHandler<M, Status, StatusFuture = F>,
     ) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
@@ -133,13 +133,13 @@ impl<M: Model> Clone for HttpService<M> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Group, Request};
+    use crate::{Middleware, Request};
     use std::time::Instant;
 
     #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let app = Group::new()
-            .handle_fn(|_ctx, next| {
+        let app = Middleware::new()
+            .join(|_ctx, next| {
                 async move {
                     let inbound = Instant::now();
                     next().await?;

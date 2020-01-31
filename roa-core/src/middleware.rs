@@ -1,26 +1,19 @@
-use crate::{last, App, Context, DynHandler, DynMiddleware, Middleware, Model, Next, Status};
+use crate::{last, App, Context, DynHandler, DynTargetHandler, Model, Next, Status, TargetHandler};
 use futures::Future;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct Group<M: Model>(Vec<Arc<DynMiddleware<M>>>);
+pub struct Middleware<M: Model>(Vec<Arc<DynTargetHandler<M, Next>>>);
 
-impl<M: Model> Group<M> {
+impl<M: Model> Middleware<M> {
     pub fn new() -> Self {
         Self(Vec::new())
     }
 
-    pub fn handle_fn<F>(
+    pub fn join<F>(
         &mut self,
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
-    where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
-    {
-        self.handle(middleware)
-    }
-
-    pub fn handle<F>(&mut self, middleware: impl Middleware<M, StatusFuture = F>) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
@@ -49,7 +42,7 @@ impl<M: Model> Group<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::Group;
+    use super::Middleware;
     use crate::{Ctx, Request};
     use futures::lock::Mutex;
     use std::sync::Arc;
@@ -57,10 +50,10 @@ mod tests {
     #[tokio::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut group = Group::<()>::new();
+        let mut middleware = Middleware::<()>::new();
         for i in 0..100 {
             let vec = vector.clone();
-            group.handle_fn(move |_ctx, next| {
+            middleware.join(move |_ctx, next| {
                 let vec = vec.clone();
                 async move {
                     vec.lock().await.push(i);
@@ -70,7 +63,7 @@ mod tests {
                 }
             });
         }
-        group.handler()(Ctx::fake(Request::new()).into()).await?;
+        middleware.handler()(Ctx::fake(Request::new()).into()).await?;
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);

@@ -1,11 +1,11 @@
 use async_std::fs::File;
-use roa::Group;
+use roa::Middleware;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
-    Group::new()
-        .handle_fn(|mut ctx, _next| {
+    Middleware::new()
+        .join(|mut ctx, _next| {
             async move {
                 ctx.response.write(File::open("assets/welcome.html").await?);
                 Ok(())

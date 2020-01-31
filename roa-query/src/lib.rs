@@ -67,7 +67,7 @@ impl Variable<'_> {
 #[cfg(test)]
 mod tests {
     use crate::Query;
-    use roa_core::{Context, Ctx, Group, Request};
+    use roa_core::{Context, Ctx, Middleware, Request};
 
     #[test]
     fn query() -> Result<(), Box<dyn std::error::Error>> {
@@ -112,8 +112,8 @@ mod tests {
     async fn query_action() -> Result<(), Box<dyn std::error::Error>> {
         let mut request = Request::new();
         request.uri = "/?name=Hexilee&lang=rust".parse()?;
-        Group::<()>::new()
-            .handle_fn(move |ctx, _next| {
+        Middleware::<()>::new()
+            .join(move |ctx, _next| {
                 async move {
                     assert_eq!("Hexilee", ctx.query("name")?.as_ref());
                     assert_eq!("rust", ctx.query("lang")?.as_ref());

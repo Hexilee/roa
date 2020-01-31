@@ -2,8 +2,8 @@ mod app;
 mod body;
 mod context;
 mod err;
-mod group;
 mod handler;
+mod middleware;
 mod model;
 mod next;
 mod request;
@@ -12,12 +12,9 @@ pub use app::{App, HttpService};
 pub use body::Body;
 pub use context::{Context, Ctx};
 pub use err::{throw, Status, StatusCode, StatusFuture, StatusKind};
-pub use group::Group;
 pub(crate) use handler::default_status_handler;
-pub use handler::{
-    DynHandler, DynMiddleware, DynStatusHandler, DynTargetHandler, Handler, Middleware,
-    StatusHandler, TargetHandler,
-};
+pub use handler::{DynHandler, DynTargetHandler, Handler, TargetHandler};
+pub use middleware::Middleware;
 pub use model::{Model, State};
 pub(crate) use next::last;
 pub use next::Next;

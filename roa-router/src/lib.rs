@@ -3,7 +3,7 @@ mod path;
 
 pub use endpoint::Endpoint;
 pub use path::{Path, RegexPath};
-use roa_core::{Context, DynHandler, Group, Handler, Model, Status};
+use roa_core::{Context, DynHandler, Handler, Middleware, Model, Status};
 
 use http::Method;
 use roa_query::Variable;
@@ -45,6 +45,6 @@ mod tests {
     use crate::Router;
     #[test]
     fn handle() {
-        Router::new("/").on("/id");
+        //        Router::new("/").on("/id");
     }
 }
