@@ -79,21 +79,20 @@ impl From<http::Request<hyper::Body>> for Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Middleware, Request};
+    use crate::{App, Request};
     use futures::AsyncReadExt;
 
     #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
-        let app = Middleware::new()
-            .join(|mut ctx, _next| {
-                async move {
-                    let mut data = String::new();
-                    ctx.request.read_to_string(&mut data).await?;
-                    assert_eq!("Hello, World!", data);
-                    Ok(())
-                }
-            })
-            .app(());
+        let mut app = App::new(());
+        app.join(|mut ctx, _next| {
+            async move {
+                let mut data = String::new();
+                ctx.request.read_to_string(&mut data).await?;
+                assert_eq!("Hello, World!", data);
+                Ok(())
+            }
+        });
         let mut request = Request::new();
         request.write_str("Hello, World!");
         let _resp = app.serve(request, "127.0.0.1:8080".parse()?).await?;

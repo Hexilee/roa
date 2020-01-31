@@ -1,13 +1,12 @@
-use crate::{last, App, Context, DynHandler, DynTargetHandler, Model, Next, Status, TargetHandler};
+use crate::{Context, DynTargetHandler, Model, Next, Status, TargetHandler};
 use futures::Future;
 use std::sync::Arc;
 
-#[derive(Clone)]
-pub struct Middleware<M: Model>(Vec<Arc<DynTargetHandler<M, Next>>>);
+pub struct Middleware<M: Model>(Arc<DynTargetHandler<M, Next>>);
 
 impl<M: Model> Middleware<M> {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self(Arc::new(|_ctx, next| next()))
     }
 
     pub fn join<F>(
@@ -17,33 +16,33 @@ impl<M: Model> Middleware<M> {
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
     {
-        self.0.push(Arc::from(Box::new(middleware).dynamic()));
+        let current = self.0.clone();
+        let next_middleware: Arc<DynTargetHandler<M, Next>> =
+            Arc::from(Box::new(middleware).dynamic());
+        self.0 = Arc::new(move |ctx, next| {
+            let next_middleware = next_middleware.clone();
+            let ctx_cloned = ctx.clone();
+            let next = Box::new(move || next_middleware(ctx_cloned, next));
+            current(ctx, next)
+        });
         self
     }
 
-    pub fn handler(&self) -> Arc<DynHandler<M>> {
-        let mut handler: Arc<DynHandler<M>> = Arc::new(|_ctx| last());
-        for middleware in self.0.iter().rev() {
-            let current = middleware.clone();
-            handler = Arc::new(move |ctx| {
-                let ctx_cloned = ctx.clone();
-                let handler = handler.clone();
-                let next = Box::new(move || handler(ctx_cloned));
-                current(ctx, next)
-            })
-        }
-        handler
+    pub fn handler(&self) -> Arc<DynTargetHandler<M, Next>> {
+        self.0.clone()
     }
+}
 
-    pub fn app(&self, model: M) -> App<M> {
-        App::new(self.handler(), Arc::new(model))
+impl<M: Model> Clone for Middleware<M> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::Middleware;
-    use crate::{Ctx, Request};
+    use crate::{last, Ctx, Request};
     use futures::lock::Mutex;
     use std::sync::Arc;
 
@@ -63,7 +62,7 @@ mod tests {
                 }
             });
         }
-        middleware.handler()(Ctx::fake(Request::new()).into()).await?;
+        middleware.handler()(Ctx::fake(Request::new()).into(), Box::new(last)).await?;
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);

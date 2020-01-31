@@ -82,7 +82,7 @@ impl Ctx<()> {
         Self {
             request,
             response: Response::new(),
-            app: crate::Middleware::new().app(()),
+            app: App::new(()),
             state: (),
             peer_addr,
         }

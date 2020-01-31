@@ -1,6 +1,6 @@
 use crate::{
-    default_status_handler, Context, DynHandler, DynTargetHandler, Model, Request, Response,
-    Status, TargetHandler,
+    default_status_handler, last, Context, DynTargetHandler, Middleware, Model, Next, Request,
+    Response, Status, TargetHandler,
 };
 use futures::task::Poll;
 use http::{Request as HttpRequest, Response as HttpResponse};
@@ -14,7 +14,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 pub struct App<M: Model> {
-    handler: Arc<DynHandler<M>>,
+    middleware: Middleware<M>,
     status_handler: Arc<DynTargetHandler<M, Status>>,
     pub(crate) model: Arc<M>,
 }
@@ -25,17 +25,28 @@ pub struct HttpService<M: Model> {
 }
 
 impl<M: Model> App<M> {
-    pub fn new(handler: Arc<DynHandler<M>>, model: Arc<M>) -> Self {
+    pub fn new(model: M) -> Self {
         Self {
-            handler,
+            middleware: Middleware::new(),
             status_handler: Arc::from(Box::new(default_status_handler).dynamic()),
-            model,
+            model: Arc::new(model),
         }
+    }
+
+    pub fn join<F>(
+        &mut self,
+        middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
+    ) -> &mut Self
+    where
+        F: 'static + Future<Output = Result<(), Status>> + Send,
+    {
+        self.middleware.join(middleware);
+        self
     }
 
     pub fn handle_status<F>(
         &mut self,
-        handler: impl TargetHandler<M, Status, StatusFuture = F>,
+        handler: impl 'static + Sync + Send + Fn(Context<M>, Status) -> F,
     ) -> &mut Self
     where
         F: 'static + Future<Output = Result<(), Status>> + Send,
@@ -44,20 +55,10 @@ impl<M: Model> App<M> {
         self
     }
 
-    pub fn handle_status_fn<F>(
-        &mut self,
-        handler: impl 'static + Sync + Send + Fn(Context<M>, Status) -> F,
-    ) -> &mut Self
-    where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
-    {
-        self.handle_status(handler)
-    }
-
     pub async fn serve(&self, req: Request, peer_addr: SocketAddr) -> Result<Response, Status> {
         let mut context = Context::new(req, self.clone(), peer_addr);
         let app = self.clone();
-        if let Err(status) = (app.handler)(context.clone()).await {
+        if let Err(status) = (app.middleware.handler())(context.clone(), Box::new(last)).await {
             (app.status_handler)(context.clone(), status).await?;
         }
         Ok(std::mem::take(&mut context.response))
@@ -115,7 +116,7 @@ impl<M: Model> HttpService<M> {
 impl<M: Model> Clone for App<M> {
     fn clone(&self) -> Self {
         Self {
-            handler: self.handler.clone(),
+            middleware: self.middleware.clone(),
             status_handler: self.status_handler.clone(),
             model: self.model.clone(),
         }
@@ -133,12 +134,12 @@ impl<M: Model> Clone for HttpService<M> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Middleware, Request};
+    use crate::{App, Request};
     use std::time::Instant;
 
     #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let app = Middleware::new()
+        App::new(())
             .join(|_ctx, next| {
                 async move {
                     let inbound = Instant::now();
@@ -147,8 +148,8 @@ mod tests {
                     Ok(())
                 }
             })
-            .app(());
-        let _resp = app.serve(Request::new(), "127.0.0.1:8080".parse()?).await?;
+            .serve(Request::new(), "127.0.0.1:8080".parse()?)
+            .await?;
         Ok(())
     }
 }
