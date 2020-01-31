@@ -45,7 +45,6 @@ fn try_get_token<M: Model>(ctx: Context<M>) -> Result<String, Status> {
     }
 }
 
-// TODO: test it
 pub async fn jwt_verify<M, C>(mut ctx: Context<M>, next: Next) -> Result<(), Status>
 where
     M: Model,
@@ -53,15 +52,13 @@ where
     M::State: JwtVerifier<M, C>,
 {
     let token = try_get_token(ctx.clone())?;
-    let dangerous_claim: C = dangerous_unsafe_decode(&token)
-        .map_err(|_err| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE))?
-        .claims;
-    let secret = ctx.get_secret(&dangerous_claim).await?;
+    let dangerous_data = dangerous_unsafe_decode(&token)
+        .map_err(|_err| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE))?;
+    let secret = ctx.get_secret(&dangerous_data.claims).await?;
     let validation = ctx.get_validation();
-    let claim: C = decode(&token, &secret, &validation)
-        .map_err(|_err| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE))?
-        .claims;
-    ctx.set_claim(claim).await;
+    let token_data = decode(&token, &secret, &validation)
+        .map_err(|_err| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE))?;
+    ctx.set_claim(token_data.claims).await;
     next().await
 }
 
@@ -190,10 +187,7 @@ mod tests {
         let mut req = Request::new();
         req.headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!(
-                "Bearer {}",
-                encode(&Header::default(), &user, SECRET)?
-            ))?,
+            format!("Bearer {}", encode(&Header::default(), &user, SECRET)?).parse()?,
         );
         let resp = app.serve(req, addr).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
@@ -208,10 +202,7 @@ mod tests {
             .as_secs(); // one hour later
         req.headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!(
-                "Bearer {}",
-                encode(&Header::default(), &user, SECRET)?
-            ))?,
+            format!("Bearer {}", encode(&Header::default(), &user, SECRET)?).parse()?,
         );
         let resp = app.serve(req, addr).await?;
         assert_eq!(StatusCode::OK, resp.status);
