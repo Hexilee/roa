@@ -3,7 +3,7 @@ pub use roa_core::*;
 
 pub mod context {
     #[doc(inline)]
-    pub use roa_query::{Query, QueryValue};
+    pub use roa_query::{Query, Variable};
 
     #[cfg(feature = "cookie")]
     #[doc(inline)]

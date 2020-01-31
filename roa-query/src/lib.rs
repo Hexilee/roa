@@ -7,23 +7,23 @@ use std::str::FromStr;
 use url::form_urlencoded::{parse, Parse};
 
 #[derive(Debug)]
-pub struct QueryValue<'a> {
-    key: Cow<'a, str>,
+pub struct Variable<'a> {
+    name: Cow<'a, str>,
     value: Cow<'a, str>,
 }
 
 pub trait Query {
-    fn query(&self, key: &str) -> Result<QueryValue, Status> {
-        self.try_query(key).ok_or(Status::new(
+    fn query(&self, name: &str) -> Result<Variable, Status> {
+        self.try_query(name).ok_or(Status::new(
             StatusCode::BAD_REQUEST,
-            format!("query `{}` is required", key),
+            format!("query `{}` is required", name),
             true,
         ))
     }
-    fn try_query(&self, key: &str) -> Option<QueryValue> {
+    fn try_query(&self, name: &str) -> Option<Variable> {
         self.queries()
-            .find(|(item_key, _)| key == item_key)
-            .map(|(key, value)| QueryValue { key, value })
+            .find(|(item_name, _)| name == item_name)
+            .map(|(name, value)| Variable { name, value })
     }
     fn queries(&self) -> Parse;
 }
@@ -35,20 +35,20 @@ impl<M: Model> Query for Context<M> {
     }
 }
 
-impl Deref for QueryValue<'_> {
+impl Deref for Variable<'_> {
     type Target = str;
     fn deref(&self) -> &Self::Target {
         &self.value
     }
 }
 
-impl AsRef<str> for QueryValue<'_> {
+impl AsRef<str> for Variable<'_> {
     fn as_ref(&self) -> &str {
         &self
     }
 }
 
-impl QueryValue<'_> {
+impl Variable<'_> {
     pub fn parse<T>(&self) -> Result<T, Status>
     where
         T: FromStr,
@@ -57,7 +57,7 @@ impl QueryValue<'_> {
         self.as_ref().parse().map_err(|err| {
             Status::new(
                 StatusCode::BAD_REQUEST,
-                format!("{}\nquery `{}` type mismatch", err, self.key),
+                format!("{}\nuri variable `{}` type mismatch", err, self.name),
                 true,
             )
         })
@@ -98,7 +98,7 @@ mod tests {
         assert!(result
             .unwrap_err()
             .message
-            .contains("query `age` type mismatch"));
+            .contains("uri variable `age` type mismatch"));
 
         let mut req = Request::new();
         req.uri = "/?age=120".parse()?;
