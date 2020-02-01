@@ -5,11 +5,12 @@ mod path;
 pub use endpoint::Endpoint;
 pub use err::Conflict;
 pub use path::{Path, RegexPath};
-use roa_core::{Context, Middleware, Model, Next, Status};
+use roa_core::{Context, DynTargetHandler, Middleware, Model, Next, Status};
 
 use crate::err::Error;
 use roa_query::Variable;
 use std::future::Future;
+use std::sync::Arc;
 
 enum Node<M: Model> {
     Router(Router<M>),
@@ -41,15 +42,15 @@ impl<M: Model> Node<M> {
 }
 
 pub struct Router<M: Model> {
-    root: Path,
+    root: String,
     middleware: Middleware<M>,
     nodes: Vec<Node<M>>,
 }
 
 impl<M: Model> Router<M> {
-    pub fn new(path: Path) -> Self {
+    pub fn new(path: impl ToString) -> Self {
         Self {
-            root: path,
+            root: path.to_string(),
             middleware: Middleware::new(),
             nodes: Vec::new(),
         }
@@ -67,7 +68,7 @@ impl<M: Model> Router<M> {
     }
 
     fn join_path(&self, path: &str) -> String {
-        vec![self.root.raw(), path.trim_matches('/')].join("/")
+        vec![self.root.as_str(), path.trim_matches('/')].join("/")
     }
 
     pub fn on(&mut self, path: &'static str) -> Result<&mut Endpoint<M>, Error> {
@@ -77,12 +78,46 @@ impl<M: Model> Router<M> {
         Ok(self.nodes[index].unwrap_endpoint())
     }
 
-    pub fn route(&mut self, path: &'static str) -> Result<&mut Router<M>, Error> {
-        let router = Router::new(self.join_path(path).parse()?);
+    pub fn route(&mut self, path: &'static str) -> &mut Router<M> {
+        let router = Router::new(self.join_path(path));
         let index = self.nodes.len();
         self.nodes.push(Node::Router(router));
-        Ok(self.nodes[index].unwrap_router())
+        self.nodes[index].unwrap_router()
     }
+
+    //    pub fn handler(self) -> Result<Arc<DynTargetHandler<M, Next>>, Conflict> {
+    //        let Self {
+    //            root,
+    //            mut middleware,
+    //            nodes,
+    //        } = self;
+    //        let raw_path = path.raw().to_string();
+    //        let mut map = HashMap::new();
+    //        for (method, handler) in handlers {
+    //            if let Some(_) = map.insert(method.clone(), handler) {
+    //                return Err(Conflict::Method(raw_path.clone(), method));
+    //            };
+    //        }
+    //
+    //        let map = Arc::new(map);
+    //        middleware.join(move |ctx, _next| {
+    //            let map = map.clone();
+    //            let raw_path = raw_path.clone();
+    //            async move {
+    //                match map.get(&ctx.request.method) {
+    //                    None => throw(
+    //                        StatusCode::METHOD_NOT_ALLOWED,
+    //                        format!(
+    //                            "method {} is not allowed on {}",
+    //                            &ctx.request.method, raw_path
+    //                        ),
+    //                    ),
+    //                    Some(handler) => handler(ctx).await,
+    //                }
+    //            }
+    //        });
+    //        Ok(middleware.handler())
+    //    }
 }
 
 #[cfg(test)]
@@ -91,7 +126,7 @@ mod tests {
     use roa_body::PowerBody;
     #[test]
     fn handle() -> Result<(), Box<dyn std::error::Error>> {
-        let mut router = Router::new("/".parse()?);
+        let mut router = Router::new("/");
         router
             .on("/file/:filename")?
             .join(|_ctx, next| next())
