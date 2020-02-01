@@ -109,7 +109,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
 
 #[cfg(test)]
 mod tests {
-    use super::{must_build, VARIABLE, WILDCARD};
+    use super::{must_build, path_to_regexp, VARIABLE, WILDCARD};
     use regex::Regex;
     use test_case::test_case;
 
@@ -148,5 +148,10 @@ mod tests {
         let re = must_build(WILDCARD);
         let cap = re.captures(path);
         assert!(cap.is_none());
+    }
+
+    #[test_case(r"/:id/" => r"/(?P<id>\w*)/"; "single variable")]
+    fn path_to_regexp_dynamic_pattern(path: &str) -> String {
+        path_to_regexp(path).unwrap().unwrap().0
     }
 }
