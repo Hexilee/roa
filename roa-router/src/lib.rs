@@ -7,19 +7,20 @@ pub use err::Conflict;
 pub use path::{Path, RegexPath};
 use roa_core::{Context, Middleware, Model, Next, Status};
 
+use crate::err::Error;
 use http::Method;
 use roa_query::Variable;
 use std::future::Future;
 
 pub struct Router<M: Model> {
-    root: &'static str,
+    root: Path,
     middleware: Middleware<M>,
     routers: Vec<Router<M>>,
     endpoints: Vec<Endpoint<M>>,
 }
 
 impl<M: Model> Router<M> {
-    pub fn new(path: &'static str) -> Self {
+    pub fn new(path: Path) -> Self {
         Self {
             root: path,
             middleware: Middleware::new(),
@@ -39,18 +40,22 @@ impl<M: Model> Router<M> {
         self
     }
 
-    pub fn on(&mut self, path: &'static str) -> &mut Endpoint<M> {
-        let endpoint = Endpoint::new(path);
-        let index = self.endpoints.len();
-        self.endpoints.push(endpoint);
-        &mut self.endpoints[index]
+    fn join_path(&self, path: &str) -> String {
+        vec![self.root.raw(), path.trim_matches('/')].join("/")
     }
 
-    pub fn route(&mut self, path: &'static str) -> &mut Router<M> {
-        let router = Router::new(path);
+    pub fn on(&mut self, path: &'static str) -> Result<&mut Endpoint<M>, Error> {
+        let endpoint = Endpoint::new(self.join_path(path).parse()?);
+        let index = self.endpoints.len();
+        self.endpoints.push(endpoint);
+        Ok(&mut self.endpoints[index])
+    }
+
+    pub fn route(&mut self, path: &'static str) -> Result<&mut Router<M>, Error> {
+        let router = Router::new(self.join_path(path).parse()?);
         let index = self.routers.len();
         self.routers.push(router);
-        &mut self.routers[index]
+        Ok(&mut self.routers[index])
     }
 }
 
@@ -59,10 +64,10 @@ mod tests {
     use crate::Router;
     use roa_body::PowerBody;
     #[test]
-    fn handle() {
-        let mut router = Router::new("/");
+    fn handle() -> Result<(), Box<dyn std::error::Error>> {
+        let mut router = Router::new("/".parse()?);
         router
-            .on("/file/:filename")
+            .on("/file/:filename")?
             .join(|_ctx, next| next())
             .get(|mut ctx| ctx.write_file("filename"));
     }

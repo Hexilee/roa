@@ -1,4 +1,4 @@
-use crate::Conflict;
+use crate::{Conflict, Path};
 use http::{Method, StatusCode};
 use roa_core::{
     throw, Context, DynHandler, DynTargetHandler, Handler, Middleware, Model, Next, Status,
@@ -9,15 +9,15 @@ use std::future::Future;
 use std::sync::Arc;
 
 pub struct Endpoint<M: Model> {
-    pub path: &'static str,
+    pub path: Arc<Path>,
     middleware: Middleware<M>,
     handlers: Vec<(Method, Arc<DynHandler<M>>)>,
 }
 
 impl<M: Model> Endpoint<M> {
-    pub fn new(path: &'static str) -> Self {
+    pub fn new(path: Path) -> Self {
         Self {
-            path,
+            path: Arc::new(path),
             middleware: Middleware::new(),
             handlers: Vec::new(),
         }
@@ -83,20 +83,26 @@ impl<M: Model> Endpoint<M> {
             mut middleware,
             handlers,
         } = self;
+        let raw_path = path.raw().to_string();
         let mut map = HashMap::new();
         for (method, handler) in handlers {
             if let Some(_) = map.insert(method.clone(), handler) {
-                return Err(Conflict::Method(path.to_string(), method));
+                return Err(Conflict::Method(raw_path.clone(), method));
             };
         }
+
         let map = Arc::new(map);
         middleware.join(move |ctx, _next| {
             let map = map.clone();
+            let raw_path = raw_path.clone();
             async move {
                 match map.get(&ctx.request.method) {
                     None => throw(
                         StatusCode::METHOD_NOT_ALLOWED,
-                        format!("method {} is not allowed on {}", &ctx.request.method, path),
+                        format!(
+                            "method {} is not allowed on {}",
+                            &ctx.request.method, raw_path
+                        ),
                     ),
                     Some(handler) => handler(ctx).await,
                 }
