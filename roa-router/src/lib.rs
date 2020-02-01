@@ -1,7 +1,9 @@
 mod endpoint;
+mod err;
 mod path;
 
 pub use endpoint::Endpoint;
+pub use err::Conflict;
 pub use path::{Path, RegexPath};
 use roa_core::{Context, Middleware, Model, Next, Status};
 
@@ -55,8 +57,13 @@ impl<M: Model> Router<M> {
 #[cfg(test)]
 mod tests {
     use crate::Router;
+    use roa_body::PowerBody;
     #[test]
     fn handle() {
-        //        Router::new("/").on("/id");
+        let mut router = Router::new("/");
+        router
+            .on("/file/:filename")
+            .join(|_ctx, next| next())
+            .get(|mut ctx| ctx.write_file("filename"));
     }
 }

@@ -10,6 +10,7 @@ pub enum Path {
 
 #[derive(Clone)]
 pub struct RegexPath {
+    pub raw: String,
     pub keys: Vec<String>,
     pub re: Regex,
 }
@@ -24,6 +25,7 @@ impl FromStr for Path {
             Path::Static(path.to_owned())
         } else {
             Path::Dynamic(RegexPath {
+                raw: path.to_owned(),
                 keys,
                 re: Regex::new(&pattern).unwrap_or_else(|err| {
                     panic!(format!(

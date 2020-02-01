@@ -1,13 +1,17 @@
-use http::Method;
-use roa_core::{Context, DynHandler, Handler, Middleware, Model, Next, Status};
+use crate::Conflict;
+use http::{Method, StatusCode};
+use roa_core::{
+    throw, Context, DynHandler, DynTargetHandler, Handler, Middleware, Model, Next, Status,
+    TargetHandler,
+};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 
 pub struct Endpoint<M: Model> {
-    path: &'static str,
+    pub path: &'static str,
     middleware: Middleware<M>,
-    handle_map: HashMap<Method, Arc<DynHandler<M>>>,
+    handlers: Vec<(Method, Arc<DynHandler<M>>)>,
 }
 
 impl<M: Model> Endpoint<M> {
@@ -15,7 +19,7 @@ impl<M: Model> Endpoint<M> {
         Self {
             path,
             middleware: Middleware::new(),
-            handle_map: HashMap::new(),
+            handlers: Vec::new(),
         }
     }
 
@@ -40,7 +44,7 @@ impl<M: Model> Endpoint<M> {
     {
         let dyn_handler: Arc<DynHandler<M>> = Arc::from(Box::new(handler).dynamic());
         for method in methods {
-            self.handle_map.insert(method.clone(), dyn_handler.clone());
+            self.handlers.push((method.clone(), dyn_handler.clone()));
         }
         self
     }
@@ -71,5 +75,33 @@ impl<M: Model> Endpoint<M> {
             .as_ref(),
             handler,
         )
+    }
+
+    pub fn handler(self) -> Result<Arc<DynTargetHandler<M, Next>>, Conflict> {
+        let Self {
+            path,
+            mut middleware,
+            handlers,
+        } = self;
+        let mut map = HashMap::new();
+        for (method, handler) in handlers {
+            if let Some(_) = map.insert(method.clone(), handler) {
+                return Err(Conflict::Method(path.to_string(), method));
+            };
+        }
+        let map = Arc::new(map);
+        middleware.join(move |ctx, _next| {
+            let map = map.clone();
+            async move {
+                match map.get(&ctx.request.method) {
+                    None => throw(
+                        StatusCode::METHOD_NOT_ALLOWED,
+                        format!("method {} is not allowed on {}", &ctx.request.method, path),
+                    ),
+                    Some(handler) => handler(ctx).await,
+                }
+            }
+        });
+        Ok(middleware.handler())
     }
 }
