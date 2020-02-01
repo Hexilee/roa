@@ -65,7 +65,8 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
     let wildcard_re = must_build(WILDCARD);
     let variable_re = must_build(VARIABLE);
     let wildcards: Vec<Captures> = wildcard_re.captures_iter(path).collect();
-    let variables: Vec<Captures> = variable_re.captures_iter(path).collect();
+    let variable_template = path.replace('/', "//"); // to match continuous variables like /:year/:month/:day/
+    let variables: Vec<Captures> = variable_re.captures_iter(&variable_template).collect();
     if wildcards.is_empty() && variables.is_empty() {
         return Ok(None);
     } else {
@@ -87,7 +88,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
             let var = escape(variable);
             pattern = pattern.replace(
                 &escape(&format!(r"*{{{}}}", variable)),
-                &format!(r"(?P<{}>\w*)", &var),
+                &format!(r"(?P<{}>\S*)", &var),
             );
             try_add_variable(&mut vars, var)?;
         }
@@ -99,7 +100,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
             let var = escape(variable);
             pattern = pattern.replace(
                 &escape(&format!(r":{}", variable)),
-                &format!(r"(?P<{}>\w*)", &var),
+                &format!(r"(?P<{}>\S+)", &var),
             );
             try_add_variable(&mut vars, var)?;
         }
@@ -110,6 +111,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
 #[cfg(test)]
 mod tests {
     use super::{must_build, path_to_regexp, VARIABLE, WILDCARD};
+    use crate::Path;
     use regex::Regex;
     use test_case::test_case;
 
@@ -150,8 +152,58 @@ mod tests {
         assert!(cap.is_none());
     }
 
-    #[test_case(r"/:id/" => r"/(?P<id>\w*)/"; "single variable")]
+    #[test_case(r"/:id/" => r"/(?P<id>\S+)/"; "single variable")]
+    #[test_case(r"/:year/:month/:day/" => r"/(?P<year>\S+)/(?P<month>\S+)/(?P<day>\S+)/"; "multiple variable")]
+    #[test_case(r"*{id}" => r"(?P<id>\S*)"; "single wildcard")]
+    #[test_case(r"*{year}_*{month}_*{day}" => r"(?P<year>\S*)_(?P<month>\S*)_(?P<day>\S*)"; "multiple wildcard")]
     fn path_to_regexp_dynamic_pattern(path: &str) -> String {
         path_to_regexp(path).unwrap().unwrap().0
+    }
+
+    #[test_case(r"/id/")]
+    #[test_case(r"/user/post/")]
+    fn path_to_regexp_static(path: &str) {
+        assert!(path_to_regexp(path).unwrap().is_none())
+    }
+
+    #[test_case(r"/:/"; "missing variable name")]
+    #[test_case(r"*{}"; "wildcard missing variable name")]
+    #[test_case(r"/:id/:id/"; "conflict variable")]
+    #[test_case(r"*{id}-*{id}"; "wildcard conflict variable")]
+    #[test_case(r"/:id/*{id}"; "mix conflict variable")]
+    fn path_to_regexp_err(path: &str) {
+        assert!(path_to_regexp(path).is_err())
+    }
+
+    fn path_match(pattern: &str, path: &str) {
+        let pattern: Path = pattern.parse().unwrap();
+        match pattern {
+            Path::Static(pattern) => panic!(format!("`{}` should be dynamic", pattern)),
+            Path::Dynamic(re) => assert!(re.re.is_match(path)),
+        }
+    }
+
+    #[test_case(r"/user/1/")]
+    #[test_case(r"/user/65535/")]
+    fn single_variable_path_match(path: &str) {
+        path_match(r"/user/:id", path)
+    }
+
+    #[test_case(r"/2000/01/01/")]
+    #[test_case(r"/2020/02/20/")]
+    fn multiple_variable_path_match(path: &str) {
+        path_match(r"/:year/:month/:day", path)
+    }
+
+    #[test_case(r"/usr/include/boost/boost.h/")]
+    #[test_case(r"/usr/include/uv/uv.h/")]
+    fn segment_wildcard_path_match(path: &str) {
+        path_match(r"/usr/include/*{dir}/*{file}.h", path)
+    }
+
+    #[test_case(r"/srv/static/app/index.html/")]
+    #[test_case(r"/srv/static/../../index.html/")]
+    fn full_wildcard_path_match(path: &str) {
+        path_match(r"/srv/static/*{path}", path)
     }
 }
