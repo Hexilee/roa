@@ -56,12 +56,13 @@ impl<M: Model> App<M> {
     }
 
     pub async fn serve(&self, req: Request, peer_addr: SocketAddr) -> Result<Response, Status> {
-        let mut context = Context::new(req, self.clone(), peer_addr);
+        let context = Context::new(req, self.clone(), peer_addr);
         let app = self.clone();
         if let Err(status) = (app.middleware.handler())(context.clone(), Box::new(last)).await {
             (app.status_handler)(context.clone(), status).await?;
         }
-        Ok(std::mem::take(&mut context.response))
+        let mut response = context.response().await;
+        Ok(std::mem::take(&mut *response))
     }
 
     pub fn listen(&self, addr: SocketAddr) -> hyper::Server<AddrIncoming, App<M>> {

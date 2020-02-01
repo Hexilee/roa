@@ -10,6 +10,7 @@ edition = "2018"
 roa-core = { path = "../roa-core", version = "0.1" }
 url = "2.1.1"
 http = "0.2"
+async-trait = "0.1.22"
 
 [dev-dependencies]
 tokio = {version = "0.2", features = ["full"]}

@@ -42,7 +42,7 @@ impl<M: Model> Clone for Middleware<M> {
 #[cfg(test)]
 mod tests {
     use super::Middleware;
-    use crate::{last, Ctx, Request};
+    use crate::{last, Context, Request};
     use futures::lock::Mutex;
     use std::sync::Arc;
 
@@ -62,7 +62,7 @@ mod tests {
                 }
             });
         }
-        middleware.handler()(Ctx::fake(Request::new()).into(), Box::new(last)).await?;
+        middleware.handler()(Context::fake(Request::new()).into(), Box::new(last)).await?;
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);

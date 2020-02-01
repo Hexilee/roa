@@ -88,7 +88,7 @@ mod tests {
         app.join(|mut ctx, _next| {
             async move {
                 let mut data = String::new();
-                ctx.request.read_to_string(&mut data).await?;
+                ctx.request().await.read_to_string(&mut data).await?;
                 assert_eq!("Hello, World!", data);
                 Ok(())
             }

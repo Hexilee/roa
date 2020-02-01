@@ -15,7 +15,7 @@ where
     M: Model,
     C: 'static + Serialize + DeserializeOwned,
 {
-    fn get_validation(&self) -> Validation {
+    async fn get_validation(&self) -> Validation {
         Validation::default()
     }
     async fn get_secret(&self, claim: &C) -> Result<Vec<u8>, Status>;
