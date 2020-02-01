@@ -11,6 +11,7 @@ roa-core = { path = "../roa-core", version = "0.1" }
 roa-query = { path = "../roa-query", version = "0.1" }
 regex = "1.3"
 http = "0.2"
+percent-encoding = "2.1"
 
 [dev-dependencies]
 roa-body = { path = "../roa-body", version = "0.1" }

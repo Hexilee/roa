@@ -1,13 +1,13 @@
 mod endpoint;
 mod err;
+mod parse;
 mod path;
 
 pub use endpoint::Endpoint;
-pub use err::Conflict;
+pub use err::{Conflict, Error};
 pub use path::{Path, RegexPath};
 use roa_core::{Context, DynTargetHandler, Middleware, Model, Next, Status};
 
-use crate::err::Error;
 use roa_query::Variable;
 use std::future::Future;
 use std::sync::Arc;

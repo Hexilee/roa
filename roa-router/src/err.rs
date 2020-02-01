@@ -1,9 +1,8 @@
-use http::uri::InvalidUri;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
 pub enum Error {
-    InvalidUri(InvalidUri),
+    MissingVariable(String),
     Conflict(Conflict),
 }
 
@@ -37,7 +36,9 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
             Error::Conflict(conflict) => f.write_str(&format!("Conflict! {}", conflict)),
-            Error::InvalidUri(invalid) => f.write_str(&format!("Invalid Uri! {}", invalid)),
+            Error::MissingVariable(path) => {
+                f.write_str(&format!("missing variable on path {}", path))
+            }
         }
     }
 }
@@ -45,12 +46,6 @@ impl Display for Error {
 impl From<Conflict> for Error {
     fn from(conflict: Conflict) -> Self {
         Error::Conflict(conflict)
-    }
-}
-
-impl From<InvalidUri> for Error {
-    fn from(invalid: InvalidUri) -> Self {
-        Error::InvalidUri(invalid)
     }
 }
 
