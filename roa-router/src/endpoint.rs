@@ -2,7 +2,6 @@ use crate::{Conflict, Path};
 use http::{Method, StatusCode};
 use roa_core::{
     throw, Context, DynHandler, DynTargetHandler, Handler, Middleware, Model, Next, Status,
-    TargetHandler,
 };
 use std::collections::HashMap;
 use std::future::Future;
@@ -10,7 +9,7 @@ use std::sync::Arc;
 
 pub struct Endpoint<M: Model> {
     pub path: Arc<Path>,
-    middleware: Middleware<M>,
+    pub(crate) middleware: Middleware<M>,
     handlers: Vec<(Method, Arc<DynHandler<M>>)>,
 }
 
@@ -23,7 +22,7 @@ impl<M: Model> Endpoint<M> {
         }
     }
 
-    pub fn join<F>(
+    pub fn gate<F>(
         &mut self,
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
@@ -34,7 +33,7 @@ impl<M: Model> Endpoint<M> {
         self
     }
 
-    pub fn gate<F>(
+    pub fn handle<F>(
         &mut self,
         methods: &[Method],
         handler: impl 'static + Sync + Send + Fn(Context<M>) -> F,
@@ -53,14 +52,14 @@ impl<M: Model> Endpoint<M> {
     where
         F: 'static + Send + Future<Output = Result<(), Status>>,
     {
-        self.gate([Method::GET].as_ref(), handler)
+        self.handle([Method::GET].as_ref(), handler)
     }
 
     pub fn all<F>(&mut self, handler: impl 'static + Sync + Send + Fn(Context<M>) -> F) -> &mut Self
     where
         F: 'static + Send + Future<Output = Result<(), Status>>,
     {
-        self.gate(
+        self.handle(
             [
                 Method::GET,
                 Method::POST,

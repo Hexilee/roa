@@ -1,5 +1,4 @@
 use crate::{Conflict, Error};
-use http::uri::PathAndQuery;
 use regex::{escape, Captures, Regex};
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -7,8 +6,15 @@ use std::str::FromStr;
 const WILDCARD: &str = r"\*\{(?P<var>\w*)\}";
 const VARIABLE: &str = r"/:(?P<var>\w*)/";
 
-fn standardize_path(raw_path: &str) -> String {
+pub fn standardize_path(raw_path: &str) -> String {
     format!("/{}/", raw_path.trim_matches('/'))
+}
+pub fn join_path(paths: &[&str]) -> String {
+    paths
+        .iter()
+        .map(|path| path.trim_matches('/'))
+        .collect::<Vec<&str>>()
+        .join("/")
 }
 
 fn must_build(pattern: &str) -> Regex {
