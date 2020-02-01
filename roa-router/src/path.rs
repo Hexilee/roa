@@ -4,7 +4,7 @@ use regex::{escape, Captures, Regex};
 use std::collections::HashSet;
 use std::str::FromStr;
 
-const WILDCARD: &str = r"\*(?P<var>\{\w*\})?";
+const WILDCARD: &str = r"\*\{(?P<var>\w*)\}";
 const VARIABLE: &str = r"/:(?P<var>\w*)/";
 
 fn standardize_path(raw_path: &str) -> String {
@@ -80,14 +80,13 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
             }
         };
         for cap in wildcards {
-            let cap = &cap["var"];
-            if cap == r"{}" {
+            let variable = &cap["var"];
+            if variable == r"" {
                 return Err(Error::MissingVariable(path.to_string()));
             }
-            let variable = cap.trim_start_matches(r"{").trim_end_matches(r"}");
             let var = escape(variable);
             pattern = pattern.replace(
-                &escape(&format!(r"*{}", cap)),
+                &escape(&format!(r"*{{{}}}", variable)),
                 &format!(r"(?P<{}>\w*)", &var),
             );
             try_add_variable(&mut vars, var)?;
@@ -105,5 +104,49 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
             try_add_variable(&mut vars, var)?;
         }
         Ok(Some((pattern, vars)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{must_build, VARIABLE, WILDCARD};
+    use regex::Regex;
+    use test_case::test_case;
+
+    #[test_case("/:id/"; "pure dynamic")]
+    #[test_case("/user/:id/"; "static prefix")]
+    #[test_case("/user/:id/name"; "static prefix and suffix")]
+    fn var_regex_match(path: &str) {
+        let re = must_build(VARIABLE);
+        let cap = re.captures(path);
+        assert!(cap.is_some());
+        assert_eq!("id", &cap.unwrap()["var"]);
+    }
+
+    #[test_case("/-:id/"; "invalid prefix")]
+    #[test_case("/:i-d/"; "invalid variable name")]
+    #[test_case("/:id-/"; "invalid suffix")]
+    fn var_regex_mismatch(path: &str) {
+        let re = must_build(VARIABLE);
+        let cap = re.captures(path);
+        assert!(cap.is_none());
+    }
+
+    #[test_case("*{id}"; "pure dynamic")]
+    #[test_case("user-*{id}"; "static prefix")]
+    #[test_case("user-*{id}-name"; "static prefix and suffix")]
+    fn wildcard_regex_match(path: &str) {
+        let re = must_build(WILDCARD);
+        let cap = re.captures(path);
+        assert!(cap.is_some());
+        assert_eq!("id", &cap.unwrap()["var"]);
+    }
+
+    #[test_case("*"; "no variable")]
+    #[test_case("*{-id}"; "invalid variable name")]
+    fn wildcard_regex_mismatch(path: &str) {
+        let re = must_build(WILDCARD);
+        let cap = re.captures(path);
+        assert!(cap.is_none());
     }
 }
