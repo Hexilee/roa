@@ -1,6 +1,6 @@
 use crate::err::Error;
 use crate::Conflict;
-use http::uri::{InvalidUri, PathAndQuery};
+use http::uri::PathAndQuery;
 use regex::{escape, Regex};
 use std::collections::HashSet;
 use std::str::FromStr;

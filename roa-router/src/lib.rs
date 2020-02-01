@@ -8,15 +8,42 @@ pub use path::{Path, RegexPath};
 use roa_core::{Context, Middleware, Model, Next, Status};
 
 use crate::err::Error;
-use http::Method;
 use roa_query::Variable;
 use std::future::Future;
+
+enum Node<M: Model> {
+    Router(Router<M>),
+    Endpoint(Endpoint<M>),
+}
+
+impl<M: Model> Node<M> {
+    fn unwrap_router(&mut self) -> &mut Router<M> {
+        match self {
+            Node::Router(router) => router,
+            _ => panic!(
+                r"Node is not a router, 
+                  This is a bug of roa-router::Router, please report it to https://github.com/Hexilee/roa
+            "
+            ),
+        }
+    }
+
+    fn unwrap_endpoint(&mut self) -> &mut Endpoint<M> {
+        match self {
+            Node::Endpoint(endpoint) => endpoint,
+            _ => panic!(
+                r"Node is not a endpoint,
+                  This is a bug of roa-router::Router, please report it to https://github.com/Hexilee/roa
+            "
+            ),
+        }
+    }
+}
 
 pub struct Router<M: Model> {
     root: Path,
     middleware: Middleware<M>,
-    routers: Vec<Router<M>>,
-    endpoints: Vec<Endpoint<M>>,
+    nodes: Vec<Node<M>>,
 }
 
 impl<M: Model> Router<M> {
@@ -24,8 +51,7 @@ impl<M: Model> Router<M> {
         Self {
             root: path,
             middleware: Middleware::new(),
-            routers: Vec::new(),
-            endpoints: Vec::new(),
+            nodes: Vec::new(),
         }
     }
 
@@ -46,16 +72,16 @@ impl<M: Model> Router<M> {
 
     pub fn on(&mut self, path: &'static str) -> Result<&mut Endpoint<M>, Error> {
         let endpoint = Endpoint::new(self.join_path(path).parse()?);
-        let index = self.endpoints.len();
-        self.endpoints.push(endpoint);
-        Ok(&mut self.endpoints[index])
+        let index = self.nodes.len();
+        self.nodes.push(Node::Endpoint(endpoint));
+        Ok(self.nodes[index].unwrap_endpoint())
     }
 
     pub fn route(&mut self, path: &'static str) -> Result<&mut Router<M>, Error> {
         let router = Router::new(self.join_path(path).parse()?);
-        let index = self.routers.len();
-        self.routers.push(router);
-        Ok(&mut self.routers[index])
+        let index = self.nodes.len();
+        self.nodes.push(Node::Router(router));
+        Ok(self.nodes[index].unwrap_router())
     }
 }
 
