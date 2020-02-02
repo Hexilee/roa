@@ -118,17 +118,15 @@ mod tests {
         let mut app = App::new(AppModel {
             secret: SECRET.to_vec(),
         });
-        app.join(jwt_verify).join(move |ctx, _next| {
-            async move {
-                match ctx.state().await.user {
-                    None => panic!("ctx.usr should not be None"),
-                    Some(ref user) => {
-                        assert_eq!(0, user.id);
-                        assert_eq!("Hexilee", &user.name);
-                    }
+        app.join(jwt_verify).join(move |ctx, _next| async move {
+            match ctx.state().await.user {
+                None => panic!("ctx.usr should not be None"),
+                Some(ref user) => {
+                    assert_eq!(0, user.id);
+                    assert_eq!("Hexilee", &user.name);
                 }
-                Ok(())
             }
+            Ok(())
         });
         let addr = "127.0.0.1:8000".parse()?;
         // no header value

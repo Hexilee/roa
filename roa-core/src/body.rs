@@ -1,4 +1,4 @@
-use async_std::io::{BufReader, Cursor, BufRead, Read, Error};
+use async_std::io::{BufRead, BufReader, Cursor, Error, Read};
 use async_std::stream::Stream;
 use async_std::task::{Context, Poll};
 use std::pin::Pin;

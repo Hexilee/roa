@@ -123,12 +123,10 @@ mod tests {
         let mut request = Request::new();
         request.uri = "/?name=Hexilee&lang=rust".parse()?;
         App::new(())
-            .join(move |ctx, _next| {
-                async move {
-                    assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
-                    assert_eq!("rust", ctx.query("lang").await?.as_ref());
-                    Ok(())
-                }
+            .join(move |ctx, _next| async move {
+                assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
+                assert_eq!("rust", ctx.query("lang").await?.as_ref());
+                Ok(())
             })
             .serve(request, "127.0.0.1:8000".parse()?)
             .await?;

@@ -5,13 +5,11 @@ use roa::App;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     App::new(())
-        .join(|mut ctx, _next| {
-            async move {
-                ctx.resp()
-                    .await
-                    .write(File::open("assets/welcome.html").await?);
-                Ok(())
-            }
+        .join(|mut ctx, _next| async move {
+            ctx.resp()
+                .await
+                .write(File::open("assets/welcome.html").await?);
+            Ok(())
         })
         .listen("127.0.0.1:8000".parse()?)
         .await

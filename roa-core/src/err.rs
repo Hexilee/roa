@@ -1,7 +1,7 @@
-use std::future::Future;
 use http::header::{InvalidHeaderName, InvalidHeaderValue, ToStrError};
 pub use http::StatusCode;
 use std::fmt::{Display, Formatter};
+use std::future::Future;
 use std::pin::Pin;
 
 pub type StatusFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R, Status>> + Send>>;

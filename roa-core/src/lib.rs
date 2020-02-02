@@ -10,7 +10,7 @@ mod request;
 mod response;
 pub use app::{App, HttpService};
 pub use body::Body;
-pub use context::Context;
+pub use context::{Bucket, Context, Variable};
 pub use err::{throw, Status, StatusCode, StatusFuture, StatusKind};
 pub(crate) use handler::default_status_handler;
 pub use handler::{DynHandler, DynTargetHandler, Handler, TargetHandler};
