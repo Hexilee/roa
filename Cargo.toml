@@ -24,7 +24,6 @@ members = [
 
     # contexts
     "roa-forward",
-    "roa-body",
 
     # middlewares
     "roa-logger",
@@ -38,6 +37,8 @@ travis-ci = { repository = "Hexilee/roa" }
 [dependencies]
 http = "0.2"
 log = "0.4"
+futures = "0.3"
+async-std = "1.4"
 roa-core = {path = "./roa-core", version = "0.1"}
 url = { version = "2.1.1", optional = true }
 async-trait = { version = "0.1.22", optional = true }
@@ -45,11 +46,12 @@ cookie = { version = "0.12", features = ["percent-encode"], optional = true }
 percent-encoding = { version = "2.1", optional = true }
 jsonwebtoken = { version = "6", optional = true }
 serde = { version = "1", optional = true }
-# roa-forward = { path = "./roa-forward", version = "0.1" }
-# roa-logger = { path = "./roa-logger", version = "0.1" }
-# roa-cors = { path = "./roa-cors", version = "0.1" }
-# roa-body = { path = "./roa-body", version = "0.1", optional = true }
-# roa-router = { path = "./roa-router", version = "0.1", optional = true }
+mime = { version = "0.3", optional = true }
+askama = { version = "0.9", optional = true }
+serde_json = { version = "1.0", optional = true }
+serde_urlencoded = { version = "0.6", optional = true }
+encoding = { version = "0.2", optional = true }
+mime_guess = { version = "2.0", optional = true }
 
 [dev-dependencies]
 tokio = {version = "0.2", features = ["full"]}
@@ -62,6 +64,17 @@ default = ["query", "cookies"]
 query = ["url", "async-trait"]
 cookies = ["async-trait", "cookie", "percent-encoding"]
 jwt = ["async-trait", "jsonwebtoken", "serde"]
+body = [
+    "async-trait", 
+    "percent-encoding", 
+    "serde", 
+    "mime", 
+    "askama", 
+    "serde_json", 
+    "serde_urlencoded", 
+    "encoding", 
+    "mime_guess",
+]
 # full = ["body", "cookie", "router", "jwt"]
 # body = ["roa-body"]
 # router = ["roa-router"]
@@ -69,3 +82,8 @@ jwt = ["async-trait", "jsonwebtoken", "serde"]
 
 [package.metadata.docs.rs]
 # features = ["full"]
+
+[[example]]
+name = "serve-file"
+path = "examples/serve-file.rs"
+required-features = ["body"]

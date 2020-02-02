@@ -14,5 +14,4 @@ percent-encoding = "2.1"
 radix_trie = "0.1.6"
 
 [dev-dependencies]
-roa-body = { path = "../roa-body", version = "0.1" }
 test-case = "1.0.0"

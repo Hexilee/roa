@@ -90,10 +90,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::{jwt_verify, JwtVerifier, Validation, INVALID_TOKEN};
+    use crate::{App, Request};
     use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use http::{HeaderValue, StatusCode};
     use jsonwebtoken::{encode, Header};
-    use crate::{App, Request};
     use serde::{Deserialize, Serialize};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -111,21 +111,21 @@ mod tests {
     #[tokio::test]
     async fn verify() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        app.join(jwt_verify::<(), User>(SECRET.to_string(), Validation::default()))
-            .join(move |ctx, _next| async move {
-                let user: User = ctx.verify(&Validation::default()).await?;
-                assert_eq!(0, user.id);
-                assert_eq!("Hexilee", &user.name);
-                Ok(())
-            });
+        app.join(jwt_verify::<(), User>(
+            SECRET.to_string(),
+            Validation::default(),
+        ))
+        .join(move |ctx, _next| async move {
+            let user: User = ctx.verify(&Validation::default()).await?;
+            assert_eq!(0, user.id);
+            assert_eq!("Hexilee", &user.name);
+            Ok(())
+        });
         let addr = "127.0.0.1:8000".parse()?;
         // no header value
         let resp = app.serve(Request::new(), addr).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(
-            INVALID_TOKEN,
-            resp.headers[WWW_AUTHENTICATE].to_str()?
-        );
+        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
 
         // non-string header value
         let mut req = Request::new();
@@ -133,10 +133,7 @@ mod tests {
             .insert(AUTHORIZATION, HeaderValue::from_bytes([255].as_ref())?);
         let resp = app.serve(req, addr).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(
-            INVALID_TOKEN,
-            resp.headers[WWW_AUTHENTICATE].to_str()?
-        );
+        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
 
         // non-Bearer header value
         let mut req = Request::new();
@@ -144,10 +141,7 @@ mod tests {
             .insert(AUTHORIZATION, HeaderValue::from_static("Basic hahaha"));
         let resp = app.serve(req, addr).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(
-            INVALID_TOKEN,
-            resp.headers[WWW_AUTHENTICATE].to_str()?
-        );
+        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
 
         // invalid token
         let mut req = Request::new();
@@ -155,10 +149,7 @@ mod tests {
             .insert(AUTHORIZATION, HeaderValue::from_static("Bearer hahaha"));
         let resp = app.serve(req, addr).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(
-            INVALID_TOKEN,
-            resp.headers[WWW_AUTHENTICATE].to_str()?
-        );
+        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
 
         // expired token
         let mut user = User {
@@ -173,14 +164,15 @@ mod tests {
         let mut req = Request::new();
         req.headers.insert(
             AUTHORIZATION,
-            format!("Bearer {}", encode(&Header::default(), &user, SECRET.as_bytes())?).parse()?,
+            format!(
+                "Bearer {}",
+                encode(&Header::default(), &user, SECRET.as_bytes())?
+            )
+            .parse()?,
         );
         let resp = app.serve(req, addr).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(
-            INVALID_TOKEN,
-            resp.headers[WWW_AUTHENTICATE].to_str()?
-        );
+        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
 
         let mut req = Request::new();
         user.exp = (SystemTime::now() + Duration::from_millis(60))
@@ -188,7 +180,11 @@ mod tests {
             .as_secs(); // one hour later
         req.headers.insert(
             AUTHORIZATION,
-            format!("Bearer {}", encode(&Header::default(), &user, SECRET.as_bytes())?).parse()?,
+            format!(
+                "Bearer {}",
+                encode(&Header::default(), &user, SECRET.as_bytes())?
+            )
+            .parse()?,
         );
         let resp = app.serve(req, addr).await?;
         assert_eq!(StatusCode::OK, resp.status);
