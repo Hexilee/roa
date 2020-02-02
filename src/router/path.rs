@@ -116,9 +116,8 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
 
 #[cfg(test)]
 mod tests {
+    use super::Path;
     use super::{must_build, path_to_regexp, VARIABLE, WILDCARD};
-    use crate::Path;
-    use regex::Regex;
     use test_case::test_case;
 
     #[test_case("/:id/"; "pure dynamic")]
