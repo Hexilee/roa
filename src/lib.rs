@@ -27,3 +27,10 @@ pub mod body;
 #[cfg(feature = "body")]
 #[doc(inline)]
 pub use crate::body::PowerBody;
+
+#[cfg(feature = "router")]
+pub mod router;
+
+#[cfg(feature = "router")]
+#[doc(inline)]
+pub use crate::router::Router;
