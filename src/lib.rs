@@ -22,14 +22,14 @@ mod jwt;
 pub use crate::jwt::{jwt_verify, JwtVerifier};
 
 #[cfg(feature = "body")]
-pub mod body;
+mod body;
 
 #[cfg(feature = "body")]
 #[doc(inline)]
 pub use crate::body::PowerBody;
 
 #[cfg(feature = "router")]
-pub mod router;
+mod router;
 
 #[cfg(feature = "router")]
 #[doc(inline)]
