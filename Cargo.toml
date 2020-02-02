@@ -23,7 +23,6 @@ members = [
     "roa-proc-macro",
 
     # contexts
-    "roa-cookie",
     "roa-forward",
     "roa-body",
 
