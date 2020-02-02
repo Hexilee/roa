@@ -1,18 +1,21 @@
+use async_trait::async_trait;
 pub use cookie::Cookie;
 use http::header;
 use roa_core::{Context, Model, Status};
 
+#[async_trait]
 pub trait Cookier {
-    fn cookies<'a>(&'a self) -> Result<Box<dyn Iterator<Item = Cookie<'a>> + 'a>, Status>;
-    fn cookie(&self, key: &str) -> Result<Option<Cookie>, Status> {
+    async fn cookies<'a>(&'a self) -> Result<Box<dyn Iterator<Item = Cookie<'a>> + 'a>, Status>;
+    async fn cookie(&self, key: &str) -> Result<Option<Cookie<'static>>, Status> {
         Ok(self.cookies()?.find(|cookie| cookie.name() == key))
     }
-    fn set_cookie(&mut self, cookie: &Cookie) -> Result<(), Status>;
+    async fn set_cookie(&mut self, cookie: &Cookie) -> Result<(), Status>;
 }
 
+#[async_trait]
 impl<M: Model> Cookier for Context<M> {
-    fn cookies<'a>(&'a self) -> Result<Box<dyn Iterator<Item = Cookie<'a>> + 'a>, Status> {
-        Ok(match self.request.headers.get(header::COOKIE) {
+    async fn cookies<'a>(&'a self) -> Result<Box<dyn Iterator<Item = Cookie<'a>> + 'a>, Status> {
+        Ok(match self.req().await.headers.get(header::COOKIE) {
             None => Box::new(vec![].into_iter()),
             Some(cookies) => Box::new(
                 cookies
@@ -24,7 +27,7 @@ impl<M: Model> Cookier for Context<M> {
         })
     }
 
-    fn set_cookie(&mut self, cookie: &Cookie) -> Result<(), Status> {
+    async fn set_cookie(&mut self, cookie: &Cookie) -> Result<(), Status> {
         let cookie_value = cookie.encoded().to_string().parse()?;
 
         if self.response.headers.contains_key(header::SET_COOKIE) {

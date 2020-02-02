@@ -22,23 +22,26 @@ where
     async fn set_claim(&mut self, claim: C);
 }
 
-fn unauthorized_error<M: Model>(ctx: &mut Context<M>, www_authentication: &'static str) -> Status {
-    ctx.response.headers.insert(
+async fn unauthorized_error<M: Model>(
+    ctx: &Context<M>,
+    www_authentication: &'static str,
+) -> Status {
+    ctx.resp().await.headers.insert(
         WWW_AUTHENTICATE,
         HeaderValue::from_static(www_authentication),
     );
     Status::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
 }
 
-fn try_get_token<M: Model>(ctx: Context<M>) -> Result<String, Status> {
-    match ctx.request.headers.get(AUTHORIZATION) {
-        None => Err(unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE)),
+async fn try_get_token<M: Model>(ctx: &Context<M>) -> Result<String, Status> {
+    match ctx.req().await.headers.get(AUTHORIZATION) {
+        None => Err(unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE).await),
         Some(value) => {
             let token = value
                 .to_str()
-                .map_err(|_| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE))?;
+                .map_err(|_| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE).await)?;
             match token.find("Bearer") {
-                None => Err(unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE)),
+                None => Err(unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE).await),
                 Some(n) => Ok(token[n + 6..].trim().to_string()),
             }
         }
@@ -51,13 +54,13 @@ where
     C: 'static + Serialize + DeserializeOwned,
     M::State: JwtVerifier<M, C>,
 {
-    let token = try_get_token(ctx.clone())?;
+    let token = try_get_token(&ctx).await?;
     let dangerous_data = dangerous_unsafe_decode(&token)
-        .map_err(|_err| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE))?;
+        .map_err(|_err| unauthorized_error(&ctx, INVALID_HEADER_VALUE).await)?;
     let secret = ctx.get_secret(&dangerous_data.claims).await?;
-    let validation = ctx.get_validation();
+    let validation = ctx.get_validation().await;
     let token_data = decode(&token, &secret, &validation)
-        .map_err(|_err| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE))?;
+        .map_err(|_err| unauthorized_error(&ctx, INVALID_HEADER_VALUE).await)?;
     ctx.set_claim(token_data.claims).await;
     next().await
 }

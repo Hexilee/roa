@@ -61,7 +61,7 @@ impl<M: Model> App<M> {
         if let Err(status) = (app.middleware.handler())(context.clone(), Box::new(last)).await {
             (app.status_handler)(context.clone(), status).await?;
         }
-        let mut response = context.response().await;
+        let mut response = context.resp().await;
         Ok(std::mem::take(&mut *response))
     }
 

@@ -1,6 +1,7 @@
 use crate::{App, Model, Request, Response};
-use futures::lock::{Mutex, MutexLockFuture};
-use http::Uri;
+use futures::lock::{Mutex, MutexGuard};
+use http::header::HeaderName;
+use http::{HeaderValue, Method, Uri, Version};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -24,20 +25,36 @@ impl<M: Model> Context<M> {
         }
     }
 
-    pub fn request(&self) -> MutexLockFuture<Request> {
-        self.request.lock()
+    pub async fn req<'a>(&'a self) -> MutexGuard<'a, Request> {
+        self.request.lock().await
     }
 
-    pub fn response(&self) -> MutexLockFuture<Response> {
-        self.response.lock()
+    pub async fn resp<'a>(&'a self) -> MutexGuard<'a, Response> {
+        self.response.lock().await
     }
 
-    pub fn state(&self) -> MutexLockFuture<M::State> {
-        self.state.lock()
+    pub async fn state<'a>(&'a self) -> MutexGuard<'a, M::State> {
+        self.state.lock().await
     }
 
     pub async fn uri(&self) -> Uri {
-        self.request().await.uri.clone()
+        self.req().await.uri.clone()
+    }
+
+    pub async fn method(&self) -> Method {
+        self.req().await.method.clone()
+    }
+
+    pub async fn header(&self, name: &HeaderName) -> Option<HeaderValue> {
+        self.req()
+            .await
+            .headers
+            .get(name)
+            .map(|value| value.clone())
+    }
+
+    pub async fn version(&self) -> Version {
+        self.req().await.version
     }
 }
 

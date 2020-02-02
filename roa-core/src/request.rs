@@ -85,10 +85,10 @@ mod tests {
     #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        app.join(|mut ctx, _next| {
+        app.join(|ctx, _next| {
             async move {
                 let mut data = String::new();
-                ctx.request().await.read_to_string(&mut data).await?;
+                ctx.req().await.read_to_string(&mut data).await?;
                 assert_eq!("Hello, World!", data);
                 Ok(())
             }

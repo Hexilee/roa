@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 roa-core = { path = "../roa-core", version = "0.1" }
 http = "0.2"
+async-trait = "0.1.22"
 cookie = { version = "0.12", features = ["percent-encode"] }

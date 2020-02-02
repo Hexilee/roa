@@ -7,7 +7,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     App::new(())
         .join(|mut ctx, _next| {
             async move {
-                ctx.response()
+                ctx.resp()
                     .await
                     .write(File::open("assets/welcome.html").await?);
                 Ok(())
