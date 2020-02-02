@@ -21,13 +21,8 @@ exclude = [".travis.yml", "*.sh"]
 members = [
     "roa-core",
     "roa-proc-macro",
-
-    # contexts
     "roa-forward",
-
-    # middlewares
     "roa-logger",
-    "roa-router",
     "roa-cors",
 ]
 
