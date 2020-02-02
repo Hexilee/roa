@@ -27,7 +27,6 @@ members = [
     "roa-body",
 
     # middlewares
-    "roa-jwt",
     "roa-logger",
     "roa-router",
     "roa-cors",
@@ -38,28 +37,31 @@ travis-ci = { repository = "Hexilee/roa" }
 
 [dependencies]
 http = "0.2"
+log = "0.4"
 roa-core = {path = "./roa-core", version = "0.1"}
 url = { version = "2.1.1", optional = true }
 async-trait = { version = "0.1.22", optional = true }
 cookie = { version = "0.12", features = ["percent-encode"], optional = true }
 percent-encoding = { version = "2.1", optional = true }
+jsonwebtoken = { version = "6", optional = true }
+serde = { version = "1", optional = true }
 # roa-forward = { path = "./roa-forward", version = "0.1" }
 # roa-logger = { path = "./roa-logger", version = "0.1" }
 # roa-cors = { path = "./roa-cors", version = "0.1" }
-# roa-cookie = { path = "./roa-cookie", version = "0.1", optional = true }
 # roa-body = { path = "./roa-body", version = "0.1", optional = true }
 # roa-router = { path = "./roa-router", version = "0.1", optional = true }
-# roa-jwt = { path = "./roa-jwt", version = "0.1", optional = true }
 
 [dev-dependencies]
 tokio = {version = "0.2", features = ["full"]}
 async-std = "1.4"
 pretty_env_logger = "0.3"
+serde = {version = "1", features = ["derive"] }
 
 [features]
 default = ["query", "cookies"]
 query = ["url", "async-trait"]
 cookies = ["async-trait", "cookie", "percent-encoding"]
+jwt = ["async-trait", "jsonwebtoken", "serde"]
 # full = ["body", "cookie", "router", "jwt"]
 # body = ["roa-body"]
 # router = ["roa-router"]
