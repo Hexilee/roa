@@ -65,6 +65,10 @@ impl<'a> Variable<'a> {
             )
         })
     }
+
+    pub fn into_value(self) -> String {
+        self.value
+    }
 }
 
 impl Bucket {

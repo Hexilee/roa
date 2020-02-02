@@ -39,9 +39,11 @@ travis-ci = { repository = "Hexilee/roa" }
 
 [dependencies]
 http = "0.2"
+roa-core = {path = "./roa-core", version = "0.1"}
 url = { version = "2.1.1", optional = true }
 async-trait = { version = "0.1.22", optional = true }
-roa-core = {path = "./roa-core", version = "0.1"}
+cookie = { version = "0.12", features = ["percent-encode"], optional = true }
+percent-encoding = { version = "2.1", optional = true }
 # roa-forward = { path = "./roa-forward", version = "0.1" }
 # roa-logger = { path = "./roa-logger", version = "0.1" }
 # roa-cors = { path = "./roa-cors", version = "0.1" }
@@ -56,11 +58,11 @@ async-std = "1.4"
 pretty_env_logger = "0.3"
 
 [features]
-default = ["query"]
+default = ["query", "cookies"]
 query = ["url", "async-trait"]
+cookies = ["async-trait", "cookie", "percent-encoding"]
 # full = ["body", "cookie", "router", "jwt"]
 # body = ["roa-body"]
-# cookie = ["roa-cookie"]
 # router = ["roa-router"]
 # jwt = ["roa-jwt"]
 
