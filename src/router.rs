@@ -6,12 +6,23 @@ pub use endpoint::Endpoint;
 pub use err::{Conflict, Error};
 pub use path::{join_path, standardize_path, Path, RegexPath};
 
-use crate::{throw, Context, DynTargetHandler, Middleware, Model, Next, Status, TargetHandler};
+use crate::{
+    throw, Context, DynTargetHandler, Middleware, Model, Next, Status, TargetHandler, Variable,
+};
+use async_trait::async_trait;
 use http::StatusCode;
 use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
 use std::future::Future;
 use std::sync::Arc;
+
+struct RouterSymbol;
+
+#[async_trait]
+pub trait RouterParam {
+    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Status>;
+    async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
+}
 
 enum Node<M: Model> {
     Router(Router<M>),
@@ -153,8 +164,11 @@ impl<M: Model> Router<M> {
                 }
 
                 for (regexp_path, handler) in dynamic_route.iter() {
-                    if regexp_path.re.is_match(&path) {
-                        // TODO: store variable in ctx
+                    if let Some(cap) = regexp_path.re.captures(&path) {
+                        for var in regexp_path.vars.iter() {
+                            ctx.store::<RouterSymbol>(var, cap[var.as_str()].to_string())
+                                .await;
+                        }
                         return handler(ctx, next).await;
                     }
                 }
@@ -162,6 +176,20 @@ impl<M: Model> Router<M> {
             }
         };
         Ok(Box::new(handler).dynamic())
+    }
+}
+
+#[async_trait]
+impl<M: Model> RouterParam for Context<M> {
+    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Status> {
+        self.try_param(name).await.ok_or(Status::new(
+            StatusCode::BAD_REQUEST,
+            format!("router variable `{}` is required", name),
+            true,
+        ))
+    }
+    async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
+        self.load::<RouterSymbol>(name).await
     }
 }
 

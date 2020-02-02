@@ -33,4 +33,4 @@ pub mod router;
 
 #[cfg(feature = "router")]
 #[doc(inline)]
-pub use crate::router::Router;
+pub use crate::router::{Endpoint, Router, RouterParam};
