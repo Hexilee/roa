@@ -5,8 +5,8 @@ use roa::App;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     App::new(())
-        .join(|mut ctx, _next| async move {
-            ctx.resp()
+        .join(|ctx, _next| async move {
+            ctx.resp_mut()
                 .await
                 .write(File::open("assets/welcome.html").await?);
             Ok(())

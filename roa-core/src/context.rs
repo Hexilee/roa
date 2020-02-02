@@ -42,7 +42,11 @@ impl AsRef<str> for Variable<'_> {
     }
 }
 
-impl Variable<'_> {
+impl<'a> Variable<'a> {
+    pub fn new(name: &'a str, value: String) -> Self {
+        Self { name, value }
+    }
+
     pub fn parse<T>(&self) -> Result<T, Status>
     where
         T: FromStr,
@@ -71,7 +75,7 @@ impl Bucket {
     pub fn insert<'a>(&mut self, name: &'a str, value: String) -> Option<Variable<'a>> {
         self.0
             .insert(name.to_string(), value)
-            .map(|value| Variable { name, value })
+            .map(|value| Variable::new(name, value))
     }
 
     pub fn get<'a>(&mut self, name: &'a str) -> Option<Variable<'a>> {
