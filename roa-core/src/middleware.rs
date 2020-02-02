@@ -1,5 +1,5 @@
 use crate::{Context, DynTargetHandler, Model, Next, Status, TargetHandler};
-use futures::Future;
+use std::future::Future;
 use std::sync::Arc;
 
 pub struct Middleware<M: Model>(Arc<DynTargetHandler<M, Next>>);

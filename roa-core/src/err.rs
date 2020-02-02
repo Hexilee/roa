@@ -1,4 +1,4 @@
-use futures::Future;
+use std::future::Future;
 use http::header::{InvalidHeaderName, InvalidHeaderValue, ToStrError};
 pub use http::StatusCode;
 use std::fmt::{Display, Formatter};

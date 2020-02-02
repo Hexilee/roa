@@ -1,7 +1,6 @@
-use futures::io::{BufReader, Cursor};
-use futures::task::{Context, Poll};
-use futures::{AsyncBufRead as BufRead, AsyncRead as Read, Stream};
-use std::io::Error;
+use async_std::io::{BufReader, Cursor, BufRead, Read, Error};
+use async_std::stream::Stream;
+use async_std::task::{Context, Poll};
 use std::pin::Pin;
 
 pub struct Body {
@@ -128,7 +127,7 @@ impl<R: BufRead + Unpin + Send + Sync + 'static> From<BodyStream<R>> for hyper::
 mod tests {
     use super::Body;
     use async_std::fs::File;
-    use futures::AsyncReadExt;
+    use async_std::io::ReadExt;
 
     #[tokio::test]
     async fn body_empty() -> std::io::Result<()> {

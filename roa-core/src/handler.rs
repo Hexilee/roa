@@ -49,9 +49,9 @@ pub async fn default_status_handler<M: Model>(
     context: Context<M>,
     status: Status,
 ) -> Result<(), Status> {
-    context.resp().await.status = status.status_code;
+    context.resp_mut().await.status = status.status_code;
     if status.expose {
-        context.resp().await.write_str(&status.message);
+        context.resp_mut().await.write_str(&status.message);
     }
     if status.need_throw() {
         Err(status)

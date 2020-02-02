@@ -2,7 +2,6 @@ use crate::{
     default_status_handler, last, Context, DynTargetHandler, Middleware, Model, Next, Request,
     Response, Status, TargetHandler,
 };
-use futures::task::Poll;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use hyper::service::Service;
@@ -12,6 +11,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::task::Poll;
 
 pub struct App<M: Model> {
     middleware: Middleware<M>,
@@ -61,7 +61,7 @@ impl<M: Model> App<M> {
         if let Err(status) = (app.middleware.handler())(context.clone(), Box::new(last)).await {
             (app.status_handler)(context.clone(), status).await?;
         }
-        let mut response = context.resp().await;
+        let mut response = context.resp_mut().await;
         Ok(std::mem::take(&mut *response))
     }
 
@@ -141,13 +141,11 @@ mod tests {
     #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         App::new(())
-            .join(|_ctx, next| {
-                async move {
-                    let inbound = Instant::now();
-                    next().await?;
-                    println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-                    Ok(())
-                }
+            .join(|_ctx, next| async move {
+                let inbound = Instant::now();
+                next().await?;
+                println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+                Ok(())
             })
             .serve(Request::new(), "127.0.0.1:8080".parse()?)
             .await?;

@@ -1,5 +1,5 @@
 use crate::Body;
-use futures::TryStreamExt;
+use futures::stream::TryStreamExt;
 use http::{HeaderValue, Method, Uri, Version};
 use hyper::HeaderMap;
 use std::io;
@@ -85,13 +85,11 @@ mod tests {
     #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        app.join(|ctx, _next| {
-            async move {
-                let mut data = String::new();
-                ctx.req().await.read_to_string(&mut data).await?;
-                assert_eq!("Hello, World!", data);
-                Ok(())
-            }
+        app.join(|ctx, _next| async move {
+            let mut data = String::new();
+            ctx.req_mut().await.read_to_string(&mut data).await?;
+            assert_eq!("Hello, World!", data);
+            Ok(())
         });
         let mut request = Request::new();
         request.write_str("Hello, World!");

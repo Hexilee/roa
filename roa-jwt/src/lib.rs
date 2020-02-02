@@ -15,40 +15,37 @@ where
     M: Model,
     C: 'static + Serialize + DeserializeOwned,
 {
-    async fn get_validation(&self) -> Validation {
+    async fn get_validation(&mut self) -> Validation {
         Validation::default()
     }
-    async fn get_secret(&self, claim: &C) -> Result<Vec<u8>, Status>;
+    async fn get_secret(&mut self, claim: &C) -> Result<Vec<u8>, Status>;
     async fn set_claim(&mut self, claim: C);
 }
 
-async fn unauthorized_error<M: Model>(
+async fn unauthorized_error<M: Model, E: ToString>(
     ctx: &Context<M>,
     www_authentication: &'static str,
-) -> Status {
+) -> impl Fn(E) -> Status {
     ctx.resp().await.headers.insert(
         WWW_AUTHENTICATE,
         HeaderValue::from_static(www_authentication),
     );
-    Status::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
+    |_err| Status::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
 }
 
 async fn try_get_token<M: Model>(ctx: &Context<M>) -> Result<String, Status> {
-    match ctx.req().await.headers.get(AUTHORIZATION) {
-        None => Err(unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE).await),
-        Some(value) => {
-            let token = value
-                .to_str()
-                .map_err(|_| unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE).await)?;
-            match token.find("Bearer") {
-                None => Err(unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE).await),
-                Some(n) => Ok(token[n + 6..].trim().to_string()),
-            }
+    match ctx.header(&AUTHORIZATION).await {
+        None | Some(Err(_)) => {
+            Err((unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE).await)(""))
         }
+        Some(Ok(value)) => match value.find("Bearer") {
+            None => Err((unauthorized_error(&mut ctx.clone(), INVALID_HEADER_VALUE).await)("")),
+            Some(n) => Ok(value[n + 6..].trim().to_string()),
+        },
     }
 }
 
-pub async fn jwt_verify<M, C>(mut ctx: Context<M>, next: Next) -> Result<(), Status>
+pub async fn jwt_verify<M, C>(ctx: Context<M>, next: Next) -> Result<(), Status>
 where
     M: Model,
     C: 'static + Serialize + DeserializeOwned,
@@ -56,12 +53,12 @@ where
 {
     let token = try_get_token(&ctx).await?;
     let dangerous_data = dangerous_unsafe_decode(&token)
-        .map_err(|_err| unauthorized_error(&ctx, INVALID_HEADER_VALUE).await)?;
-    let secret = ctx.get_secret(&dangerous_data.claims).await?;
-    let validation = ctx.get_validation().await;
+        .map_err(unauthorized_error(&ctx, INVALID_HEADER_VALUE).await)?;
+    let secret = ctx.state().await.get_secret(&dangerous_data.claims).await?;
+    let validation = ctx.state().await.get_validation().await;
     let token_data = decode(&token, &secret, &validation)
-        .map_err(|_err| unauthorized_error(&ctx, INVALID_HEADER_VALUE).await)?;
-    ctx.set_claim(token_data.claims).await;
+        .map_err(unauthorized_error(&ctx, INVALID_HEADER_VALUE).await)?;
+    ctx.state().await.set_claim(token_data.claims).await;
     next().await
 }
 
@@ -123,7 +120,7 @@ mod tests {
         });
         app.join(jwt_verify).join(move |ctx, _next| {
             async move {
-                match ctx.user {
+                match ctx.state().await.user {
                     None => panic!("ctx.usr should not be None"),
                     Some(ref user) => {
                         assert_eq!(0, user.id);
