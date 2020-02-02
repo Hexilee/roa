@@ -59,6 +59,7 @@ test-case = "1.0.0"
 
 [features]
 default = ["query", "cookies", "router"]
+full = ["default", "jwt", "body"]
 query = ["url", "async-trait"]
 cookies = ["async-trait", "cookie", "percent-encoding"]
 jwt = ["async-trait", "jsonwebtoken", "serde"]
@@ -74,13 +75,9 @@ body = [
     "mime_guess",
 ]
 router = ["regex", "radix_trie", "percent-encoding", "async-trait"]
-# full = ["body", "cookie", "router", "jwt"]
-# body = ["roa-body"]
-# router = ["roa-router"]
-# jwt = ["roa-jwt"]
 
 [package.metadata.docs.rs]
-# features = ["full"]
+features = ["full"]
 
 [[example]]
 name = "serve-file"
