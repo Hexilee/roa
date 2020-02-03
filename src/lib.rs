@@ -3,6 +3,9 @@ pub use roa_core::*;
 
 mod logger;
 
+#[doc(inline)]
+pub use logger::logger;
+
 #[cfg(feature = "query")]
 mod query;
 

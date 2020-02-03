@@ -159,6 +159,10 @@ impl<M: Model> Context<M> {
             .map(|value| value.clone())
     }
 
+    pub async fn status(&self) -> StatusCode {
+        self.resp().await.status
+    }
+
     pub async fn version(&self) -> Version {
         self.req().await.version
     }

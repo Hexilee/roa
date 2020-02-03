@@ -3,7 +3,7 @@ use async_std::stream::Stream;
 use async_std::task::{Context, Poll};
 use std::pin::Pin;
 
-type Callback = dyn 'static + Sync + Send + Unpin + Fn(&Body);
+pub type Callback = dyn 'static + Sync + Send + Unpin + Fn(&Body);
 
 pub struct Body {
     counter: usize,
@@ -52,7 +52,10 @@ impl Body {
         Pin::new(self.segments[self.counter].as_mut()).poll_fill_buf(cx)
     }
 
-    pub fn on_finish(&mut self, callback: impl 'static + Sync + Send + Unpin + Fn(&Self)) -> &mut Self {
+    pub fn on_finish(
+        &mut self,
+        callback: impl 'static + Sync + Send + Unpin + Fn(&Self),
+    ) -> &mut Self {
         self.finish.push(Box::new(callback));
         self
     }

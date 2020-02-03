@@ -43,7 +43,7 @@ pub enum StatusKind {
 }
 
 impl StatusKind {
-    fn infer(status_code: StatusCode) -> Self {
+    pub fn infer(status_code: StatusCode) -> Self {
         use StatusKind::*;
         match status_code.as_u16() / 100 {
             1 => Informational,

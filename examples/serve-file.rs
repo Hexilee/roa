@@ -1,9 +1,10 @@
-use roa::{App, PowerBody};
+use roa::{logger, App, PowerBody};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     App::new(())
+        .join(logger)
         .join(|ctx, _next| async move {
             ctx.write_file("assets/welcome.html").await?;
             Ok(())
