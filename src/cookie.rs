@@ -77,8 +77,8 @@ mod tests {
         // miss cookie
         let mut req = Request::new();
         App::new(())
-            .join(cookie_parser)
-            .join(move |ctx, _next| async move {
+            .gate(cookie_parser)
+            .gate(move |ctx, _next| async move {
                 assert!(ctx.try_cookie("name").await.is_none());
                 Ok(())
             })
@@ -87,8 +87,8 @@ mod tests {
 
         req = Request::new();
         let resp = App::new(())
-            .join(cookie_parser)
-            .join(move |ctx, _next| async move {
+            .gate(cookie_parser)
+            .gate(move |ctx, _next| async move {
                 ctx.cookie("nick name").await?;
                 Ok(())
             })
@@ -108,8 +108,8 @@ mod tests {
         req = Request::new();
         req.headers.insert(header::COOKIE, "name=Hexilee".parse()?);
         let resp = App::new(())
-            .join(cookie_parser)
-            .join(move |ctx, _next| async move {
+            .gate(cookie_parser)
+            .gate(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.cookie("name").await?);
                 Ok(())
             })
@@ -126,8 +126,8 @@ mod tests {
         req.headers
             .insert(header::COOKIE, "bar%20baz=bar%20baz".parse()?);
         let resp = App::new(())
-            .join(cookie_parser)
-            .join(move |ctx, _next| async move {
+            .gate(cookie_parser)
+            .gate(move |ctx, _next| async move {
                 assert_eq!("bar baz", ctx.cookie("bar baz").await?);
                 Ok(())
             })
@@ -145,8 +145,8 @@ mod tests {
             "bar%20baz=bar%20baz; foo%20baz=bar%20foo".parse()?,
         );
         let resp = App::new(())
-            .join(cookie_parser)
-            .join(move |ctx, _next| async move {
+            .gate(cookie_parser)
+            .gate(move |ctx, _next| async move {
                 assert_eq!("bar baz", ctx.cookie("bar baz").await?);
                 assert_eq!("bar foo", ctx.cookie("foo baz").await?);
                 Ok(())

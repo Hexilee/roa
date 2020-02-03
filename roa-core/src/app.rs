@@ -65,7 +65,11 @@ impl<M: Model> App<M> {
         Ok(std::mem::take(&mut *response))
     }
 
-    pub fn listen(&self, addr: SocketAddr, callback: impl Fn()) -> hyper::Server<AddrIncoming, App<M>> {
+    pub fn listen(
+        &self,
+        addr: SocketAddr,
+        callback: impl Fn(),
+    ) -> hyper::Server<AddrIncoming, App<M>> {
         let server = Server::bind(&addr).serve(self.clone());
         callback();
         server

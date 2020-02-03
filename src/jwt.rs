@@ -111,11 +111,11 @@ mod tests {
     #[tokio::test]
     async fn verify() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        app.join(jwt_verify::<(), User>(
+        app.gate(jwt_verify::<(), User>(
             SECRET.to_string(),
             Validation::default(),
         ))
-        .join(move |ctx, _next| async move {
+        .gate(move |ctx, _next| async move {
             let user: User = ctx.verify(&Validation::default()).await?;
             assert_eq!(0, user.id);
             assert_eq!("Hexilee", &user.name);

@@ -46,8 +46,8 @@ mod tests {
         let mut req = Request::new();
         req.uri = "/".parse()?;
         App::new(())
-            .join(query_parser)
-            .join(move |ctx, _next| async move {
+            .gate(query_parser)
+            .gate(move |ctx, _next| async move {
                 assert!(ctx.try_query("name").await.is_none());
                 Ok(())
             })
@@ -58,8 +58,8 @@ mod tests {
         req = Request::new();
         req.uri = "/?name=Hexilee".parse()?;
         let resp = App::new(())
-            .join(query_parser)
-            .join(move |ctx, _next| async move {
+            .gate(query_parser)
+            .gate(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
                 Ok(())
             })
@@ -75,8 +75,8 @@ mod tests {
         let mut req = Request::new();
         req.uri = "/?age=Hexilee".parse()?;
         let resp = App::new(())
-            .join(query_parser)
-            .join(move |ctx, _next| async move {
+            .gate(query_parser)
+            .gate(move |ctx, _next| async move {
                 assert!(ctx.query("age").await?.parse::<u64>().is_err());
                 Ok(())
             })
@@ -87,8 +87,8 @@ mod tests {
         req = Request::new();
         req.uri = "/?age=120".parse()?;
         let resp = App::new(())
-            .join(query_parser)
-            .join(move |ctx, _next| async move {
+            .gate(query_parser)
+            .gate(move |ctx, _next| async move {
                 assert_eq!(120, ctx.query("age").await?.parse::<u64>()?);
                 Ok(())
             })
@@ -103,8 +103,8 @@ mod tests {
         let mut request = Request::new();
         request.uri = "/?name=Hexilee&lang=rust".parse()?;
         let resp = App::new(())
-            .join(query_parser)
-            .join(move |ctx, _next| async move {
+            .gate(query_parser)
+            .gate(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
                 assert_eq!("rust", ctx.query("lang").await?.as_ref());
                 Ok(())
