@@ -56,6 +56,10 @@ impl Body {
         self.finish.push(Box::new(callback));
         self
     }
+
+    pub fn consumed(&self) -> usize {
+        self.consumed
+    }
 }
 
 impl Default for Body {
@@ -214,7 +218,7 @@ mod tests {
         body.write_buf(b"He".as_ref())
             .write_buf(b"llo, ".as_ref())
             .write_buf(b"World".as_ref())
-            .on_finish(|body| assert_eq!(12, body.consumed))
+            .on_finish(|body| assert_eq!(12, body.consumed()))
             .read_to_string(&mut data)
             .await?;
         assert_eq!("Hello, World", data);
