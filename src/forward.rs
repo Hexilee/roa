@@ -1,6 +1,9 @@
-use crate::{Context, Model, Status, throw};
+use crate::{throw, Context, Model, Status};
 use async_trait::async_trait;
-use http::{StatusCode, header::{HeaderName, HOST}};
+use http::{
+    header::{HeaderName, HOST},
+    StatusCode,
+};
 use std::net::SocketAddr;
 
 #[async_trait]
@@ -14,7 +17,10 @@ pub trait Forward {
 #[async_trait]
 impl<M: Model> Forward for Context<M> {
     async fn host(&self) -> Result<String, Status> {
-        if let Some(Ok(value)) = self.header(&HeaderName::from_static("X-Forwarded-Host")).await {
+        if let Some(Ok(value)) = self
+            .header(&HeaderName::from_static("X-Forwarded-Host"))
+            .await
+        {
             Ok(value)
         } else if let Some(Ok(value)) = self.header(&HOST).await {
             Ok(value)
@@ -34,7 +40,10 @@ impl<M: Model> Forward for Context<M> {
 
     async fn forwarded_addrs(&self) -> Vec<SocketAddr> {
         let mut addrs = Vec::new();
-        if let Some(Ok(value)) = self.header(&HeaderName::from_static("X-Forwarded-For")).await {
+        if let Some(Ok(value)) = self
+            .header(&HeaderName::from_static("X-Forwarded-For"))
+            .await
+        {
             for addr_str in value.split(',') {
                 if let Ok(addr) = addr_str.trim().parse() {
                     addrs.push(addr)
@@ -43,16 +52,18 @@ impl<M: Model> Forward for Context<M> {
         }
         addrs
     }
-    
+
     async fn forwarded_proto(&self) -> Option<Result<String, Status>> {
-        self.header(&HeaderName::from_static("X-Forwarded-Proto")).await.map(|value| {
-            value.map_err(|err| {
-                Status::new(
-                    StatusCode::BAD_REQUEST,
-                    format!("{}\nvalue of X-Forwarded-Proto is not a valid string", err),
-                    true,
-                )
+        self.header(&HeaderName::from_static("X-Forwarded-Proto"))
+            .await
+            .map(|value| {
+                value.map_err(|err| {
+                    Status::new(
+                        StatusCode::BAD_REQUEST,
+                        format!("{}\nvalue of X-Forwarded-Proto is not a valid string", err),
+                        true,
+                    )
+                })
             })
-        })
     }
 }

@@ -33,7 +33,6 @@ pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result<(), Status>
                 ByteSize(body.consumed() as u64)
             )
         }),
-        
     };
     ctx.resp_mut().await.on_finish(callback);
     result

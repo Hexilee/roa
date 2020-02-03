@@ -1,61 +1,72 @@
-use crate::{Body, Context, DynTargetHandler, Model, Next, TargetHandler};
-pub use async_compression::flate2::Compression;
-use async_compression::futures::bufread::{GzipEncoder, ZlibEncoder};
-use async_std::io::Read;
-use http::header::{HeaderValue, CONTENT_ENCODING};
-use std::sync::Arc;
+use crate::{Body, Context, DynTargetHandler, Model, Next, Status, TargetHandler};
+use accept_encoding::{parse, Encoding};
+use async_compression::flate2::Compression;
+use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
+use http::header::CONTENT_ENCODING;
+use http::StatusCode;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum Algorithm {
-    Gzip,
-    Deflate,
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum Level {
+    Fast = 0,
+    Balance = 1,
+    Best = 2,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub struct Options {
-    pub algorithm: Algorithm,
-    pub level: Compression,
-}
+impl Level {
+    fn to_compression(&self) -> Compression {
+        Compression::new((*self as u32) * 4 + 1)
+    }
 
-impl Default for Options {
-    fn default() -> Self {
-        Self {
-            algorithm: Algorithm::Gzip,
-            level: Compression::new(5),
-        }
+    fn to_brotli_level(&self) -> u32 {
+        (*self as u32) * 5 + 1
+    }
+
+    fn to_zstd_level(&self) -> i32 {
+        (*self as i32) * 10 + 1
     }
 }
 
-pub fn compress<M: Model>(options: Options) -> Box<DynTargetHandler<M, Next>> {
-    let compresser: Arc<
-        dyn 'static + Send + Sync + Fn(Body) -> Box<dyn Read + Sync + Send + Unpin + 'static>,
-    > = match options.algorithm {
-        Algorithm::Gzip => Arc::new(move |body| Box::new(GzipEncoder::new(body, options.level))),
-        Algorithm::Deflate => Arc::new(move |body| Box::new(ZlibEncoder::new(body, options.level))),
-    };
-
-    let content_encoding: HeaderValue = match options.algorithm {
-        Algorithm::Gzip => "gzip",
-        Algorithm::Deflate => "deflate",
-    }
-    .parse()
-    .unwrap_or_else(|err| {
-        panic!(format!(
-            r"{}\nThis is a bug of roa::compress.
-    Please report it to https://github.com/roa",
-            err
-        ))
-    });
-    Box::new(move |ctx: Context<M>, next: Next| {
-        let compresser = compresser.clone();
-        let content_encoding = content_encoding.clone();
-        async move {
-            next().await?;
-            let body: Body = std::mem::take(&mut *ctx.resp_mut().await);
-            ctx.resp_mut().await.write(compresser(body));
-            ctx.resp_mut().await.headers.insert(CONTENT_ENCODING, content_encoding);
-            Ok(())
-        }
+pub fn compress<M: Model>(level: Level) -> Box<DynTargetHandler<M, Next>> {
+    Box::new(move |ctx: Context<M>, next: Next| async move {
+        next().await?;
+        let body: Body = std::mem::take(&mut *ctx.resp_mut().await);
+        let content_encoding = match parse(&ctx.req().await.headers)
+            .map_err(|err| Status::new(StatusCode::BAD_REQUEST, err, true))?
+        {
+            None | Some(Encoding::Gzip) => {
+                ctx.resp_mut()
+                    .await
+                    .write(GzipEncoder::new(body, level.to_compression()));
+                Encoding::Gzip.to_header_value()
+            }
+            Some(Encoding::Deflate) => {
+                ctx.resp_mut()
+                    .await
+                    .write(ZlibEncoder::new(body, level.to_compression()));
+                Encoding::Deflate.to_header_value()
+            }
+            Some(Encoding::Brotli) => {
+                ctx.resp_mut()
+                    .await
+                    .write(BrotliEncoder::new(body, level.to_brotli_level()));
+                Encoding::Brotli.to_header_value()
+            }
+            Some(Encoding::Zstd) => {
+                ctx.resp_mut()
+                    .await
+                    .write(ZstdEncoder::new(body, level.to_zstd_level()));
+                Encoding::Zstd.to_header_value()
+            }
+            Some(Encoding::Identity) => {
+                ctx.resp_mut().await.write_buf(body);
+                Encoding::Identity.to_header_value()
+            }
+        };
+        ctx.resp_mut()
+            .await
+            .headers
+            .insert(CONTENT_ENCODING, content_encoding);
+        Ok(())
     })
     .dynamic()
 }
