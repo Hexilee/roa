@@ -16,20 +16,6 @@ pub use query::{query_parser, Query};
 #[doc(inline)]
 pub use forward::Forward;
 
-#[cfg(feature = "cookies")]
-mod cookie;
-
-#[cfg(feature = "cookies")]
-#[doc(inline)]
-pub use crate::cookie::{cookie_parser, Cookier};
-
-#[cfg(feature = "jwt")]
-mod jwt;
-
-#[cfg(feature = "jwt")]
-#[doc(inline)]
-pub use crate::jwt::{jwt_verify, JwtVerifier};
-
 #[cfg(feature = "body")]
 mod body;
 
@@ -37,14 +23,14 @@ mod body;
 #[doc(inline)]
 pub use crate::body::PowerBody;
 
-#[cfg(feature = "router")]
-mod router;
+#[cfg(feature = "cookies")]
+pub mod cookie;
+
+#[cfg(feature = "jwt")]
+pub mod jwt;
 
 #[cfg(feature = "router")]
-#[doc(inline)]
-pub use crate::router::{
-    Conflict as RouterConflict, Endpoint, Error as RouterError, Router, RouterParam,
-};
+pub mod router;
 
 #[cfg(feature = "compress")]
-mod compress;
+pub mod compress;
