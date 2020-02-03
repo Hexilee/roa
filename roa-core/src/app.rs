@@ -33,7 +33,7 @@ impl<M: Model> App<M> {
         }
     }
 
-    pub fn join<F>(
+    pub fn gate<F>(
         &mut self,
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
@@ -65,9 +65,10 @@ impl<M: Model> App<M> {
         Ok(std::mem::take(&mut *response))
     }
 
-    pub fn listen(&self, addr: SocketAddr) -> hyper::Server<AddrIncoming, App<M>> {
-        log::info!("Server is listening on: http://{}", &addr);
-        Server::bind(&addr).serve(self.clone())
+    pub fn listen(&self, addr: SocketAddr, callback: impl Fn()) -> hyper::Server<AddrIncoming, App<M>> {
+        let server = Server::bind(&addr).serve(self.clone());
+        callback();
+        server
     }
 }
 
@@ -141,7 +142,7 @@ mod tests {
     #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         App::new(())
-            .join(|_ctx, next| async move {
+            .gate(|_ctx, next| async move {
                 let inbound = Instant::now();
                 next().await?;
                 println!("time elapsed: {} ms", inbound.elapsed().as_millis());

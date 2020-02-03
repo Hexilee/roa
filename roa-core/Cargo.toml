@@ -24,7 +24,6 @@ travis-ci = { repository = "Hexilee/roa" }
 futures = "0.3"
 bytes = "0.5"
 http = "0.2"
-log = "0.4"
 hyper = "0.13"
 async-std = "1.4"
 
