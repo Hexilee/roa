@@ -20,7 +20,6 @@ exclude = [".travis.yml", "*.sh"]
 [workspace]
 members = [
     "roa-core",
-    "roa-proc-macro",
 ]
 
 [badges]
