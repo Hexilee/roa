@@ -45,3 +45,6 @@ mod router;
 pub use crate::router::{
     Conflict as RouterConflict, Endpoint, Error as RouterError, Router, RouterParam,
 };
+
+#[cfg(feature = "compress")]
+mod compress;

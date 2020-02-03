@@ -13,6 +13,7 @@ pub fn throw<R>(status_code: StatusCode, message: impl ToString) -> Result<R, St
 #[derive(Debug)]
 pub struct Status {
     pub status_code: StatusCode,
+
     pub kind: StatusKind,
 
     // response body if self.expose
@@ -28,7 +29,7 @@ pub enum StatusKind {
     Informational,
 
     /// [[RFC7231, Section 6.3](https://tools.ietf.org/html/rfc7231#section-6.3)]
-    Successful,
+    /// Successful,
 
     /// [[RFC7231, Section 6.4](https://tools.ietf.org/html/rfc7231#section-6.4)]
     Redirection,
@@ -43,11 +44,15 @@ pub enum StatusKind {
 }
 
 impl StatusKind {
-    pub fn infer(status_code: StatusCode) -> Self {
+    fn infer(status_code: StatusCode) -> Self {
         use StatusKind::*;
         match status_code.as_u16() / 100 {
             1 => Informational,
-            2 => Successful,
+            2 => panic!(
+                r"2xx status code cannot be thrown.
+                Please use `ctx.resp_mut().await.status = xxx` to set it.
+            "
+            ),
             3 => Redirection,
             4 => ClientError,
             5 => ServerError,
@@ -68,10 +73,6 @@ impl Status {
 
     pub(crate) fn need_throw(&self) -> bool {
         self.kind == StatusKind::ServerError || self.kind == StatusKind::Unknown
-    }
-
-    pub fn success(&self) -> bool {
-        self.kind == StatusKind::Successful
     }
 }
 
