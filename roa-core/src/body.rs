@@ -8,7 +8,7 @@ type Callback = dyn 'static + Sync + Send + Unpin + Fn(&Body);
 pub struct Body {
     counter: usize,
     segments: Vec<Segment>,
-    size: usize,
+    consumed: usize,
     finish: Vec<Box<Callback>>,
 }
 
@@ -19,7 +19,7 @@ impl Body {
         Self {
             counter: 0,
             segments: Vec::new(),
-            size: 0,
+            consumed: 0,
             finish: Vec::new(),
         }
     }
@@ -52,8 +52,9 @@ impl Body {
         Pin::new(self.segments[self.counter].as_mut()).poll_fill_buf(cx)
     }
 
-    pub fn on_finish(&mut self, callback: impl 'static + Sync + Send + Unpin + Fn(&Self)) {
+    pub fn on_finish(&mut self, callback: impl 'static + Sync + Send + Unpin + Fn(&Self)) -> &mut Self {
         self.finish.push(Box::new(callback));
+        self
     }
 }
 
@@ -90,7 +91,7 @@ impl BufRead for Body {
         let self_mut = self.get_mut();
         if self_mut.counter < self_mut.segments.len() {
             Pin::new(self_mut.segments[self_mut.counter].as_mut()).consume(amt);
-            self_mut.size += amt;
+            self_mut.consumed += amt;
         }
     }
 }
@@ -200,6 +201,20 @@ mod tests {
         let mut body = Body::new();
         let mut data = String::new();
         body.write_str("Hello, World")
+            .read_to_string(&mut data)
+            .await?;
+        assert_eq!("Hello, World", data);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn body_on_finish() -> std::io::Result<()> {
+        let mut body = Body::new();
+        let mut data = String::new();
+        body.write_buf(b"He".as_ref())
+            .write_buf(b"llo, ".as_ref())
+            .write_buf(b"World".as_ref())
+            .on_finish(|body| assert_eq!(12, body.consumed))
             .read_to_string(&mut data)
             .await?;
         assert_eq!("Hello, World", data);
