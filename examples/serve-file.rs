@@ -6,8 +6,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     App::new(())
         .join(logger)
         .join(|ctx, _next| async move {
-            ctx.write_file("assets/welcome.html").await?;
-            Ok(())
+            ctx.write_file("assets/welcome.html").await
         })
         .listen("127.0.0.1:8000".parse()?)
         .await
