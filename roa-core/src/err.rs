@@ -29,7 +29,7 @@ pub enum StatusKind {
     Informational,
 
     /// [[RFC7231, Section 6.3](https://tools.ietf.org/html/rfc7231#section-6.3)]
-    Successful,
+    // Successful,
 
     /// [[RFC7231, Section 6.4](https://tools.ietf.org/html/rfc7231#section-6.4)]
     Redirection,
@@ -48,7 +48,11 @@ impl StatusKind {
         use StatusKind::*;
         match status_code.as_u16() / 100 {
             1 => Informational,
-            2 => Successful,
+            2 => panic!(
+                r"2xx status cannot be thrown.
+                Please use `ctx.resp_mut().await.status = xxx` to set it.
+            "
+            ),
             3 => Redirection,
             4 => ClientError,
             5 => ServerError,
@@ -59,13 +63,6 @@ impl StatusKind {
 
 impl Status {
     pub fn new(status_code: StatusCode, message: impl ToString, expose: bool) -> Self {
-        if status_code == StatusCode::OK {
-            panic!(
-                r"200 OK cannot be thrown.
-                Please use `ctx.resp_mut().await.status = xxx` to set it.
-            "
-            );
-        }
         Self {
             status_code,
             kind: StatusKind::infer(status_code),

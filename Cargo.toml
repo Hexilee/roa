@@ -58,7 +58,7 @@ test-case = "1.0.0"
 
 [features]
 default = ["cookies", "router"]
-full = ["default", "jwt", "body"]
+full = ["default", "jwt", "body", "compress"]
 cookies = ["cookie", "percent-encoding"]
 jwt = ["jsonwebtoken", "serde"]
 body = [

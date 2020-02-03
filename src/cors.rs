@@ -124,7 +124,7 @@ pub fn cors<M: Model>(options: Options) -> Box<DynTargetHandler<M, Next>> {
                     .await
                     .headers
                     .insert(ACCESS_CONTROL_ALLOW_ORIGIN, allow_origin);
-                
+
                 // Try to set "Access-Control-Allow-Credentials"
                 if credentials {
                     ctx.resp_mut().await.headers.insert(
