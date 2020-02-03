@@ -65,7 +65,7 @@ pub fn compress<M: Model>(level: Level) -> Box<DynTargetHandler<M, Next>> {
         ctx.resp_mut()
             .await
             .headers
-            .insert(CONTENT_ENCODING, content_encoding);
+            .append(CONTENT_ENCODING, content_encoding);
         Ok(())
     })
     .dynamic()

@@ -58,17 +58,10 @@ impl<M: Model> Cookier for Context<M> {
     }
     async fn set_cookie(&self, cookie: Cookie<'_>) -> Result<(), Status> {
         let cookie_value = cookie.encoded().to_string().parse()?;
-        if self.resp().await.headers.contains_key(header::SET_COOKIE) {
-            self.resp_mut()
-                .await
-                .headers
-                .append(header::SET_COOKIE, cookie_value);
-        } else {
-            self.resp_mut()
-                .await
-                .headers
-                .insert(header::SET_COOKIE, cookie_value);
-        }
+        self.resp_mut()
+            .await
+            .headers
+            .append(header::SET_COOKIE, cookie_value);
         Ok(())
     }
 }
