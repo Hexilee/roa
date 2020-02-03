@@ -1,6 +1,8 @@
 #[doc(inline)]
 pub use roa_core::*;
 
+mod logger;
+
 #[cfg(feature = "query")]
 mod query;
 

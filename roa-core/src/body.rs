@@ -3,9 +3,13 @@ use async_std::stream::Stream;
 use async_std::task::{Context, Poll};
 use std::pin::Pin;
 
+type Callback = dyn 'static + Sync + Send + Unpin + Fn(&Body);
+
 pub struct Body {
     counter: usize,
     segments: Vec<Segment>,
+    size: usize,
+    finish: Vec<Box<Callback>>,
 }
 
 pub type Segment = Box<dyn BufRead + Sync + Send + Unpin + 'static>;
@@ -15,6 +19,8 @@ impl Body {
         Self {
             counter: 0,
             segments: Vec::new(),
+            size: 0,
+            finish: Vec::new(),
         }
     }
 
@@ -45,6 +51,10 @@ impl Body {
     pub fn poll_segment(&mut self, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
         Pin::new(self.segments[self.counter].as_mut()).poll_fill_buf(cx)
     }
+
+    pub fn on_finish(&mut self, callback: impl 'static + Sync + Send + Unpin + Fn(&Self)) {
+        self.finish.push(Box::new(callback));
+    }
 }
 
 impl Default for Body {
@@ -56,23 +66,31 @@ impl Default for Body {
 impl BufRead for Body {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
         let mut_ref = self.get_mut();
-        loop {
+        let data = loop {
             if mut_ref.counter >= mut_ref.segments.len() {
-                break Poll::Ready(Ok(b"".as_ref()));
+                break b"".as_ref();
             }
             let buf = futures::ready!(mut_ref.poll_segment(cx))?;
             let buf_ptr = buf as *const [u8];
             if !buf.is_empty() {
-                break Poll::Ready(Ok(unsafe { &*buf_ptr }));
+                break unsafe { &*buf_ptr };
             }
             mut_ref.counter += 1;
+        };
+        if data.len() == 0 {
+            let immut_ref = &*mut_ref;
+            for callback in immut_ref.finish.iter() {
+                callback(immut_ref)
+            }
         }
+        Poll::Ready(Ok(data))
     }
 
     fn consume(self: Pin<&mut Self>, amt: usize) {
         let self_mut = self.get_mut();
         if self_mut.counter < self_mut.segments.len() {
-            Pin::new(self_mut.segments[self_mut.counter].as_mut()).consume(amt)
+            Pin::new(self_mut.segments[self_mut.counter].as_mut()).consume(amt);
+            self_mut.size += amt;
         }
     }
 }
