@@ -33,9 +33,9 @@ log = "0.4"
 futures = "0.3"
 async-std = "1.4"
 bytesize = "1.0"
+async-trait = "0.1.22"
+url = "2.1.1"
 roa-core = {path = "./roa-core", version = "0.1"}
-url = { version = "2.1.1", optional = true }
-async-trait = { version = "0.1.22", optional = true }
 cookie = { version = "0.12", features = ["percent-encode"], optional = true }
 percent-encoding = { version = "2.1", optional = true }
 jsonwebtoken = { version = "6", optional = true }
@@ -57,13 +57,11 @@ serde = {version = "1", features = ["derive"] }
 test-case = "1.0.0"
 
 [features]
-default = ["query", "cookies", "router"]
+default = ["cookies", "router"]
 full = ["default", "jwt", "body"]
-query = ["url", "async-trait"]
-cookies = ["async-trait", "cookie", "percent-encoding"]
-jwt = ["async-trait", "jsonwebtoken", "serde"]
+cookies = ["cookie", "percent-encoding"]
+jwt = ["jsonwebtoken", "serde"]
 body = [
-    "async-trait", 
     "percent-encoding", 
     "serde", 
     "mime", 
@@ -73,7 +71,7 @@ body = [
     "encoding", 
     "mime_guess",
 ]
-router = ["regex", "radix_trie", "percent-encoding", "async-trait"]
+router = ["regex", "radix_trie", "percent-encoding"]
 
 [package.metadata.docs.rs]
 features = ["full"]

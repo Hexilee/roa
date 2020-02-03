@@ -3,14 +3,18 @@ pub use roa_core::*;
 
 mod logger;
 
+mod forward;
+
+mod query;
+
 #[doc(inline)]
 pub use logger::logger;
 
-#[cfg(feature = "query")]
-mod query;
+#[doc(inline)]
+pub use query::{query_parser, Query};
 
-#[cfg(feature = "query")]
-pub use crate::query::{query_parser, Query};
+#[doc(inline)]
+pub use forward::Forward;
 
 #[cfg(feature = "cookies")]
 mod cookie;
