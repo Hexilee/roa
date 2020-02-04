@@ -1,4 +1,3 @@
-use http::header::{InvalidHeaderName, InvalidHeaderValue, ToStrError};
 pub use http::StatusCode;
 use std::fmt::{Display, Formatter};
 use std::future::Future;
@@ -88,9 +87,6 @@ macro_rules! internal_server_error {
 
 internal_server_error!(std::io::Error);
 internal_server_error!(http::Error);
-internal_server_error!(InvalidHeaderValue);
-internal_server_error!(InvalidHeaderName);
-internal_server_error!(ToStrError);
 
 impl Display for Status {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
