@@ -1,6 +1,7 @@
 #[doc(inline)]
 pub use roa_core::*;
 pub mod cors;
+pub mod header;
 mod forward;
 mod logger;
 mod query;

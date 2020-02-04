@@ -33,9 +33,9 @@ async-std = "1.4"
 bytesize = "1.0"
 async-trait = "0.1.22"
 url = "2.1.1"
+percent-encoding = "2.1"
 roa-core = {path = "./roa-core", version = "0.1"}
 cookie = { version = "0.12", features = ["percent-encode"], optional = true }
-percent-encoding = { version = "2.1", optional = true }
 jsonwebtoken = { version = "6", optional = true }
 serde = { version = "1", optional = true }
 mime = { version = "0.3", optional = true }
@@ -59,10 +59,9 @@ test-case = "1.0.0"
 [features]
 default = ["cookies", "router"]
 full = ["default", "jwt", "body", "compress"]
-cookies = ["cookie", "percent-encoding"]
+cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde"]
 body = [
-    "percent-encoding", 
     "serde", 
     "mime", 
     "askama", 
@@ -71,7 +70,7 @@ body = [
     "encoding", 
     "mime_guess",
 ]
-router = ["regex", "radix_trie", "percent-encoding"]
+router = ["regex", "radix_trie"]
 compress = ["async-compression", "accept-encoding"]
 
 [package.metadata.docs.rs]
