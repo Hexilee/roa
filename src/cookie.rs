@@ -4,6 +4,11 @@ pub use cookie::Cookie;
 use http::{header, StatusCode};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
+const WWW_AUTHENTICATE_BUG_HELP: &str = "
+Invalid WWW_AUTHENTICATE value, this is a bug of roa::cookie.
+Please report it to https://github.com/Hexilee/roa.
+";
+
 struct CookieSymbol;
 
 #[async_trait]
@@ -40,12 +45,7 @@ impl<M: Model> Cookier for Context<M> {
                 );
                 self.resp_mut().await.headers.insert(
                     header::WWW_AUTHENTICATE,
-                    www_authenticate.parse().expect(
-                        "
-                    Invalid WWW_AUTHENTICATE value, this is a bug of roa.
-                    Please report it to https://github.com/Hexilee/roa.
-                    ",
-                    ),
+                    www_authenticate.parse().expect(WWW_AUTHENTICATE_BUG_HELP),
                 );
                 Err(Status::new(StatusCode::UNAUTHORIZED, "", false))
             }
@@ -68,7 +68,7 @@ impl<M: Model> Cookier for Context<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cookie_parser, Cookier};
+    use super::{cookie_parser, Cookie, Cookier};
     use crate::{App, Request};
     use http::{header, StatusCode};
 
@@ -154,6 +154,30 @@ mod tests {
             .serve(req, "127.0.0.1:8000".parse()?)
             .await?;
         assert_eq!(StatusCode::OK, resp.status);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
+        let resp = App::new(())
+            .gate(move |ctx, _next| async move {
+                ctx.set_cookie(Cookie::new("bar baz", "bar baz")).await?;
+                ctx.set_cookie(Cookie::new("bar foo", "foo baz")).await?;
+                Ok(())
+            })
+            .serve(Request::new(), "127.0.0.1:8000".parse()?)
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status);
+        let set_cookies = resp.headers.get_all(header::SET_COOKIE);
+        let cookies: Vec<Cookie> = set_cookies
+            .iter()
+            .map(|value| value.to_str().unwrap())
+            .map(Cookie::parse_encoded)
+            .filter_map(|cookie| cookie.ok())
+            .collect();
+        assert_eq!(2, cookies.len());
+        assert_eq!(("bar baz", "bar baz"), cookies[0].name_value());
+        assert_eq!(("bar foo", "foo baz"), cookies[1].name_value());
         Ok(())
     }
 }
