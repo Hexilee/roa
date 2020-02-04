@@ -3,12 +3,13 @@ mod json;
 mod mime_ext;
 mod urlencoded;
 
+use crate::header::StringHeaders;
 use crate::{throw, Context, Model, Status};
 use askama::Template;
 use async_std::fs::File;
 use async_trait::async_trait;
 use futures::{AsyncBufRead as BufRead, AsyncReadExt};
-use http::{HeaderValue, StatusCode};
+use http::StatusCode;
 use mime::Mime;
 use mime_ext::MimeExt;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
@@ -58,24 +59,14 @@ pub trait PowerBody {
     async fn write_file<P: AsRef<Path> + Send>(&self, path: P) -> Result<(), Status>;
 }
 
-fn parse_header(value: &HeaderValue) -> Result<Mime, Status> {
-    value
-        .to_str()
-        .map_err(|_err| {
-            Status::new(
-                StatusCode::BAD_REQUEST,
-                "Content-Type value is not a valid utf-8 string",
-                true,
-            )
-        })?
-        .parse()
-        .map_err(|err| {
-            Status::new(
-                StatusCode::BAD_REQUEST,
-                format!("{}\nContent-Type value is invalid", err),
-                true,
-            )
-        })
+fn parse_mime(value: &str) -> Result<Mime, Status> {
+    value.parse().map_err(|err| {
+        Status::new(
+            StatusCode::BAD_REQUEST,
+            format!("{}\nContent-Type value is invalid", err),
+            true,
+        )
+    })
 }
 
 #[async_trait]
@@ -83,17 +74,15 @@ impl<M: Model> PowerBody for Context<M> {
     async fn request_type(&self) -> Option<Result<Mime, Status>> {
         self.req()
             .await
-            .headers
             .get(http::header::CONTENT_TYPE)
-            .map(parse_header)
+            .map(|result| result.and_then(parse_mime))
     }
 
     async fn response_type(&self) -> Option<Result<Mime, Status>> {
         self.resp()
             .await
-            .headers
             .get(http::header::CONTENT_TYPE)
-            .map(parse_header)
+            .map(|result| result.and_then(parse_mime))
     }
 
     async fn body_buf(&self) -> Result<Vec<u8>, Status> {
@@ -146,10 +135,10 @@ impl<M: Model> PowerBody for Context<M> {
 
     async fn write_json<B: Serialize + Sync>(&self, data: &B) -> Result<(), Status> {
         self.resp_mut().await.write_bytes(json::to_bytes(data)?);
-        self.resp_mut().await.headers.insert(
+        self.resp_mut().await.insert(
             http::header::CONTENT_TYPE,
-            "application/json; charset=utf-8".parse()?,
-        );
+            "application/json; charset=utf-8",
+        )?;
         Ok(())
     }
 
@@ -158,19 +147,17 @@ impl<M: Model> PowerBody for Context<M> {
             data.render()
                 .map_err(|err| Status::new(StatusCode::INTERNAL_SERVER_ERROR, err, false))?,
         );
-        self.resp_mut().await.headers.insert(
-            http::header::CONTENT_TYPE,
-            mime::TEXT_HTML_UTF_8.as_ref().parse()?,
-        );
+        self.resp_mut()
+            .await
+            .insert(http::header::CONTENT_TYPE, &mime::TEXT_HTML_UTF_8)?;
         Ok(())
     }
 
     async fn write_text<S: ToString + Send>(&self, string: S) -> Result<(), Status> {
         self.resp_mut().await.write_str(string.to_string());
-        self.resp_mut().await.headers.insert(
-            http::header::CONTENT_TYPE,
-            mime::TEXT_PLAIN_UTF_8.as_ref().parse()?,
-        );
+        self.resp_mut()
+            .await
+            .insert(http::header::CONTENT_TYPE, &mime::TEXT_PLAIN_UTF_8)?;
         Ok(())
     }
 
@@ -179,10 +166,9 @@ impl<M: Model> PowerBody for Context<M> {
         reader: B,
     ) -> Result<(), Status> {
         self.resp_mut().await.write_buf(reader);
-        self.resp_mut().await.headers.insert(
-            http::header::CONTENT_TYPE,
-            mime::APPLICATION_OCTET_STREAM.as_ref().parse()?,
-        );
+        self.resp_mut()
+            .await
+            .insert(http::header::CONTENT_TYPE, &mime::APPLICATION_OCTET_STREAM)?;
         Ok(())
     }
 
@@ -191,23 +177,19 @@ impl<M: Model> PowerBody for Context<M> {
         self.resp_mut().await.write(File::open(path).await?);
 
         if let Some(filename) = path.file_name() {
-            self.resp_mut().await.headers.insert(
+            self.resp_mut().await.insert(
                 http::header::CONTENT_TYPE,
-                mime_guess::from_path(&filename)
-                    .first_or_octet_stream()
-                    .as_ref()
-                    .parse()?,
-            );
+                &mime_guess::from_path(&filename).first_or_octet_stream(),
+            )?;
             let encoded_filename =
                 utf8_percent_encode(&filename.to_string_lossy(), NON_ALPHANUMERIC).to_string();
-            self.resp_mut().await.headers.insert(
+            self.resp_mut().await.insert(
                 http::header::CONTENT_DISPOSITION,
-                format!(
+                &format!(
                     "filename={}; filename*=utf-8''{}",
                     &encoded_filename, &encoded_filename
-                )
-                .parse()?,
-            );
+                ),
+            )?;
         }
         Ok(())
     }

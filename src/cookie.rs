@@ -1,3 +1,4 @@
+use crate::header::StringHeaders;
 use crate::{Context, Model, Next, Status};
 use async_trait::async_trait;
 pub use cookie::Cookie;
@@ -57,11 +58,10 @@ impl<M: Model> Cookier for Context<M> {
             .map(|var| var.into_value())
     }
     async fn set_cookie(&self, cookie: Cookie<'_>) -> Result<(), Status> {
-        let cookie_value = cookie.encoded().to_string().parse()?;
+        let cookie_value = cookie.encoded().to_string();
         self.resp_mut()
             .await
-            .headers
-            .append(header::SET_COOKIE, cookie_value);
+            .append(header::SET_COOKIE, cookie_value)?;
         Ok(())
     }
 }

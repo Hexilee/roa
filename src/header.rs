@@ -8,7 +8,7 @@ fn handle_invalid_header_value(err: InvalidHeaderValue, value: &str) -> Status {
     Status::new(
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("{}\n{} is not a valid header value", err, value),
-        true,
+        false,
     )
 }
 
@@ -74,14 +74,16 @@ pub trait StringHeaders {
         Ok(ret)
     }
 
-    fn insert<K>(&mut self, key: K, val: &str) -> Result<Option<String>, Status>
+    fn insert<K, V>(&mut self, key: K, val: V) -> Result<Option<String>, Status>
     where
         K: IntoHeaderName,
+        V: AsRef<str>,
     {
         let old_value = self.raw_mut_header_map().insert(
             key,
-            val.parse()
-                .map_err(|err| handle_invalid_header_value(err, val))?,
+            val.as_ref()
+                .parse()
+                .map_err(|err| handle_invalid_header_value(err, val.as_ref()))?,
         );
         Ok(match old_value {
             Some(value) => Some(
@@ -94,14 +96,16 @@ pub trait StringHeaders {
         })
     }
 
-    fn append<K>(&mut self, key: K, val: &str) -> Result<bool, Status>
+    fn append<K, V>(&mut self, key: K, val: V) -> Result<bool, Status>
     where
         K: IntoHeaderName,
+        V: AsRef<str>,
     {
         Ok(self.raw_mut_header_map().append(
             key,
-            val.parse()
-                .map_err(|err| handle_invalid_header_value(err, val))?,
+            val.as_ref()
+                .parse()
+                .map_err(|err| handle_invalid_header_value(err, val.as_ref()))?,
         ))
     }
 }
