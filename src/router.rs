@@ -183,9 +183,9 @@ impl<M: Model> Router<M> {
 impl<M: Model> RouterParam for Context<M> {
     async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Status> {
         self.try_param(name).await.ok_or(Status::new(
-            StatusCode::BAD_REQUEST,
+            StatusCode::INTERNAL_SERVER_ERROR,
             format!("router variable `{}` is required", name),
-            true,
+            false,
         ))
     }
     async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>> {

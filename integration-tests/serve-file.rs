@@ -5,7 +5,7 @@ use roa::App;
 use tokio::spawn;
 
 #[tokio::test]
-async fn serve_single_file() -> Result<(), Box<dyn std::error::Error>> {
+async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
     spawn(
         App::new(())
             .gate(|ctx, _next| async move { ctx.write_file("assets/author.txt").await })

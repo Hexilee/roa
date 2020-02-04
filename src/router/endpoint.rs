@@ -7,6 +7,17 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 
+macro_rules! impl_http_method {
+    ($fn_name:ident, $method:expr) => {
+        pub fn $fn_name<F>(&mut self, handler: impl 'static + Sync + Send + Fn(Context<M>) -> F) -> &mut Self
+        where
+            F: 'static + Send + Future<Output = Result<(), Status>>,
+        {
+            self.handle([$method].as_ref(), handler)
+        }
+    };
+}
+
 pub struct Endpoint<M: Model> {
     pub path: Arc<Path>,
     pub(crate) middleware: Middleware<M>,
@@ -48,12 +59,15 @@ impl<M: Model> Endpoint<M> {
         self
     }
 
-    pub fn get<F>(&mut self, handler: impl 'static + Sync + Send + Fn(Context<M>) -> F) -> &mut Self
-    where
-        F: 'static + Send + Future<Output = Result<(), Status>>,
-    {
-        self.handle([Method::GET].as_ref(), handler)
-    }
+    impl_http_method!(get, Method::GET);
+    impl_http_method!(post, Method::POST);
+    impl_http_method!(put, Method::PUT);
+    impl_http_method!(patch, Method::PATCH);
+    impl_http_method!(options, Method::OPTIONS);
+    impl_http_method!(delete, Method::DELETE);
+    impl_http_method!(head, Method::HEAD);
+    impl_http_method!(trace, Method::TRACE);
+    impl_http_method!(connect, Method::CONNECT);
 
     pub fn all<F>(&mut self, handler: impl 'static + Sync + Send + Fn(Context<M>) -> F) -> &mut Self
     where

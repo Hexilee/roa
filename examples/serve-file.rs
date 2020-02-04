@@ -1,6 +1,6 @@
 use log::info;
-use roa::preload::*;
 use roa::logger::logger;
+use roa::preload::*;
 use roa::{
     compress::{compress, Level},
     App,

@@ -57,6 +57,9 @@ serde = {version = "1", features = ["derive"] }
 test-case = "1.0.0"
 lazy_static = "1.4.0"
 reqwest = { version = "0.10", features = ["json"] }
+slab = "0.4.2"
+multimap = "0.8.0"
+hyper = "0.13"
 
 [features]
 default = ["cookies", "router"]
@@ -86,4 +89,9 @@ required-features = ["body", "compress"]
 [[test]]
 name = "serve-file"
 path = "integration-tests/serve-file.rs"
+required-features = ["body"]
+
+[[test]]
+name = "restful"
+path = "integration-tests/restful.rs"
 required-features = ["body"]
