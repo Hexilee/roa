@@ -2,9 +2,9 @@ mod endpoint;
 mod err;
 mod path;
 
-pub use endpoint::Endpoint;
-pub use err::{Conflict, Error};
-pub use path::{join_path, standardize_path, Path, RegexPath};
+use endpoint::Endpoint;
+use err::{Conflict, Error};
+use path::{join_path, standardize_path, Path};
 
 use crate::{
     throw, Context, DynTargetHandler, Middleware, Model, Next, Status, TargetHandler, Variable,
