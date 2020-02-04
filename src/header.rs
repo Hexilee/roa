@@ -12,7 +12,7 @@ fn handle_invalid_header_value(err: InvalidHeaderValue, value: &str) -> Status {
     )
 }
 
-pub trait StringHeaders {
+pub trait FriendlyHeaders {
     const GENERAL_ERROR_CODE: StatusCode;
 
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue>;
@@ -110,7 +110,7 @@ pub trait StringHeaders {
     }
 }
 
-impl StringHeaders for Request {
+impl FriendlyHeaders for Request {
     const GENERAL_ERROR_CODE: StatusCode = StatusCode::BAD_REQUEST;
 
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue> {
@@ -122,7 +122,7 @@ impl StringHeaders for Request {
     }
 }
 
-impl StringHeaders for Response {
+impl FriendlyHeaders for Response {
     const GENERAL_ERROR_CODE: StatusCode = StatusCode::INTERNAL_SERVER_ERROR;
 
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue> {

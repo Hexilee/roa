@@ -3,7 +3,7 @@ mod json;
 mod mime_ext;
 mod urlencoded;
 
-use crate::header::StringHeaders;
+use crate::header::FriendlyHeaders;
 use crate::{throw, Context, Model, Status};
 use askama::Template;
 use async_std::fs::File;

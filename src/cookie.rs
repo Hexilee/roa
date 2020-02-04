@@ -1,4 +1,4 @@
-use crate::header::StringHeaders;
+use crate::header::FriendlyHeaders;
 use crate::{Context, Model, Next, Status};
 use async_trait::async_trait;
 pub use cookie::Cookie;

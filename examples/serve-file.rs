@@ -1,7 +1,9 @@
 use log::info;
+use roa::body::PowerBody;
+use roa::logger::logger;
 use roa::{
     compress::{compress, Level},
-    logger, App, PowerBody,
+    App,
 };
 
 #[tokio::main]

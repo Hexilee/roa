@@ -1,26 +1,13 @@
 #[doc(inline)]
 pub use roa_core::*;
 pub mod cors;
-mod forward;
+pub mod forward;
 pub mod header;
-mod logger;
-mod query;
-
-#[doc(inline)]
-pub use logger::logger;
-
-#[doc(inline)]
-pub use query::{query_parser, Query};
-
-#[doc(inline)]
-pub use forward::Forward;
+pub mod logger;
+pub mod query;
 
 #[cfg(feature = "body")]
-mod body;
-
-#[cfg(feature = "body")]
-#[doc(inline)]
-pub use crate::body::PowerBody;
+pub mod body;
 
 #[cfg(feature = "cookies")]
 pub mod cookie;
