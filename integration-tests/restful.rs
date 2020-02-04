@@ -3,6 +3,7 @@ use http::StatusCode;
 use log::info;
 use multimap::MultiMap;
 use roa::preload::*;
+use roa::query::query_parser;
 use roa::router::Router;
 use roa::{App, Model};
 use roa_core::throw;
@@ -266,6 +267,7 @@ fn batch_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
 async fn batch() -> Result<(), Box<dyn std::error::Error>> {
     spawn(
         App::new(AppModel::new())
+            .gate(query_parser)
             .gate(batch_router()?.handler()?)
             .listen(ADDR.parse()?, || info!("Server is listening on {}", ADDR)),
     );
@@ -316,9 +318,8 @@ async fn batch() -> Result<(), Box<dyn std::error::Error>> {
     // get by name
     let resp = reqwest::get(&format!("http://{}/user?name=Alice", ADDR)).await?;
     assert_eq!(StatusCode::OK, resp.status());
-    //    let data: Vec<(usize, User)> = resp.json().await?;
-    //    assert!(data.is_empty());
-    println!("{}", resp.text().await?);
+    let data: Vec<(usize, User)> = resp.json().await?;
+    assert!(data.is_empty());
 
     let resp = reqwest::get(&format!("http://{}/user?name=Hexilee", ADDR)).await?;
     assert_eq!(StatusCode::OK, resp.status());
