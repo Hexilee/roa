@@ -1,5 +1,5 @@
 use log::info;
-use roa::body::PowerBody;
+use roa::preload::*;
 use roa::logger::logger;
 use roa::{
     compress::{compress, Level},

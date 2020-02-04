@@ -56,6 +56,7 @@ pretty_env_logger = "0.3"
 serde = {version = "1", features = ["derive"] }
 test-case = "1.0.0"
 lazy_static = "1.4.0"
+reqwest = { version = "0.10", features = ["json"] }
 
 [features]
 default = ["cookies", "router"]
@@ -81,3 +82,8 @@ features = ["full"]
 name = "serve-file"
 path = "examples/serve-file.rs"
 required-features = ["body", "compress"]
+
+[[test]]
+name = "serve-file"
+path = "integration-tests/serve-file.rs"
+required-features = ["body"]
