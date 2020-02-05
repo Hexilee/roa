@@ -31,13 +31,13 @@ script: # 集成脚本
   - cargo check --all --all-features
   - |
     if [[ "$TRAVIS_RUST_VERSION" == "stable" || "$TRAVIS_RUST_VERSION" == "beta" ]]; then
-      cargo test --all-features --all -- --nocapture --test-threads=1
+      cargo test --all-features --all -- --nocapture
     fi
 
 after_success:
   - |
     if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
-        taskset -c 0 cargo tarpaulin --out Xml --all --all-features -- --test-threads=1
+        taskset -c 0 cargo tarpaulin --out Xml --all --all-features
         bash <(curl -s https://codecov.io/bash)
         echo "Uploaded code coverage"
     fi
