@@ -1,4 +1,7 @@
+use async_std::fs::read_to_string;
 use async_std::task::spawn;
+use http::header::ACCEPT_ENCODING;
+use roa::compress::{compress, Level};
 use roa::preload::*;
 use roa::router::Router;
 use roa::App;
@@ -39,5 +42,26 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/assets/author.txt", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
+    Ok(())
+}
+
+#[tokio::test]
+async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
+    let (addr, server) = App::new(())
+        .gate(compress(Level::Best))
+        .gate(|ctx, _next| async move { ctx.write_file("assets/welcome.html").await })
+        .run_local()?;
+    spawn(server);
+    let client = reqwest::Client::builder().gzip(true).build()?;
+    let resp = client
+        .get(&format!("http://{}", addr))
+        .header(ACCEPT_ENCODING, "gzip")
+        .send()
+        .await?;
+
+    assert_eq!(
+        read_to_string("assets/welcome.html").await?,
+        resp.text().await?
+    );
     Ok(())
 }
