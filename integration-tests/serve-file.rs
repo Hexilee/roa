@@ -1,7 +1,7 @@
+use async_std::task::spawn;
 use roa::preload::*;
 use roa::router::Router;
 use roa::App;
-use tokio::spawn;
 
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {

@@ -74,7 +74,7 @@ mod tests {
         log::set_logger(&*LOGGER).map(|()| log::set_max_level(LevelFilter::Info))
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn log() -> Result<(), Box<dyn std::error::Error>> {
         init()?;
 

@@ -72,7 +72,7 @@ mod tests {
     use crate::{App, Request};
     use http::{header, StatusCode};
 
-    #[tokio::test]
+    #[async_std::test]
     async fn cookie() -> Result<(), Box<dyn std::error::Error>> {
         // miss cookie
         let mut req = Request::new();
@@ -119,7 +119,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn cookie_decode() -> Result<(), Box<dyn std::error::Error>> {
         // invalid int value
         let mut req = Request::new();
@@ -137,7 +137,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn cookie_action() -> Result<(), Box<dyn std::error::Error>> {
         let mut req = Request::new();
         req.headers.insert(
@@ -157,7 +157,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
         let resp = App::new(())
             .gate(move |ctx, _next| async move {

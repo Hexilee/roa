@@ -108,7 +108,7 @@ mod tests {
 
     const SECRET: &str = "123456";
 
-    #[tokio::test]
+    #[async_std::test]
     async fn verify() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         app.gate(jwt_verify::<(), User>(

@@ -40,7 +40,7 @@ mod tests {
     use crate::{App, Request};
     use http::StatusCode;
 
-    #[tokio::test]
+    #[async_std::test]
     async fn query() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let mut req = Request::new();
@@ -69,7 +69,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn query_parse() -> Result<(), Box<dyn std::error::Error>> {
         // invalid int value
         let mut req = Request::new();
@@ -98,7 +98,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn query_action() -> Result<(), Box<dyn std::error::Error>> {
         let mut request = Request::new();
         request.uri = "/?name=Hexilee&lang=rust".parse()?;
