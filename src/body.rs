@@ -199,13 +199,17 @@ impl<M: Model> PowerBody for Context<M> {
 mod tests {
     use super::PowerBody;
     use crate::App;
+    use askama::Template;
+    use async_std::fs::File;
     use async_std::task::spawn;
     use encoding::EncoderTrap;
+    use futures::io::BufReader;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
     use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone)]
+    #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone, Template)]
+    #[template(path = "user.html")]
     struct User {
         id: u64,
         name: String,
@@ -296,6 +300,59 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn render() -> Result<(), Box<dyn std::error::Error>> {
+        // miss key
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                let user = User {
+                    id: 0,
+                    name: "Hexilee".to_string(),
+                };
+                ctx.render(&user).await
+            })
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert_eq!("text/html; charset=utf-8", resp.headers()[CONTENT_TYPE]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn write_text() -> Result<(), Box<dyn std::error::Error>> {
+        // miss key
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move { ctx.write_text("Hello, World!").await })
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert_eq!("text/plain; charset=utf-8", resp.headers()[CONTENT_TYPE]);
+        assert_eq!("Hello, World!", resp.text().await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn write_octet() -> Result<(), Box<dyn std::error::Error>> {
+        // miss key
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                ctx.write_octet(BufReader::new(File::open("assets/author.txt").await?))
+                    .await
+            })
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert_eq!(
+            mime::APPLICATION_OCTET_STREAM.as_ref(),
+            resp.headers()[CONTENT_TYPE]
+        );
+        assert_eq!("Hexilee", resp.text().await?);
         Ok(())
     }
 }
