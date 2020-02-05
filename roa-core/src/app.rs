@@ -1,9 +1,11 @@
+mod executor;
 mod tcp;
 
 use crate::{
     default_status_handler, last, Context, DynTargetHandler, Middleware, Model, Next, Request,
     Response, Status, TargetHandler,
 };
+use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
@@ -70,10 +72,12 @@ impl<M: Model> App<M> {
     fn listen_on(
         &self,
         addr: impl ToSocketAddrs,
-    ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>>)> {
+    ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
         let incoming = AddrIncoming::bind(addr)?;
         let local_addr = incoming.local_addr();
-        let server = Server::builder(incoming).serve(self.clone());
+        let server = Server::builder(incoming)
+            .executor(Executor::new())
+            .serve(self.clone());
         Ok((local_addr, server))
     }
 
@@ -81,17 +85,21 @@ impl<M: Model> App<M> {
         &self,
         addr: impl ToSocketAddrs,
         callback: impl Fn(SocketAddr),
-    ) -> std::io::Result<hyper::Server<AddrIncoming, App<M>>> {
+    ) -> std::io::Result<hyper::Server<AddrIncoming, App<M>, Executor>> {
         let (addr, server) = self.listen_on(addr)?;
         callback(addr);
         Ok(server)
     }
 
-    pub fn run(&self) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>>)> {
+    pub fn run(
+        &self,
+    ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
         self.listen_on("0.0.0.0:0")
     }
 
-    pub fn run_local(&self) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>>)> {
+    pub fn run_local(
+        &self,
+    ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
         self.listen_on("127.0.0.1:0")
     }
 }
