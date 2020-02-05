@@ -82,7 +82,7 @@ mod tests {
     use crate::{App, Request};
     use futures::AsyncReadExt;
 
-    #[tokio::test]
+    #[async_std::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         app.gate(|ctx, _next| async move {

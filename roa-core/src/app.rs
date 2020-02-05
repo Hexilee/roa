@@ -171,7 +171,7 @@ mod tests {
     use crate::{App, Request};
     use std::time::Instant;
 
-    #[tokio::test]
+    #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         App::new(())
             .gate(|_ctx, next| async move {
