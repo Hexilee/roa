@@ -32,7 +32,7 @@ impl<M: Model> Forward for Context<M> {
     async fn client_addr(&self) -> SocketAddr {
         let addrs = self.forwarded_addrs().await;
         if addrs.is_empty() {
-            self.peer_addr
+            self.remote_addr()
         } else {
             addrs[0]
         }

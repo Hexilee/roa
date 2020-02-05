@@ -40,8 +40,8 @@ pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result<(), Status>
 #[cfg(test)]
 mod tests {
     use super::logger;
-    use crate::{App, Request};
-    use futures::AsyncReadExt;
+    use crate::App;
+    use async_std::task::spawn;
     use http::StatusCode;
     use lazy_static::lazy_static;
     use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
@@ -74,42 +74,45 @@ mod tests {
         log::set_logger(&*LOGGER).map(|()| log::set_max_level(LevelFilter::Info))
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn log() -> Result<(), Box<dyn std::error::Error>> {
         init()?;
 
         // info
-        let mut resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(logger)
             .gate(move |ctx, _next| async move {
                 ctx.resp_mut().await.write_str("Hello, World.");
                 Ok(())
             })
-            .serve(Request::new(), "127.0.0.1:8000".parse()?)
-            .await?;
-        let (level, data) = LOGGER.records.write().unwrap().pop().unwrap();
-        assert_eq!("INFO", level);
-        assert_eq!("--> GET /", data);
-        resp.read_to_string(&mut String::new()).await?;
-        let (level, data) = LOGGER.records.write().unwrap().pop().unwrap();
-        assert_eq!("INFO", level);
-        assert!(data.starts_with("<-- GET /"));
-        assert!(data.ends_with("13 B"));
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+
+        let records = LOGGER.records.read().unwrap().clone();
+        assert_eq!(2, records.len());
+        assert_eq!("INFO", records[0].0);
+        assert_eq!("--> GET /", records[0].1);
+        assert_eq!("INFO", records[1].0);
+        assert!(records[1].1.starts_with("<-- GET /"));
+        assert!(records[1].1.ends_with("13 B"));
 
         // error
-        resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(logger)
             .gate(move |_ctx, _next| async move { throw(StatusCode::BAD_REQUEST, "Hello, World.") })
-            .serve(Request::new(), "127.0.0.1:8000".parse()?)
-            .await?;
-        let (level, data) = LOGGER.records.write().unwrap().pop().unwrap();
-        assert_eq!("INFO", level);
-        assert_eq!("--> GET /", data);
-        resp.read_to_string(&mut String::new()).await?;
-        let (level, data) = LOGGER.records.write().unwrap().pop().unwrap();
-        assert_eq!("ERROR", level);
-        assert!(data.starts_with("<-- GET /"));
-        assert!(data.ends_with("Hello, World."));
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+        let records = LOGGER.records.read().unwrap().clone();
+        assert_eq!(4, records.len());
+        assert_eq!("INFO", records[2].0);
+        assert_eq!("--> GET /", records[2].1);
+        assert_eq!("ERROR", records[3].0);
+        assert!(records[3].1.starts_with("<-- GET /"));
+        assert!(records[3].1.ends_with("Hello, World."));
         Ok(())
     }
 }

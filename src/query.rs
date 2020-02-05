@@ -37,81 +37,77 @@ impl<M: Model> Query for Context<M> {
 #[cfg(test)]
 mod tests {
     use super::{query_parser, Query};
-    use crate::{App, Request};
+    use crate::App;
+    use async_std::task::spawn;
     use http::StatusCode;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn query() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
-        let mut req = Request::new();
-        req.uri = "/".parse()?;
-        App::new(())
+        let (addr, server) = App::new(())
             .gate(query_parser)
             .gate(move |ctx, _next| async move {
                 assert!(ctx.try_query("name").await.is_none());
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
-            .await?;
+            .run_local()?;
+        spawn(server);
+        reqwest::get(&format!("http://{}/", addr)).await?;
 
         // string value
-        req = Request::new();
-        req.uri = "/?name=Hexilee".parse()?;
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(query_parser)
             .gate(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status);
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn query_parse() -> Result<(), Box<dyn std::error::Error>> {
         // invalid int value
-        let mut req = Request::new();
-        req.uri = "/?age=Hexilee".parse()?;
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(query_parser)
             .gate(move |ctx, _next| async move {
                 assert!(ctx.query("age").await?.parse::<u64>().is_err());
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status);
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}?age=Hexilee", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
 
-        req = Request::new();
-        req.uri = "/?age=120".parse()?;
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(query_parser)
             .gate(move |ctx, _next| async move {
                 assert_eq!(120, ctx.query("age").await?.parse::<u64>()?);
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status);
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}?age=120", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn query_action() -> Result<(), Box<dyn std::error::Error>> {
-        let mut request = Request::new();
-        request.uri = "/?name=Hexilee&lang=rust".parse()?;
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(query_parser)
             .gate(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
                 assert_eq!("rust", ctx.query("lang").await?.as_ref());
                 Ok(())
             })
-            .serve(request, "127.0.0.1:8000".parse()?)
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status);
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}?name=Hexilee&lang=rust", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 }

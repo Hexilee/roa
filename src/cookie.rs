@@ -69,115 +69,119 @@ impl<M: Model> Cookier for Context<M> {
 #[cfg(test)]
 mod tests {
     use super::{cookie_parser, Cookie, Cookier};
-    use crate::{App, Request};
+    use crate::App;
+    use async_std::task::spawn;
     use http::{header, StatusCode};
 
-    #[async_std::test]
+    #[tokio::test]
     async fn cookie() -> Result<(), Box<dyn std::error::Error>> {
         // miss cookie
-        let mut req = Request::new();
-        App::new(())
+        let (addr, server) = App::new(())
             .gate(cookie_parser)
             .gate(move |ctx, _next| async move {
                 assert!(ctx.try_cookie("name").await.is_none());
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
-            .await?;
+            .run_local()?;
+        spawn(server);
+        reqwest::get(&format!("http://{}", addr)).await?;
 
-        req = Request::new();
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(cookie_parser)
             .gate(move |ctx, _next| async move {
                 ctx.cookie("nick name").await?;
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
-            .await?;
-
-        assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
         assert_eq!(
             r#"Cookie name="nick%20name""#,
-            resp.headers
+            resp.headers()
                 .get(header::WWW_AUTHENTICATE)
                 .unwrap()
                 .to_str()
                 .unwrap()
         );
         // string value
-        req = Request::new();
-        req.headers.insert(header::COOKIE, "name=Hexilee".parse()?);
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(cookie_parser)
             .gate(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.cookie("name").await?);
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(header::COOKIE, "name=Hexilee")
+            .send()
             .await?;
-        assert_eq!(StatusCode::OK, resp.status);
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn cookie_decode() -> Result<(), Box<dyn std::error::Error>> {
-        // invalid int value
-        let mut req = Request::new();
-        req.headers
-            .insert(header::COOKIE, "bar%20baz=bar%20baz".parse()?);
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(cookie_parser)
             .gate(move |ctx, _next| async move {
                 assert_eq!("bar baz", ctx.cookie("bar baz").await?);
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(header::COOKIE, "bar%20baz=bar%20baz")
+            .send()
             .await?;
-        assert_eq!(StatusCode::OK, resp.status);
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn cookie_action() -> Result<(), Box<dyn std::error::Error>> {
-        let mut req = Request::new();
-        req.headers.insert(
-            header::COOKIE,
-            "bar%20baz=bar%20baz; foo%20baz=bar%20foo".parse()?,
-        );
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(cookie_parser)
             .gate(move |ctx, _next| async move {
                 assert_eq!("bar baz", ctx.cookie("bar baz").await?);
                 assert_eq!("bar foo", ctx.cookie("foo baz").await?);
                 Ok(())
             })
-            .serve(req, "127.0.0.1:8000".parse()?)
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(header::COOKIE, "bar%20baz=bar%20baz; foo%20baz=bar%20foo")
+            .send()
             .await?;
-        assert_eq!(StatusCode::OK, resp.status);
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
-        let resp = App::new(())
+        let (addr, server) = App::new(())
             .gate(move |ctx, _next| async move {
                 ctx.set_cookie(Cookie::new("bar baz", "bar baz")).await?;
                 ctx.set_cookie(Cookie::new("bar foo", "foo baz")).await?;
                 Ok(())
             })
-            .serve(Request::new(), "127.0.0.1:8000".parse()?)
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status);
-        let set_cookies = resp.headers.get_all(header::SET_COOKIE);
-        let cookies: Vec<Cookie> = set_cookies
-            .iter()
-            .map(|value| value.to_str().unwrap())
-            .map(Cookie::parse_encoded)
-            .filter_map(|cookie| cookie.ok())
-            .collect();
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        let cookies: Vec<reqwest::cookie::Cookie> = resp.cookies().collect();
         assert_eq!(2, cookies.len());
-        assert_eq!(("bar baz", "bar baz"), cookies[0].name_value());
-        assert_eq!(("bar foo", "foo baz"), cookies[1].name_value());
+        assert_eq!(("bar%20baz"), cookies[0].name());
+        assert_eq!(("bar%20baz"), cookies[0].value());
+        assert_eq!(("bar%20foo"), cookies[1].name());
+        assert_eq!(("foo%20baz"), cookies[1].value());
         Ok(())
     }
 }

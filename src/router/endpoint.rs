@@ -90,7 +90,7 @@ impl<M: Model> Endpoint<M> {
         )
     }
 
-    pub fn handler(self) -> Result<Arc<DynTargetHandler<M, Next>>, Conflict> {
+    pub fn handler(self) -> Result<Box<DynTargetHandler<M, Next>>, Conflict> {
         let Self {
             path,
             mut middleware,

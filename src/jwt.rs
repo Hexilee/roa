@@ -90,9 +90,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::{jwt_verify, JwtVerifier, Validation, INVALID_TOKEN};
-    use crate::{App, Request};
+    use crate::App;
+    use async_std::task::spawn;
     use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
-    use http::{HeaderValue, StatusCode};
+    use http::StatusCode;
     use jsonwebtoken::{encode, Header};
     use serde::{Deserialize, Serialize};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -108,48 +109,53 @@ mod tests {
 
     const SECRET: &str = "123456";
 
-    #[async_std::test]
+    #[tokio::test]
     async fn verify() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        app.gate(jwt_verify::<(), User>(
-            SECRET.to_string(),
-            Validation::default(),
-        ))
-        .gate(move |ctx, _next| async move {
-            let user: User = ctx.verify(&Validation::default()).await?;
-            assert_eq!(0, user.id);
-            assert_eq!("Hexilee", &user.name);
-            Ok(())
-        });
-        let addr = "127.0.0.1:8000".parse()?;
-        // no header value
-        let resp = app.serve(Request::new(), addr).await?;
-        assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
+        let (addr, server) = app
+            .gate(jwt_verify::<(), User>(
+                SECRET.to_string(),
+                Validation::default(),
+            ))
+            .gate(move |ctx, _next| async move {
+                let user: User = ctx.verify(&Validation::default()).await?;
+                assert_eq!(0, user.id);
+                assert_eq!("Hexilee", &user.name);
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
+        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
 
         // non-string header value
-        let mut req = Request::new();
-        req.headers
-            .insert(AUTHORIZATION, HeaderValue::from_bytes([255].as_ref())?);
-        let resp = app.serve(req, addr).await?;
-        assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
+        let client = reqwest::Client::new();
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(AUTHORIZATION, [255].as_ref())
+            .send()
+            .await?;
+        assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
+        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
 
         // non-Bearer header value
-        let mut req = Request::new();
-        req.headers
-            .insert(AUTHORIZATION, HeaderValue::from_static("Basic hahaha"));
-        let resp = app.serve(req, addr).await?;
-        assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(AUTHORIZATION, "Basic hahaha")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
+        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
 
         // invalid token
-        let mut req = Request::new();
-        req.headers
-            .insert(AUTHORIZATION, HeaderValue::from_static("Bearer hahaha"));
-        let resp = app.serve(req, addr).await?;
-        assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(AUTHORIZATION, "Bearer hahaha")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
+        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
 
         // expired token
         let mut user = User {
@@ -161,33 +167,35 @@ mod tests {
             id: 0,
             name: "Hexilee".to_string(),
         };
-        let mut req = Request::new();
-        req.headers.insert(
-            AUTHORIZATION,
-            format!(
-                "Bearer {}",
-                encode(&Header::default(), &user, SECRET.as_bytes())?
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(
+                AUTHORIZATION,
+                format!(
+                    "Bearer {}",
+                    encode(&Header::default(), &user, SECRET.as_bytes())?
+                ),
             )
-            .parse()?,
-        );
-        let resp = app.serve(req, addr).await?;
-        assert_eq!(StatusCode::UNAUTHORIZED, resp.status);
-        assert_eq!(INVALID_TOKEN, resp.headers[WWW_AUTHENTICATE].to_str()?);
+            .send()
+            .await?;
+        assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
+        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
 
-        let mut req = Request::new();
         user.exp = (SystemTime::now() + Duration::from_millis(60))
             .duration_since(UNIX_EPOCH)?
             .as_secs(); // one hour later
-        req.headers.insert(
-            AUTHORIZATION,
-            format!(
-                "Bearer {}",
-                encode(&Header::default(), &user, SECRET.as_bytes())?
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(
+                AUTHORIZATION,
+                format!(
+                    "Bearer {}",
+                    encode(&Header::default(), &user, SECRET.as_bytes())?
+                ),
             )
-            .parse()?,
-        );
-        let resp = app.serve(req, addr).await?;
-        assert_eq!(StatusCode::OK, resp.status);
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 }
