@@ -67,7 +67,7 @@ impl<M: Model> App<M> {
         Ok(std::mem::take(&mut *response))
     }
 
-    pub fn listen(
+    fn listen_on(
         &self,
         addr: impl ToSocketAddrs,
     ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>>)> {
@@ -77,8 +77,22 @@ impl<M: Model> App<M> {
         Ok((local_addr, server))
     }
 
+    pub fn listen(
+        &self,
+        addr: impl ToSocketAddrs,
+        callback: impl Fn(SocketAddr),
+    ) -> std::io::Result<hyper::Server<AddrIncoming, App<M>>> {
+        let (addr, server) = self.listen_on(addr)?;
+        callback(addr);
+        Ok(server)
+    }
+
     pub fn run(&self) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>>)> {
-        self.listen("0.0.0.0:0")
+        self.listen_on("0.0.0.0:0")
+    }
+
+    pub fn run_local(&self) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>>)> {
+        self.listen_on("127.0.0.1:0")
     }
 }
 

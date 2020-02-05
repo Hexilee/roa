@@ -1,6 +1,5 @@
 use async_std::sync::{Arc, RwLock};
 use http::StatusCode;
-use log::info;
 use multimap::MultiMap;
 use roa::preload::*;
 use roa::query::query_parser;
@@ -10,14 +9,7 @@ use roa_core::throw;
 use serde::{Deserialize, Serialize};
 use slab::Slab;
 use std::collections::HashMap;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use tokio::spawn;
-
-fn random_addr() -> SocketAddr {
-    let loopback = Ipv4Addr::new(127, 0, 0, 1);
-    let socket = SocketAddrV4::new(loopback, 0);
-    socket.into()
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, Eq, PartialEq)]
 struct User {
@@ -163,12 +155,10 @@ fn crud_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = random_addr();
-    spawn(
-        App::new(AppModel::new())
-            .gate(crud_router()?.handler()?)
-            .listen(addr, || info!("Server is listening on {}", addr)),
-    );
+    let (addr, server) = App::new(AppModel::new())
+        .gate(crud_router()?.handler()?)
+        .run_local()?;
+    spawn(server);
     // first get, 404 Not Found
     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
     assert_eq!(StatusCode::NOT_FOUND, resp.status());
@@ -271,16 +261,12 @@ fn batch_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn batch() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = random_addr();
-    spawn(
-        App::new(AppModel::new())
-            .gate(query_parser)
-            .gate(batch_router()?.handler()?)
-            .listen(addr, || info!("Server is listening on {}", addr)),
-    );
-
+    let (addr, server) = App::new(AppModel::new())
+        .gate(query_parser)
+        .gate(batch_router()?.handler()?)
+        .run_local()?;
+    spawn(server);
     // first get, list empty
-    println!("addr: {}", addr);
     let resp = reqwest::get(&format!("http://{}/user", addr)).await?;
     assert_eq!(StatusCode::OK, resp.status());
     let data: Vec<(usize, User)> = resp.json().await?;
