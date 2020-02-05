@@ -8,6 +8,7 @@ mod model;
 mod next;
 mod request;
 mod response;
+pub(crate) use app::AddrStream;
 pub use app::{App, HttpService};
 pub use body::{Body, Callback as BodyCallback};
 pub use context::{Bucket, Context, Variable};

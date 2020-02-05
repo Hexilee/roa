@@ -28,8 +28,9 @@ impl<M: Model> Middleware<M> {
         self
     }
 
-    pub fn handler(&self) -> Arc<DynTargetHandler<M, Next>> {
-        self.0.clone()
+    pub fn handler(&self) -> Box<DynTargetHandler<M, Next>> {
+        let handler = self.0.clone();
+        Box::new(move |ctx, next| handler(ctx, next))
     }
 }
 
@@ -42,8 +43,10 @@ impl<M: Model> Clone for Middleware<M> {
 #[cfg(test)]
 mod tests {
     use super::Middleware;
-    use crate::{last, Context, Request};
+    use crate::App;
+    use async_std::task::spawn;
     use futures::lock::Mutex;
+    use http::StatusCode;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -62,7 +65,10 @@ mod tests {
                 }
             });
         }
-        middleware.handler()(Context::fake(Request::new()).into(), Box::new(last)).await?;
+        let (addr, server) = App::new(()).gate(middleware.handler()).run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);

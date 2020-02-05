@@ -79,10 +79,12 @@ impl From<http::Request<hyper::Body>> for Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::{App, Request};
+    use crate::App;
+    use async_std::task::spawn;
     use futures::AsyncReadExt;
+    use http::StatusCode;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         app.gate(|ctx, _next| async move {
@@ -91,9 +93,15 @@ mod tests {
             assert_eq!("Hello, World!", data);
             Ok(())
         });
-        let mut request = Request::new();
-        request.write_str("Hello, World!");
-        let _resp = app.serve(request, "127.0.0.1:8080".parse()?).await?;
+        let (addr, server) = app.run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+        let resp = client
+            .post(&format!("http://{}", addr))
+            .body("Hello, World!")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 }

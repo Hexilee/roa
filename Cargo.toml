@@ -51,12 +51,12 @@ accept-encoding = { package = "accept-encoding-fork", version = "=0.2.0-alpha.3"
 
 [dev-dependencies]
 tokio = {version = "0.2", features = ["full"]}
+reqwest = { version = "0.10", features = ["json"] }
 async-std = { version = "1.4", features = ["attributes"]}
 pretty_env_logger = "0.3"
 serde = {version = "1", features = ["derive"] }
 test-case = "1.0.0"
 lazy_static = "1.4.0"
-reqwest = { version = "0.10", features = ["json"] }
 slab = "0.4.2"
 multimap = "0.8.0"
 hyper = "0.13"

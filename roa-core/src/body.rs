@@ -171,7 +171,6 @@ mod tests {
         body.write_buf(b"Hello, World".as_ref())
             .read_to_string(&mut data)
             .await?;
-        println!("{}", &data);
         assert_eq!("Hello, World", data);
         Ok(())
     }

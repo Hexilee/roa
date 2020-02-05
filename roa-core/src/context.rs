@@ -1,5 +1,5 @@
-use crate::{App, Model, Request, Response, Status};
-use async_std::net::SocketAddr;
+use crate::{AddrStream, App, Model, Request, Response, Status};
+use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use http::header::{HeaderName, ToStrError};
 use http::StatusCode;
@@ -16,8 +16,8 @@ pub struct Context<M: Model> {
     response: Arc<RwLock<Response>>,
     state: Arc<RwLock<M::State>>,
     storage: Arc<RwLock<HashMap<TypeId, Bucket>>>,
+    stream: AddrStream,
     pub app: App<M>,
-    pub peer_addr: SocketAddr,
 }
 
 #[derive(Debug, Clone)]
@@ -91,7 +91,7 @@ impl Bucket {
 }
 
 impl<M: Model> Context<M> {
-    pub fn new(request: Request, app: App<M>, peer_addr: SocketAddr) -> Self {
+    pub fn new(request: Request, app: App<M>, stream: AddrStream) -> Self {
         let state = app.model.new_state();
         Self {
             request: Arc::new(RwLock::new(request)),
@@ -99,7 +99,7 @@ impl<M: Model> Context<M> {
             state: Arc::new(RwLock::new(state)),
             storage: Arc::new(RwLock::new(HashMap::new())),
             app,
-            peer_addr,
+            stream,
         }
     }
 
@@ -190,6 +190,14 @@ impl<M: Model> Context<M> {
         let id = TypeId::of::<T>();
         storage.get_mut(&id).and_then(|bucket| bucket.get(name))
     }
+
+    pub fn remote_addr(&self) -> SocketAddr {
+        self.stream.remote_addr()
+    }
+
+    pub fn raw_stream(&self) -> &TcpStream {
+        self.stream.stream()
+    }
 }
 
 impl<M: Model> Clone for Context<M> {
@@ -200,16 +208,7 @@ impl<M: Model> Clone for Context<M> {
             state: self.state.clone(),
             storage: self.storage.clone(),
             app: self.app.clone(),
-            peer_addr: self.peer_addr.clone(),
+            stream: self.stream.clone(),
         }
-    }
-}
-
-impl Context<()> {
-    // construct fake Context for test.
-    pub fn fake(request: Request) -> Self {
-        use std::net::{IpAddr, Ipv4Addr};
-        let peer_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
-        Self::new(request, App::new(()), peer_addr)
     }
 }
