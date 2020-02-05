@@ -9,7 +9,7 @@ pub fn throw<R>(status_code: StatusCode, message: impl ToString) -> Result<R, St
     Err(Status::new(status_code, message, true))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Status {
     pub status_code: StatusCode,
 
@@ -22,7 +22,7 @@ pub struct Status {
     pub expose: bool,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum StatusKind {
     /// [[RFC7231, Section 6.2](https://tools.ietf.org/html/rfc7231#section-6.2)]
     Informational,

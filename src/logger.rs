@@ -10,21 +10,8 @@ pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result<(), Status>
     info!("--> {} {}", method, uri.path());
     let path = uri.path().to_string();
     let result = next().await;
-    let status = match result {
-        Ok(()) => ctx.status().await,
-        Err(ref status) => status.status_code,
-    };
-    let callback: Box<BodyCallback> = match status.as_u16() / 100 {
-        4 | 5 => Box::new(move |body: &Body| {
-            error!(
-                "<-- {} {} {}ms {}",
-                method,
-                path,
-                start.elapsed().as_millis(),
-                ByteSize(body.consumed() as u64)
-            )
-        }),
-        _ => Box::new(move |body: &Body| {
+    let callback: Box<BodyCallback> = match result {
+        Ok(()) => Box::new(move |body: &Body| {
             info!(
                 "<-- {} {} {}ms {}",
                 method,
@@ -33,6 +20,18 @@ pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result<(), Status>
                 ByteSize(body.consumed() as u64)
             )
         }),
+        Err(ref status) => {
+            let message = status.message.clone();
+            Box::new(move |_| {
+                error!(
+                    "<-- {} {} {}ms\n{}",
+                    method,
+                    path,
+                    start.elapsed().as_millis(),
+                    message
+                )
+            })
+        }
     };
     ctx.resp_mut().await.on_finish(callback);
     result
@@ -94,7 +93,8 @@ mod tests {
         resp.read_to_string(&mut String::new()).await?;
         let (level, data) = LOGGER.records.write().unwrap().pop().unwrap();
         assert_eq!("INFO", level);
-        assert_eq!("<-- GET / 0ms 13 B", data);
+        assert!(data.starts_with("<-- GET /"));
+        assert!(data.ends_with("13 B"));
 
         // error
         resp = App::new(())
@@ -108,7 +108,8 @@ mod tests {
         resp.read_to_string(&mut String::new()).await?;
         let (level, data) = LOGGER.records.write().unwrap().pop().unwrap();
         assert_eq!("ERROR", level);
-        assert_eq!("<-- GET / 0ms 13 B", data);
+        assert!(data.starts_with("<-- GET /"));
+        assert!(data.ends_with("Hello, World."));
         Ok(())
     }
 }
