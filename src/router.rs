@@ -111,10 +111,8 @@ impl<M: Model> Router<M> {
 
         for endpoint in endpoints.iter_mut() {
             let mut new_middleware = Middleware::new();
-            let root_middleware = middleware.handler();
-            let current_middleware = endpoint.middleware.handler();
-            new_middleware.join(move |ctx, next| root_middleware(ctx, next));
-            new_middleware.join(move |ctx, next| current_middleware(ctx, next));
+            new_middleware.join(middleware.handler());
+            new_middleware.join(endpoint.middleware.handler());
             endpoint.middleware = new_middleware;
         }
         endpoints
