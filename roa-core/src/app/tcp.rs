@@ -170,6 +170,7 @@ impl fmt::Debug for AddrIncoming {
 
 mod addr_stream {
     use async_std::net::TcpStream;
+    use async_std::sync::Arc;
     use std::io;
     use std::net::SocketAddr;
     use std::pin::Pin;
@@ -177,16 +178,16 @@ mod addr_stream {
     use tokio::io::{AsyncRead, AsyncWrite};
 
     /// A transport returned yieled by `AddrIncoming`.
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub struct AddrStream {
-        inner: TcpStream,
+        inner: Arc<TcpStream>,
         pub(super) remote_addr: SocketAddr,
     }
 
     impl AddrStream {
         pub(super) fn new(tcp: TcpStream, addr: SocketAddr) -> AddrStream {
             AddrStream {
-                inner: tcp,
+                inner: Arc::new(tcp),
                 remote_addr: addr,
             }
         }
@@ -199,30 +200,30 @@ mod addr_stream {
 
         /// Consumes the AddrStream and returns the underlying IO object
         #[inline]
-        pub fn into_inner(self) -> TcpStream {
-            self.inner
+        pub fn stream(&self) -> &TcpStream {
+            &*self.inner
         }
     }
 
     impl AsyncRead for AddrStream {
         #[inline]
         fn poll_read(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             cx: &mut task::Context<'_>,
             buf: &mut [u8],
         ) -> Poll<io::Result<usize>> {
-            futures::AsyncRead::poll_read(Pin::new(&mut self.inner), cx, buf)
+            futures::AsyncRead::poll_read(Pin::new(&mut self.stream()), cx, buf)
         }
     }
 
     impl AsyncWrite for AddrStream {
         #[inline]
         fn poll_write(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             cx: &mut task::Context<'_>,
             buf: &[u8],
         ) -> Poll<io::Result<usize>> {
-            futures::AsyncWrite::poll_write(Pin::new(&mut self.inner), cx, buf)
+            futures::AsyncWrite::poll_write(Pin::new(&mut self.stream()), cx, buf)
         }
 
         #[inline]
@@ -232,11 +233,8 @@ mod addr_stream {
         }
 
         #[inline]
-        fn poll_shutdown(
-            mut self: Pin<&mut Self>,
-            cx: &mut task::Context<'_>,
-        ) -> Poll<io::Result<()>> {
-            futures::AsyncWrite::poll_close(Pin::new(&mut self.inner), cx)
+        fn poll_shutdown(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
+            futures::AsyncWrite::poll_close(Pin::new(&mut self.stream()), cx)
         }
     }
 }
