@@ -1,17 +1,19 @@
+mod tcp;
+
 use crate::{
     default_status_handler, last, Context, DynTargetHandler, Middleware, Model, Next, Request,
     Response, Status, TargetHandler,
 };
 use http::{Request as HttpRequest, Response as HttpResponse};
-use hyper::server::conn::{AddrIncoming, AddrStream};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
 use hyper::Server;
 use std::future::Future;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
+use tcp::{AddrIncoming, AddrStream};
 
 pub struct App<M: Model> {
     middleware: Middleware<M>,
@@ -67,12 +69,16 @@ impl<M: Model> App<M> {
 
     pub fn listen(
         &self,
-        addr: SocketAddr,
-        callback: impl Fn(),
-    ) -> hyper::Server<AddrIncoming, App<M>> {
-        let server = Server::bind(&addr).serve(self.clone());
-        callback();
-        server
+        addr: impl ToSocketAddrs,
+    ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>>)> {
+        let incoming = AddrIncoming::bind(addr)?;
+        let local_addr = incoming.local_addr();
+        let server = Server::builder(incoming).serve(self.clone());
+        Ok((local_addr, server))
+    }
+
+    pub fn run(&self) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>>)> {
+        self.listen("0.0.0.0:0")
     }
 }
 

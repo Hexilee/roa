@@ -26,6 +26,9 @@ bytes = "0.5"
 http = "0.2"
 hyper = "0.13"
 async-std = "1.4"
+futures-timer = "3.0"
+log = "0.4"
+tokio = "0.2"
 
 [dev-dependencies]
 tokio = {version = "0.2", features = ["full"]}
