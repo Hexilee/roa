@@ -194,3 +194,108 @@ impl<M: Model> PowerBody for Context<M> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PowerBody;
+    use crate::App;
+    use async_std::task::spawn;
+    use encoding::EncoderTrap;
+    use http::header::CONTENT_TYPE;
+    use http::StatusCode;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone)]
+    struct User {
+        id: u64,
+        name: String,
+    }
+
+    #[tokio::test]
+    async fn read() -> Result<(), Box<dyn std::error::Error>> {
+        // miss key
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                let user: User = ctx.read().await?;
+                assert_eq!(
+                    User {
+                        id: 0,
+                        name: "Hexilee".to_string()
+                    },
+                    user
+                );
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+
+        let data = User {
+            id: 0,
+            name: "Hexilee".to_string(),
+        };
+        // err mime type
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(CONTENT_TYPE, "text/plain/html")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+        assert!(resp
+            .text()
+            .await?
+            .ends_with("Content-Type value is invalid"));
+
+        // no Content-Type, default json
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .body(serde_json::to_vec(&data)?)
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+
+        // json
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .json(&data)
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+
+        // x-www-form-urlencoded
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .form(&data)
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+
+        // unsupported Content-Type
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .body(serde_json::to_vec(&data)?)
+            .header(CONTENT_TYPE, "text/xml")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::UNSUPPORTED_MEDIA_TYPE, resp.status());
+        assert_eq!(
+            "Content-Type can only be JSON or URLENCODED",
+            resp.text().await?
+        );
+
+        // json; encoding
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .body(
+                encoding::label::encoding_from_whatwg_label("gbk")
+                    .unwrap()
+                    .encode(&serde_json::to_string(&data)?, EncoderTrap::Strict)
+                    .unwrap(),
+            )
+            .header(CONTENT_TYPE, "application/json; charset=gbk")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+}
