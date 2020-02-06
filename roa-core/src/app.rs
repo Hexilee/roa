@@ -201,14 +201,14 @@ impl<M: Model> App<M> {
         Ok(server)
     }
 
-    /// Listen on a unused port of 0.0.0.0, return a server and the real addr it binds.
+    /// Listen on an unused port of 0.0.0.0, return a server and the real addr it binds.
     pub fn run(
         &self,
     ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
         self.listen_on("0.0.0.0:0")
     }
 
-    /// Listen on a unused port of 127.0.0.1, return a server and the real addr it binds.
+    /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     pub fn run_local(
         &self,
     ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
