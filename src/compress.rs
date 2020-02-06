@@ -70,3 +70,32 @@ pub fn compress<M: Model>(level: Level) -> Box<DynTargetHandler<M, Next>> {
     })
     .dynamic()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Level;
+
+    #[test]
+    fn fast() {
+        let level = Level::Fast;
+        assert_eq!(1, level.to_compression().level());
+        assert_eq!(1, level.to_brotli_level());
+        assert_eq!(1, level.to_zstd_level());
+    }
+
+    #[test]
+    fn balance() {
+        let level = Level::Balance;
+        assert_eq!(5, level.to_compression().level());
+        assert_eq!(6, level.to_brotli_level());
+        assert_eq!(11, level.to_zstd_level());
+    }
+
+    #[test]
+    fn best() {
+        let level = Level::Best;
+        assert_eq!(9, level.to_compression().level());
+        assert_eq!(11, level.to_brotli_level());
+        assert_eq!(21, level.to_zstd_level());
+    }
+}
