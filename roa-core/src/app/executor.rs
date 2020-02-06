@@ -1,6 +1,7 @@
 use hyper::rt;
 use std::future::Future;
 
+/// An implementation of hyper::rt::Executor based on async-std
 #[derive(Copy, Clone)]
 pub struct Executor;
 

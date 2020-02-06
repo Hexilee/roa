@@ -17,12 +17,127 @@ use std::sync::Arc;
 use std::task::Poll;
 pub use tcp::{AddrIncoming, AddrStream};
 
+/// The Application of roa.
+/// ### Example
+/// ```rust
+/// use roa_core::App;
+/// use log::info;
+/// use async_std::fs::File;
+///
+/// #[async_std::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let server = App::new(())
+///         .gate(|ctx, next| async move {
+///             info!("{} {}", ctx.method().await, ctx.uri().await);
+///             next().await
+///         })
+///         .gate(|ctx, _next| async move {
+///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
+///             Ok(())
+///         })
+///         .listen("127.0.0.1:8000", |addr| {
+///             info!("Server is listening on {}", addr)
+///         })?;
+///     // server.await;
+///     Ok(())
+/// }
+/// ```
+///
+/// ### Model
+/// The `Model` and its `State` is designed to share data or handler between middleware.
+/// The only one type implemented `Model` by this crate is `()`, you should implement your custom Model if neccassary.
+///
+/// ```rust
+/// use roa_core::{App, Model};
+/// use log::info;
+/// use futures::lock::Mutex;
+/// use std::sync::Arc;
+/// use std::collections::HashMap;
+///
+/// struct AppModel {
+///     default_id: u64,
+///     database: Arc<Mutex<HashMap<u64, String>>>,
+/// }
+///
+/// struct AppState {
+///     id: u64,
+///     database: Arc<Mutex<HashMap<u64, String>>>,
+/// }
+///
+/// impl AppModel {
+///     fn new() -> Self {
+///         Self {
+///             default_id: 0,
+///             database: Arc::new(Mutex::new(HashMap::new()))
+///         }
+///     }
+/// }
+///
+/// impl Model for AppModel {
+///     type State = AppState;
+///     fn new_state(&self) -> Self::State {
+///         AppState {
+///             id: self.default_id,
+///             database: self.database.clone(),
+///         }
+///     }
+/// }
+///
+/// #[async_std::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let server = App::new(AppModel::new())
+///         .gate(|ctx, next| async move {
+///             ctx.state_mut().await.id = 1;
+///             next().await
+///         })
+///         .gate(|ctx, _next| async move {
+///             let id = ctx.state().await.id;
+///             ctx.state().await.database.lock().await.get(&id);
+///             Ok(())
+///         })
+///         .listen("127.0.0.1:8000", |addr| {
+///             info!("Server is listening on {}", addr)
+///         })?;
+///     // server.await;
+///     Ok(())
+/// }
+/// ```
+///
+/// ### Graceful Shutdown
+///
+/// `App::listen` returns a hyper::Server, which supports graceful shutdown.
+///
+/// ```rust
+/// use roa_core::App;
+/// use log::info;
+/// use futures::channel::oneshot;
+///
+/// #[async_std::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     // Prepare some signal for when the server should start shutting down...
+///     let (tx, rx) = oneshot::channel::<()>();
+///     let server = App::new(())
+///         .listen("127.0.0.1:8000", |addr| {
+///             info!("Server is listening on {}", addr)
+///         })?
+///         .with_graceful_shutdown(async {
+///             rx.await.ok();
+///         });;
+///     // Await the `server` receiving the signal...
+///     // server.await;
+///     
+///     // And later, trigger the signal by calling `tx.send(())`.
+///     let _ = tx.send(());
+///     Ok(())
+/// }
+/// ```
 pub struct App<M: Model> {
     middleware: Middleware<M>,
     status_handler: Arc<DynTargetHandler<M, Status>>,
     pub(crate) model: Arc<M>,
 }
 
+/// An implementation of hyper HttpService.
 pub struct HttpService<M: Model> {
     app: App<M>,
     stream: AddrStream,

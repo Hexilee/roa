@@ -13,6 +13,7 @@ use std::task::{self, Poll};
 use std::time::Duration;
 
 /// A stream of connections from binding to an address.
+/// As an implementation of hyper::server::accept::Accept.
 #[must_use = "streams do nothing unless polled"]
 pub struct AddrIncoming {
     addr: SocketAddr,
@@ -50,10 +51,11 @@ impl AddrIncoming {
     }
 
     /// Set the value of `TCP_NODELAY` option for accepted connections.
-    //    pub fn set_nodelay(&mut self, enabled: bool) -> &mut Self {
-    //        self.tcp_nodelay = enabled;
-    //        self
-    //    }
+    #[cfg_attr(tarpaulin, skip)]
+    pub fn set_nodelay(&mut self, enabled: bool) -> &mut Self {
+        self.tcp_nodelay = enabled;
+        self
+    }
 
     /// Set whether to sleep on accept errors.
     ///
@@ -70,9 +72,10 @@ impl AddrIncoming {
     /// this option to `false` will allow that.
     ///
     /// Default is `true`.
-    //    pub fn set_sleep_on_errors(&mut self, val: bool) {
-    //        self.sleep_on_errors = val;
-    //    }
+    #[cfg_attr(tarpaulin, skip)]
+    pub fn set_sleep_on_errors(&mut self, val: bool) {
+        self.sleep_on_errors = val;
+    }
 
     #[cfg_attr(tarpaulin, skip)]
     fn poll_next_(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<AddrStream>> {
