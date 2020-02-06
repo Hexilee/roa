@@ -207,3 +207,33 @@ pub fn cors<M: Model>(options: Options) -> Box<DynTargetHandler<M, Next>> {
     })
     .dynamic()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{cors, Options};
+    use crate::preload::*;
+    use crate::App;
+    use async_std::task::spawn;
+    use http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, ORIGIN};
+    use http::StatusCode;
+
+    #[tokio::test]
+    async fn cors_default() -> Result<(), Box<dyn std::error::Error>> {
+        let mut app = App::new(());
+        let (addr, server) = app
+            .gate(cors(Options::default()))
+            .gate(|ctx, _next| async move {
+                ctx.write_text("Hello, World");
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+
+        // No Origin
+        let resp = client.get(&format!("http://{}", addr)).send().await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert!(resp.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+        Ok(())
+    }
+}
