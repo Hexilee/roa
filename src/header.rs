@@ -139,6 +139,7 @@ mod tests {
     use super::FriendlyHeaders;
     use crate::Request;
     use http::header::CONTENT_TYPE;
+    use http::{HeaderValue, StatusCode};
     use mime::TEXT_HTML;
 
     #[test]
@@ -149,5 +150,19 @@ mod tests {
             .insert(CONTENT_TYPE, TEXT_HTML.as_ref().parse().unwrap());
         let content_type = request.must_get(&CONTENT_TYPE).unwrap();
         assert_eq!(TEXT_HTML.as_ref(), content_type);
+    }
+
+    #[test]
+    fn request_get_non_string() {
+        let mut request = Request::new();
+        request.raw_mut_header_map().insert(
+            CONTENT_TYPE,
+            HeaderValue::from_bytes([230].as_ref()).unwrap(),
+        );
+        let ret = request.get(&CONTENT_TYPE).unwrap();
+        assert!(ret.is_err());
+        let status = ret.unwrap_err();
+        assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
+        assert!(status.message.ends_with("is not a valid string"));
     }
 }
