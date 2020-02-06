@@ -9,7 +9,6 @@ cache:
 
 rust:
   - stable
-  - beta
   - nightly
 
 before_install:
@@ -30,7 +29,7 @@ script: # 集成脚本
   - cargo update
   - cargo check --all --all-features
   - |
-    if [[ "$TRAVIS_RUST_VERSION" == "stable" || "$TRAVIS_RUST_VERSION" == "beta" ]]; then
+    if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then
       cargo test --all-features --all -- --nocapture
     fi
 
