@@ -185,7 +185,7 @@ pub fn cors<M: Model>(options: Options) -> Box<DynTargetHandler<M, Next>> {
                         .insert(ACCESS_CONTROL_ALLOW_METHODS, allow_methods);
                 }
 
-                // If allow_headers is None, try to set `Access-Control-Allow-Headers` as `Access-Control-Request-Headers`.
+                // If allow_headers is None, try to assign `Access-Control-Request-Headers` to `Access-Control-Allow-Headers`.
                 if allow_headers.is_empty() {
                     if let Some(value) = ctx.header_value(&ACCESS_CONTROL_REQUEST_HEADERS).await {
                         allow_headers = value
@@ -214,16 +214,21 @@ mod tests {
     use crate::preload::*;
     use crate::App;
     use async_std::task::spawn;
-    use http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, ORIGIN};
-    use http::StatusCode;
+    use http::header::{
+        ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
+        ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
+        ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD,
+        CONTENT_TYPE, ORIGIN, VARY,
+    };
+    use http::{HeaderValue, StatusCode};
 
     #[tokio::test]
-    async fn cors_default() -> Result<(), Box<dyn std::error::Error>> {
+    async fn default_options() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         let (addr, server) = app
             .gate(cors(Options::default()))
             .gate(|ctx, _next| async move {
-                ctx.write_text("Hello, World");
+                ctx.write_text("Hello, World").await?;
                 Ok(())
             })
             .run_local()?;
@@ -234,6 +239,99 @@ mod tests {
         let resp = client.get(&format!("http://{}", addr)).send().await?;
         assert_eq!(StatusCode::OK, resp.status());
         assert!(resp.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+        assert_eq!(
+            HeaderValue::from_name(ORIGIN),
+            resp.headers().get(VARY).unwrap()
+        );
+        assert_eq!("Hello, World", resp.text().await?);
+
+        // No origin, simple request
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(ORIGIN, "github.com")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert_eq!(
+            "github.com",
+            resp.headers()
+                .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .unwrap()
+                .to_str()?
+        );
+        assert_eq!(
+            "true",
+            resp.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .unwrap()
+                .to_str()?
+        );
+        assert!(resp.headers().get(ACCESS_CONTROL_EXPOSE_HEADERS).is_none());
+        assert_eq!("Hello, World", resp.text().await?);
+
+        // options, no Access-Control-Request-Method
+        let resp = client
+            .request(http::Method::OPTIONS, &format!("http://{}", addr))
+            .header(ORIGIN, "github.com")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert!(resp.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+        assert_eq!(
+            HeaderValue::from_name(ORIGIN),
+            resp.headers().get(VARY).unwrap()
+        );
+        assert_eq!("Hello, World", resp.text().await?);
+
+        // options, contains Access-Control-Request-Method
+        let resp = client
+            .request(http::Method::OPTIONS, &format!("http://{}", addr))
+            .header(ORIGIN, "github.com")
+            .header(ACCESS_CONTROL_REQUEST_METHOD, "GET, POST")
+            .header(
+                ACCESS_CONTROL_REQUEST_HEADERS,
+                HeaderValue::from_name(CONTENT_TYPE),
+            )
+            .send()
+            .await?;
+        assert_eq!(StatusCode::NO_CONTENT, resp.status());
+        assert_eq!(
+            "github.com",
+            resp.headers()
+                .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .unwrap()
+                .to_str()?
+        );
+        assert_eq!(
+            "true",
+            resp.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .unwrap()
+                .to_str()?
+        );
+
+        assert_eq!(
+            "86400",
+            resp.headers()
+                .get(ACCESS_CONTROL_MAX_AGE)
+                .unwrap()
+                .to_str()?
+        );
+
+        assert_eq!(
+            "GET, HEAD, PUT, POST, DELETE, PATCH",
+            resp.headers()
+                .get(ACCESS_CONTROL_ALLOW_METHODS)
+                .unwrap()
+                .to_str()?
+        );
+
+        assert_eq!(
+            HeaderValue::from_name(CONTENT_TYPE),
+            resp.headers().get(ACCESS_CONTROL_ALLOW_HEADERS).unwrap()
+        );
+        assert_eq!("", resp.text().await?);
+        //
         Ok(())
     }
 }
