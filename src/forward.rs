@@ -136,4 +136,23 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    async fn forwarded_proto() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                assert_eq!("https", ctx.forwarded_proto().await.unwrap()?);
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+        client
+            .get(&format!("http://{}", addr))
+            .header("x-forwarded-proto", "https")
+            .send()
+            .await?;
+
+        Ok(())
+    }
 }
