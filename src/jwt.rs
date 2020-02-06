@@ -90,7 +90,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{jwt_verify, JwtVerifier, Validation, INVALID_TOKEN};
-    use crate::App;
+    use crate::{App, Status};
     use async_std::task::spawn;
     use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use http::StatusCode;
@@ -196,6 +196,26 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+    #[tokio::test]
+    async fn jwt_verify_not_set() -> Result<(), Box<dyn std::error::Error>> {
+        let mut app = App::new(());
+        let (addr, server) = app
+            .gate(move |ctx, _next| async move {
+                let result: Result<User, Status> = ctx.verify(&Validation::default()).await;
+                assert!(result.is_err());
+                let status = result.unwrap_err();
+                assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
+                assert_eq!(
+                    "middleware `jwt_verify` is not set correctly",
+                    status.message
+                );
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        reqwest::get(&format!("http://{}", addr)).await?;
         Ok(())
     }
 }
