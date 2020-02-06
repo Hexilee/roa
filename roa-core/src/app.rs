@@ -166,6 +166,25 @@ impl<M: Model> App<M> {
     }
 
     /// Set a custom status handler. status_handler will be called when middlewares return an `Err(Status)`.
+    /// The status thrown by status_handler will be thrown to hyper.
+    /// ```rust
+    /// use roa_core::{Model, Context, Status, StatusKind};
+    ///
+    /// pub async fn default_status_handler<M: Model>(
+    ///     context: Context<M>,
+    ///     status: Status,
+    /// ) -> Result<(), Status> {
+    ///     context.resp_mut().await.status = status.status_code;
+    ///     if status.expose {
+    ///         context.resp_mut().await.write_str(&status.message);
+    ///     }
+    ///     if status.kind == StatusKind::ServerError || status.kind == StatusKind::Unknown {
+    ///         Err(status)
+    ///     } else {
+    ///         Ok(())
+    ///     }
+    /// }
+    /// ```
     pub fn handle_status<F>(
         &mut self,
         handler: impl 'static + Sync + Send + Fn(Context<M>, Status) -> F,
@@ -209,6 +228,29 @@ impl<M: Model> App<M> {
     }
 
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
+    /// ### Example
+    /// ```rust
+    /// use roa_core::App;
+    /// use async_std::task::spawn;
+    /// use http::StatusCode;
+    /// use std::time::Instant;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let (addr, server) = App::new(())
+    ///         .gate(|_ctx, next| async move {
+    ///             let inbound = Instant::now();
+    ///             next().await?;
+    ///             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+    ///             Ok(())
+    ///         })
+    ///         .run_local()?;
+    ///     spawn(server);
+    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
+    ///     assert_eq!(StatusCode::OK, resp.status());
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn run_local(
         &self,
     ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
