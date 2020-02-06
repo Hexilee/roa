@@ -334,4 +334,13 @@ mod tests {
         //
         Ok(())
     }
+
+    #[should_panic]
+    #[test]
+    fn invalid_options_origin() {
+        cors::<()>(Options {
+            allow_origin: Some("\r\n".to_string()),
+            ..Options::default()
+        });
+    }
 }
