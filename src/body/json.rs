@@ -32,3 +32,27 @@ pub fn to_bytes<B: Serialize>(object: &B) -> Result<Vec<u8>, Status> {
         )
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http::StatusCode;
+
+    #[test]
+    fn from_str_fails() {
+        let ret = from_str::<i32>("");
+        assert!(ret.is_err());
+        let status = ret.unwrap_err();
+        assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
+        assert!(status.message.ends_with("invalid body"));
+    }
+
+    #[test]
+    fn from_bytes_fails() {
+        let ret = from_bytes::<i32>(b"");
+        assert!(ret.is_err());
+        let status = ret.unwrap_err();
+        assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
+        assert!(status.message.ends_with("invalid body"));
+    }
+}

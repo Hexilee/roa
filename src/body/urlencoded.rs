@@ -11,3 +11,18 @@ pub fn from_bytes<B: DeserializeOwned>(data: &[u8]) -> Result<B, Status> {
         )
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http::StatusCode;
+
+    #[test]
+    fn from_bytes_fails() {
+        let ret = from_bytes::<i32>(b"");
+        assert!(ret.is_err());
+        let status = ret.unwrap_err();
+        assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
+        assert!(status.message.ends_with("invalid body"));
+    }
+}
