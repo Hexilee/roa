@@ -82,7 +82,7 @@ impl Bucket {
             .map(|value| Variable::new(name, value))
     }
 
-    pub fn get<'a>(&mut self, name: &'a str) -> Option<Variable<'a>> {
+    pub fn get<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
         self.0.get(name).map(|value| Variable {
             name,
             value: value.to_string(),
@@ -186,9 +186,9 @@ impl<M: Model> Context<M> {
     }
 
     pub async fn load<'a, T: 'static>(&self, name: &'a str) -> Option<Variable<'a>> {
-        let mut storage = self.storage_mut().await;
+        let storage = self.storage().await;
         let id = TypeId::of::<T>();
-        storage.get_mut(&id).and_then(|bucket| bucket.get(name))
+        storage.get(&id).and_then(|bucket| bucket.get(name))
     }
 
     pub fn remote_addr(&self) -> SocketAddr {
@@ -210,5 +210,49 @@ impl<M: Model> Clone for Context<M> {
             app: self.app.clone(),
             stream: self.stream.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{App, Model};
+    use async_std::task::spawn;
+    use http::{StatusCode, Version};
+
+    #[tokio::test]
+    async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(())
+            .gate(|ctx, _next| async move {
+                assert_eq!(Version::HTTP_11, ctx.version());
+                assert_eq!(StatusCode::OK, ctx.status());
+            })
+            .run_local()?;
+        spawn(server);
+        reqwest::get(&format!("http://{}", addr)).await?;
+        Ok(())
+    }
+
+    struct AppModel;
+    struct AppState {
+        data: usize,
+    }
+    impl Model for AppModel {
+        type State = AppState;
+        fn new_state(&self) -> Self::State {
+            AppState { data: 0 }
+        }
+    }
+
+    #[tokio::test]
+    async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(AppModel {})
+            .gate(|ctx, next| async move {
+                ctx.state_mut().await.data = 1;
+            })
+            .gate(|ctx, _next| async move { assert_eq!(1, ctx.state().await.data) })
+            .run_local()?;
+        spawn(server);
+        reqwest::get(&format!("http://{}", addr)).await?;
+        Ok(())
     }
 }

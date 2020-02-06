@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn request_raw_mut_header_map() {
-        let mut request = Request::new();
+        let mut request = Request::default();
         request
             .raw_mut_header_map()
             .insert(CONTENT_TYPE, TEXT_HTML.as_ref().parse().unwrap());
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn request_get_non_string() {
-        let mut request = Request::new();
+        let mut request = Request::default();
         request.raw_mut_header_map().insert(
             CONTENT_TYPE,
             HeaderValue::from_bytes([230].as_ref()).unwrap(),
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn must_get_fails() {
-        let request = Request::new();
+        let request = Request::default();
         let ret = request.must_get(&CONTENT_TYPE);
         assert!(ret.is_err());
         let status = ret.unwrap_err();
@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn request_get_all_non_string() {
-        let mut request = Request::new();
+        let mut request = Request::default();
         request.raw_mut_header_map().insert(
             CONTENT_TYPE,
             HeaderValue::from_bytes([230].as_ref()).unwrap(),
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn request_get_all() -> Result<(), Box<dyn std::error::Error>> {
-        let mut request = Request::new();
+        let mut request = Request::default();
         request.append(CONTENT_TYPE, "text/html")?;
         request.append(CONTENT_TYPE, "text/plain")?;
         let ret = request.get_all(&CONTENT_TYPE)?;
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn insert() -> Result<(), Box<dyn std::error::Error>> {
-        let mut request = Request::new();
+        let mut request = Request::default();
         request.insert(CONTENT_TYPE, "text/html")?;
         assert_eq!("text/html", request.must_get(&CONTENT_TYPE)?);
         let old_data = request.insert(CONTENT_TYPE, "text/plain")?.unwrap();
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn insert_fail() -> Result<(), Box<dyn std::error::Error>> {
-        let mut request = Request::new();
+        let mut request = Request::default();
         let ret = request.insert(CONTENT_TYPE, "\r\n");
         assert!(ret.is_err());
         let status = ret.unwrap_err();
@@ -225,7 +225,7 @@ mod tests {
 
     #[test]
     fn append_fail() -> Result<(), Box<dyn std::error::Error>> {
-        let mut request = Request::new();
+        let mut request = Request::default();
         let ret = request.append(CONTENT_TYPE, "\r\n");
         assert!(ret.is_err());
         let status = ret.unwrap_err();
