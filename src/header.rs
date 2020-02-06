@@ -165,4 +165,72 @@ mod tests {
         assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
         assert!(status.message.ends_with("is not a valid string"));
     }
+
+    #[test]
+    fn must_get_fails() {
+        let request = Request::new();
+        let ret = request.must_get(&CONTENT_TYPE);
+        assert!(ret.is_err());
+        let status = ret.unwrap_err();
+        assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
+        assert_eq!("header `content-type` is required", status.message);
+    }
+
+    #[test]
+    fn request_get_all_non_string() {
+        let mut request = Request::new();
+        request.raw_mut_header_map().insert(
+            CONTENT_TYPE,
+            HeaderValue::from_bytes([230].as_ref()).unwrap(),
+        );
+        let ret = request.get_all(&CONTENT_TYPE);
+        assert!(ret.is_err());
+        let status = ret.unwrap_err();
+        assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
+        assert!(status.message.ends_with("is not a valid string"));
+    }
+
+    #[test]
+    fn request_get_all() -> Result<(), Box<dyn std::error::Error>> {
+        let mut request = Request::new();
+        request.append(CONTENT_TYPE, "text/html")?;
+        request.append(CONTENT_TYPE, "text/plain")?;
+        let ret = request.get_all(&CONTENT_TYPE)?;
+        assert_eq!("text/html", ret[0]);
+        assert_eq!("text/plain", ret[1]);
+        Ok(())
+    }
+
+    #[test]
+    fn insert() -> Result<(), Box<dyn std::error::Error>> {
+        let mut request = Request::new();
+        request.insert(CONTENT_TYPE, "text/html")?;
+        assert_eq!("text/html", request.must_get(&CONTENT_TYPE)?);
+        let old_data = request.insert(CONTENT_TYPE, "text/plain")?.unwrap();
+        assert_eq!("text/html", old_data);
+        assert_eq!("text/plain", request.must_get(&CONTENT_TYPE)?);
+        Ok(())
+    }
+
+    #[test]
+    fn insert_fail() -> Result<(), Box<dyn std::error::Error>> {
+        let mut request = Request::new();
+        let ret = request.insert(CONTENT_TYPE, "\r\n");
+        assert!(ret.is_err());
+        let status = ret.unwrap_err();
+        assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
+        assert!(status.message.ends_with("\r\n is not a valid header value"));
+        Ok(())
+    }
+
+    #[test]
+    fn append_fail() -> Result<(), Box<dyn std::error::Error>> {
+        let mut request = Request::new();
+        let ret = request.append(CONTENT_TYPE, "\r\n");
+        assert!(ret.is_err());
+        let status = ret.unwrap_err();
+        assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
+        assert!(status.message.ends_with("\r\n is not a valid header value"));
+        Ok(())
+    }
 }
