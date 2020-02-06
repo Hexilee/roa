@@ -111,42 +111,42 @@ impl<M: Model> Context<M> {
     }
 
     #[inline]
-    pub async fn req<'a>(&'a self) -> RwLockReadGuard<'a, Request> {
+    pub async fn req(&self) -> RwLockReadGuard<'_, Request> {
         self.request.read().await
     }
 
     #[inline]
-    pub async fn resp<'a>(&'a self) -> RwLockReadGuard<'a, Response> {
+    pub async fn resp(&self) -> RwLockReadGuard<'_, Response> {
         self.response.read().await
     }
 
     #[inline]
-    pub async fn state<'a>(&'a self) -> RwLockReadGuard<'a, M::State> {
+    pub async fn state(&self) -> RwLockReadGuard<'_, M::State> {
         self.state.read().await
     }
 
     #[inline]
-    pub async fn storage<'a>(&'a self) -> RwLockReadGuard<'a, HashMap<TypeId, Bucket>> {
+    pub async fn storage(&self) -> RwLockReadGuard<'_, HashMap<TypeId, Bucket>> {
         self.storage.read().await
     }
 
     #[inline]
-    pub async fn req_mut<'a>(&'a self) -> RwLockWriteGuard<'a, Request> {
+    pub async fn req_mut(&self) -> RwLockWriteGuard<'_, Request> {
         self.request.write().await
     }
 
     #[inline]
-    pub async fn resp_mut<'a>(&'a self) -> RwLockWriteGuard<'a, Response> {
+    pub async fn resp_mut(&self) -> RwLockWriteGuard<'_, Response> {
         self.response.write().await
     }
 
     #[inline]
-    pub async fn state_mut<'a>(&'a self) -> RwLockWriteGuard<'a, M::State> {
+    pub async fn state_mut(&self) -> RwLockWriteGuard<'_, M::State> {
         self.state.write().await
     }
 
     #[inline]
-    pub async fn storage_mut<'a>(&'a self) -> RwLockWriteGuard<'a, HashMap<TypeId, Bucket>> {
+    pub async fn storage_mut(&self) -> RwLockWriteGuard<'_, HashMap<TypeId, Bucket>> {
         self.storage.write().await
     }
 
