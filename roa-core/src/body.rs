@@ -24,6 +24,7 @@ impl Body {
         }
     }
 
+    #[inline]
     pub fn write_buf(
         &mut self,
         buf_reader: impl BufRead + Sync + Send + Unpin + 'static,
@@ -32,26 +33,32 @@ impl Body {
         self
     }
 
+    #[inline]
     pub fn write(&mut self, reader: impl Read + Sync + Send + Unpin + 'static) -> &mut Self {
         self.write_buf(BufReader::new(reader))
     }
 
+    #[inline]
     pub fn write_bytes(&mut self, bytes: impl Into<Vec<u8>>) -> &mut Self {
         self.write_buf(Cursor::new(bytes.into()))
     }
 
+    #[inline]
     pub fn write_str(&mut self, data: impl ToString) -> &mut Self {
         self.write_bytes(data.to_string())
     }
 
+    #[inline]
     pub fn stream(self) -> BodyStream<Self> {
         BodyStream::new(self)
     }
 
+    #[inline]
     pub fn poll_segment(&mut self, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
         Pin::new(self.segments[self.counter].as_mut()).poll_fill_buf(cx)
     }
 
+    #[inline]
     pub fn on_finish(
         &mut self,
         callback: impl 'static + Sync + Send + Unpin + Fn(&Self),
@@ -60,12 +67,14 @@ impl Body {
         self
     }
 
+    #[inline]
     pub fn consumed(&self) -> usize {
         self.consumed
     }
 }
 
 impl Default for Body {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -94,6 +103,7 @@ impl BufRead for Body {
         Poll::Ready(Ok(data))
     }
 
+    #[inline]
     fn consume(self: Pin<&mut Self>, amt: usize) {
         let self_mut = self.get_mut();
         if self_mut.counter < self_mut.segments.len() {
@@ -104,6 +114,7 @@ impl BufRead for Body {
 }
 
 impl Read for Body {
+    #[inline]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -122,6 +133,7 @@ pub struct BodyStream<R: BufRead> {
 }
 
 impl<R: BufRead> BodyStream<R> {
+    #[inline]
     pub fn new(body: R) -> Self {
         Self { body }
     }
@@ -130,6 +142,7 @@ impl<R: BufRead> BodyStream<R> {
 impl<R: BufRead + Unpin> Stream for BodyStream<R> {
     type Item = Result<Vec<u8>, std::io::Error>;
 
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let buf: &[u8] = futures::ready!(Pin::new(&mut self.body).poll_fill_buf(cx))?;
         let buf_len = buf.len();
@@ -144,6 +157,7 @@ impl<R: BufRead + Unpin> Stream for BodyStream<R> {
 }
 
 impl<R: BufRead + Unpin + Send + Sync + 'static> From<BodyStream<R>> for hyper::Body {
+    #[inline]
     fn from(stream: BodyStream<R>) -> Self {
         hyper::Body::wrap_stream(stream)
     }

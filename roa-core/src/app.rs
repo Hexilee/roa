@@ -96,6 +96,7 @@ impl<M: Model> App<M> {
 
 macro_rules! impl_poll_ready {
     () => {
+        #[inline]
         fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
@@ -110,6 +111,8 @@ impl<M: Model> Service<&AddrStream> for App<M> {
     type Error = std::io::Error;
     type Future = AppFuture<M>;
     impl_poll_ready!();
+
+    #[inline]
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
         let app = self.clone();
         let stream = stream.clone();
@@ -125,6 +128,8 @@ impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
     type Error = Status;
     type Future = HttpFuture;
     impl_poll_ready!();
+
+    #[inline]
     fn call(&mut self, req: HttpRequest<HyperBody>) -> Self::Future {
         let service = self.clone();
         Box::pin(async move { Ok(service.serve(req.into()).await?.into()) })
@@ -136,6 +141,7 @@ impl<M: Model> HttpService<M> {
         Self { app, stream }
     }
 
+    #[inline]
     pub async fn serve(&self, req: Request) -> Result<Response, Status> {
         let context = Context::new(req, self.app.clone(), self.stream.clone());
         let app = self.app.clone();

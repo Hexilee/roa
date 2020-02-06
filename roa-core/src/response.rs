@@ -37,12 +37,14 @@ impl Response {
 
 impl Deref for Response {
     type Target = Body;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.body
     }
 }
 
 impl DerefMut for Response {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.body
     }

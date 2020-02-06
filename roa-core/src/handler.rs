@@ -20,6 +20,7 @@ where
     T: 'static + Sync + Send + Fn(Context<M>) -> F,
 {
     type StatusFuture = F;
+    #[inline]
     fn handle(&self, ctx: Context<M>) -> Self::StatusFuture {
         (self)(ctx)
     }
@@ -40,6 +41,7 @@ where
     T: 'static + Sync + Send + Fn(Context<M>, Target) -> F,
 {
     type StatusFuture = F;
+    #[inline]
     fn handle(&self, ctx: Context<M>, target: Target) -> Self::StatusFuture {
         (self)(ctx, target)
     }

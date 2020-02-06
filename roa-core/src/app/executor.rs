@@ -9,6 +9,7 @@ where
     F: 'static + Send + Future,
     F::Output: 'static + Send,
 {
+    #[inline]
     fn execute(&self, fut: F) {
         async_std::task::spawn(fut);
     }

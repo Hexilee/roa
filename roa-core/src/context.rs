@@ -31,18 +31,22 @@ pub struct Variable<'a> {
 
 impl Deref for Variable<'_> {
     type Target = str;
+
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.value
     }
 }
 
 impl AsRef<str> for Variable<'_> {
+    #[inline]
     fn as_ref(&self) -> &str {
         &self
     }
 }
 
 impl<'a> Variable<'a> {
+    #[inline]
     pub fn new(name: &'a str, value: String) -> Self {
         Self { name, value }
     }
@@ -66,6 +70,7 @@ impl<'a> Variable<'a> {
         })
     }
 
+    #[inline]
     pub fn into_value(self) -> String {
         self.value
     }
@@ -76,12 +81,14 @@ impl Bucket {
         Self(HashMap::new())
     }
 
+    #[inline]
     pub fn insert<'a>(&mut self, name: &'a str, value: String) -> Option<Variable<'a>> {
         self.0
             .insert(name.to_string(), value)
             .map(|value| Variable::new(name, value))
     }
 
+    #[inline]
     pub fn get<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
         self.0.get(name).map(|value| Variable {
             name,
@@ -103,34 +110,42 @@ impl<M: Model> Context<M> {
         }
     }
 
+    #[inline]
     pub async fn req<'a>(&'a self) -> RwLockReadGuard<'a, Request> {
         self.request.read().await
     }
 
+    #[inline]
     pub async fn resp<'a>(&'a self) -> RwLockReadGuard<'a, Response> {
         self.response.read().await
     }
 
+    #[inline]
     pub async fn state<'a>(&'a self) -> RwLockReadGuard<'a, M::State> {
         self.state.read().await
     }
 
+    #[inline]
     pub async fn storage<'a>(&'a self) -> RwLockReadGuard<'a, HashMap<TypeId, Bucket>> {
         self.storage.read().await
     }
 
+    #[inline]
     pub async fn req_mut<'a>(&'a self) -> RwLockWriteGuard<'a, Request> {
         self.request.write().await
     }
 
+    #[inline]
     pub async fn resp_mut<'a>(&'a self) -> RwLockWriteGuard<'a, Response> {
         self.response.write().await
     }
 
+    #[inline]
     pub async fn state_mut<'a>(&'a self) -> RwLockWriteGuard<'a, M::State> {
         self.state.write().await
     }
 
+    #[inline]
     pub async fn storage_mut<'a>(&'a self) -> RwLockWriteGuard<'a, HashMap<TypeId, Bucket>> {
         self.storage.write().await
     }

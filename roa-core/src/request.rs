@@ -41,12 +41,14 @@ impl Default for Request {
 
 impl Deref for Request {
     type Target = Body;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.body
     }
 }
 
 impl DerefMut for Request {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.body
     }
