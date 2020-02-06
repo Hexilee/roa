@@ -50,10 +50,10 @@ impl AddrIncoming {
     }
 
     /// Set the value of `TCP_NODELAY` option for accepted connections.
-    pub fn set_nodelay(&mut self, enabled: bool) -> &mut Self {
-        self.tcp_nodelay = enabled;
-        self
-    }
+    //    pub fn set_nodelay(&mut self, enabled: bool) -> &mut Self {
+    //        self.tcp_nodelay = enabled;
+    //        self
+    //    }
 
     /// Set whether to sleep on accept errors.
     ///
@@ -70,10 +70,11 @@ impl AddrIncoming {
     /// this option to `false` will allow that.
     ///
     /// Default is `true`.
-    pub fn set_sleep_on_errors(&mut self, val: bool) {
-        self.sleep_on_errors = val;
-    }
+    //    pub fn set_sleep_on_errors(&mut self, val: bool) {
+    //        self.sleep_on_errors = val;
+    //    }
 
+    #[cfg_attr(tarpaulin, skip)]
     fn poll_next_(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<AddrStream>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
@@ -149,6 +150,7 @@ impl Accept for AddrIncoming {
 /// All other errors will incur a timeout before next `accept()` is performed.
 /// The timeout is useful to handle resource exhaustion errors like ENFILE
 /// and EMFILE. Otherwise, could enter into tight loop.
+#[cfg_attr(tarpaulin, skip)]
 fn is_connection_error(e: &io::Error) -> bool {
     match e.kind() {
         io::ErrorKind::ConnectionRefused

@@ -13,9 +13,3 @@ where
         async_std::task::spawn(fut);
     }
 }
-
-impl Executor {
-    pub fn new() -> Self {
-        Executor
-    }
-}

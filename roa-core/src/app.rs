@@ -66,7 +66,7 @@ impl<M: Model> App<M> {
         let incoming = AddrIncoming::bind(addr)?;
         let local_addr = incoming.local_addr();
         let server = Server::builder(incoming)
-            .executor(Executor::new())
+            .executor(Executor {})
             .serve(self.clone());
         Ok((local_addr, server))
     }
