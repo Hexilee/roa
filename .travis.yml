@@ -1,4 +1,3 @@
-sudo: required
 language: rust
 dist: trusty
 

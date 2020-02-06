@@ -17,6 +17,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::path::Path;
 
+const APPLICATION_JSON_UTF_8: &str = "application/json; charset=utf-8";
+
 #[async_trait]
 pub trait PowerBody {
     /// try to get mime content type of request.
@@ -135,10 +137,9 @@ impl<M: Model> PowerBody for Context<M> {
 
     async fn write_json<B: Serialize + Sync>(&self, data: &B) -> Result<(), Status> {
         self.resp_mut().await.write_bytes(json::to_bytes(data)?);
-        self.resp_mut().await.insert(
-            http::header::CONTENT_TYPE,
-            "application/json; charset=utf-8",
-        )?;
+        self.resp_mut()
+            .await
+            .insert(http::header::CONTENT_TYPE, APPLICATION_JSON_UTF_8)?;
         Ok(())
     }
 
@@ -198,6 +199,7 @@ impl<M: Model> PowerBody for Context<M> {
 #[cfg(test)]
 mod tests {
     use super::PowerBody;
+    use crate::body::APPLICATION_JSON_UTF_8;
     use crate::App;
     use askama::Template;
     use async_std::fs::File;
@@ -353,6 +355,26 @@ mod tests {
             resp.headers()[CONTENT_TYPE]
         );
         assert_eq!("Hexilee", resp.text().await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn response_type() -> Result<(), Box<dyn std::error::Error>> {
+        // miss key
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                ctx.write_json(&()).await?;
+                assert_eq!(
+                    APPLICATION_JSON_UTF_8,
+                    ctx.response_type().await.unwrap().unwrap().as_ref()
+                );
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert_eq!(APPLICATION_JSON_UTF_8, resp.headers()[CONTENT_TYPE]);
         Ok(())
     }
 }
