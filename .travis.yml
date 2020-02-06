@@ -1,11 +1,6 @@
 language: rust
 dist: trusty
 
-# Cache cargo symbols for faster build
-cache:
-  cargo: true
-  apt: true
-
 rust:
   - stable
   - nightly
