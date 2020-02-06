@@ -6,7 +6,7 @@ pub enum Error {
     Conflict(Conflict),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Conflict {
     Path(String),
     Method(String, http::Method),

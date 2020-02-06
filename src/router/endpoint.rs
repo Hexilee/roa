@@ -8,12 +8,12 @@ use std::future::Future;
 use std::sync::Arc;
 
 macro_rules! impl_http_method {
-    ($fn_name:ident, $method:expr) => {
+    ($fn_name:ident, $($method:expr),*) => {
         pub fn $fn_name<F>(&mut self, handler: impl 'static + Sync + Send + Fn(Context<M>) -> F) -> &mut Self
         where
             F: 'static + Send + Future<Output = Result<(), Status>>,
         {
-            self.handle([$method].as_ref(), handler)
+            self.handle([$($method, )*].as_ref(), handler)
         }
     };
 }
@@ -68,27 +68,18 @@ impl<M: Model> Endpoint<M> {
     impl_http_method!(head, Method::HEAD);
     impl_http_method!(trace, Method::TRACE);
     impl_http_method!(connect, Method::CONNECT);
-
-    pub fn all<F>(&mut self, handler: impl 'static + Sync + Send + Fn(Context<M>) -> F) -> &mut Self
-    where
-        F: 'static + Send + Future<Output = Result<(), Status>>,
-    {
-        self.handle(
-            [
-                Method::GET,
-                Method::POST,
-                Method::PUT,
-                Method::PATCH,
-                Method::OPTIONS,
-                Method::DELETE,
-                Method::HEAD,
-                Method::TRACE,
-                Method::CONNECT,
-            ]
-            .as_ref(),
-            handler,
-        )
-    }
+    impl_http_method!(
+        all,
+        Method::GET,
+        Method::POST,
+        Method::PUT,
+        Method::PATCH,
+        Method::OPTIONS,
+        Method::DELETE,
+        Method::HEAD,
+        Method::TRACE,
+        Method::CONNECT
+    );
 
     pub fn handler(self) -> Result<Box<DynTargetHandler<M, Next>>, Conflict> {
         let Self {
@@ -129,9 +120,26 @@ impl<M: Model> Endpoint<M> {
 #[cfg(test)]
 mod tests {
     use super::Endpoint;
+    use crate::router::err::Conflict;
     use crate::App;
     use async_std::task::spawn;
     use http::StatusCode;
+
+    #[test]
+    fn conflict_method() {
+        let mut endpoint = Endpoint::<()>::new("/".parse().unwrap());
+        endpoint
+            .get(|_ctx| async { Ok(()) })
+            .all(|_ctx| async { Ok(()) });
+        let ret = endpoint.handler();
+        assert!(ret.is_err());
+        if let Err(conflict) = ret {
+            assert_eq!(
+                Conflict::Method("//".to_string(), http::Method::GET),
+                conflict
+            );
+        }
+    }
 
     #[tokio::test]
     async fn gate() -> Result<(), Box<dyn std::error::Error>> {

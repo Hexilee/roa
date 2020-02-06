@@ -133,3 +133,21 @@ impl FriendlyHeaders for Response {
         &mut self.headers
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::FriendlyHeaders;
+    use crate::Request;
+    use http::header::CONTENT_TYPE;
+    use mime::TEXT_HTML;
+
+    #[test]
+    fn request_raw_mut_header_map() {
+        let mut request = Request::new();
+        request
+            .raw_mut_header_map()
+            .insert(CONTENT_TYPE, TEXT_HTML.as_ref().parse().unwrap());
+        let content_type = request.must_get(&CONTENT_TYPE).unwrap();
+        assert_eq!(TEXT_HTML.as_ref(), content_type);
+    }
+}
