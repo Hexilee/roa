@@ -44,7 +44,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// ```
 ///
 /// ### Model
-/// The `Model` and its `State` is designed to share data or handler between middleware.
+/// The `Model` and its `State` is designed to share data or handler between middlewares.
 /// The only one type implemented `Model` by this crate is `()`, you should implement your custom Model if neccassary.
 ///
 /// ```rust
@@ -144,6 +144,7 @@ pub struct HttpService<M: Model> {
 }
 
 impl<M: Model> App<M> {
+    /// Construct an Application from a Model.
     pub fn new(model: M) -> Self {
         Self {
             middleware: Middleware::new(),
@@ -152,6 +153,7 @@ impl<M: Model> App<M> {
         }
     }
 
+    /// Use a middleware.
     pub fn gate<F>(
         &mut self,
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
@@ -163,6 +165,7 @@ impl<M: Model> App<M> {
         self
     }
 
+    /// Set a custom status handler. status_handler will be called when middlewares return an `Err(Status)`.
     pub fn handle_status<F>(
         &mut self,
         handler: impl 'static + Sync + Send + Fn(Context<M>, Status) -> F,
@@ -174,6 +177,7 @@ impl<M: Model> App<M> {
         self
     }
 
+    /// Listen on a socket addr, return a server and the real addr it binds.
     fn listen_on(
         &self,
         addr: impl ToSocketAddrs,
@@ -186,6 +190,7 @@ impl<M: Model> App<M> {
         Ok((local_addr, server))
     }
 
+    /// Listen on a socket addr, return a server, and pass real addr to the callback.
     pub fn listen(
         &self,
         addr: impl ToSocketAddrs,
@@ -196,12 +201,14 @@ impl<M: Model> App<M> {
         Ok(server)
     }
 
+    /// Listen on a unused port of 0.0.0.0, return a server and the real addr it binds.
     pub fn run(
         &self,
     ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
         self.listen_on("0.0.0.0:0")
     }
 
+    /// Listen on a unused port of 127.0.0.1, return a server and the real addr it binds.
     pub fn run_local(
         &self,
     ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
