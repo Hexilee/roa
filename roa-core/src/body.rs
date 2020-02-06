@@ -3,8 +3,30 @@ use async_std::stream::Stream;
 use async_std::task::{Context, Poll};
 use std::pin::Pin;
 
+/// Callback when body is finished.
 pub type Callback = dyn 'static + Sync + Send + Unpin + Fn(&Body);
 
+/// The Body of Request and Response.
+/// ### Example
+/// ```rust
+/// use roa_core::Body;
+/// use async_std::fs::File;
+/// use futures::io::AsyncReadExt;
+///
+/// #[async_std::main]
+/// async fn main() -> std::io::Result<()> {
+///     let mut body = Body::new();
+///     let mut data = String::new();
+///     body.write_buf(b"He".as_ref())
+///         .write_buf(b"llo, ".as_ref())
+///         .write(File::open("../assets/author.txt").await?)
+///         .write_buf(b".".as_ref())
+///         .read_to_string(&mut data)
+///         .await?;
+///     assert_eq!("Hello, Hexilee.", data);
+///     Ok(())
+/// }
+/// ```
 pub struct Body {
     counter: usize,
     segments: Vec<Segment>,
@@ -24,6 +46,7 @@ impl Body {
         }
     }
 
+    /// Write reader implementing BufRead.
     #[inline]
     pub fn write_buf(
         &mut self,
@@ -33,31 +56,55 @@ impl Body {
         self
     }
 
+    /// Write reader implementing Read.
     #[inline]
     pub fn write(&mut self, reader: impl Read + Sync + Send + Unpin + 'static) -> &mut Self {
         self.write_buf(BufReader::new(reader))
     }
 
+    /// Write `Vec<u8>`.
     #[inline]
     pub fn write_bytes(&mut self, bytes: impl Into<Vec<u8>>) -> &mut Self {
         self.write_buf(Cursor::new(bytes.into()))
     }
 
+    /// Write `String`.
     #[inline]
     pub fn write_str(&mut self, data: impl ToString) -> &mut Self {
         self.write_bytes(data.to_string())
     }
 
+    /// Into a stream.
     #[inline]
     pub fn stream(self) -> BodyStream<Self> {
         BodyStream::new(self)
     }
 
     #[inline]
-    pub fn poll_segment(&mut self, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
+    fn poll_segment(&mut self, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
         Pin::new(self.segments[self.counter].as_mut()).poll_fill_buf(cx)
     }
 
+    /// Add callback.
+    /// ### Example
+    /// ```rust
+    /// use roa_core::Body;
+    /// use async_std::fs::File;
+    /// use futures::io::AsyncReadExt;
+    /// #[async_std::test]
+    /// async fn body_on_finish() -> std::io::Result<()> {
+    ///     let mut body = Body::new();
+    ///     let mut data = String::new();
+    ///     body.write_buf(b"He".as_ref())
+    ///         .write_buf(b"llo, ".as_ref())
+    ///         .write_buf(b"World".as_ref())
+    ///         .on_finish(|body| assert_eq!(12, body.consumed()))
+    ///         .read_to_string(&mut data)
+    ///         .await?;
+    ///     assert_eq!("Hello, World", data);
+    ///     Ok(())
+    /// }
+    /// ```
     #[inline]
     pub fn on_finish(
         &mut self,
@@ -67,6 +114,7 @@ impl Body {
         self
     }
 
+    /// Get the numbers of consumed bytes.
     #[inline]
     pub fn consumed(&self) -> usize {
         self.consumed
