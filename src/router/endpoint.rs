@@ -125,3 +125,43 @@ impl<M: Model> Endpoint<M> {
         Ok(middleware.handler())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Endpoint;
+    use crate::App;
+    use async_std::task::spawn;
+    use http::StatusCode;
+
+    #[tokio::test]
+    async fn gate() -> Result<(), Box<dyn std::error::Error>> {
+        struct TestSymbol;
+        let mut endpoint = Endpoint::<()>::new("/endpoint".parse()?);
+        endpoint
+            .gate(|ctx, next| async move {
+                ctx.store::<TestSymbol>("id", "0".to_string()).await;
+                next().await
+            })
+            .all(|ctx| async move {
+                let id: u64 = ctx.load::<TestSymbol>("id").await.unwrap().parse()?;
+                assert_eq!(0, id);
+                Ok(())
+            });
+        let (addr, server) = App::new(()).gate(endpoint.handler()?).run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}/endpoint", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn method_not_allowed() -> Result<(), Box<dyn std::error::Error>> {
+        let mut endpoint = Endpoint::<()>::new("/endpoint".parse()?);
+        endpoint.post(|_ctx| async { Ok(()) });
+        let (addr, server) = App::new(()).gate(endpoint.handler()?).run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}/endpoint", addr)).await?;
+        assert_eq!(StatusCode::METHOD_NOT_ALLOWED, resp.status());
+        Ok(())
+    }
+}

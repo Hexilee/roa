@@ -191,16 +191,117 @@ impl<M: Model> RouterParam for Context<M> {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use crate::Router;
-//    use roa_body::PowerBody;
-//    #[test]
-//    fn handle() -> Result<(), Box<dyn std::error::Error>> {
-//        let mut router = Router::new("/");
-//        router
-//            .on("/file/:filename")?
-//            .join(|_ctx, next| next())
-//            .get(|mut ctx| ctx.write_file("filename"));
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use super::{endpoint::Endpoint, Node, Router};
+    use crate::App;
+    use async_std::task::spawn;
+    use encoding::EncoderTrap;
+    use http::StatusCode;
+    use percent_encoding::NON_ALPHANUMERIC;
+
+    #[should_panic]
+    #[test]
+    fn node_unwrap_router_fails() {
+        let mut node = Node::Endpoint(Endpoint::<()>::new("/".parse().unwrap()));
+        node.unwrap_router();
+    }
+
+    #[should_panic]
+    #[test]
+    fn node_unwrap_endpoint_fails() {
+        let mut node = Node::Router(Router::<()>::new("/"));
+        node.unwrap_endpoint();
+    }
+
+    #[tokio::test]
+    async fn gate() -> Result<(), Box<dyn std::error::Error>> {
+        struct TestSymbol;
+        let mut router = Router::<()>::new("/route");
+        router
+            .gate(|ctx, next| async move {
+                ctx.store::<TestSymbol>("id", "0".to_string()).await;
+                next().await
+            })
+            .on("/")?
+            .get(|ctx| async move {
+                let id: u64 = ctx.load::<TestSymbol>("id").await.unwrap().parse()?;
+                assert_eq!(0, id);
+                Ok(())
+            });
+        let (addr, server) = App::new(()).gate(router.handler()?).run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn route() -> Result<(), Box<dyn std::error::Error>> {
+        struct TestSymbol;
+        let mut router = Router::<()>::new("/route");
+        router
+            .gate(|ctx, next| async move {
+                ctx.store::<TestSymbol>("id", "0".to_string()).await;
+                next().await
+            })
+            .route("/user")
+            .on("/")?
+            .get(|ctx| async move {
+                let id: u64 = ctx.load::<TestSymbol>("id").await.unwrap().parse()?;
+                assert_eq!(0, id);
+                Ok(())
+            });
+        let (addr, server) = App::new(()).gate(router.handler()?).run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}/route/user", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+
+    #[test]
+    fn conflict_path() -> Result<(), Box<dyn std::error::Error>> {
+        let mut router = Router::<()>::new("/");
+        router.on("/route/endpoint")?.get(|_ctx| async { Ok(()) });
+        router
+            .route("/route")
+            .on("/endpoint")?
+            .get(|_ctx| async { Ok(()) });
+        let ret = router.handler();
+        assert!(ret.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn route_not_found() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(())
+            .gate(Router::<()>::new("/").handler()?)
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::NOT_FOUND, resp.status());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn non_utf8_uri() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(())
+            .gate(Router::<()>::new("/").handler()?)
+            .run_local()?;
+        spawn(server);
+        let gbk_path = encoding::label::encoding_from_whatwg_label("gbk")
+            .unwrap()
+            .encode("路由", EncoderTrap::Strict)
+            .unwrap();
+        let encoded_path =
+            percent_encoding::percent_encode(&gbk_path, NON_ALPHANUMERIC).to_string();
+        let uri = format!("http://{}/{}", addr, encoded_path);
+        let resp = reqwest::get(&uri).await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+        assert!(resp
+            .text()
+            .await?
+            .ends_with("path `/%C2%B7%D3%C9` is not a valid utf-8 string"));
+        Ok(())
+    }
+}

@@ -211,4 +211,10 @@ mod tests {
     fn full_wildcard_path_match(path: &str) {
         path_match(r"/srv/static/*{path}", path)
     }
+
+    #[should_panic]
+    #[test]
+    fn must_build_fails() {
+        must_build(r"{");
+    }
 }
