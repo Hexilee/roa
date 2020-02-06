@@ -223,8 +223,9 @@ mod tests {
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .gate(|ctx, _next| async move {
-                assert_eq!(Version::HTTP_11, ctx.version());
-                assert_eq!(StatusCode::OK, ctx.status());
+                assert_eq!(Version::HTTP_11, ctx.version().await);
+                assert_eq!(StatusCode::OK, ctx.status().await);
+                Ok(())
             })
             .run_local()?;
         spawn(server);
@@ -248,8 +249,12 @@ mod tests {
         let (addr, server) = App::new(AppModel {})
             .gate(|ctx, next| async move {
                 ctx.state_mut().await.data = 1;
+                next().await
             })
-            .gate(|ctx, _next| async move { assert_eq!(1, ctx.state().await.data) })
+            .gate(|ctx, _next| async move {
+                assert_eq!(1, ctx.state().await.data);
+                Ok(())
+            })
             .run_local()?;
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
