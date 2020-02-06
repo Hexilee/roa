@@ -1,49 +1,43 @@
-use crate::{throw, Context, Model, Status};
+use crate::{preload::*, throw, Context, Model, Status};
 use async_trait::async_trait;
-use http::{
-    header::{HeaderName, HOST},
-    StatusCode,
-};
-use std::net::SocketAddr;
+use http::{header::HOST, StatusCode};
+use std::net::IpAddr;
 
 #[async_trait]
 pub trait Forward {
     async fn host(&self) -> Result<String, Status>;
-    async fn client_addr(&self) -> SocketAddr;
-    async fn forwarded_addrs(&self) -> Vec<SocketAddr>;
+    async fn client_ip(&self) -> IpAddr;
+    async fn forwarded_ips(&self) -> Vec<IpAddr>;
     async fn forwarded_proto(&self) -> Option<Result<String, Status>>;
 }
 
 #[async_trait]
 impl<M: Model> Forward for Context<M> {
     async fn host(&self) -> Result<String, Status> {
-        if let Some(Ok(value)) = self
-            .header(&HeaderName::from_static("X-Forwarded-Host"))
-            .await
-        {
-            Ok(value)
-        } else if let Some(Ok(value)) = self.header(&HOST).await {
-            Ok(value)
+        if let Some(Ok(value)) = self.req().await.get("x-forwarded-host") {
+            Ok(value.to_string())
+        } else if let Some(Ok(value)) = self.req().await.get(&HOST) {
+            Ok(value.to_string())
         } else {
-            throw(StatusCode::BAD_REQUEST, "header HOST is not set")
+            throw(
+                StatusCode::BAD_REQUEST,
+                "header `host` or `x-forwarded-host` is not set",
+            )
         }
     }
 
-    async fn client_addr(&self) -> SocketAddr {
-        let addrs = self.forwarded_addrs().await;
+    async fn client_ip(&self) -> IpAddr {
+        let addrs = self.forwarded_ips().await;
         if addrs.is_empty() {
-            self.remote_addr()
+            self.remote_addr().ip()
         } else {
             addrs[0]
         }
     }
 
-    async fn forwarded_addrs(&self) -> Vec<SocketAddr> {
+    async fn forwarded_ips(&self) -> Vec<IpAddr> {
         let mut addrs = Vec::new();
-        if let Some(Ok(value)) = self
-            .header(&HeaderName::from_static("X-Forwarded-For"))
-            .await
-        {
+        if let Some(Ok(value)) = self.req().await.get("x-forwarded-for") {
             for addr_str in value.split(',') {
                 if let Ok(addr) = addr_str.trim().parse() {
                     addrs.push(addr)
@@ -54,16 +48,92 @@ impl<M: Model> Forward for Context<M> {
     }
 
     async fn forwarded_proto(&self) -> Option<Result<String, Status>> {
-        self.header(&HeaderName::from_static("X-Forwarded-Proto"))
+        self.req()
             .await
-            .map(|value| {
-                value.map_err(|err| {
-                    Status::new(
-                        StatusCode::BAD_REQUEST,
-                        format!("{}\nvalue of X-Forwarded-Proto is not a valid string", err),
-                        true,
-                    )
-                })
+            .get("x-forwarded-proto")
+            .map(|result| result.map(|value| value.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Forward;
+    use crate::App;
+    use async_std::task::spawn;
+    use http::header::HOST;
+    use http::{HeaderValue, StatusCode};
+
+    #[tokio::test]
+    async fn host() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                assert_eq!("github.com", ctx.host().await?);
+                Ok(())
             })
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(HOST, HeaderValue::from_static("github.com"))
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(HOST, "google.com")
+            .header("x-forwarded-host", "github.com")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn host_err() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                ctx.req_mut().await.headers.remove(HOST);
+                assert_eq!("", ctx.host().await?);
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+        assert_eq!(
+            "header `host` or `x-forwarded-host` is not set",
+            resp.text().await?
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn client_ip() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                assert_eq!(ctx.remote_addr().ip(), ctx.client_ip().await);
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        reqwest::get(&format!("http://{}", addr)).await?;
+
+        let (addr, server) = App::new(())
+            .gate(move |ctx, _next| async move {
+                assert_eq!("192.168.0.1", ctx.client_ip().await.to_string());
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+        client
+            .get(&format!("http://{}", addr))
+            .header("x-forwarded-for", "192.168.0.1, 8.8.8.8")
+            .send()
+            .await?;
+
+        Ok(())
     }
 }

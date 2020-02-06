@@ -338,7 +338,7 @@ mod tests {
     #[should_panic]
     #[test]
     fn invalid_options_origin() {
-        cors::<()>(Options {
+        let _ = cors::<()>(Options {
             allow_origin: Some("\r\n".to_string()),
             ..Options::default()
         });
