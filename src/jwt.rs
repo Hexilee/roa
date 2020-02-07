@@ -1,7 +1,7 @@
 pub use async_trait::async_trait;
 pub use jsonwebtoken::Validation;
 
-use crate::{Context, DynTargetHandler, Model, Next, Status, StatusCode, TargetHandler};
+use crate::{Context, DynTargetHandler, Error, Model, Next, StatusCode, TargetHandler};
 use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
 use http::HeaderValue;
 use jsonwebtoken::decode;
@@ -17,21 +17,21 @@ where
     M: Model,
     C: 'static + Serialize + DeserializeOwned,
 {
-    async fn verify(&self, validation: &Validation) -> Result<C, Status>;
+    async fn verify(&self, validation: &Validation) -> Result<C, Error>;
 }
 
 async fn unauthorized_error<M: Model, E: ToString>(
     ctx: &Context<M>,
     www_authentication: &'static str,
-) -> impl Fn(E) -> Status {
+) -> impl Fn(E) -> Error {
     ctx.resp_mut().await.headers.insert(
         WWW_AUTHENTICATE,
         HeaderValue::from_static(www_authentication),
     );
-    |_err| Status::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
+    |_err| Error::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
 }
 
-async fn try_get_token<M: Model>(ctx: &Context<M>) -> Result<String, Status> {
+async fn try_get_token<M: Model>(ctx: &Context<M>) -> Result<String, Error> {
     match ctx.header(&AUTHORIZATION).await {
         None | Some(Err(_)) => Err((unauthorized_error(&mut ctx.clone(), INVALID_TOKEN).await)(
             "",
@@ -71,14 +71,14 @@ where
     M: Model,
     C: 'static + Serialize + DeserializeOwned + Send,
 {
-    async fn verify(&self, validation: &Validation) -> Result<C, Status> {
+    async fn verify(&self, validation: &Validation) -> Result<C, Error> {
         let secret = self.load::<JwtSymbol>("secret").await;
         let token = self.load::<JwtSymbol>("token").await;
         match (secret, token) {
             (Some(secret), Some(token)) => decode(&token, secret.as_bytes(), &validation)
                 .map_err(unauthorized_error(self, INVALID_TOKEN).await)
                 .map(|data| data.claims),
-            _ => Err(Status::new(
+            _ => Err(Error::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "middleware `jwt_verify` is not set correctly",
                 false,
@@ -90,7 +90,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{jwt_verify, JwtVerifier, Validation, INVALID_TOKEN};
-    use crate::{App, Status};
+    use crate::{App, Error};
     use async_std::task::spawn;
     use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use http::StatusCode;
@@ -203,7 +203,7 @@ mod tests {
         let mut app = App::new(());
         let (addr, server) = app
             .gate(move |ctx, _next| async move {
-                let result: Result<User, Status> = ctx.verify(&Validation::default()).await;
+                let result: Result<User, Error> = ctx.verify(&Validation::default()).await;
                 assert!(result.is_err());
                 let status = result.unwrap_err();
                 assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);

@@ -1,4 +1,4 @@
-use crate::{Context, Model, Next, Status, Variable};
+use crate::{Context, Error, Model, Next, Variable};
 use async_trait::async_trait;
 use http::StatusCode;
 use url::form_urlencoded::parse;
@@ -7,11 +7,11 @@ struct QuerySymbol;
 
 #[async_trait]
 pub trait Query {
-    async fn query<'a>(&self, name: &'a str) -> Result<Variable<'a>, Status>;
+    async fn query<'a>(&self, name: &'a str) -> Result<Variable<'a>, Error>;
     async fn try_query<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
 }
 
-pub async fn query_parser<M: Model>(ctx: Context<M>, next: Next) -> Result<(), Status> {
+pub async fn query_parser<M: Model>(ctx: Context<M>, next: Next) -> Result<(), Error> {
     let uri = ctx.uri().await;
     let query_string = uri.query().unwrap_or("");
     for (key, value) in parse(query_string.as_bytes()) {
@@ -22,8 +22,8 @@ pub async fn query_parser<M: Model>(ctx: Context<M>, next: Next) -> Result<(), S
 
 #[async_trait]
 impl<M: Model> Query for Context<M> {
-    async fn query<'a>(&self, name: &'a str) -> Result<Variable<'a>, Status> {
-        self.try_query(name).await.ok_or(Status::new(
+    async fn query<'a>(&self, name: &'a str) -> Result<Variable<'a>, Error> {
+        self.try_query(name).await.ok_or(Error::new(
             StatusCode::BAD_REQUEST,
             format!("query `{}` is required", name),
             true,

@@ -20,8 +20,8 @@ pub use body::{Body, Callback as BodyCallback};
 pub use context::{Bucket, Context, Variable};
 
 #[doc(inline)]
-pub use err::{throw, Status, StatusFuture, StatusKind};
-pub(crate) use handler::default_status_handler;
+pub use err::{throw, Error, ErrorKind, Result, ResultFuture};
+pub(crate) use handler::default_error_handler;
 
 #[doc(inline)]
 pub use handler::{DynHandler, DynTargetHandler, Handler, TargetHandler};

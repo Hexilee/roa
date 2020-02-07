@@ -6,9 +6,7 @@ use endpoint::Endpoint;
 use err::{Conflict, Error};
 use path::{join_path, standardize_path, Path};
 
-use crate::{
-    throw, Context, DynTargetHandler, Group, Model, Next, Status, TargetHandler, Variable,
-};
+use crate::{throw, Context, DynTargetHandler, Error, Group, Model, Next, TargetHandler, Variable};
 use async_trait::async_trait;
 use http::StatusCode;
 use percent_encoding::percent_decode_str;
@@ -20,7 +18,7 @@ struct RouterSymbol;
 
 #[async_trait]
 pub trait RouterParam {
-    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Status>;
+    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Error>;
     async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
 }
 
@@ -73,7 +71,7 @@ impl<M: Model> Router<M> {
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
+        F: 'static + Future<Output = Result<(), Error>> + Send,
     {
         self.middleware.join(middleware);
         self
@@ -146,7 +144,7 @@ impl<M: Model> Router<M> {
                 let path =
                     standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
                         |err| {
-                            Status::new(
+                            Error::new(
                                 StatusCode::BAD_REQUEST,
                                 format!(
                                     "{}\npath `{}` is not a valid utf-8 string",
@@ -179,8 +177,8 @@ impl<M: Model> Router<M> {
 
 #[async_trait]
 impl<M: Model> RouterParam for Context<M> {
-    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Status> {
-        self.try_param(name).await.ok_or(Status::new(
+    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Error> {
+        self.try_param(name).await.ok_or(Error::new(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("router variable `{}` is required", name),
             false,

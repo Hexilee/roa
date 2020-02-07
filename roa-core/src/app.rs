@@ -2,8 +2,8 @@ mod executor;
 mod tcp;
 
 use crate::{
-    default_status_handler, last, Context, DynTargetHandler, Group, Model, Next, Request, Response,
-    Status, TargetHandler,
+    default_error_handler, last, Context, DynTargetHandler, Error, Group, Model, Next, Request,
+    Response, Result, TargetHandler,
 };
 use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};
@@ -13,6 +13,7 @@ use hyper::Server;
 use std::future::Future;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::pin::Pin;
+use std::result::Result as StdResult;
 use std::sync::Arc;
 use std::task::Poll;
 pub use tcp::{AddrIncoming, AddrStream};
@@ -134,7 +135,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// ```
 pub struct App<M: Model> {
     middleware: Group<M>,
-    status_handler: Arc<DynTargetHandler<M, Status>>,
+    error_handler: Arc<DynTargetHandler<M, Error>>,
     pub(crate) model: Arc<M>,
 }
 
@@ -149,7 +150,7 @@ impl<M: Model> App<M> {
     pub fn new(model: M) -> Self {
         Self {
             middleware: Group::new(),
-            status_handler: Arc::from(Box::new(default_status_handler).dynamic()),
+            error_handler: Arc::from(Box::new(default_error_handler).dynamic()),
             model: Arc::new(model),
         }
     }
@@ -160,40 +161,40 @@ impl<M: Model> App<M> {
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
+        F: 'static + Future<Output = Result> + Send,
     {
         self.middleware.join(middleware);
         self
     }
 
-    /// Set a custom status handler. status_handler will be called when middlewares return an `Err(Status)`.
-    /// The status thrown by status_handler will be thrown to hyper.
+    /// Set a custom error handler. error_handler will be called when middlewares return an `Err(Error)`.
+    /// The error thrown by error_handler will be thrown to hyper.
     /// ```rust
-    /// use roa_core::{Model, Context, Status, StatusKind};
+    /// use roa_core::{Model, Context, Error, ErrorKind, Result};
     ///
-    /// pub async fn default_status_handler<M: Model>(
+    /// pub async fn default_error_handler<M: Model>(
     ///     context: Context<M>,
-    ///     status: Status,
-    /// ) -> Result<(), Status> {
-    ///     context.resp_mut().await.status = status.status_code;
-    ///     if status.expose {
-    ///         context.resp_mut().await.write_str(&status.message);
+    ///     err: Error,
+    /// ) -> Result {
+    ///     context.resp_mut().await.status = err.status_code;
+    ///     if err.expose {
+    ///         context.resp_mut().await.write_str(&err.message);
     ///     }
-    ///     if status.kind == StatusKind::ServerError || status.kind == StatusKind::Unknown {
-    ///         Err(status)
+    ///     if err.kind == ErrorKind::ServerError || err.kind == ErrorKind::Unknown {
+    ///         Err(err)
     ///     } else {
     ///         Ok(())
     ///     }
     /// }
     /// ```
-    pub fn handle_status<F>(
+    pub fn handle_err<F>(
         &mut self,
-        handler: impl 'static + Sync + Send + Fn(Context<M>, Status) -> F,
+        handler: impl 'static + Sync + Send + Fn(Context<M>, Error) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
+        F: 'static + Future<Output = Result> + Send,
     {
-        self.status_handler = Arc::from(Box::new(handler).dynamic());
+        self.error_handler = Arc::from(Box::new(handler).dynamic());
         self
     }
 
@@ -262,14 +263,13 @@ impl<M: Model> App<M> {
 macro_rules! impl_poll_ready {
     () => {
         #[inline]
-        fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<StdResult<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
     };
 }
 
-type AppFuture<M> =
-    Pin<Box<dyn 'static + Future<Output = Result<HttpService<M>, std::io::Error>> + Send>>;
+type AppFuture<M> = Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<M>>> + Send>>;
 
 impl<M: Model> Service<&AddrStream> for App<M> {
     type Response = HttpService<M>;
@@ -285,12 +285,11 @@ impl<M: Model> Service<&AddrStream> for App<M> {
     }
 }
 
-type HttpFuture =
-    Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>, Status>> + Send>>;
+type HttpFuture = Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>>> + Send>>;
 
 impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
     type Response = HttpResponse<HyperBody>;
-    type Error = Status;
+    type Error = Error;
     type Future = HttpFuture;
     impl_poll_ready!();
 
@@ -306,12 +305,11 @@ impl<M: Model> HttpService<M> {
         Self { app, stream }
     }
 
-    #[inline]
-    pub async fn serve(&self, req: Request) -> Result<Response, Status> {
+    pub async fn serve(&self, req: Request) -> Result<Response> {
         let context = Context::new(req, self.app.clone(), self.stream.clone());
         let app = self.app.clone();
         if let Err(status) = (app.middleware.handler())(context.clone(), Box::new(last)).await {
-            (app.status_handler)(context.clone(), status).await?;
+            (app.error_handler)(context.clone(), status).await?;
         }
         let mut response = context.resp_mut().await;
         Ok(std::mem::take(&mut *response))
@@ -322,7 +320,7 @@ impl<M: Model> Clone for App<M> {
     fn clone(&self) -> Self {
         Self {
             middleware: self.middleware.clone(),
-            status_handler: self.status_handler.clone(),
+            error_handler: self.error_handler.clone(),
             model: self.model.clone(),
         }
     }

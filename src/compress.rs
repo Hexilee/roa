@@ -1,4 +1,4 @@
-use crate::{Body, Context, DynTargetHandler, Model, Next, Status, TargetHandler};
+use crate::{Body, Context, DynTargetHandler, Error, Model, Next, TargetHandler};
 use accept_encoding::{parse, Encoding};
 use async_compression::flate2::Compression;
 use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
@@ -31,7 +31,7 @@ pub fn compress<M: Model>(level: Level) -> Box<DynTargetHandler<M, Next>> {
         next().await?;
         let body: Body = std::mem::take(&mut *ctx.resp_mut().await);
         let content_encoding = match parse(&ctx.req().await.headers)
-            .map_err(|err| Status::new(StatusCode::BAD_REQUEST, err, true))?
+            .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?
         {
             None | Some(Encoding::Gzip) => {
                 ctx.resp_mut()

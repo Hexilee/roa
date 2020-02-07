@@ -1,11 +1,11 @@
-use crate::{Request, Response, Status};
+use crate::{Error, Request, Response};
 use http::header::{
     AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, InvalidHeaderValue, ToStrError,
 };
 use http::StatusCode;
 
-fn handle_invalid_header_value(err: InvalidHeaderValue, value: &str) -> Status {
-    Status::new(
+fn handle_invalid_header_value(err: InvalidHeaderValue, value: &str) -> Error {
+    Error::new(
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("{}\n{} is not a valid header value", err, value),
         false,
@@ -19,26 +19,26 @@ pub trait FriendlyHeaders {
 
     fn raw_mut_header_map(&mut self) -> &mut HeaderMap<HeaderValue>;
 
-    fn handle_to_str_error(err: ToStrError, value: &HeaderValue) -> Status {
-        Status::new(
+    fn handle_to_str_error(err: ToStrError, value: &HeaderValue) -> Error {
+        Error::new(
             Self::GENERAL_ERROR_CODE,
             format!("{}\n{:?} is not a valid string", err, value),
             true,
         )
     }
 
-    fn handle_none<K>(key: K) -> Status
+    fn handle_none<K>(key: K) -> Error
     where
         K: AsHeaderName + AsRef<str>,
     {
-        Status::new(
+        Error::new(
             Self::GENERAL_ERROR_CODE,
             format!("header `{}` is required", key.as_ref()),
             true,
         )
     }
 
-    fn get<K>(&self, key: K) -> Option<Result<&str, Status>>
+    fn get<K>(&self, key: K) -> Option<Result<&str, Error>>
     where
         K: AsHeaderName + AsRef<str>,
     {
@@ -49,7 +49,7 @@ pub trait FriendlyHeaders {
         })
     }
 
-    fn must_get<K>(&self, key: K) -> Result<&str, Status>
+    fn must_get<K>(&self, key: K) -> Result<&str, Error>
     where
         K: AsHeaderName + AsRef<str>,
     {
@@ -59,7 +59,7 @@ pub trait FriendlyHeaders {
         }
     }
 
-    fn get_all<K>(&self, key: K) -> Result<Vec<&str>, Status>
+    fn get_all<K>(&self, key: K) -> Result<Vec<&str>, Error>
     where
         K: AsHeaderName,
     {
@@ -74,7 +74,7 @@ pub trait FriendlyHeaders {
         Ok(ret)
     }
 
-    fn insert<K, V>(&mut self, key: K, val: V) -> Result<Option<String>, Status>
+    fn insert<K, V>(&mut self, key: K, val: V) -> Result<Option<String>, Error>
     where
         K: IntoHeaderName,
         V: AsRef<str>,
@@ -96,7 +96,7 @@ pub trait FriendlyHeaders {
         })
     }
 
-    fn append<K, V>(&mut self, key: K, val: V) -> Result<bool, Status>
+    fn append<K, V>(&mut self, key: K, val: V) -> Result<bool, Error>
     where
         K: IntoHeaderName,
         V: AsRef<str>,

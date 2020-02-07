@@ -1,10 +1,10 @@
-use crate::Status;
+use crate::Exception;
 use http::StatusCode;
 use serde::de::DeserializeOwned;
 
-pub fn from_bytes<B: DeserializeOwned>(data: &[u8]) -> Result<B, Status> {
+pub fn from_bytes<B: DeserializeOwned>(data: &[u8]) -> Result<B, Exception> {
     serde_urlencoded::from_bytes(data).map_err(|err| {
-        Status::new(
+        Exception::new(
             StatusCode::BAD_REQUEST,
             format!("{}\ninvalid body", err),
             true,

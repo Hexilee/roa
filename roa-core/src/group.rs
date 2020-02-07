@@ -1,4 +1,4 @@
-use crate::{Context, DynTargetHandler, Model, Next, Status, TargetHandler};
+use crate::{Context, DynTargetHandler, Error, Model, Next, TargetHandler};
 use std::future::Future;
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ impl<M: Model> Group<M> {
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
+        F: 'static + Future<Output = Result<(), Error>> + Send,
     {
         let current = self.0.clone();
         let next_middleware: Arc<DynTargetHandler<M, Next>> =

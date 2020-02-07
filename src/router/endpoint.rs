@@ -1,6 +1,8 @@
 use super::{Conflict, Path};
 use http::{Method, StatusCode};
-use roa_core::{throw, Context, DynHandler, DynTargetHandler, Group, Handler, Model, Next, Status};
+use roa_core::{
+    throw, Context, DynHandler, DynTargetHandler, Exception, Group, Handler, Model, Next,
+};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
@@ -36,7 +38,7 @@ impl<M: Model> Endpoint<M> {
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result<(), Status>> + Send,
+        F: 'static + Future<Output = Result<(), Exception>> + Send,
     {
         self.middleware.join(middleware);
         self
@@ -48,7 +50,7 @@ impl<M: Model> Endpoint<M> {
         handler: impl 'static + Sync + Send + Fn(Context<M>) -> F,
     ) -> &mut Self
     where
-        F: 'static + Send + Future<Output = Result<(), Status>>,
+        F: 'static + Send + Future<Output = Result<(), Exception>>,
     {
         let dyn_handler: Arc<DynHandler<M>> = Arc::from(Box::new(handler).dynamic());
         for method in methods {

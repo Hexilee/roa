@@ -1,4 +1,4 @@
-use crate::{AddrStream, App, Model, Request, Response, Status};
+use crate::{AddrStream, App, Error, Model, Request, Response};
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use http::header::{HeaderName, ToStrError};
@@ -119,13 +119,13 @@ impl<'a> Variable<'a> {
     /// assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
     /// assert!(status.message.ends_with("type of variable `id` should be usize"));
     /// ```
-    pub fn parse<T>(&self) -> Result<T, Status>
+    pub fn parse<T>(&self) -> Result<T, Error>
     where
         T: FromStr,
         T::Err: Display,
     {
         self.as_ref().parse().map_err(|err| {
-            Status::new(
+            Error::new(
                 StatusCode::BAD_REQUEST,
                 format!(
                     "{}\ntype of variable `{}` should be {}",

@@ -2,18 +2,21 @@ pub use http::StatusCode;
 use std::fmt::{Display, Formatter};
 use std::future::Future;
 use std::pin::Pin;
+use std::result::Result as StdResult;
 
-pub type StatusFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R, Status>> + Send>>;
+pub type Result<R = ()> = StdResult<R, Error>;
 
-pub fn throw<R>(status_code: StatusCode, message: impl ToString) -> Result<R, Status> {
-    Err(Status::new(status_code, message, true))
+pub type ResultFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>> + Send>>;
+
+pub fn throw<R>(status_code: StatusCode, message: impl ToString) -> Result<R> {
+    Err(Error::new(status_code, message, true))
 }
 
 #[derive(Debug, Clone)]
-pub struct Status {
+pub struct Error {
     pub status_code: StatusCode,
 
-    pub kind: StatusKind,
+    pub kind: ErrorKind,
 
     // response body if self.expose
     pub message: String,
@@ -23,7 +26,7 @@ pub struct Status {
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub enum StatusKind {
+pub enum ErrorKind {
     /// [[RFC7231, Section 6.2](https://tools.ietf.org/html/rfc7231#section-6.2)]
     Informational,
 
@@ -42,9 +45,9 @@ pub enum StatusKind {
     Unknown,
 }
 
-impl StatusKind {
+impl ErrorKind {
     fn infer(status_code: StatusCode) -> Self {
-        use StatusKind::*;
+        use ErrorKind::*;
         match status_code.as_u16() / 100 {
             1 => Informational,
             2 => panic!(
@@ -60,24 +63,24 @@ impl StatusKind {
     }
 }
 
-impl Status {
+impl Error {
     pub fn new(status_code: StatusCode, message: impl ToString, expose: bool) -> Self {
         Self {
             status_code,
-            kind: StatusKind::infer(status_code),
+            kind: ErrorKind::infer(status_code),
             message: message.to_string(),
             expose,
         }
     }
 
     pub(crate) fn need_throw(&self) -> bool {
-        self.kind == StatusKind::ServerError || self.kind == StatusKind::Unknown
+        self.kind == ErrorKind::ServerError || self.kind == ErrorKind::Unknown
     }
 }
 
 macro_rules! internal_server_error {
     ($error:ty) => {
-        impl From<$error> for Status {
+        impl From<$error> for Error {
             fn from(err: $error) -> Self {
                 Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
             }
@@ -88,10 +91,10 @@ macro_rules! internal_server_error {
 internal_server_error!(std::io::Error);
 internal_server_error!(http::Error);
 
-impl Display for Status {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> StdResult<(), std::fmt::Error> {
         f.write_str(&format!("{}: {}", self.status_code, self.message))
     }
 }
 
-impl std::error::Error for Status {}
+impl std::error::Error for Error {}
