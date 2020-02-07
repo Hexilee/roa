@@ -60,7 +60,6 @@ lazy_static = "1.4.0"
 slab = "0.4.2"
 multimap = "0.8.0"
 hyper = "0.13"
-serial_test = { git = "https://github.com/palfrey/serial_test", branch = "tests-with-return-value"}
 
 [features]
 default = ["cookies", "router"]

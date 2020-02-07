@@ -47,6 +47,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// The `Model` and its `State` is designed to share data or handler between middlewares.
 /// The only one type implemented `Model` by this crate is `()`, you should implement your custom Model if neccassary.
 ///
+/// ### Example
 /// ```rust
 /// use roa_core::{App, Model};
 /// use log::info;
@@ -122,7 +123,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///         })?
 ///         .with_graceful_shutdown(async {
 ///             rx.await.ok();
-///         });;
+///         });
 ///     // Await the `server` receiving the signal...
 ///     // server.await;
 ///     

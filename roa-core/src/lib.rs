@@ -20,7 +20,7 @@ pub use body::{Body, Callback as BodyCallback};
 pub use context::{Bucket, Context, Variable};
 
 #[doc(inline)]
-pub use err::{throw, Status, StatusCode, StatusFuture, StatusKind};
+pub use err::{throw, Status, StatusFuture, StatusKind};
 pub(crate) use handler::default_status_handler;
 
 #[doc(inline)]
@@ -41,3 +41,5 @@ pub use request::Request;
 
 #[doc(inline)]
 pub use response::Response;
+
+pub use http::{header, StatusCode};
