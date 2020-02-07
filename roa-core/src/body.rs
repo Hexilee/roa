@@ -142,7 +142,7 @@ impl BufRead for Body {
             }
             mut_ref.counter += 1;
         };
-        if data.len() == 0 {
+        if data.is_empty() {
             let immut_ref = &*mut_ref;
             for callback in immut_ref.finish.iter() {
                 callback(immut_ref)

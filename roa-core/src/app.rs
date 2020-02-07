@@ -9,7 +9,7 @@ use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
-use hyper::Server;
+use hyper::Server as HyperServer;
 use std::future::Future;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::pin::Pin;
@@ -145,6 +145,9 @@ pub struct HttpService<M: Model> {
     stream: AddrStream,
 }
 
+/// Alias of `HyperServer<AddrIncoming, App<M>, Executor>`.
+pub type Server<M> = HyperServer<AddrIncoming, App<M>, Executor>;
+
 impl<M: Model> App<M> {
     /// Construct an Application from a Model.
     pub fn new(model: M) -> Self {
@@ -199,13 +202,10 @@ impl<M: Model> App<M> {
     }
 
     /// Listen on a socket addr, return a server and the real addr it binds.
-    fn listen_on(
-        &self,
-        addr: impl ToSocketAddrs,
-    ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
+    fn listen_on(&self, addr: impl ToSocketAddrs) -> std::io::Result<(SocketAddr, Server<M>)> {
         let incoming = AddrIncoming::bind(addr)?;
         let local_addr = incoming.local_addr();
-        let server = Server::builder(incoming)
+        let server = HyperServer::builder(incoming)
             .executor(Executor {})
             .serve(self.clone());
         Ok((local_addr, server))
@@ -216,16 +216,14 @@ impl<M: Model> App<M> {
         &self,
         addr: impl ToSocketAddrs,
         callback: impl Fn(SocketAddr),
-    ) -> std::io::Result<hyper::Server<AddrIncoming, App<M>, Executor>> {
+    ) -> std::io::Result<Server<M>> {
         let (addr, server) = self.listen_on(addr)?;
         callback(addr);
         Ok(server)
     }
 
     /// Listen on an unused port of 0.0.0.0, return a server and the real addr it binds.
-    pub fn run(
-        &self,
-    ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
+    pub fn run(&self) -> std::io::Result<(SocketAddr, Server<M>)> {
         self.listen_on("0.0.0.0:0")
     }
 
@@ -253,9 +251,7 @@ impl<M: Model> App<M> {
     ///     Ok(())
     /// }
     /// ```
-    pub fn run_local(
-        &self,
-    ) -> std::io::Result<(SocketAddr, hyper::Server<AddrIncoming, App<M>, Executor>)> {
+    pub fn run_local(&self) -> std::io::Result<(SocketAddr, Server<M>)> {
         self.listen_on("127.0.0.1:0")
     }
 }

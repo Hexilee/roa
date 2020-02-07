@@ -157,7 +157,7 @@ impl ErrorKind {
 }
 
 impl Error {
-    /// Construct Error.
+    /// Construct an error.
     pub fn new(status_code: StatusCode, message: impl ToString, expose: bool) -> Self {
         Self {
             status_code,

@@ -573,11 +573,7 @@ impl<M: Model> Context<M> {
     /// }
     /// ```
     pub async fn header_value(&self, name: &HeaderName) -> Option<HeaderValue> {
-        self.req()
-            .await
-            .headers
-            .get(name)
-            .map(|value| value.clone())
+        self.req().await.headers.get(name).cloned()
     }
 
     /// Clone response::status.
@@ -662,6 +658,7 @@ impl<M: Model> Context<M> {
     ///     Ok(())
     /// }
     /// ```
+    #[allow(clippy::needless_lifetimes)]
     pub async fn store<'a, T: 'static>(
         &self,
         name: &'a str,
@@ -739,6 +736,7 @@ impl<M: Model> Context<M> {
     ///     Ok(())
     /// }
     /// ```
+    #[allow(clippy::needless_lifetimes)]
     pub async fn load<'a, T: 'static>(&self, name: &'a str) -> Option<Variable<'a>> {
         let storage = self.storage().await;
         let id = TypeId::of::<T>();

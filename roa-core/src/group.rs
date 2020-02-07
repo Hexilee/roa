@@ -40,6 +40,12 @@ impl<M: Model> Clone for Group<M> {
     }
 }
 
+impl<M: Model> Default for Group<M> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Group;
@@ -52,7 +58,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut middleware = Group::<()>::new();
+        let mut middleware = Group::<()>::default();
         for i in 0..100 {
             let vec = vector.clone();
             middleware.join(move |_ctx, next| {
