@@ -180,7 +180,7 @@ impl<M: Model> App<M> {
     ///     if err.expose {
     ///         context.resp_mut().await.write_str(&err.message);
     ///     }
-    ///     if err.kind == ErrorKind::ServerError || err.kind == ErrorKind::Unknown {
+    ///     if err.kind == ErrorKind::ServerError {
     ///         Err(err)
     ///     } else {
     ///         Ok(())
