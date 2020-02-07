@@ -1,4 +1,4 @@
-use crate::{Error, Request, Response};
+use crate::{Error, Request, Response, Result};
 use http::header::{
     AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, InvalidHeaderValue, ToStrError,
 };
@@ -38,7 +38,7 @@ pub trait FriendlyHeaders {
         )
     }
 
-    fn get<K>(&self, key: K) -> Option<Result<&str, Error>>
+    fn get<K>(&self, key: K) -> Option<Result<&str>>
     where
         K: AsHeaderName + AsRef<str>,
     {
@@ -49,7 +49,7 @@ pub trait FriendlyHeaders {
         })
     }
 
-    fn must_get<K>(&self, key: K) -> Result<&str, Error>
+    fn must_get<K>(&self, key: K) -> Result<&str>
     where
         K: AsHeaderName + AsRef<str>,
     {
@@ -59,7 +59,7 @@ pub trait FriendlyHeaders {
         }
     }
 
-    fn get_all<K>(&self, key: K) -> Result<Vec<&str>, Error>
+    fn get_all<K>(&self, key: K) -> Result<Vec<&str>>
     where
         K: AsHeaderName,
     {
@@ -74,7 +74,7 @@ pub trait FriendlyHeaders {
         Ok(ret)
     }
 
-    fn insert<K, V>(&mut self, key: K, val: V) -> Result<Option<String>, Error>
+    fn insert<K, V>(&mut self, key: K, val: V) -> Result<Option<String>>
     where
         K: IntoHeaderName,
         V: AsRef<str>,
@@ -96,7 +96,7 @@ pub trait FriendlyHeaders {
         })
     }
 
-    fn append<K, V>(&mut self, key: K, val: V) -> Result<bool, Error>
+    fn append<K, V>(&mut self, key: K, val: V) -> Result<bool>
     where
         K: IntoHeaderName,
         V: AsRef<str>,

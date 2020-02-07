@@ -1,19 +1,19 @@
-use crate::{preload::*, throw, Context, Error, Model};
+use crate::{preload::*, throw, Context, Model, Result};
 use async_trait::async_trait;
 use http::{header::HOST, StatusCode};
 use std::net::IpAddr;
 
 #[async_trait]
 pub trait Forward {
-    async fn host(&self) -> Result<String, Error>;
+    async fn host(&self) -> Result<String>;
     async fn client_ip(&self) -> IpAddr;
     async fn forwarded_ips(&self) -> Vec<IpAddr>;
-    async fn forwarded_proto(&self) -> Option<Result<String, Error>>;
+    async fn forwarded_proto(&self) -> Option<Result<String>>;
 }
 
 #[async_trait]
 impl<M: Model> Forward for Context<M> {
-    async fn host(&self) -> Result<String, Error> {
+    async fn host(&self) -> Result<String> {
         if let Some(Ok(value)) = self.req().await.get("x-forwarded-host") {
             Ok(value.to_string())
         } else if let Some(Ok(value)) = self.req().await.get(&HOST) {
@@ -47,7 +47,7 @@ impl<M: Model> Forward for Context<M> {
         addrs
     }
 
-    async fn forwarded_proto(&self) -> Option<Result<String, Error>> {
+    async fn forwarded_proto(&self) -> Option<Result<String>> {
         self.req()
             .await
             .get("x-forwarded-proto")

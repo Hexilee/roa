@@ -1,9 +1,9 @@
-use crate::{Body, BodyCallback, Context, Error, Model, Next};
+use crate::{Body, BodyCallback, Context, Model, Next, Result};
 use bytesize::ByteSize;
 use log::{error, info};
 use std::time::Instant;
 
-pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result<(), Error> {
+pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result {
     let start = Instant::now();
     let method = ctx.method().await;
     let uri = ctx.uri().await;

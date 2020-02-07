@@ -1,7 +1,7 @@
 pub use async_trait::async_trait;
 pub use jsonwebtoken::Validation;
 
-use crate::{Context, DynTargetHandler, Error, Model, Next, StatusCode, TargetHandler};
+use crate::{Context, DynTargetHandler, Error, Model, Next, Result, StatusCode, TargetHandler};
 use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
 use http::HeaderValue;
 use jsonwebtoken::decode;
@@ -17,7 +17,7 @@ where
     M: Model,
     C: 'static + Serialize + DeserializeOwned,
 {
-    async fn verify(&self, validation: &Validation) -> Result<C, Error>;
+    async fn verify(&self, validation: &Validation) -> Result<C>;
 }
 
 async fn unauthorized_error<M: Model, E: ToString>(
@@ -31,7 +31,7 @@ async fn unauthorized_error<M: Model, E: ToString>(
     |_err| Error::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
 }
 
-async fn try_get_token<M: Model>(ctx: &Context<M>) -> Result<String, Error> {
+async fn try_get_token<M: Model>(ctx: &Context<M>) -> Result<String> {
     match ctx.header(&AUTHORIZATION).await {
         None | Some(Err(_)) => Err((unauthorized_error(&mut ctx.clone(), INVALID_TOKEN).await)(
             "",
@@ -71,7 +71,7 @@ where
     M: Model,
     C: 'static + Serialize + DeserializeOwned + Send,
 {
-    async fn verify(&self, validation: &Validation) -> Result<C, Error> {
+    async fn verify(&self, validation: &Validation) -> Result<C> {
         let secret = self.load::<JwtSymbol>("secret").await;
         let token = self.load::<JwtSymbol>("token").await;
         match (secret, token) {

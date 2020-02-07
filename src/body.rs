@@ -4,7 +4,7 @@ mod mime_ext;
 mod urlencoded;
 
 use crate::header::FriendlyHeaders;
-use crate::{throw, Context, Error, Model};
+use crate::{throw, Context, Error, Model, Result};
 use askama::Template;
 use async_std::fs::File;
 use async_trait::async_trait;
@@ -22,46 +22,43 @@ const APPLICATION_JSON_UTF_8: &str = "application/json; charset=utf-8";
 #[async_trait]
 pub trait PowerBody {
     /// try to get mime content type of request.
-    async fn request_type(&self) -> Option<Result<Mime, Error>>;
+    async fn request_type(&self) -> Option<Result<Mime>>;
 
     /// try to get mime content type of response.
-    async fn response_type(&self) -> Option<Result<Mime, Error>>;
+    async fn response_type(&self) -> Option<Result<Mime>>;
 
     /// read request body as Vec<u8>.
-    async fn body_buf(&self) -> Result<Vec<u8>, Error>;
+    async fn body_buf(&self) -> Result<Vec<u8>>;
 
     /// read request body by Content-Type.
-    async fn read<B: DeserializeOwned>(&self) -> Result<B, Error>;
+    async fn read<B: DeserializeOwned>(&self) -> Result<B>;
 
     /// read request body as "application/json".
-    async fn read_json<B: DeserializeOwned>(&self) -> Result<B, Error>;
+    async fn read_json<B: DeserializeOwned>(&self) -> Result<B>;
 
     /// read request body as "application/x-www-form-urlencoded".
-    async fn read_form<B: DeserializeOwned>(&self) -> Result<B, Error>;
+    async fn read_form<B: DeserializeOwned>(&self) -> Result<B>;
 
     // read request body as "multipart/form-data"
     // async fn read_multipart(&self) -> Result<B, Status>;
 
     /// write object to response body as "application/json; charset=utf-8"
-    async fn write_json<B: Serialize + Sync>(&self, data: &B) -> Result<(), Error>;
+    async fn write_json<B: Serialize + Sync>(&self, data: &B) -> Result;
 
     /// write object to response body as "text/html; charset=utf-8"
-    async fn render<B: Template + Sync>(&self, data: &B) -> Result<(), Error>;
+    async fn render<B: Template + Sync>(&self, data: &B) -> Result;
 
     /// write object to response body as "text/plain; charset=utf-8"
-    async fn write_text<S: ToString + Send>(&self, string: S) -> Result<(), Error>;
+    async fn write_text<S: ToString + Send>(&self, string: S) -> Result;
 
     /// write object to response body as "application/octet-stream"
-    async fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(
-        &self,
-        reader: B,
-    ) -> Result<(), Error>;
+    async fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(&self, reader: B) -> Result;
 
     /// write object to response body as extension name of file
-    async fn write_file<P: AsRef<Path> + Send>(&self, path: P) -> Result<(), Error>;
+    async fn write_file<P: AsRef<Path> + Send>(&self, path: P) -> Result;
 }
 
-fn parse_mime(value: &str) -> Result<Mime, Error> {
+fn parse_mime(value: &str) -> Result<Mime> {
     value.parse().map_err(|err| {
         Error::new(
             StatusCode::BAD_REQUEST,
@@ -73,21 +70,21 @@ fn parse_mime(value: &str) -> Result<Mime, Error> {
 
 #[async_trait]
 impl<M: Model> PowerBody for Context<M> {
-    async fn request_type(&self) -> Option<Result<Mime, Error>> {
+    async fn request_type(&self) -> Option<Result<Mime>> {
         self.req()
             .await
             .get(http::header::CONTENT_TYPE)
             .map(|result| result.and_then(parse_mime))
     }
 
-    async fn response_type(&self) -> Option<Result<Mime, Error>> {
+    async fn response_type(&self) -> Option<Result<Mime>> {
         self.resp()
             .await
             .get(http::header::CONTENT_TYPE)
             .map(|result| result.and_then(parse_mime))
     }
 
-    async fn body_buf(&self) -> Result<Vec<u8>, Error> {
+    async fn body_buf(&self) -> Result<Vec<u8>> {
         let mut data = Vec::new();
         self.req_mut().await.read_to_end(&mut data).await?;
         Ok(data)
@@ -95,7 +92,7 @@ impl<M: Model> PowerBody for Context<M> {
 
     // return BAD_REQUEST status while parsing Content-Type fails.
     // Content-Type can only be JSON or URLENCODED, otherwise this function will return UNSUPPORTED_MEDIA_TYPE error.
-    async fn read<B: DeserializeOwned>(&self) -> Result<B, Error> {
+    async fn read<B: DeserializeOwned>(&self) -> Result<B> {
         match self.request_type().await {
             None => self.read_json().await,
             Some(ret) => {
@@ -114,7 +111,7 @@ impl<M: Model> PowerBody for Context<M> {
         }
     }
 
-    async fn read_json<B: DeserializeOwned>(&self) -> Result<B, Error> {
+    async fn read_json<B: DeserializeOwned>(&self) -> Result<B> {
         let data = self.body_buf().await?;
         match self.request_type().await {
             None | Some(Err(_)) => json::from_bytes(&data),
@@ -131,11 +128,11 @@ impl<M: Model> PowerBody for Context<M> {
         }
     }
 
-    async fn read_form<B: DeserializeOwned>(&self) -> Result<B, Error> {
+    async fn read_form<B: DeserializeOwned>(&self) -> Result<B> {
         urlencoded::from_bytes(&self.body_buf().await?)
     }
 
-    async fn write_json<B: Serialize + Sync>(&self, data: &B) -> Result<(), Error> {
+    async fn write_json<B: Serialize + Sync>(&self, data: &B) -> Result {
         self.resp_mut().await.write_bytes(json::to_bytes(data)?);
         self.resp_mut()
             .await
@@ -143,7 +140,7 @@ impl<M: Model> PowerBody for Context<M> {
         Ok(())
     }
 
-    async fn render<B: Template + Sync>(&self, data: &B) -> Result<(), Error> {
+    async fn render<B: Template + Sync>(&self, data: &B) -> Result {
         self.resp_mut().await.write_str(
             data.render()
                 .map_err(|err| Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false))?,
@@ -154,7 +151,7 @@ impl<M: Model> PowerBody for Context<M> {
         Ok(())
     }
 
-    async fn write_text<S: ToString + Send>(&self, string: S) -> Result<(), Error> {
+    async fn write_text<S: ToString + Send>(&self, string: S) -> Result {
         self.resp_mut().await.write_str(string.to_string());
         self.resp_mut()
             .await
@@ -162,10 +159,7 @@ impl<M: Model> PowerBody for Context<M> {
         Ok(())
     }
 
-    async fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(
-        &self,
-        reader: B,
-    ) -> Result<(), Error> {
+    async fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(&self, reader: B) -> Result {
         self.resp_mut().await.write_buf(reader);
         self.resp_mut()
             .await
@@ -173,7 +167,7 @@ impl<M: Model> PowerBody for Context<M> {
         Ok(())
     }
 
-    async fn write_file<P: AsRef<Path> + Send>(&self, path: P) -> Result<(), Error> {
+    async fn write_file<P: AsRef<Path> + Send>(&self, path: P) -> Result {
         let path = path.as_ref();
         self.resp_mut().await.write(File::open(path).await?);
 

@@ -1,4 +1,4 @@
-use crate::{Context, DynTargetHandler, Error, Model, Next, Result, TargetHandler};
+use crate::{Context, DynTargetHandler, Model, Next, Result, TargetHandler};
 use std::future::Future;
 use std::sync::Arc;
 

@@ -1,5 +1,5 @@
 use crate::header::FriendlyHeaders;
-use crate::{Context, Error, Model, Next};
+use crate::{Context, Error, Model, Next, Result};
 use async_trait::async_trait;
 pub use cookie::Cookie;
 use http::{header, StatusCode};
@@ -14,12 +14,12 @@ struct CookieSymbol;
 
 #[async_trait]
 pub trait Cookier {
-    async fn cookie(&self, name: &str) -> Result<String, Error>;
+    async fn cookie(&self, name: &str) -> Result<String>;
     async fn try_cookie(&self, name: &str) -> Option<String>;
-    async fn set_cookie(&self, cookie: Cookie<'_>) -> Result<(), Error>;
+    async fn set_cookie(&self, cookie: Cookie<'_>) -> Result;
 }
 
-pub async fn cookie_parser<M: Model>(ctx: Context<M>, next: Next) -> Result<(), Error> {
+pub async fn cookie_parser<M: Model>(ctx: Context<M>, next: Next) -> Result {
     if let Some(Ok(cookies)) = ctx.header(&header::COOKIE).await {
         for cookie in cookies
             .split(';')
@@ -36,7 +36,7 @@ pub async fn cookie_parser<M: Model>(ctx: Context<M>, next: Next) -> Result<(), 
 
 #[async_trait]
 impl<M: Model> Cookier for Context<M> {
-    async fn cookie(&self, name: &str) -> Result<String, Error> {
+    async fn cookie(&self, name: &str) -> Result<String> {
         match self.try_cookie(name).await {
             Some(value) => Ok(value),
             None => {
@@ -57,7 +57,7 @@ impl<M: Model> Cookier for Context<M> {
             .await
             .map(|var| var.into_value())
     }
-    async fn set_cookie(&self, cookie: Cookie<'_>) -> Result<(), Error> {
+    async fn set_cookie(&self, cookie: Cookie<'_>) -> Result {
         let cookie_value = cookie.encoded().to_string();
         self.resp_mut()
             .await
