@@ -2,8 +2,8 @@ mod executor;
 mod tcp;
 
 use crate::{
-    default_status_handler, last, Context, DynTargetHandler, Middleware, Model, Next, Request,
-    Response, Status, TargetHandler,
+    default_status_handler, last, Context, DynTargetHandler, Group, Model, Next, Request, Response,
+    Status, TargetHandler,
 };
 use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};
@@ -133,7 +133,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// }
 /// ```
 pub struct App<M: Model> {
-    middleware: Middleware<M>,
+    middleware: Group<M>,
     status_handler: Arc<DynTargetHandler<M, Status>>,
     pub(crate) model: Arc<M>,
 }
@@ -148,7 +148,7 @@ impl<M: Model> App<M> {
     /// Construct an Application from a Model.
     pub fn new(model: M) -> Self {
         Self {
-            middleware: Middleware::new(),
+            middleware: Group::new(),
             status_handler: Arc::from(Box::new(default_status_handler).dynamic()),
             model: Arc::new(model),
         }

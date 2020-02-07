@@ -7,7 +7,7 @@ use err::{Conflict, Error};
 use path::{join_path, standardize_path, Path};
 
 use crate::{
-    throw, Context, DynTargetHandler, Middleware, Model, Next, Status, TargetHandler, Variable,
+    throw, Context, DynTargetHandler, Group, Model, Next, Status, TargetHandler, Variable,
 };
 use async_trait::async_trait;
 use http::StatusCode;
@@ -55,7 +55,7 @@ impl<M: Model> Node<M> {
 
 pub struct Router<M: Model> {
     root: String,
-    middleware: Middleware<M>,
+    middleware: Group<M>,
     nodes: Vec<Node<M>>,
 }
 
@@ -63,7 +63,7 @@ impl<M: Model> Router<M> {
     pub fn new(path: impl ToString) -> Self {
         Self {
             root: path.to_string(),
-            middleware: Middleware::new(),
+            middleware: Group::new(),
             nodes: Vec::new(),
         }
     }
@@ -110,7 +110,7 @@ impl<M: Model> Router<M> {
         }
 
         for endpoint in endpoints.iter_mut() {
-            let mut new_middleware = Middleware::new();
+            let mut new_middleware = Group::new();
             new_middleware.join(middleware.handler());
             new_middleware.join(endpoint.middleware.handler());
             endpoint.middleware = new_middleware;

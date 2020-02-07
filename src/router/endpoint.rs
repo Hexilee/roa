@@ -1,8 +1,6 @@
 use super::{Conflict, Path};
 use http::{Method, StatusCode};
-use roa_core::{
-    throw, Context, DynHandler, DynTargetHandler, Handler, Middleware, Model, Next, Status,
-};
+use roa_core::{throw, Context, DynHandler, DynTargetHandler, Group, Handler, Model, Next, Status};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
@@ -20,7 +18,7 @@ macro_rules! impl_http_method {
 
 pub struct Endpoint<M: Model> {
     pub path: Arc<Path>,
-    pub(crate) middleware: Middleware<M>,
+    pub(crate) middleware: Group<M>,
     handlers: Vec<(Method, Arc<DynHandler<M>>)>,
 }
 
@@ -28,7 +26,7 @@ impl<M: Model> Endpoint<M> {
     pub fn new(path: Path) -> Self {
         Self {
             path: Arc::new(path),
-            middleware: Middleware::new(),
+            middleware: Group::new(),
             handlers: Vec::new(),
         }
     }

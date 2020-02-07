@@ -2,9 +2,9 @@ use crate::{Context, DynTargetHandler, Model, Next, Status, TargetHandler};
 use std::future::Future;
 use std::sync::Arc;
 
-pub struct Middleware<M: Model>(Arc<DynTargetHandler<M, Next>>);
+pub struct Group<M: Model>(Arc<DynTargetHandler<M, Next>>);
 
-impl<M: Model> Middleware<M> {
+impl<M: Model> Group<M> {
     pub fn new() -> Self {
         Self(Arc::new(|_ctx, next| next()))
     }
@@ -34,7 +34,7 @@ impl<M: Model> Middleware<M> {
     }
 }
 
-impl<M: Model> Clone for Middleware<M> {
+impl<M: Model> Clone for Group<M> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
@@ -42,7 +42,7 @@ impl<M: Model> Clone for Middleware<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::Middleware;
+    use super::Group;
     use crate::App;
     use async_std::task::spawn;
     use futures::lock::Mutex;
@@ -52,7 +52,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut middleware = Middleware::<()>::new();
+        let mut middleware = Group::<()>::new();
         for i in 0..100 {
             let vec = vector.clone();
             middleware.join(move |_ctx, next| {

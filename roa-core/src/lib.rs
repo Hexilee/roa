@@ -2,8 +2,8 @@ mod app;
 mod body;
 mod context;
 mod err;
+mod group;
 mod handler;
-mod middleware;
 mod model;
 mod next;
 mod request;
@@ -27,7 +27,7 @@ pub(crate) use handler::default_status_handler;
 pub use handler::{DynHandler, DynTargetHandler, Handler, TargetHandler};
 
 #[doc(inline)]
-pub use middleware::Middleware;
+pub use group::Group;
 
 #[doc(inline)]
 pub use model::{Model, State};
