@@ -3,22 +3,25 @@ mod err;
 mod path;
 
 use endpoint::Endpoint;
-use err::{Conflict, Error};
+use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path};
 
-use crate::{throw, Context, DynTargetHandler, Error, Group, Model, Next, TargetHandler, Variable};
+use crate::{
+    throw, Context, DynTargetHandler, Error, Group, Model, Next, Result, TargetHandler, Variable,
+};
 use async_trait::async_trait;
 use http::StatusCode;
 use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
 use std::future::Future;
+use std::result::Result as StdResult;
 use std::sync::Arc;
 
 struct RouterSymbol;
 
 #[async_trait]
 pub trait RouterParam {
-    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Error>;
+    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>>;
     async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
 }
 
@@ -71,13 +74,13 @@ impl<M: Model> Router<M> {
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result<(), Error>> + Send,
+        F: 'static + Future<Output = Result> + Send,
     {
         self.middleware.join(middleware);
         self
     }
 
-    pub fn on(&mut self, path: &'static str) -> Result<&mut Endpoint<M>, Error> {
+    pub fn on(&mut self, path: &'static str) -> StdResult<&mut Endpoint<M>, RouterError> {
         let endpoint = Endpoint::new(join_path([self.root.as_str(), path].as_ref()).parse()?);
         let index = self.nodes.len();
         self.nodes.push(Node::Endpoint(endpoint));
@@ -116,7 +119,7 @@ impl<M: Model> Router<M> {
         endpoints
     }
 
-    pub fn handler(self) -> Result<Box<DynTargetHandler<M, Next>>, Conflict> {
+    pub fn handler(self) -> StdResult<Box<DynTargetHandler<M, Next>>, Conflict> {
         let endpoints = self.endpoints();
         let mut static_route = Trie::new();
         let mut dynamic_route = Vec::new();
@@ -177,7 +180,7 @@ impl<M: Model> Router<M> {
 
 #[async_trait]
 impl<M: Model> RouterParam for Context<M> {
-    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>, Error> {
+    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
         self.try_param(name).await.ok_or(Error::new(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("router variable `{}` is required", name),

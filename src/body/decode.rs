@@ -1,13 +1,13 @@
-use crate::{throw, Exception};
+use crate::{throw, Error, Result};
 use encoding::label::encoding_from_whatwg_label;
 use http::StatusCode;
 
-pub fn decode(raw_data: &[u8], encoding: &str) -> Result<String, Exception> {
+pub fn decode(raw_data: &[u8], encoding: &str) -> Result<String> {
     match encoding_from_whatwg_label(encoding) {
         Some(encoder) => encoder
             .decode(raw_data, encoding::DecoderTrap::Strict)
             .map_err(|err| {
-                Exception::new(
+                Error::new(
                     StatusCode::BAD_REQUEST,
                     format!("{}\nbody cannot be decoded by `{}`", err, encoding),
                     true,

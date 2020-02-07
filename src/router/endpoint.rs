@@ -1,17 +1,16 @@
 use super::{Conflict, Path};
 use http::{Method, StatusCode};
-use roa_core::{
-    throw, Context, DynHandler, DynTargetHandler, Exception, Group, Handler, Model, Next,
-};
+use roa_core::{throw, Context, DynHandler, DynTargetHandler, Group, Handler, Model, Next, Result};
 use std::collections::HashMap;
 use std::future::Future;
+use std::result::Result as StdResult;
 use std::sync::Arc;
 
 macro_rules! impl_http_method {
     ($fn_name:ident, $($method:expr),*) => {
         pub fn $fn_name<F>(&mut self, handler: impl 'static + Sync + Send + Fn(Context<M>) -> F) -> &mut Self
         where
-            F: 'static + Send + Future<Output = Result<(), Status>>,
+            F: 'static + Send + Future<Output = Result>,
         {
             self.handle([$($method, )*].as_ref(), handler)
         }
@@ -38,7 +37,7 @@ impl<M: Model> Endpoint<M> {
         middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result<(), Exception>> + Send,
+        F: 'static + Future<Output = Result> + Send,
     {
         self.middleware.join(middleware);
         self
@@ -50,7 +49,7 @@ impl<M: Model> Endpoint<M> {
         handler: impl 'static + Sync + Send + Fn(Context<M>) -> F,
     ) -> &mut Self
     where
-        F: 'static + Send + Future<Output = Result<(), Exception>>,
+        F: 'static + Send + Future<Output = Result>,
     {
         let dyn_handler: Arc<DynHandler<M>> = Arc::from(Box::new(handler).dynamic());
         for method in methods {
@@ -81,7 +80,7 @@ impl<M: Model> Endpoint<M> {
         Method::CONNECT
     );
 
-    pub fn handler(self) -> Result<Box<DynTargetHandler<M, Next>>, Conflict> {
+    pub fn handler(self) -> StdResult<Box<DynTargetHandler<M, Next>>, Conflict> {
         let Self {
             path,
             mut middleware,

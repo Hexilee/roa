@@ -1,7 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
-pub enum Error {
+pub enum RouterError {
     MissingVariable(String),
     Conflict(Conflict),
 }
@@ -32,29 +32,29 @@ impl Display for Conflict {
     }
 }
 
-impl Display for Error {
+impl Display for RouterError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
-            Error::Conflict(conflict) => f.write_str(&format!("Conflict! {}", conflict)),
-            Error::MissingVariable(path) => {
+            RouterError::Conflict(conflict) => f.write_str(&format!("Conflict! {}", conflict)),
+            RouterError::MissingVariable(path) => {
                 f.write_str(&format!("missing variable on path {}", path))
             }
         }
     }
 }
 
-impl From<Conflict> for Error {
+impl From<Conflict> for RouterError {
     fn from(conflict: Conflict) -> Self {
-        Error::Conflict(conflict)
+        RouterError::Conflict(conflict)
     }
 }
 
 impl std::error::Error for Conflict {}
-impl std::error::Error for Error {}
+impl std::error::Error for RouterError {}
 
 #[cfg(test)]
 mod tests {
-    use super::{Conflict, Error};
+    use super::{Conflict, RouterError};
 
     #[test]
     fn conflict_to_string() {
@@ -80,11 +80,11 @@ mod tests {
     fn err_to_string() {
         assert_eq!(
             "Conflict! conflict path: `/`",
-            Error::Conflict(Conflict::Path("/".to_string())).to_string()
+            RouterError::Conflict(Conflict::Path("/".to_string())).to_string()
         );
         assert_eq!(
             "missing variable on path /:",
-            Error::MissingVariable("/:".to_string()).to_string()
+            RouterError::MissingVariable("/:".to_string()).to_string()
         );
     }
 }

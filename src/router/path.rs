@@ -1,4 +1,4 @@
-use super::{Conflict, Error};
+use super::{Conflict, RouterError};
 use regex::{escape, Captures, Regex};
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -51,7 +51,7 @@ impl Path {
 }
 
 impl FromStr for Path {
-    type Err = Error;
+    type Err = RouterError;
     fn from_str(raw_path: &str) -> Result<Self, Self::Err> {
         let path = standardize_path(raw_path);
         Ok(match path_to_regexp(&path)? {
@@ -65,7 +65,7 @@ impl FromStr for Path {
     }
 }
 
-fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error> {
+fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, RouterError> {
     let mut pattern = escape(path.clone());
     let mut vars = HashSet::new();
     let wildcard_re = must_build(WILDCARD);
@@ -89,7 +89,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
         for cap in wildcards {
             let variable = &cap["var"];
             if variable == r"" {
-                return Err(Error::MissingVariable(path.to_string()));
+                return Err(RouterError::MissingVariable(path.to_string()));
             }
             let var = escape(variable);
             pattern = pattern.replace(
@@ -101,7 +101,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Error
         for cap in variables {
             let variable = &cap["var"];
             if variable == "" {
-                return Err(Error::MissingVariable(path.to_string()));
+                return Err(RouterError::MissingVariable(path.to_string()));
             }
             let var = escape(variable);
             pattern = pattern.replace(
