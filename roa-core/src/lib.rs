@@ -105,7 +105,7 @@
 //! use roa_core::{Context, Result, Next};
 //!
 //! async fn get(ctx: Context<()>) -> Result {
-//! 		ctx.resp_mut().await.write_str("Hello, World!");
+//! 	ctx.resp_mut().await.write_str("Hello, World!");
 //!   	Ok(())
 //! }
 //! ```
