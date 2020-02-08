@@ -25,7 +25,7 @@ use std::error::Error as StdError;
 async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
     app.end(|ctx| async move {
-      	ctx.resp_mut().await.write("Hello, World");
+      	ctx.resp_mut().await.write_str("Hello, World");
       	Ok(())
   	});
     app.listen("127.0.0.1:8000", |addr| {
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
   	});
   
     app.end(|ctx| async move {
-      	ctx.resp_mut().await.write("Hello, World");
+      	ctx.resp_mut().await.write_str("Hello, World");
       	Ok(())
   	});
     app.listen("127.0.0.1:8000", |addr| {
@@ -73,12 +73,124 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 }
 ```
 
-### Middleware
+#### Middleware
 
 `Middleware` is a trait:
 
 ```rust
-trait Middleware<M, F> = 'static + Sync + Send + Fn(Context<M>) -> F,
-where 
+'static + Sync + Send + Fn(Context<M>, Next) -> impl 'static + Future<Output = Result<R>> + Send;
 ```
+
+Example:
+
+```rust
+use roa_core::{Context, Result, Next};
+
+async fn middleware(_ctx: Context<()>, next: Next) -> Result {
+  	next().await
+}
+```
+
+#### Endpoint
+
+`Endpoint` is a trait:
+
+```rust
+'static + Sync + Send + Fn(Context<M>) -> impl 'static + Future<Output = Result<R>> + Send;
+```
+
+Example:
+
+```rust
+use roa_core::{Context, Result, Next};
+
+async fn get(ctx: Context<()>) -> Result {
+		ctx.resp_mut().await.write_str("Hello, World!");
+  	Ok(())
+}
+```
+
+
+
+### Error Handling
+
+You can catch or straightly throw a Error returned by next.
+
+```rust
+use roa_core::{App, throw};
+use async_std::task::spawn;
+use http::StatusCode;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let (addr, server) = App::new(())
+        .gate(|ctx, next| async move {
+            // catch
+            if let Err(err) = next().await {
+                if err.status_code == StatusCode::IM_A_TEAPOT {
+                    // teapot is ok
+                } else {
+                    return Err(err)
+                }
+            }
+            Ok(())
+        })
+        .gate(|ctx, next| async move {
+            next().await?; // just throw
+            unreachable!()
+        })
+        .end(|_ctx| async move {
+            throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+        })
+        .run_local()?;
+    spawn(server);
+    let resp = reqwest::get(&format!("http://{}", addr)).await?;
+    assert_eq!(StatusCode::OK, resp.status());
+    Ok(())
+}
+```
+
+
+
+#### error_handler
+
+App has a error_handler to handle `Error` thrown by the top middleware.
+
+This is the default error_handler:
+
+```rust
+use roa_core::{Context, Error, Result, Model, ErrorKind};
+
+pub async fn default_error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
+    context.resp_mut().await.status = err.status_code;
+    if err.expose {
+        context.resp_mut().await.write_str(&err.message);
+    }
+    if err.kind == ErrorKind::ServerError {
+        Err(err)
+    } else {
+        Ok(())
+    }
+}
+
+```
+
+The Error thrown by error_handler will be handled by hyper.
+
+You can use `App::handle_err` to set a custom error_handler:
+
+```rust
+use roa_core::{Context, App, Error, Result};
+
+// throw all error to hyper.
+pub async fn app_error_handler(_: Context<()>, err: Error) -> Result {
+    Err(err)
+}
+
+let mut app = App::new(());
+app.handle_err(app_error_handler);
+```
+
+
+
+
 

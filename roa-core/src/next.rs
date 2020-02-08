@@ -48,7 +48,7 @@ use crate::ResultFuture;
 /// }
 /// ```
 ///
-/// ### Error Handle
+/// ### Error Handling
 ///
 /// You can catch or straightly throw a Error returned by next.
 ///
