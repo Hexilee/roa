@@ -11,24 +11,30 @@ pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result {
     let path = uri.path().to_string();
     let result = next().await;
     let callback: Box<BodyCallback> = match result {
-        Ok(()) => Box::new(move |body: &Body| {
-            info!(
-                "<-- {} {} {}ms {}",
-                method,
-                path,
-                start.elapsed().as_millis(),
-                ByteSize(body.consumed() as u64)
-            )
-        }),
-        Err(ref status) => {
-            let message = status.message.clone();
-            Box::new(move |_| {
-                error!(
-                    "<-- {} {} {}ms\n{}",
+        Ok(()) => {
+            let status_code = ctx.status().await;
+            Box::new(move |body: &Body| {
+                info!(
+                    "<-- {} {} {}ms {} {}",
                     method,
                     path,
                     start.elapsed().as_millis(),
-                    message
+                    ByteSize(body.consumed() as u64),
+                    status_code,
+                )
+            })
+        }
+        Err(ref status) => {
+            let message = status.message.clone();
+            let status_code = status.status_code;
+            Box::new(move |_| {
+                error!(
+                    "<-- {} {} {}ms {}\n{}",
+                    method,
+                    path,
+                    start.elapsed().as_millis(),
+                    status_code,
+                    message,
                 )
             })
         }
