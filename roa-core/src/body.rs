@@ -85,7 +85,7 @@ impl Body {
         Pin::new(self.segments[self.counter].as_mut()).poll_fill_buf(cx)
     }
 
-    /// Add callback.
+    /// Callback when dropping body.
     /// ### Example
     /// ```rust
     /// use roa_core::Body;
@@ -128,6 +128,15 @@ impl Default for Body {
     }
 }
 
+impl Drop for Body {
+    fn drop(&mut self) {
+        let immut_ref = &*self;
+        for callback in immut_ref.finish.iter() {
+            callback(immut_ref)
+        }
+    }
+}
+
 impl BufRead for Body {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
         let mut_ref = self.get_mut();
@@ -142,12 +151,6 @@ impl BufRead for Body {
             }
             mut_ref.counter += 1;
         };
-        if data.is_empty() {
-            let immut_ref = &*mut_ref;
-            for callback in immut_ref.finish.iter() {
-                callback(immut_ref)
-            }
-        }
         Poll::Ready(Ok(data))
     }
 

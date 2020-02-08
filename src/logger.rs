@@ -101,7 +101,8 @@ mod tests {
         assert_eq!("--> GET /", records[0].1);
         assert_eq!("INFO", records[1].0);
         assert!(records[1].1.starts_with("<-- GET /"));
-        assert!(records[1].1.ends_with("13 B"));
+        assert!(records[1].1.contains("13 B"));
+        assert!(records[1].1.ends_with("200 OK"));
 
         // error
         let (addr, server) = App::new(())
