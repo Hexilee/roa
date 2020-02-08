@@ -3,6 +3,7 @@ use http::{HeaderValue, StatusCode, Version};
 use hyper::HeaderMap;
 use std::ops::{Deref, DerefMut};
 
+/// Http response type of roa.
 pub struct Response {
     pub status: StatusCode,
     pub version: Version,
@@ -11,7 +12,7 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             status: StatusCode::default(),
             version: Version::default(),

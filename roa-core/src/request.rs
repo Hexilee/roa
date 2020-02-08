@@ -5,6 +5,7 @@ use hyper::HeaderMap;
 use std::io;
 use std::ops::{Deref, DerefMut};
 
+/// Http request type of roa.
 pub struct Request {
     /// The request's method
     pub method: Method,
@@ -22,7 +23,7 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             method: Method::default(),
             uri: Uri::default(),
