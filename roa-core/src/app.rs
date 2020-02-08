@@ -32,7 +32,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///             info!("{} {}", ctx.method().await, ctx.uri().await);
 ///             next().await
 ///         })
-///         .gate(|ctx, _next| async move {
+///         .end(|ctx| async move {
 ///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
 ///             Ok(())
 ///         })
@@ -92,7 +92,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///             ctx.state_mut().await.id = 1;
 ///             next().await
 ///         })
-///         .gate(|ctx, _next| async move {
+///         .end(|ctx| async move {
 ///             let id = ctx.state().await.id;
 ///             ctx.state().await.database.lock().await.get(&id);
 ///             Ok(())
@@ -167,6 +167,18 @@ impl<M: Model> App<M> {
         F: 'static + Future<Output = Result> + Send,
     {
         self.middleware.join(middleware);
+        self
+    }
+
+    /// Use a endpoint.
+    pub fn end<F>(
+        &mut self,
+        endpoint: impl 'static + Sync + Send + Fn(Context<M>) -> F,
+    ) -> &mut Self
+    where
+        F: 'static + Future<Output = Result> + Send,
+    {
+        self.gate(move |ctx, _next| endpoint(ctx));
         self
     }
 

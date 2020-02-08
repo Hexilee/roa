@@ -27,7 +27,7 @@ pub type ResultFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>>
 ///             ctx.resp_mut().await.status = StatusCode::OK;
 ///             Ok(())
 ///         })
-///         .gate(|_ctx, _next| async {
+///         .end(|_ctx| async {
 ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")?; // throw
 ///             unreachable!()
 ///         })
@@ -63,7 +63,7 @@ pub struct Error {
     ///             ctx.resp_mut().await.status = StatusCode::OK;
     ///             next().await // not caught
     ///         })
-    ///         .gate(|_ctx, _next| async {
+    ///         .end(|_ctx| async {
     ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
     ///         })
     ///         .run_local()?;
@@ -91,7 +91,7 @@ pub struct Error {
     /// #[tokio::test]
     /// async fn exposed() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate(|_ctx, _next| async {
+    ///         .end(|_ctx| async {
     ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
     ///         })
     ///         .run_local()?;
@@ -105,7 +105,7 @@ pub struct Error {
     /// #[tokio::test]
     /// async fn not_exposed() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate(|_ctx, _next| async {
+    ///         .end(|_ctx| async {
     ///             Err(Error::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // throw
     ///         })
     ///         .run_local()?;

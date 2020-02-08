@@ -46,7 +46,7 @@ pub trait State: 'static + Send + Sync + Sized {}
 ///             ctx.state_mut().await.id = 1;
 ///             next().await
 ///         })
-///         .gate(|ctx, _next| async move {
+///         .end(|ctx| async move {
 ///             let id = ctx.state().await.id;
 ///             assert_eq!(1, id);
 ///             Ok(())
