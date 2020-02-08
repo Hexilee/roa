@@ -7,7 +7,7 @@ use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path};
 
 use crate::core::{
-    throw, Context, DynTargetHandler, Error, Group, Model, Next, Result, TargetHandler, Variable,
+    throw, Context, DynHandler, Error, Group, Model, Next, Result, Handler, Variable,
 };
 use async_trait::async_trait;
 use http::StatusCode;
@@ -119,7 +119,7 @@ impl<M: Model> Router<M> {
         endpoints
     }
 
-    pub fn handler(self) -> StdResult<Box<DynTargetHandler<M, Next>>, Conflict> {
+    pub fn handler(self) -> StdResult<Box<DynHandler<M>>, Conflict> {
         let endpoints = self.endpoints();
         let mut static_route = Trie::new();
         let mut dynamic_route = Vec::new();
@@ -139,7 +139,7 @@ impl<M: Model> Router<M> {
         let static_route = Arc::new(static_route);
         let dynamic_route = Arc::new(dynamic_route);
 
-        let handler = move |ctx: Context<M>, next| {
+        let handler = move |ctx: Context<M>| {
             let static_route = static_route.clone();
             let dynamic_route = dynamic_route.clone();
             async move {
@@ -159,7 +159,7 @@ impl<M: Model> Router<M> {
                         },
                     )?);
                 if let Some(handler) = static_route.get(&path) {
-                    return handler(ctx, next).await;
+                    return handler(ctx).await;
                 }
 
                 for (regexp_path, handler) in dynamic_route.iter() {
@@ -168,7 +168,7 @@ impl<M: Model> Router<M> {
                             ctx.store::<RouterSymbol>(var, cap[var.as_str()].to_string())
                                 .await;
                         }
-                        return handler(ctx, next).await;
+                        return handler(ctx).await;
                     }
                 }
                 throw(StatusCode::NOT_FOUND, "")
@@ -230,7 +230,7 @@ mod tests {
                 assert_eq!(0, id);
                 Ok(())
             });
-        let (addr, server) = App::new(()).gate(router.handler()?).run_local()?;
+        let (addr, server) = App::new(()).end(router.handler()?).run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -253,7 +253,7 @@ mod tests {
                 assert_eq!(0, id);
                 Ok(())
             });
-        let (addr, server) = App::new(()).gate(router.handler()?).run_local()?;
+        let (addr, server) = App::new(()).end(router.handler()?).run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route/user", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -276,7 +276,7 @@ mod tests {
     #[tokio::test]
     async fn route_not_found() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(Router::<()>::new("/").handler()?)
+            .end(Router::<()>::new("/").handler()?)
             .run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -287,7 +287,7 @@ mod tests {
     #[tokio::test]
     async fn non_utf8_uri() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(Router::<()>::new("/").handler()?)
+            .end(Router::<()>::new("/").handler()?)
             .run_local()?;
         spawn(server);
         let gbk_path = encoding::label::encoding_from_whatwg_label("gbk")

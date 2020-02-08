@@ -62,8 +62,8 @@ multimap = "0.8.0"
 hyper = "0.13"
 
 [features]
-default = ["cookies", "router"]
-full = ["default", "jwt", "body", "compress"]
+default = ["body", "router"]
+full = ["default", "jwt", "cookies", "compress"]
 cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde"]
 body = [

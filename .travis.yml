@@ -24,7 +24,7 @@ script: # 集成脚本
   - cargo check --all --all-features
   - |
     if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then
-      cargo test --all-features --all -- --nocapture
+      cargo test --all-features --all
     fi
 
 after_success:

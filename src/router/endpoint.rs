@@ -1,7 +1,5 @@
 use super::{Conflict, Path};
-use crate::core::{
-    throw, Context, DynHandler, DynTargetHandler, Group, Handler, Model, Next, Result,
-};
+use crate::core::{throw, Context, DynHandler, Group, Handler, Model, Next, Result, ResultFuture};
 use http::{Method, StatusCode};
 use std::collections::HashMap;
 use std::future::Future;
@@ -82,7 +80,7 @@ impl<M: Model> Endpoint<M> {
         Method::CONNECT
     );
 
-    pub fn handler(self) -> StdResult<Box<DynTargetHandler<M, Next>>, Conflict> {
+    pub fn handler(self) -> StdResult<Box<DynHandler<M>>, Conflict> {
         let Self {
             path,
             mut middleware,
@@ -114,8 +112,14 @@ impl<M: Model> Endpoint<M> {
                 }
             }
         });
-        Ok(middleware.handler())
+
+        let handler = middleware.handler();
+        Ok(Box::new(move |ctx| handler(ctx, Box::new(last))).dynamic())
     }
+}
+
+pub fn last() -> ResultFuture {
+    Box::pin(async move { Ok(()) })
 }
 
 #[cfg(test)]
@@ -156,7 +160,7 @@ mod tests {
                 assert_eq!(0, id);
                 Ok(())
             });
-        let (addr, server) = App::new(()).gate(endpoint.handler()?).run_local()?;
+        let (addr, server) = App::new(()).end(endpoint.handler()?).run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/endpoint", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -167,7 +171,7 @@ mod tests {
     async fn method_not_allowed() -> Result<(), Box<dyn std::error::Error>> {
         let mut endpoint = Endpoint::<()>::new("/endpoint".parse()?);
         endpoint.post(|_ctx| async { Ok(()) });
-        let (addr, server) = App::new(()).gate(endpoint.handler()?).run_local()?;
+        let (addr, server) = App::new(()).end(endpoint.handler()?).run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/endpoint", addr)).await?;
         assert_eq!(StatusCode::METHOD_NOT_ALLOWED, resp.status());
