@@ -1,4 +1,4 @@
-use crate::{Error, Request, Response, Result};
+use crate::core::{Error, Request, Response, Result};
 use http::header::{
     AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, InvalidHeaderValue, ToStrError,
 };
@@ -137,7 +137,7 @@ impl FriendlyHeaders for Response {
 #[cfg(test)]
 mod tests {
     use super::FriendlyHeaders;
-    use crate::Request;
+    use crate::core::Request;
     use http::header::CONTENT_TYPE;
     use http::{HeaderValue, StatusCode};
     use mime::TEXT_HTML;

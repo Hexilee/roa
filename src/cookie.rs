@@ -1,5 +1,5 @@
+use crate::core::{Context, Error, Model, Next, Result};
 use crate::header::FriendlyHeaders;
-use crate::{Context, Error, Model, Next, Result};
 use async_trait::async_trait;
 pub use cookie::Cookie;
 use http::{header, StatusCode};
@@ -69,7 +69,7 @@ impl<M: Model> Cookier for Context<M> {
 #[cfg(test)]
 mod tests {
     use super::{cookie_parser, Cookie, Cookier};
-    use crate::App;
+    use crate::core::App;
     use async_std::task::spawn;
     use http::{header, StatusCode};
 

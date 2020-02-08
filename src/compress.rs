@@ -1,4 +1,4 @@
-use crate::{Body, Context, DynTargetHandler, Error, Model, Next, TargetHandler};
+use crate::core::{Body, Context, DynTargetHandler, Error, Model, Next, TargetHandler};
 use accept_encoding::{parse, Encoding};
 use async_compression::flate2::Compression;
 use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};

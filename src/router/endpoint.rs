@@ -1,6 +1,8 @@
 use super::{Conflict, Path};
+use crate::core::{
+    throw, Context, DynHandler, DynTargetHandler, Group, Handler, Model, Next, Result,
+};
 use http::{Method, StatusCode};
-use roa_core::{throw, Context, DynHandler, DynTargetHandler, Group, Handler, Model, Next, Result};
 use std::collections::HashMap;
 use std::future::Future;
 use std::result::Result as StdResult;
@@ -119,8 +121,8 @@ impl<M: Model> Endpoint<M> {
 #[cfg(test)]
 mod tests {
     use super::Endpoint;
+    use crate::core::App;
     use crate::router::err::Conflict;
-    use crate::App;
     use async_std::task::spawn;
     use http::StatusCode;
 

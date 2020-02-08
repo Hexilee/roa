@@ -1,7 +1,9 @@
 pub use async_trait::async_trait;
 pub use jsonwebtoken::Validation;
 
-use crate::{Context, DynTargetHandler, Error, Model, Next, Result, StatusCode, TargetHandler};
+use crate::core::{
+    Context, DynTargetHandler, Error, Model, Next, Result, StatusCode, TargetHandler,
+};
 use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
 use http::HeaderValue;
 use jsonwebtoken::decode;
@@ -90,7 +92,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{jwt_verify, JwtVerifier, Validation, INVALID_TOKEN};
-    use crate::{App, Error};
+    use crate::core::{App, Error};
     use async_std::task::spawn;
     use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use http::StatusCode;

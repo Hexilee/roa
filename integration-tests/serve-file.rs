@@ -2,9 +2,9 @@ use async_std::fs::read_to_string;
 use async_std::task::spawn;
 use http::header::ACCEPT_ENCODING;
 use roa::compress::{compress, Level};
+use roa::core::App;
 use roa::preload::*;
 use roa::router::Router;
-use roa::App;
 
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {

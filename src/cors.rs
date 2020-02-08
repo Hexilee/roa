@@ -1,4 +1,4 @@
-use crate::{Context, DynTargetHandler, Model, Next, TargetHandler};
+use crate::core::{Context, DynTargetHandler, Model, Next, TargetHandler};
 use http::header::{
     HeaderName, HeaderValue, ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
     ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
@@ -211,8 +211,8 @@ pub fn cors<M: Model>(options: Options) -> Box<DynTargetHandler<M, Next>> {
 #[cfg(test)]
 mod tests {
     use super::{cors, Options};
+    use crate::core::App;
     use crate::preload::*;
-    use crate::App;
     use async_std::task::spawn;
     use http::header::{
         ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,

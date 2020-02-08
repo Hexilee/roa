@@ -1,6 +1,6 @@
 use log::info;
+use roa::core::App;
 use roa::preload::*;
-use roa::App;
 use std::error::Error as StdError;
 
 #[async_std::main]

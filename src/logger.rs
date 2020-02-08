@@ -1,4 +1,4 @@
-use crate::{Body, BodyCallback, Context, Model, Next, Result};
+use crate::core::{Body, BodyCallback, Context, Model, Next, Result};
 use bytesize::ByteSize;
 use log::{error, info};
 use std::time::Instant;
@@ -40,12 +40,11 @@ pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result {
 #[cfg(test)]
 mod tests {
     use super::logger;
-    use crate::App;
+    use crate::core::{throw, App};
     use async_std::task::spawn;
     use http::StatusCode;
     use lazy_static::lazy_static;
     use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
-    use roa_core::throw;
     use std::sync::RwLock;
 
     struct TestLogger {

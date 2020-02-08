@@ -1,4 +1,4 @@
-use crate::{Context, Error, Model, Next, Result, Variable};
+use crate::core::{Context, Error, Model, Next, Result, Variable};
 use async_trait::async_trait;
 use http::StatusCode;
 use url::form_urlencoded::parse;
@@ -37,7 +37,7 @@ impl<M: Model> Query for Context<M> {
 #[cfg(test)]
 mod tests {
     use super::{query_parser, Query};
-    use crate::App;
+    use crate::core::App;
     use async_std::task::spawn;
     use http::StatusCode;
 

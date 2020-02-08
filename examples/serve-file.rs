@@ -3,7 +3,7 @@ use roa::logger::logger;
 use roa::preload::*;
 use roa::{
     compress::{compress, Level},
-    App,
+    core::App,
 };
 
 #[async_std::main]

@@ -3,8 +3,8 @@ mod json;
 mod mime_ext;
 mod urlencoded;
 
+use crate::core::{throw, Context, Error, Model, Result};
 use crate::header::FriendlyHeaders;
-use crate::{throw, Context, Error, Model, Result};
 use askama::Template;
 use async_std::fs::File;
 use async_trait::async_trait;
@@ -19,6 +19,7 @@ use std::path::Path;
 
 const APPLICATION_JSON_UTF_8: &str = "application/json; charset=utf-8";
 
+/// A ContextExt.
 #[async_trait]
 pub trait PowerBody {
     /// try to get mime content type of request.
@@ -192,9 +193,8 @@ impl<M: Model> PowerBody for Context<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::PowerBody;
-    use crate::body::APPLICATION_JSON_UTF_8;
-    use crate::App;
+    use super::{PowerBody, APPLICATION_JSON_UTF_8};
+    use crate::core::App;
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;

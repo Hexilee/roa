@@ -1,4 +1,4 @@
-use crate::{throw, Error, Result};
+use crate::core::{throw, Error, Result};
 use encoding::label::encoding_from_whatwg_label;
 use http::StatusCode;
 

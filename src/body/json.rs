@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::core::{Error, Result};
 use http::StatusCode;
 use serde::de::DeserializeOwned;
 use serde::Serialize;

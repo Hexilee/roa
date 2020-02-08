@@ -6,7 +6,7 @@ use endpoint::Endpoint;
 use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path};
 
-use crate::{
+use crate::core::{
     throw, Context, DynTargetHandler, Error, Group, Model, Next, Result, TargetHandler, Variable,
 };
 use async_trait::async_trait;
@@ -195,7 +195,7 @@ impl<M: Model> RouterParam for Context<M> {
 #[cfg(test)]
 mod tests {
     use super::{endpoint::Endpoint, Node, Router};
-    use crate::App;
+    use crate::core::App;
     use async_std::task::spawn;
     use encoding::EncoderTrap;
     use http::StatusCode;

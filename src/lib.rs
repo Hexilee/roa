@@ -1,5 +1,4 @@
-#[doc(inline)]
-pub use roa_core::*;
+pub use roa_core as core;
 pub mod cors;
 pub mod forward;
 pub mod header;

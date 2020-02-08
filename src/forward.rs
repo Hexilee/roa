@@ -1,4 +1,5 @@
-use crate::{preload::*, throw, Context, Model, Result};
+use crate::core::{throw, Context, Model, Result};
+use crate::preload::*;
 use async_trait::async_trait;
 use http::{header::HOST, StatusCode};
 use std::net::IpAddr;
@@ -58,7 +59,7 @@ impl<M: Model> Forward for Context<M> {
 #[cfg(test)]
 mod tests {
     use super::Forward;
-    use crate::App;
+    use crate::core::App;
     use async_std::task::spawn;
     use http::header::HOST;
     use http::{HeaderValue, StatusCode};
