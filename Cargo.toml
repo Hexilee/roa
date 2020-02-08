@@ -86,6 +86,11 @@ name = "serve-file"
 path = "examples/serve-file.rs"
 required-features = ["body", "compress"]
 
+[[example]]
+name = "hello-world"
+path = "examples/hello-world.rs"
+required-features = ["body"]
+
 [[test]]
 name = "serve-file"
 path = "integration-tests/serve-file.rs"
