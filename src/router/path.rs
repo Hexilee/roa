@@ -59,7 +59,7 @@ impl FromStr for Path {
             Some((pattern, vars)) => Path::Dynamic(RegexPath {
                 raw: path,
                 vars,
-                re: must_build(&pattern),
+                re: must_build(&format!(r"^{}$", pattern)),
             }),
         })
     }
@@ -94,7 +94,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
             let var = escape(variable);
             pattern = pattern.replace(
                 &escape(&format!(r"*{{{}}}", variable)),
-                &format!(r"(?P<{}>\S*)", &var),
+                &format!(r"(?P<{}>\S+)", &var),
             );
             try_add_variable(&mut vars, var)?;
         }
@@ -106,7 +106,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
             let var = escape(variable);
             pattern = pattern.replace(
                 &escape(&format!(r":{}", variable)),
-                &format!(r"(?P<{}>\S+)", &var),
+                &format!(r"(?P<{}>[^\s/]+)", &var),
             );
             try_add_variable(&mut vars, var)?;
         }
@@ -157,10 +157,10 @@ mod tests {
         assert!(cap.is_none());
     }
 
-    #[test_case(r"/:id/" => r"/(?P<id>\S+)/"; "single variable")]
-    #[test_case(r"/:year/:month/:day/" => r"/(?P<year>\S+)/(?P<month>\S+)/(?P<day>\S+)/"; "multiple variable")]
-    #[test_case(r"*{id}" => r"(?P<id>\S*)"; "single wildcard")]
-    #[test_case(r"*{year}_*{month}_*{day}" => r"(?P<year>\S*)_(?P<month>\S*)_(?P<day>\S*)"; "multiple wildcard")]
+    #[test_case(r"/:id/" => r"/(?P<id>[^\s/]+)/"; "single variable")]
+    #[test_case(r"/:year/:month/:day/" => r"/(?P<year>[^\s/]+)/(?P<month>[^\s/]+)/(?P<day>[^\s/]+)/"; "multiple variable")]
+    #[test_case(r"*{id}" => r"(?P<id>\S+)"; "single wildcard")]
+    #[test_case(r"*{year}_*{month}_*{day}" => r"(?P<year>\S+)_(?P<month>\S+)_(?P<day>\S+)"; "multiple wildcard")]
     fn path_to_regexp_dynamic_pattern(path: &str) -> String {
         path_to_regexp(path).unwrap().unwrap().0
     }
@@ -188,6 +188,17 @@ mod tests {
         }
     }
 
+    fn path_not_match(pattern: &str, path: &str) {
+        let pattern: Path = pattern.parse().unwrap();
+        match pattern {
+            Path::Static(pattern) => panic!(format!("`{}` should be dynamic", pattern)),
+            Path::Dynamic(re) => {
+                println!("regex: {}", re.re.to_string());
+                assert!(!re.re.is_match(path))
+            }
+        }
+    }
+
     #[test_case(r"/user/1/")]
     #[test_case(r"/user/65535/")]
     fn single_variable_path_match(path: &str) {
@@ -209,7 +220,13 @@ mod tests {
     #[test_case(r"/srv/static/app/index.html/")]
     #[test_case(r"/srv/static/../../index.html/")]
     fn full_wildcard_path_match(path: &str) {
-        path_match(r"/srv/static/*{path}", path)
+        path_match(r"/srv/static/*{path}/", path)
+    }
+
+    #[test_case(r"/srv/app/index.html/")]
+    #[test_case(r"/srv/../../index.html/")]
+    fn variable_path_not_match(path: &str) {
+        path_not_match(r"/srv/:path/", path)
     }
 
     #[should_panic]
