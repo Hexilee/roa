@@ -2,9 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>{{title}}</title>
+    <link href="assets/css/table.css" rel="stylesheet" type="text/css">
 </head>
 <body>
-
+<h1>{{root}}</h1>
+<hr>
+<table>
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Size</th>
+        <th>Modified</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for dir in dirs %}
+    <tr>
+        <td><a href={{dir.link}}>{{dir.name}}</a></td>
+        <td>-</td>
+        <td>{{dir.modified}}</td>
+    </tr>
+    {% endfor %}
+    {% for file in files %}
+    <tr>
+        <td><a href={{file.link}}>{{file.name}}</a></td>
+        <td>{{file.size}}</td>
+        <td>{{file.modified}}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
 </body>
 </html>

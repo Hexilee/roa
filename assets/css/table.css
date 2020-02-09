@@ -1,0 +1,27 @@
+/* spacing */
+
+table {
+    table-layout: fixed;
+    width: 80%;
+    border-collapse: collapse;
+}
+
+thead th {
+    text-align: left
+}
+
+thead th:nth-child(1) {
+    width: 40%;
+}
+
+thead th:nth-child(2) {
+    width: 20%;
+}
+
+thead th:nth-child(3) {
+    width: 40%;
+}
+
+th, td {
+    padding: 10px;
+}

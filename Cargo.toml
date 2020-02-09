@@ -60,6 +60,7 @@ lazy_static = "1.4.0"
 slab = "0.4.2"
 multimap = "0.8.0"
 hyper = "0.13"
+chrono = "0.4"
 
 [features]
 default = ["body", "router"]
