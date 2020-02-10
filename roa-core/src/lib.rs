@@ -196,8 +196,8 @@ mod app;
 mod body;
 mod context;
 mod err;
-mod group;
 mod handler;
+mod join;
 mod model;
 mod next;
 mod request;
@@ -221,7 +221,7 @@ pub(crate) use handler::default_error_handler;
 pub use handler::{Endpoint, ErrorHandler, Middleware};
 
 #[doc(inline)]
-pub use group::{join, join_all};
+pub use join::{join, join_all};
 
 #[doc(inline)]
 pub use model::{Model, State};

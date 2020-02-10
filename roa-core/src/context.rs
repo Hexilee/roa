@@ -1,4 +1,4 @@
-use crate::{AddrStream, App, Error, Model, Request, Response};
+use crate::{AddrStream, Error, Model, Request, Response};
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use http::header::{AsHeaderName, ToStrError};
@@ -757,7 +757,6 @@ impl<M: Model> Clone for Context<M> {
             response: self.response.clone(),
             state: self.state.clone(),
             storage: self.storage.clone(),
-            app: self.app.clone(),
             stream: self.stream.clone(),
         }
     }
