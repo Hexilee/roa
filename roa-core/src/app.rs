@@ -134,8 +134,8 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// }
 /// ```
 pub struct App<M: Model> {
-    middleware: Arc<dyn Middleware<M>>,
-    error_handler: Arc<dyn ErrorHandler<M>>,
+    middleware: Arc<dyn Middleware<M::State>>,
+    error_handler: Arc<dyn ErrorHandler<M::State>>,
     pub(crate) model: Arc<M>,
 }
 
@@ -159,13 +159,13 @@ impl<M: Model> App<M> {
     }
 
     /// Use a middleware.
-    pub fn gate(&mut self, middleware: impl Middleware<M>) -> &mut Self {
+    pub fn gate(&mut self, middleware: impl Middleware<M::State>) -> &mut Self {
         self.middleware = Arc::new(join(self.middleware.clone(), middleware));
         self
     }
 
     /// Use a endpoint.
-    pub fn end(&mut self, endpoint: impl Endpoint<M>) -> &mut Self {
+    pub fn end(&mut self, endpoint: impl Endpoint<M::State>) -> &mut Self {
         let endpoint = Arc::new(endpoint);
         self.gate_fn(move |ctx, _next| endpoint.clone().handle(ctx));
         self
@@ -173,7 +173,7 @@ impl<M: Model> App<M> {
 
     pub fn gate_fn<F>(
         &mut self,
-        middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
+        middleware: impl 'static + Sync + Send + Fn(Context<M::State>, Next) -> F,
     ) -> &mut Self
     where
         F: 'static + Send + Future<Output = Result>,
@@ -183,7 +183,7 @@ impl<M: Model> App<M> {
 
     pub fn end_fn<F>(
         &mut self,
-        endpoint: impl 'static + Sync + Send + Fn(Context<M>) -> F,
+        endpoint: impl 'static + Sync + Send + Fn(Context<M::State>) -> F,
     ) -> &mut Self
     where
         F: 'static + Send + Future<Output = Result>,
@@ -211,7 +211,7 @@ impl<M: Model> App<M> {
     ///     }
     /// }
     /// ```
-    pub fn handle_err(&mut self, handler: impl ErrorHandler<M>) -> &mut Self {
+    pub fn handle_err(&mut self, handler: impl ErrorHandler<M::State>) -> &mut Self {
         self.error_handler = Arc::new(handler);
         self
     }

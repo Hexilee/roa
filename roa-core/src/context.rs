@@ -1,4 +1,4 @@
-use crate::{AddrStream, Error, Model, Request, Response};
+use crate::{AddrStream, Error, Request, Response};
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use http::header::{AsHeaderName, ToStrError};
@@ -40,10 +40,10 @@ use std::str::FromStr;
 ///     Ok(())
 /// }
 /// ```
-pub struct Context<M: Model> {
+pub struct Context<S> {
     request: Arc<RwLock<Request>>,
     response: Arc<RwLock<Response>>,
-    state: Arc<RwLock<M::State>>,
+    state: Arc<RwLock<S>>,
     storage: Arc<RwLock<HashMap<TypeId, Bucket>>>,
     stream: AddrStream,
 }
@@ -196,9 +196,9 @@ impl Default for Bucket {
     }
 }
 
-impl<M: Model> Context<M> {
+impl<S> Context<S> {
     /// Construct a context from a request, an app and a addr_stream.  
-    pub(crate) fn new(request: Request, state: M::State, stream: AddrStream) -> Self {
+    pub(crate) fn new(request: Request, state: S, stream: AddrStream) -> Self {
         Self {
             request: Arc::new(RwLock::new(request)),
             response: Arc::new(RwLock::new(Response::new())),
@@ -316,7 +316,7 @@ impl<M: Model> Context<M> {
     /// }
     /// ```
     #[inline]
-    pub async fn state(&self) -> RwLockReadGuard<'_, M::State> {
+    pub async fn state(&self) -> RwLockReadGuard<'_, S> {
         self.state.read().await
     }
 
@@ -439,7 +439,7 @@ impl<M: Model> Context<M> {
     /// }
     /// ```
     #[inline]
-    pub async fn state_mut(&self) -> RwLockWriteGuard<'_, M::State> {
+    pub async fn state_mut(&self) -> RwLockWriteGuard<'_, S> {
         self.state.write().await
     }
 
@@ -750,7 +750,7 @@ impl<M: Model> Context<M> {
     }
 }
 
-impl<M: Model> Clone for Context<M> {
+impl<S> Clone for Context<S> {
     fn clone(&self) -> Self {
         Self {
             request: self.request.clone(),

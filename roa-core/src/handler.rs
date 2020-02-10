@@ -1,4 +1,4 @@
-use crate::{Context, Error, Model, Next, Result};
+use crate::{Context, Error, Next, Result, State};
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::future::Future;
@@ -26,7 +26,7 @@ use std::future::Future;
 /// Any `Box<Handler>` can be convert to `Box<DynHandler>` by `Handler::dynamic` method.
 ///
 /// ```rust
-/// use roa_core::{Endpoint, Context, Result, Model, ResultFuture};
+/// use roa_core::{Endpoint, Context, Result, ResultFuture};
 ///
 /// // endpoint
 /// async fn get(_ctx: Context<()>) -> Result {
@@ -38,22 +38,19 @@ use std::future::Future;
 ///
 /// ```
 #[async_trait]
-pub trait Endpoint<M>: 'static + Sync + Send
-where
-    M: Model,
-{
+pub trait Endpoint<S>: 'static + Sync + Send {
     /// Handle context then return a future to get status.
-    async fn handle(self: Arc<Self>, ctx: Context<M>) -> Result;
+    async fn handle(self: Arc<Self>, ctx: Context<S>) -> Result;
 }
 
 #[async_trait]
-impl<M, F, T> Endpoint<M> for T
+impl<S, F, T> Endpoint<S> for T
 where
-    M: Model,
+    S: State,
     F: 'static + Future<Output = Result> + Send,
-    T: 'static + Sync + Send + Fn(Context<M>) -> F,
+    T: 'static + Sync + Send + Fn(Context<S>) -> F,
 {
-    async fn handle(self: Arc<Self>, ctx: Context<M>) -> Result {
+    async fn handle(self: Arc<Self>, ctx: Context<S>) -> Result {
         (self)(ctx).await
     }
 }
@@ -81,7 +78,7 @@ where
 /// Any `Box<TargetHandler>` can be convert to `Box<DynTargetHandler>` by `TargetHandler::dynamic` method.
 ///
 /// ```rust
-/// use roa_core::{Context, Result, Model, Next, Middleware};
+/// use roa_core::{Context, Result, Next, Middleware};
 ///
 /// // middleware
 /// async fn middleware(_ctx: Context<()>, next: Next) -> Result {
@@ -93,44 +90,44 @@ where
 ///
 /// ```
 #[async_trait]
-pub trait Middleware<M: Model>: 'static + Sync + Send {
+pub trait Middleware<S>: 'static + Sync + Send {
     /// Handle context and target, then return a future to get status.
-    async fn handle(self: Arc<Self>, ctx: Context<M>, next: Next) -> Result;
+    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result;
 }
 
 #[async_trait]
-impl<M, F, T> Middleware<M> for T
+impl<S, F, T> Middleware<S> for T
 where
-    M: Model,
+    S: State,
     F: 'static + Future<Output = Result> + Send,
-    T: 'static + Sync + Send + Fn(Context<M>, Next) -> F,
+    T: 'static + Sync + Send + Fn(Context<S>, Next) -> F,
 {
     #[inline]
-    async fn handle(self: Arc<Self>, ctx: Context<M>, next: Next) -> Result {
+    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
         (self)(ctx, next).await
     }
 }
 
 #[async_trait]
-pub trait ErrorHandler<M: Model>: 'static + Sync + Send {
+pub trait ErrorHandler<S>: 'static + Sync + Send {
     /// Handle context and target, then return a future to get status.
-    async fn handle(self: Arc<Self>, ctx: Context<M>, err: Error) -> Result;
+    async fn handle(self: Arc<Self>, ctx: Context<S>, err: Error) -> Result;
 }
 
 #[async_trait]
-impl<M, F, T> ErrorHandler<M> for T
+impl<S, F, T> ErrorHandler<S> for T
 where
-    M: Model,
+    S: State,
     F: 'static + Future<Output = Result> + Send,
-    T: 'static + Sync + Send + Fn(Context<M>, Error) -> F,
+    T: 'static + Sync + Send + Fn(Context<S>, Error) -> F,
 {
     #[inline]
-    async fn handle(self: Arc<Self>, ctx: Context<M>, err: Error) -> Result {
+    async fn handle(self: Arc<Self>, ctx: Context<S>, err: Error) -> Result {
         (self)(ctx, err).await
     }
 }
 
-pub async fn default_error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
+pub async fn default_error_handler<S>(context: Context<S>, err: Error) -> Result {
     context.resp_mut().await.status = err.status_code;
     if err.expose {
         context.resp_mut().await.write_str(&err.message);

@@ -1,4 +1,4 @@
-use crate::{Context, Middleware, Model, Next, Result};
+use crate::{Context, Middleware, Next, Result, State};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -39,17 +39,17 @@ use std::sync::Arc;
 ///     Ok(())
 /// }
 /// ```
-struct Join<M: Model>(Vec<Arc<dyn Middleware<M>>>);
+struct Join<S>(Vec<Arc<dyn Middleware<S>>>);
 
-impl<M: Model> Join<M> {
-    fn new(middlewares: Vec<Arc<dyn Middleware<M>>>) -> Self {
+impl<S> Join<S> {
+    fn new(middlewares: Vec<Arc<dyn Middleware<S>>>) -> Self {
         Self(middlewares)
     }
 }
 
 #[async_trait]
-impl<M: Model> Middleware<M> for Join<M> {
-    async fn handle(self: Arc<Self>, ctx: Context<M>, mut next: Next) -> Result {
+impl<S: State> Middleware<S> for Join<S> {
+    async fn handle(self: Arc<Self>, ctx: Context<S>, mut next: Next) -> Result {
         for middleware in self.0.iter().rev() {
             let ctx = ctx.clone();
             let middleware = middleware.clone();
@@ -59,14 +59,14 @@ impl<M: Model> Middleware<M> for Join<M> {
     }
 }
 
-pub fn join<M: Model>(
-    current: Arc<dyn Middleware<M>>,
-    next: impl Middleware<M>,
-) -> impl Middleware<M> {
+pub fn join<S: State>(
+    current: Arc<dyn Middleware<S>>,
+    next: impl Middleware<S>,
+) -> impl Middleware<S> {
     join_all(vec![current, Arc::new(next)])
 }
 
-pub fn join_all<M: Model>(middlewares: Vec<Arc<dyn Middleware<M>>>) -> impl Middleware<M> {
+pub fn join_all<S: State>(middlewares: Vec<Arc<dyn Middleware<S>>>) -> impl Middleware<S> {
     Join::new(middlewares)
 }
 
