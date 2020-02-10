@@ -15,7 +15,7 @@ pub type Callback = dyn 'static + Sync + Send + Unpin + Fn(&Body);
 ///
 /// #[async_std::main]
 /// async fn main() -> std::io::Result<()> {
-///     let mut body = Body::new();
+///     let mut body = Body::default();
 ///     let mut data = String::new();
 ///     body.write_buf(b"He".as_ref())
 ///         .write_buf(b"llo, ".as_ref())
@@ -37,7 +37,7 @@ pub struct Body {
 pub type Segment = Box<dyn BufRead + Sync + Send + Unpin + 'static>;
 
 impl Body {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             counter: 0,
             segments: Vec::new(),

@@ -74,7 +74,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
     let variable_template = path.replace('/', "//"); // to match continuous variables like /:year/:month/:day/
     let variables: Vec<Captures> = variable_re.captures_iter(&variable_template).collect();
     if wildcards.is_empty() && variables.is_empty() {
-        return Ok(None);
+        Ok(None)
     } else {
         let try_add_variable = |set: &mut HashSet<String>, variable: String| {
             if set.insert(variable.clone()) {

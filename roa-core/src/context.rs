@@ -138,7 +138,7 @@ impl<'a> Variable<'a> {
         })
     }
 
-    // Into inner value.
+    /// Into inner value.
     #[inline]
     pub fn into_value(self) -> String {
         self.value

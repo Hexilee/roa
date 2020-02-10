@@ -96,9 +96,7 @@ impl<M: Model> Router<M> {
 
     fn endpoints(self) -> Vec<Endpoint<M>> {
         let Self {
-            root: _,
-            middleware,
-            nodes,
+            middleware, nodes, ..
         } = self;
         let mut endpoints = Vec::new();
         for node in nodes {

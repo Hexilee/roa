@@ -43,6 +43,7 @@ pub type DynTargetHandler<M, Target, R = ()> =
 ///
 /// ```
 pub trait Handler<M: Model, R = ()>: 'static + Sync + Send {
+    /// A future type will be returned by self::handle.
     type HandleFuture: 'static + Future<Output = Result<R>> + Send;
     fn handle(&self, ctx: Context<M>) -> Self::HandleFuture;
     fn dynamic(self: Box<Self>) -> Box<DynHandler<M, R>> {
