@@ -5,8 +5,13 @@ use std::ops::{Deref, DerefMut};
 
 /// Http response type of roa.
 pub struct Response {
+    /// Status code.
     pub status: StatusCode,
+
+    /// Version of HTTP protocol.
     pub version: Version,
+
+    /// Raw header map.
     pub headers: HeaderMap<HeaderValue>,
     body: Body,
 }

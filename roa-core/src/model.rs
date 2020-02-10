@@ -59,7 +59,10 @@ pub trait State: 'static + Send + Sync + Sized {}
 /// }
 /// ```
 pub trait Model: 'static + Send + Sync + Sized {
+    /// State type of this model.
     type State: State;
+
+    /// Construct a new state instance.
     fn new_state(&self) -> Self::State;
 }
 

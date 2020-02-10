@@ -45,7 +45,11 @@ pub type DynTargetHandler<M, Target, R = ()> =
 pub trait Handler<M: Model, R = ()>: 'static + Sync + Send {
     /// A future type will be returned by self::handle.
     type HandleFuture: 'static + Future<Output = Result<R>> + Send;
+
+    /// Handle context then return a future to get status.
     fn handle(&self, ctx: Context<M>) -> Self::HandleFuture;
+
+    /// Dynamic dispatch this handler.
     fn dynamic(self: Box<Self>) -> Box<DynHandler<M, R>> {
         Box::new(move |ctx| Box::pin(self.handle(ctx)))
     }
@@ -99,8 +103,13 @@ where
 ///
 /// ```
 pub trait TargetHandler<M: Model, Target, R = ()>: 'static + Sync + Send {
+    /// A future type will be returned by self::handle.
     type HandleFuture: 'static + Future<Output = Result<R>> + Send;
+
+    /// Handle context and target, then return a future to get status.
     fn handle(&self, ctx: Context<M>, target: Target) -> Self::HandleFuture;
+
+    /// Dynamic dispatch this target handler.
     fn dynamic(self: Box<Self>) -> Box<DynTargetHandler<M, Target, R>> {
         Box::new(move |ctx, target| Box::pin(self.handle(ctx, target)))
     }
