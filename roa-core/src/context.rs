@@ -1,7 +1,7 @@
 use crate::{AddrStream, App, Error, Model, Request, Response};
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use http::header::{HeaderName, ToStrError};
+use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
 use http::{HeaderValue, Method, Uri, Version};
 use std::any::TypeId;
@@ -535,7 +535,7 @@ impl<M: Model> Context<M> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn header(&self, name: &HeaderName) -> Option<Result<String, ToStrError>> {
+    pub async fn header(&self, name: impl AsHeaderName) -> Option<Result<String, ToStrError>> {
         self.req()
             .await
             .headers
@@ -572,7 +572,7 @@ impl<M: Model> Context<M> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn header_value(&self, name: &HeaderName) -> Option<HeaderValue> {
+    pub async fn header_value(&self, name: impl AsHeaderName) -> Option<HeaderValue> {
         self.req().await.headers.get(name).cloned()
     }
 
