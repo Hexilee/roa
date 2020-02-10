@@ -24,7 +24,7 @@
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
-//!     app.end(|ctx| async move {
+//!     app.end_fn(|ctx| async move {
 //!         ctx.resp_mut().await.write_str("Hello, World");
 //!         Ok(())
 //!     });
@@ -54,14 +54,14 @@
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
-//!     app.gate(|_ctx, next| async move {
+//!     app.gate_fn(|_ctx, next| async move {
 //!         let inbound = Instant::now();
 //!         next().await?;
 //!         info!("time elapsed: {} ms", inbound.elapsed().as_millis());
 //!         Ok(())
 //!     });
 //!   
-//!     app.end(|ctx| async move {
+//!     app.end_fn(|ctx| async move {
 //!         ctx.resp_mut().await.write_str("Hello, World");
 //!         Ok(())
 //!     });
@@ -123,22 +123,22 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (addr, server) = App::new(())
-//!         .gate(|ctx, next| async move {
+//!         .gate_fn(|ctx, next| async move {
 //!             // catch
 //!             if let Err(err) = next().await {
 //!                 if err.status_code == StatusCode::IM_A_TEAPOT {
 //!                     // teapot is ok
 //!                 } else {
-//!                     return Err(err)
+//!                     return Err(err);
 //!                 }
 //!             }
 //!             Ok(())
 //!         })
-//!         .gate(|ctx, next| async move {
+//!         .gate_fn(|ctx, next| async move {
 //!             next().await?; // just throw
 //!             unreachable!()
 //!         })
-//!         .end(|_ctx| async move {
+//!         .end_fn(|_ctx| async move {
 //!             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 //!         })
 //!         .run_local()?;
@@ -218,10 +218,10 @@ pub use err::{throw, Error, ErrorKind, Result, ResultFuture};
 pub(crate) use handler::default_error_handler;
 
 #[doc(inline)]
-pub use handler::{DynHandler, DynTargetHandler, Handler, TargetHandler};
+pub use handler::{Endpoint, ErrorHandler, Middleware};
 
 #[doc(inline)]
-pub use group::Group;
+pub use group::{join, join_all};
 
 #[doc(inline)]
 pub use model::{Model, State};

@@ -155,7 +155,7 @@ fn crud_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(AppModel::new())
-        .end(crud_router()?.handler()?)
+        .end_fn(crud_router()?.handler()?)
         .run_local()?;
     spawn(server);
     // first get, 404 Not Found
@@ -261,8 +261,8 @@ fn batch_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn batch() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(AppModel::new())
-        .gate(query_parser)
-        .end(batch_router()?.handler()?)
+        .gate_fn(query_parser)
+        .end_fn(batch_router()?.handler()?)
         .run_local()?;
     spawn(server);
     // first get, list empty

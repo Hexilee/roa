@@ -67,7 +67,7 @@ mod tests {
     #[tokio::test]
     async fn host() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!("github.com", ctx.host().await?);
                 Ok(())
             })
@@ -94,7 +94,7 @@ mod tests {
     #[tokio::test]
     async fn host_err() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 ctx.req_mut().await.headers.remove(HOST);
                 assert_eq!("", ctx.host().await?);
                 Ok(())
@@ -113,7 +113,7 @@ mod tests {
     #[tokio::test]
     async fn client_ip() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!(ctx.remote_addr().ip(), ctx.client_ip().await);
                 Ok(())
             })
@@ -122,7 +122,7 @@ mod tests {
         reqwest::get(&format!("http://{}", addr)).await?;
 
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!("192.168.0.1", ctx.client_ip().await.to_string());
                 Ok(())
             })
@@ -141,7 +141,7 @@ mod tests {
     #[tokio::test]
     async fn forwarded_proto() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!("https", ctx.forwarded_proto().await.unwrap()?);
                 Ok(())
             })

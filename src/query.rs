@@ -47,8 +47,8 @@ mod tests {
     async fn query() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
-            .gate(query_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(query_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert!(ctx.try_query("name").await.is_none());
                 Ok(())
             })
@@ -58,8 +58,8 @@ mod tests {
 
         // string value
         let (addr, server) = App::new(())
-            .gate(query_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(query_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
                 Ok(())
             })
@@ -74,8 +74,8 @@ mod tests {
     async fn query_parse() -> Result<(), Box<dyn std::error::Error>> {
         // invalid int value
         let (addr, server) = App::new(())
-            .gate(query_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(query_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert!(ctx.query("age").await?.parse::<u64>().is_err());
                 Ok(())
             })
@@ -85,8 +85,8 @@ mod tests {
         assert_eq!(StatusCode::OK, resp.status());
 
         let (addr, server) = App::new(())
-            .gate(query_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(query_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!(120, ctx.query("age").await?.parse::<u64>()?);
                 Ok(())
             })
@@ -100,8 +100,8 @@ mod tests {
     #[tokio::test]
     async fn query_action() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(query_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(query_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
                 assert_eq!("rust", ctx.query("lang").await?.as_ref());
                 Ok(())

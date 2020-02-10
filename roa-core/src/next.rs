@@ -18,13 +18,13 @@ use crate::ResultFuture;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let (addr, server) = App::new(())
-///         .gate(|ctx, next| async move {
+///         .gate_fn(|ctx, next| async move {
 ///             ctx.store::<Symbol>("id", "1".to_string()).await;
 ///             next().await?;
 ///             assert_eq!("5", ctx.load::<Symbol>("id").await.unwrap().as_ref());
 ///             Ok(())
 ///         })
-///         .gate(|ctx, next| async move {
+///         .gate_fn(|ctx, next| async move {
 ///             assert_eq!("1", ctx.load::<Symbol>("id").await.unwrap().as_ref());
 ///             ctx.store::<Symbol>("id", "2".to_string()).await;
 ///             next().await?;
@@ -32,7 +32,7 @@ use crate::ResultFuture;
 ///             ctx.store::<Symbol>("id", "5".to_string()).await;
 ///             Ok(())
 ///         })
-///         .gate(|ctx, next| async move {
+///         .gate_fn(|ctx, next| async move {
 ///             assert_eq!("2", ctx.load::<Symbol>("id").await.unwrap().as_ref());
 ///             ctx.store::<Symbol>("id", "3".to_string()).await;
 ///             next().await?; // next is none; do nothing
@@ -60,22 +60,22 @@ use crate::ResultFuture;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let (addr, server) = App::new(())
-///         .gate(|ctx, next| async move {
+///         .gate_fn(|ctx, next| async move {
 ///             // catch
 ///             if let Err(err) = next().await {
 ///                 if err.status_code == StatusCode::IM_A_TEAPOT {
 ///                     // teapot is ok
 ///                 } else {
-///                     return Err(err)
+///                     return Err(err);
 ///                 }
 ///             }
 ///             Ok(())
 ///         })
-///         .gate(|ctx, next| async move {
+///         .gate_fn(|ctx, next| async move {
 ///             next().await?; // just throw
 ///             unreachable!()
 ///         })
-///         .gate(|_ctx, _next| async move {
+///         .gate_fn(|_ctx, _next| async move {
 ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 ///         })
 ///         .run_local()?;

@@ -2,8 +2,8 @@ mod executor;
 mod tcp;
 
 use crate::{
-    default_error_handler, last, Context, DynTargetHandler, Error, Group, Model, Next, Request,
-    Response, Result, TargetHandler,
+    default_error_handler, join, join_all, last, Context, Endpoint, Error, ErrorHandler,
+    Middleware, Model, Next, Request, Response, Result,
 };
 use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};
@@ -28,11 +28,11 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// #[async_std::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let server = App::new(())
-///         .gate(|ctx, next| async move {
+///         .gate_fn(|ctx, next| async move {
 ///             info!("{} {}", ctx.method().await, ctx.uri().await);
 ///             next().await
 ///         })
-///         .end(|ctx| async move {
+///         .end_fn(|ctx| async move {
 ///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
 ///             Ok(())
 ///         })
@@ -88,11 +88,11 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// #[async_std::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let server = App::new(AppModel::new())
-///         .gate(|ctx, next| async move {
+///         .gate_fn(|ctx, next| async move {
 ///             ctx.state_mut().await.id = 1;
 ///             next().await
 ///         })
-///         .end(|ctx| async move {
+///         .end_fn(|ctx| async move {
 ///             let id = ctx.state().await.id;
 ///             ctx.state().await.database.lock().await.get(&id);
 ///             Ok(())
@@ -134,8 +134,8 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// }
 /// ```
 pub struct App<M: Model> {
-    middleware: Group<M>,
-    error_handler: Arc<DynTargetHandler<M, Error>>,
+    middleware: Arc<dyn Middleware<M>>,
+    error_handler: Arc<dyn ErrorHandler<M>>,
     pub(crate) model: Arc<M>,
 }
 
@@ -152,34 +152,43 @@ impl<M: Model> App<M> {
     /// Construct an Application from a Model.
     pub fn new(model: M) -> Self {
         Self {
-            middleware: Group::new(),
-            error_handler: Arc::from(Box::new(default_error_handler).dynamic()),
+            middleware: Arc::new(join_all(Vec::new())),
+            error_handler: Arc::new(default_error_handler),
             model: Arc::new(model),
         }
     }
 
     /// Use a middleware.
-    pub fn gate<F>(
-        &mut self,
-        middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
-    ) -> &mut Self
-    where
-        F: 'static + Future<Output = Result> + Send,
-    {
-        self.middleware.join(middleware);
+    pub fn gate(&mut self, middleware: impl Middleware<M>) -> &mut Self {
+        self.middleware = Arc::new(join(self.middleware.clone(), middleware));
         self
     }
 
     /// Use a endpoint.
-    pub fn end<F>(
+    pub fn end(&mut self, endpoint: impl Endpoint<M>) -> &mut Self {
+        let endpoint = Arc::new(endpoint);
+        self.gate_fn(move |ctx, _next| endpoint.clone().handle(ctx));
+        self
+    }
+
+    pub fn gate_fn<F>(
+        &mut self,
+        middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
+    ) -> &mut Self
+    where
+        F: 'static + Send + Future<Output = Result>,
+    {
+        self.gate(middleware)
+    }
+
+    pub fn end_fn<F>(
         &mut self,
         endpoint: impl 'static + Sync + Send + Fn(Context<M>) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result> + Send,
+        F: 'static + Send + Future<Output = Result>,
     {
-        self.gate(move |ctx, _next| endpoint(ctx));
-        self
+        self.end(endpoint)
     }
 
     /// Set a custom error handler. error_handler will be called when middlewares return an `Err(Error)`.
@@ -202,14 +211,8 @@ impl<M: Model> App<M> {
     ///     }
     /// }
     /// ```
-    pub fn handle_err<F>(
-        &mut self,
-        handler: impl 'static + Sync + Send + Fn(Context<M>, Error) -> F,
-    ) -> &mut Self
-    where
-        F: 'static + Future<Output = Result> + Send,
-    {
-        self.error_handler = Arc::from(Box::new(handler).dynamic());
+    pub fn handle_err(&mut self, handler: impl ErrorHandler<M>) -> &mut Self {
+        self.error_handler = Arc::new(handler);
         self
     }
 
@@ -250,7 +253,7 @@ impl<M: Model> App<M> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate(|_ctx, next| async move {
+    ///         .gate_fn(|_ctx, next| async move {
     ///             let inbound = Instant::now();
     ///             next().await?;
     ///             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
@@ -316,8 +319,8 @@ impl<M: Model> HttpService<M> {
     pub async fn serve(&self, req: Request) -> Result<Response> {
         let context = Context::new(req, self.app.clone(), self.stream.clone());
         let app = self.app.clone();
-        if let Err(status) = (app.middleware.handler())(context.clone(), Box::new(last)).await {
-            (app.error_handler)(context.clone(), status).await?;
+        if let Err(status) = app.middleware.handle(context.clone(), Box::new(last)).await {
+            app.error_handler.handle(context.clone(), status).await?;
         }
         let mut response = context.resp_mut().await;
         Ok(std::mem::take(&mut *response))
@@ -353,7 +356,7 @@ mod tests {
     #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(|_ctx, next| async move {
+            .gate_fn(|_ctx, next| async move {
                 let inbound = Instant::now();
                 next().await?;
                 println!("time elapsed: {} ms", inbound.elapsed().as_millis());

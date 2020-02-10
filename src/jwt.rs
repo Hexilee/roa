@@ -111,11 +111,11 @@ mod tests {
     async fn verify() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         let (addr, server) = app
-            .gate(jwt_verify::<(), User>(
+            .gate_fn(jwt_verify::<(), User>(
                 SECRET.to_string(),
                 Validation::default(),
             ))
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 let user: User = ctx.verify(&Validation::default()).await?;
                 assert_eq!(0, user.id);
                 assert_eq!("Hexilee", &user.name);
@@ -200,7 +200,7 @@ mod tests {
     async fn jwt_verify_not_set() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         let (addr, server) = app
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 let result: Result<User, Error> = ctx.verify(&Validation::default()).await;
                 assert!(result.is_err());
                 let status = result.unwrap_err();

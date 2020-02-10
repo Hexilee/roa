@@ -112,9 +112,9 @@ async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
         .get(|ctx| serve_dir(ctx, Path::new(".").to_path_buf()));
     router.on("/*{path}")?.gate(path_checker).get(serve_path);
     App::new(())
-        .gate(logger)
-        .gate(compress(Level::Best))
-        .end(router.handler()?)
+        .gate_fn(logger)
+        .gate_fn(compress(Level::Best))
+        .end_fn(router.handler()?)
         .listen("127.0.0.1:8000", |addr| {
             info!("Server is listening on {}", addr)
         })?

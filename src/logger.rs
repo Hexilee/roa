@@ -85,8 +85,8 @@ mod tests {
 
         // info
         let (addr, server) = App::new(())
-            .gate(logger)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(logger)
+            .gate_fn(move |ctx, _next| async move {
                 ctx.resp_mut().await.write_str("Hello, World.");
                 Ok(())
             })
@@ -106,8 +106,10 @@ mod tests {
 
         // error
         let (addr, server) = App::new(())
-            .gate(logger)
-            .gate(move |_ctx, _next| async move { throw(StatusCode::BAD_REQUEST, "Hello, World.") })
+            .gate_fn(logger)
+            .gate_fn(
+                move |_ctx, _next| async move { throw(StatusCode::BAD_REQUEST, "Hello, World.") },
+            )
             .run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;

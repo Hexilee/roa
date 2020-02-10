@@ -7,7 +7,7 @@ use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path};
 
 use crate::core::{
-    throw, Context, DynHandler, Error, Group, Handler, Model, Next, Result, Variable,
+    throw, Context, DynHandler, Endpoint, Error, Join, Model, Next, Result, Variable,
 };
 use async_trait::async_trait;
 use http::StatusCode;
@@ -56,7 +56,7 @@ impl<M: Model> Node<M> {
 
 pub struct Router<M: Model> {
     root: String,
-    middleware: Group<M>,
+    middleware: Join<M>,
     nodes: Vec<Node<M>>,
 }
 
@@ -64,7 +64,7 @@ impl<M: Model> Router<M> {
     pub fn new(path: impl ToString) -> Self {
         Self {
             root: path.to_string(),
-            middleware: Group::new(),
+            middleware: Join::new(),
             nodes: Vec::new(),
         }
     }
@@ -109,7 +109,7 @@ impl<M: Model> Router<M> {
         }
 
         for endpoint in endpoints.iter_mut() {
-            let mut new_middleware = Group::new();
+            let mut new_middleware = Join::new();
             new_middleware.join(middleware.handler());
             new_middleware.join(endpoint.middleware.handler());
             endpoint.middleware = new_middleware;
@@ -233,7 +233,7 @@ mod tests {
                 assert_eq!(0, id);
                 Ok(())
             });
-        let (addr, server) = App::new(()).end(router.handler()?).run_local()?;
+        let (addr, server) = App::new(()).end_fn(router.handler()?).run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -256,7 +256,7 @@ mod tests {
                 assert_eq!(0, id);
                 Ok(())
             });
-        let (addr, server) = App::new(()).end(router.handler()?).run_local()?;
+        let (addr, server) = App::new(()).end_fn(router.handler()?).run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route/user", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -279,7 +279,7 @@ mod tests {
     #[tokio::test]
     async fn route_not_found() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .end(Router::<()>::new("/").handler()?)
+            .end_fn(Router::<()>::new("/").handler()?)
             .run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -290,7 +290,7 @@ mod tests {
     #[tokio::test]
     async fn non_utf8_uri() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .end(Router::<()>::new("/").handler()?)
+            .end_fn(Router::<()>::new("/").handler()?)
             .run_local()?;
         spawn(server);
         let gbk_path = encoding::label::encoding_from_whatwg_label("gbk")

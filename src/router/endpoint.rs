@@ -43,11 +43,7 @@ impl<M: Model> Endpoint<M> {
         self
     }
 
-    pub fn handle(
-        &mut self,
-        methods: &[Method],
-        handler: impl Handler<M>,
-    ) -> &mut Self {
+    pub fn handle(&mut self, methods: &[Method], handler: impl Handler<M>) -> &mut Self {
         let dyn_handler: Arc<DynHandler<M>> = Arc::from(Box::new(handler).dynamic());
         for method in methods {
             self.handlers.push((method.clone(), dyn_handler.clone()));

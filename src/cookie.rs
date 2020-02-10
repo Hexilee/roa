@@ -77,8 +77,8 @@ mod tests {
     async fn cookie() -> Result<(), Box<dyn std::error::Error>> {
         // miss cookie
         let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(cookie_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert!(ctx.try_cookie("name").await.is_none());
                 Ok(())
             })
@@ -87,8 +87,8 @@ mod tests {
         reqwest::get(&format!("http://{}", addr)).await?;
 
         let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(cookie_parser)
+            .gate_fn(move |ctx, _next| async move {
                 ctx.cookie("nick name").await?;
                 Ok(())
             })
@@ -106,8 +106,8 @@ mod tests {
         );
         // string value
         let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(cookie_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!("Hexilee", ctx.cookie("name").await?);
                 Ok(())
             })
@@ -126,8 +126,8 @@ mod tests {
     #[tokio::test]
     async fn cookie_decode() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(cookie_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!("bar baz", ctx.cookie("bar baz").await?);
                 Ok(())
             })
@@ -146,8 +146,8 @@ mod tests {
     #[tokio::test]
     async fn cookie_action() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .gate(move |ctx, _next| async move {
+            .gate_fn(cookie_parser)
+            .gate_fn(move |ctx, _next| async move {
                 assert_eq!("bar baz", ctx.cookie("bar baz").await?);
                 assert_eq!("bar foo", ctx.cookie("foo baz").await?);
                 Ok(())
@@ -167,7 +167,7 @@ mod tests {
     #[tokio::test]
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 ctx.set_cookie(Cookie::new("bar baz", "bar baz")).await?;
                 ctx.set_cookie(Cookie::new("bar foo", "foo baz")).await?;
                 Ok(())

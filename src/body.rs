@@ -215,7 +215,7 @@ mod tests {
     async fn read() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 let user: User = ctx.read().await?;
                 assert_eq!(
                     User {
@@ -303,7 +303,7 @@ mod tests {
     async fn render() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 let user = User {
                     id: 0,
                     name: "Hexilee".to_string(),
@@ -322,7 +322,7 @@ mod tests {
     async fn write_text() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move { ctx.write_text("Hello, World!").await })
+            .gate_fn(move |ctx, _next| async move { ctx.write_text("Hello, World!").await })
             .run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -336,7 +336,7 @@ mod tests {
     async fn write_octet() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 ctx.write_octet(BufReader::new(File::open("assets/author.txt").await?))
                     .await
             })
@@ -356,7 +356,7 @@ mod tests {
     async fn response_type() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
-            .gate(move |ctx, _next| async move {
+            .gate_fn(move |ctx, _next| async move {
                 ctx.write_json(&()).await?;
                 assert_eq!(
                     APPLICATION_JSON_UTF_8,

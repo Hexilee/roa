@@ -9,7 +9,7 @@ use roa::router::Router;
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(())
-        .end(|ctx| async move { ctx.write_file("assets/author.txt").await })
+        .end_fn(|ctx| async move { ctx.write_file("assets/author.txt").await })
         .run_local()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -24,7 +24,7 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
         let filename = ctx.param("filename").await?;
         ctx.write_file(format!("assets/{}", &*filename)).await
     });
-    let (addr, server) = App::new(()).end(router.handler()?).run_local()?;
+    let (addr, server) = App::new(()).end_fn(router.handler()?).run_local()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/author.txt", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
@@ -38,7 +38,7 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
         let path = ctx.param("path").await?;
         ctx.write_file(format!("./{}", &*path)).await
     });
-    let (addr, server) = App::new(()).end(router.handler()?).run_local()?;
+    let (addr, server) = App::new(()).end_fn(router.handler()?).run_local()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/assets/author.txt", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
@@ -48,8 +48,8 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(())
-        .gate(compress(Level::Best))
-        .end(|ctx| async move { ctx.write_file("assets/welcome.html").await })
+        .gate_fn(compress(Level::Best))
+        .end_fn(|ctx| async move { ctx.write_file("assets/welcome.html").await })
         .run_local()?;
     spawn(server);
     let client = reqwest::Client::builder().gzip(true).build()?;

@@ -16,18 +16,18 @@ pub type ResultFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>>
 /// ```rust
 /// use roa_core::{App, throw};
 /// use async_std::task::spawn;
-/// use http::{StatusCode};
+/// use http::StatusCode;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let (addr, server) = App::new(())
-///         .gate(|ctx, next| async move {
+///         .gate_fn(|ctx, next| async move {
 ///             next().await?; // throw
 ///             unreachable!();
 ///             ctx.resp_mut().await.status = StatusCode::OK;
 ///             Ok(())
 ///         })
-///         .end(|_ctx| async {
+///         .end_fn(|_ctx| async {
 ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")?; // throw
 ///             unreachable!()
 ///         })
@@ -54,16 +54,16 @@ pub struct Error {
     /// ```rust
     /// use roa_core::{App, throw};
     /// use async_std::task::spawn;
-    /// use http::{StatusCode};
+    /// use http::StatusCode;
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate(|ctx, next| async move {
+    ///         .gate_fn(|ctx, next| async move {
     ///             ctx.resp_mut().await.status = StatusCode::OK;
     ///             next().await // not caught
     ///         })
-    ///         .end(|_ctx| async {
+    ///         .end_fn(|_ctx| async {
     ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
     ///         })
     ///         .run_local()?;
@@ -86,12 +86,12 @@ pub struct Error {
     /// ```rust
     /// use roa_core::{App, throw, Error};
     /// use async_std::task::spawn;
-    /// use http::{StatusCode};
+    /// use http::StatusCode;
     ///
     /// #[tokio::test]
     /// async fn exposed() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end(|_ctx| async {
+    ///         .end_fn(|_ctx| async {
     ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
     ///         })
     ///         .run_local()?;
@@ -105,7 +105,7 @@ pub struct Error {
     /// #[tokio::test]
     /// async fn not_exposed() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end(|_ctx| async {
+    ///         .end_fn(|_ctx| async {
     ///             Err(Error::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // throw
     ///         })
     ///         .run_local()?;

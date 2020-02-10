@@ -1,12 +1,12 @@
-use crate::{Context, DynTargetHandler, Model, Next, Result, TargetHandler};
-use std::future::Future;
+use crate::{Context, Middleware, Model, Next, Result};
+use async_trait::async_trait;
 use std::sync::Arc;
 
 /// A structure to join middlewares.
 ///
 /// ### Example
 /// ```rust
-/// use roa_core::{Group, App};
+/// use roa_core::{App, join_all, Middleware, Next};
 /// use async_std::task::spawn;
 /// use futures::lock::Mutex;
 /// use http::StatusCode;
@@ -15,10 +15,10 @@ use std::sync::Arc;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let vector = Arc::new(Mutex::new(Vec::new()));
-///     let mut middleware = Group::<()>::default();
+///     let mut middlewares = Vec::<Arc<dyn Middleware<()>>>::new();
 ///     for i in 0..100 {
 ///         let vec = vector.clone();
-///         middleware.join(move |_ctx, next| {
+///         middlewares.push(Arc::new(move |_ctx, next: Next| {
 ///             let vec = vec.clone();
 ///             async move {
 ///                 vec.lock().await.push(i);
@@ -26,9 +26,9 @@ use std::sync::Arc;
 ///                 vec.lock().await.push(i);
 ///                 Ok(())
 ///             }
-///         });
+///         }));
 ///     }
-///     let (addr, server) = App::new(()).gate(middleware.handler()).run_local()?;
+///     let (addr, server) = App::new(()).gate(join_all(middlewares)).run_local()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
 ///     assert_eq!(StatusCode::OK, resp.status());
@@ -39,57 +39,40 @@ use std::sync::Arc;
 ///     Ok(())
 /// }
 /// ```
-pub struct Group<M: Model>(Arc<DynTargetHandler<M, Next>>);
+struct Join<M: Model>(Vec<Arc<dyn Middleware<M>>>);
 
-impl<M: Model> Group<M> {
-    /// Construct a new group.
-    pub fn new() -> Self {
-        Self(Arc::new(|_ctx, next| next()))
-    }
-
-    /// Join a middleware.
-    pub fn join<F>(
-        &mut self,
-        middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
-    ) -> &mut Self
-    where
-        F: 'static + Future<Output = Result> + Send,
-    {
-        let current = self.0.clone();
-        let next_middleware: Arc<DynTargetHandler<M, Next>> =
-            Arc::from(Box::new(middleware).dynamic());
-        self.0 = Arc::new(move |ctx, next| {
-            let next_middleware = next_middleware.clone();
-            let ctx_cloned = ctx.clone();
-            let next = Box::new(move || next_middleware(ctx_cloned, next));
-            current(ctx, next)
-        });
-        self
-    }
-
-    /// As a middleware.
-    pub fn handler(&self) -> Box<DynTargetHandler<M, Next>> {
-        let handler = self.0.clone();
-        Box::new(move |ctx, next| handler(ctx, next))
+impl<M: Model> Join<M> {
+    fn new(middlewares: Vec<Arc<dyn Middleware<M>>>) -> Self {
+        Self(middlewares)
     }
 }
 
-impl<M: Model> Clone for Group<M> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
+#[async_trait]
+impl<M: Model> Middleware<M> for Join<M> {
+    async fn handle(self: Arc<Self>, ctx: Context<M>, mut next: Next) -> Result {
+        for middleware in self.0.iter().rev() {
+            let ctx = ctx.clone();
+            let middleware = middleware.clone();
+            next = Box::new(move || middleware.handle(ctx, next))
+        }
+        next().await
     }
 }
 
-impl<M: Model> Default for Group<M> {
-    fn default() -> Self {
-        Self::new()
-    }
+pub fn join<M: Model>(
+    current: Arc<dyn Middleware<M>>,
+    next: impl Middleware<M>,
+) -> impl Middleware<M> {
+    join_all(vec![current, Arc::new(next)])
+}
+
+pub fn join_all<M: Model>(middlewares: Vec<Arc<dyn Middleware<M>>>) -> impl Middleware<M> {
+    Join::new(middlewares)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Group;
-    use crate::App;
+    use crate::{join_all, App, Middleware, Next};
     use async_std::task::spawn;
     use futures::lock::Mutex;
     use http::StatusCode;
@@ -98,10 +81,10 @@ mod tests {
     #[tokio::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut middleware = Group::<()>::default();
+        let mut middlewares = Vec::<Arc<dyn Middleware<()>>>::new();
         for i in 0..100 {
             let vec = vector.clone();
-            middleware.join(move |_ctx, next| {
+            middlewares.push(Arc::new(move |_ctx, next: Next| {
                 let vec = vec.clone();
                 async move {
                     vec.lock().await.push(i);
@@ -109,9 +92,9 @@ mod tests {
                     vec.lock().await.push(i);
                     Ok(())
                 }
-            });
+            }));
         }
-        let (addr, server) = App::new(()).gate(middleware.handler()).run_local()?;
+        let (addr, server) = App::new(()).gate(join_all(middlewares)).run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

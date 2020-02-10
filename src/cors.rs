@@ -226,8 +226,8 @@ mod tests {
     async fn default_options() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         let (addr, server) = app
-            .gate(cors(Options::default()))
-            .gate(|ctx, _next| async move {
+            .gate_fn(cors(Options::default()))
+            .gate_fn(|ctx, _next| async move {
                 ctx.write_text("Hello, World").await?;
                 Ok(())
             })
