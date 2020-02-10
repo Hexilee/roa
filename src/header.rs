@@ -148,7 +148,7 @@ mod tests {
         request
             .raw_mut_header_map()
             .insert(CONTENT_TYPE, TEXT_HTML.as_ref().parse().unwrap());
-        let content_type = request.must_get(&CONTENT_TYPE).unwrap();
+        let content_type = request.must_get(CONTENT_TYPE).unwrap();
         assert_eq!(TEXT_HTML.as_ref(), content_type);
     }
 
@@ -159,7 +159,7 @@ mod tests {
             CONTENT_TYPE,
             HeaderValue::from_bytes([230].as_ref()).unwrap(),
         );
-        let ret = request.get(&CONTENT_TYPE).unwrap();
+        let ret = request.get(CONTENT_TYPE).unwrap();
         assert!(ret.is_err());
         let status = ret.unwrap_err();
         assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn must_get_fails() {
         let request = Request::default();
-        let ret = request.must_get(&CONTENT_TYPE);
+        let ret = request.must_get(CONTENT_TYPE);
         assert!(ret.is_err());
         let status = ret.unwrap_err();
         assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
@@ -183,7 +183,7 @@ mod tests {
             CONTENT_TYPE,
             HeaderValue::from_bytes([230].as_ref()).unwrap(),
         );
-        let ret = request.get_all(&CONTENT_TYPE);
+        let ret = request.get_all(CONTENT_TYPE);
         assert!(ret.is_err());
         let status = ret.unwrap_err();
         assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
@@ -195,7 +195,7 @@ mod tests {
         let mut request = Request::default();
         request.append(CONTENT_TYPE, "text/html")?;
         request.append(CONTENT_TYPE, "text/plain")?;
-        let ret = request.get_all(&CONTENT_TYPE)?;
+        let ret = request.get_all(CONTENT_TYPE)?;
         assert_eq!("text/html", ret[0]);
         assert_eq!("text/plain", ret[1]);
         Ok(())
@@ -205,10 +205,10 @@ mod tests {
     fn insert() -> Result<(), Box<dyn std::error::Error>> {
         let mut request = Request::default();
         request.insert(CONTENT_TYPE, "text/html")?;
-        assert_eq!("text/html", request.must_get(&CONTENT_TYPE)?);
+        assert_eq!("text/html", request.must_get(CONTENT_TYPE)?);
         let old_data = request.insert(CONTENT_TYPE, "text/plain")?.unwrap();
         assert_eq!("text/html", old_data);
-        assert_eq!("text/plain", request.must_get(&CONTENT_TYPE)?);
+        assert_eq!("text/plain", request.must_get(CONTENT_TYPE)?);
         Ok(())
     }
 

@@ -23,11 +23,13 @@ pub async fn query_parser<M: Model>(ctx: Context<M>, next: Next) -> Result {
 #[async_trait]
 impl<M: Model> Query for Context<M> {
     async fn query<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
-        self.try_query(name).await.ok_or(Error::new(
-            StatusCode::BAD_REQUEST,
-            format!("query `{}` is required", name),
-            true,
-        ))
+        self.try_query(name).await.ok_or_else(|| {
+            Error::new(
+                StatusCode::BAD_REQUEST,
+                format!("query `{}` is required", name),
+                true,
+            )
+        })
     }
     async fn try_query<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
         self.load::<QuerySymbol>(name).await

@@ -66,7 +66,7 @@ impl FromStr for Path {
 }
 
 fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, RouterError> {
-    let mut pattern = escape(path.clone());
+    let mut pattern = escape(path);
     let mut vars = HashSet::new();
     let wildcard_re = must_build(WILDCARD);
     let variable_re = must_build(VARIABLE);

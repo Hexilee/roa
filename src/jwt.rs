@@ -34,14 +34,10 @@ async fn unauthorized_error<M: Model, E: ToString>(
 }
 
 async fn try_get_token<M: Model>(ctx: &Context<M>) -> Result<String> {
-    match ctx.header(&AUTHORIZATION).await {
-        None | Some(Err(_)) => Err((unauthorized_error(&mut ctx.clone(), INVALID_TOKEN).await)(
-            "",
-        )),
+    match ctx.header(AUTHORIZATION).await {
+        None | Some(Err(_)) => Err((unauthorized_error(ctx, INVALID_TOKEN).await)("")),
         Some(Ok(value)) => match value.find("Bearer") {
-            None => Err((unauthorized_error(&mut ctx.clone(), INVALID_TOKEN).await)(
-                "",
-            )),
+            None => Err((unauthorized_error(ctx, INVALID_TOKEN).await)("")),
             Some(n) => Ok(value[n + 6..].trim().to_string()),
         },
     }

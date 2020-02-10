@@ -89,8 +89,8 @@ impl<M: Model> Endpoint<M> {
         let raw_path = path.raw().to_string();
         let mut map = HashMap::new();
         for (method, handler) in handlers {
-            if let Some(_) = map.insert(method.clone(), handler) {
-                return Err(Conflict::Method(raw_path.clone(), method));
+            if map.insert(method.clone(), handler).is_some() {
+                return Err(Conflict::Method(raw_path, method));
             };
         }
 

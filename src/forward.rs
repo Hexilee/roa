@@ -17,7 +17,7 @@ impl<M: Model> Forward for Context<M> {
     async fn host(&self) -> Result<String> {
         if let Some(Ok(value)) = self.req().await.get("x-forwarded-host") {
             Ok(value.to_string())
-        } else if let Some(Ok(value)) = self.req().await.get(&HOST) {
+        } else if let Some(Ok(value)) = self.req().await.get(HOST) {
             Ok(value.to_string())
         } else {
             throw(

@@ -124,7 +124,10 @@ impl<M: Model> Router<M> {
         for endpoint in endpoints {
             match &*endpoint.path.clone() {
                 Path::Static(path) => {
-                    if let Some(_) = static_route.insert(path.to_string(), endpoint.handler()?) {
+                    if static_route
+                        .insert(path.to_string(), endpoint.handler()?)
+                        .is_some()
+                    {
                         return Err(Conflict::Path(path.to_string()));
                     }
                 }
@@ -179,11 +182,13 @@ impl<M: Model> Router<M> {
 #[async_trait]
 impl<M: Model> RouterParam for Context<M> {
     async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
-        self.try_param(name).await.ok_or(Error::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("router variable `{}` is required", name),
-            false,
-        ))
+        self.try_param(name).await.ok_or_else(|| {
+            Error::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("router variable `{}` is required", name),
+                false,
+            )
+        })
     }
     async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
         self.load::<RouterSymbol>(name).await

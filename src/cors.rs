@@ -105,7 +105,7 @@ pub fn cors<M: Model>(options: Options) -> Box<DynTargetHandler<M, Next>> {
                 .append(VARY, HeaderValue::from_name(ORIGIN));
 
             // If `Origin` header not set, skip this middleware.
-            let req_origin = match ctx.header_value(&ORIGIN).await {
+            let req_origin = match ctx.header_value(ORIGIN).await {
                 Some(origin) => origin,
                 None => return next().await,
             };
@@ -151,7 +151,7 @@ pub fn cors<M: Model>(options: Options) -> Box<DynTargetHandler<M, Next>> {
                     .req()
                     .await
                     .headers
-                    .contains_key(&ACCESS_CONTROL_REQUEST_METHOD)
+                    .contains_key(ACCESS_CONTROL_REQUEST_METHOD)
                 {
                     // this not preflight request, ignore it
                     return next().await;
@@ -187,7 +187,7 @@ pub fn cors<M: Model>(options: Options) -> Box<DynTargetHandler<M, Next>> {
 
                 // If allow_headers is None, try to assign `Access-Control-Request-Headers` to `Access-Control-Allow-Headers`.
                 if allow_headers.is_empty() {
-                    if let Some(value) = ctx.header_value(&ACCESS_CONTROL_REQUEST_HEADERS).await {
+                    if let Some(value) = ctx.header_value(ACCESS_CONTROL_REQUEST_HEADERS).await {
                         allow_headers = value
                     }
                 }

@@ -20,7 +20,7 @@ pub trait Cookier {
 }
 
 pub async fn cookie_parser<M: Model>(ctx: Context<M>, next: Next) -> Result {
-    if let Some(Ok(cookies)) = ctx.header(&header::COOKIE).await {
+    if let Some(Ok(cookies)) = ctx.header(header::COOKIE).await {
         for cookie in cookies
             .split(';')
             .map(|cookie| cookie.trim())
