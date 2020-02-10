@@ -46,9 +46,6 @@ pub struct Context<M: Model> {
     state: Arc<RwLock<M::State>>,
     storage: Arc<RwLock<HashMap<TypeId, Bucket>>>,
     stream: AddrStream,
-
-    /// The global Application.
-    pub app: App<M>,
 }
 
 /// A wrapper of `HashMap<String, String>`, method `get` return a `Variable`.
@@ -201,14 +198,12 @@ impl Default for Bucket {
 
 impl<M: Model> Context<M> {
     /// Construct a context from a request, an app and a addr_stream.  
-    pub(crate) fn new(request: Request, app: App<M>, stream: AddrStream) -> Self {
-        let state = app.model.new_state();
+    pub(crate) fn new(request: Request, state: M::State, stream: AddrStream) -> Self {
         Self {
             request: Arc::new(RwLock::new(request)),
             response: Arc::new(RwLock::new(Response::new())),
             state: Arc::new(RwLock::new(state)),
             storage: Arc::new(RwLock::new(HashMap::new())),
-            app,
             stream,
         }
     }

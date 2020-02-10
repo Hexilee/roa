@@ -317,7 +317,7 @@ impl<M: Model> HttpService<M> {
     }
 
     pub async fn serve(&self, req: Request) -> Result<Response> {
-        let context = Context::new(req, self.app.clone(), self.stream.clone());
+        let context = Context::new(req, self.app.model.new_state(), self.stream.clone());
         let app = self.app.clone();
         if let Err(status) = app.middleware.handle(context.clone(), Box::new(last)).await {
             app.error_handler.handle(context.clone(), status).await?;
