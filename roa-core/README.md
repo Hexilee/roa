@@ -54,7 +54,7 @@ use std::time::Instant;
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
-  	app.gate(|_ctx, next| async move {
+  	app.gate_fn(|_ctx, next| async move {
     		let inbound = Instant::now();
         next().await?;
         info!("time elapsed: {} ms", inbound.elapsed().as_millis());
@@ -123,7 +123,7 @@ use http::StatusCode;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(())
-        .gate(|ctx, next| async move {
+        .gate_fn(|ctx, next| async move {
             // catch
             if let Err(err) = next().await {
                 if err.status_code == StatusCode::IM_A_TEAPOT {
@@ -134,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Ok(())
         })
-        .gate(|ctx, next| async move {
+        .gate_fn(|ctx, next| async move {
             next().await?; // just throw
             unreachable!()
         })
