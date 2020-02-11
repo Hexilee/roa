@@ -56,39 +56,46 @@ async fn path_checker(ctx: Context<()>, next: Next) -> Result {
 }
 
 async fn serve_path(ctx: Context<()>) -> Result {
-    let base_path = Path::new(".");
-    let path_buf = base_path.join(ctx.param("path").await?.as_ref());
-    let path = path_buf.as_path();
-    if path.is_file().await {
-        ctx.write_file(path).await
-    } else if path.is_dir().await {
-        serve_dir(ctx, path_buf).await
+    let path_value = ctx.param("path").await?;
+    let path = path_value.as_ref();
+    let file_path = Path::new(".").join(path);
+    if file_path.is_file().await {
+        ctx.write_file(file_path).await
+    } else if file_path.is_dir().await {
+        serve_dir(ctx, path).await
     } else {
         throw(StatusCode::NOT_FOUND, "path not found")
     }
 }
 
-async fn serve_dir(ctx: Context<()>, root: PathBuf) -> Result {
-    let mut entries = root.read_dir().await?;
-    let title = root
+async fn serve_dir(ctx: Context<()>, path: &str) -> Result {
+    let uri_path = Path::new("/").join(path);
+    let mut entries = Path::new(".").join(path).read_dir().await?;
+    let title = uri_path
         .file_name()
         .map(|os_str| os_str.to_string_lossy())
-        .unwrap_or(Cow::Borrowed("."));
-    let root_str = root.to_string_lossy();
+        .unwrap_or(Cow::Borrowed("/"));
+    let root_str = uri_path.to_string_lossy();
     let mut dir = Dir::new(&title, &root_str);
     while let Some(res) = entries.next().await {
         let entry = res?;
         let metadata = entry.metadata().await?;
         if metadata.is_dir() {
             dir.dirs.push(DirInfo {
-                link: root.join(entry.file_name()).to_string_lossy().to_string(),
+                link: uri_path
+                    .join(entry.file_name())
+                    .to_string_lossy()
+                    .to_string(),
                 name: entry.file_name().to_string_lossy().to_string(),
                 modified: format_time(metadata.modified()?),
             })
         }
         if metadata.is_file() {
             dir.files.push(FileInfo {
-                link: root.join(entry.file_name()).to_string_lossy().to_string(),
+                link: uri_path
+                    .join(entry.file_name())
+                    .to_string_lossy()
+                    .to_string(),
                 name: entry.file_name().to_string_lossy().to_string(),
                 modified: format_time(metadata.modified()?),
                 size: ByteSize(metadata.len()).to_string(),
@@ -108,7 +115,7 @@ async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     let mut router = Router::new();
     let mut wildcard_router = Router::new();
-    router.get_fn("/", |ctx| serve_dir(ctx, Path::new(".").to_path_buf()));
+    router.get_fn("", |ctx| serve_dir(ctx, ""));
     wildcard_router.gate(path_checker).get_fn("/", serve_path);
     router.include("/*{path}", wildcard_router);
     App::new(())

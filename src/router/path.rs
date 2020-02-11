@@ -15,6 +15,7 @@ pub fn join_path<'a>(paths: impl 'a + AsRef<[&'a str]>) -> String {
         .as_ref()
         .iter()
         .map(|path| path.trim_matches('/'))
+        .filter(|path| !path.is_empty())
         .collect::<Vec<&str>>()
         .join("/")
 }
