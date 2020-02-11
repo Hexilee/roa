@@ -2,8 +2,8 @@ mod executor;
 mod tcp;
 
 use crate::{
-    default_error_handler, join, join_all, last, Context, Endpoint, Error, ErrorHandler,
-    Middleware, Model, Next, Request, Response, Result,
+    default_error_handler, join, join_all, last, Context, Error, ErrorHandler, Middleware, Model,
+    Next, Request, Response, Result,
 };
 use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};
@@ -32,7 +32,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///             info!("{} {}", ctx.method().await, ctx.uri().await);
 ///             next().await
 ///         })
-///         .end_fn(|ctx| async move {
+///         .end(|ctx| async move {
 ///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
 ///             Ok(())
 ///         })
@@ -92,7 +92,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///             ctx.state_mut().await.id = 1;
 ///             next().await
 ///         })
-///         .end_fn(|ctx| async move {
+///         .end(|ctx| async move {
 ///             let id = ctx.state().await.id;
 ///             ctx.state().await.database.lock().await.get(&id);
 ///             Ok(())
@@ -164,13 +164,6 @@ impl<M: Model> App<M> {
         self
     }
 
-    /// Use a endpoint.
-    pub fn end(&mut self, endpoint: impl Endpoint<M::State>) -> &mut Self {
-        let endpoint = Arc::new(endpoint);
-        self.gate_fn(move |ctx, _next| endpoint.clone().handle(ctx));
-        self
-    }
-
     pub fn gate_fn<F>(
         &mut self,
         middleware: impl 'static + Sync + Send + Fn(Context<M::State>, Next) -> F,
@@ -181,14 +174,11 @@ impl<M: Model> App<M> {
         self.gate(middleware)
     }
 
-    pub fn end_fn<F>(
-        &mut self,
-        endpoint: impl 'static + Sync + Send + Fn(Context<M::State>) -> F,
-    ) -> &mut Self
+    pub fn end<F>(&mut self, endpoint: fn(Context<M::State>) -> F) -> &mut Self
     where
         F: 'static + Send + Future<Output = Result>,
     {
-        self.end(endpoint)
+        self.gate(endpoint)
     }
 
     /// Set a custom error handler. error_handler will be called when middlewares return an `Err(Error)`.

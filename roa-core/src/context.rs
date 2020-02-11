@@ -29,7 +29,7 @@ use std::str::FromStr;
 ///             info!("{} {}", ctx.method().await, ctx.uri().await);
 ///             next().await
 ///         })
-///         .end_fn(|ctx| async move {
+///         .end(|ctx| async move {
 ///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
 ///             Ok(())
 ///         })
@@ -219,7 +219,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(Method::GET, ctx.req().await.method);
     ///             Ok(())
     ///         })
@@ -246,7 +246,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(StatusCode::OK, ctx.resp().await.status);
     ///             Ok(())
     ///         })
@@ -303,7 +303,7 @@ impl<S> Context<S> {
     ///             ctx.state_mut().await.id = 1;
     ///             next().await
     ///         })
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             let id = ctx.state().await.id;
     ///             assert_eq!(1, id);
     ///             Ok(())
@@ -341,7 +341,7 @@ impl<S> Context<S> {
     ///             ctx.req_mut().await.method = Method::POST;
     ///             next().await
     ///         })
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(Method::POST, ctx.req().await.method);
     ///             Ok(())
     ///         })
@@ -368,7 +368,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             ctx.resp_mut().await.write_buf(b"Hello, World!".as_ref());
     ///             Ok(())
     ///         })
@@ -426,7 +426,7 @@ impl<S> Context<S> {
     ///             ctx.state_mut().await.id = 1;
     ///             next().await
     ///         })
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             let id = ctx.state().await.id;
     ///             assert_eq!(1, id);
     ///             Ok(())
@@ -460,7 +460,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!("/path", ctx.uri().await.to_string());
     ///             Ok(())
     ///         })
@@ -486,7 +486,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(Method::GET, ctx.method().await);
     ///             Ok(())
     ///         })
@@ -512,7 +512,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(
     ///                 "text/plain",
     ///                 ctx.header(&header::CONTENT_TYPE).await.unwrap().unwrap()
@@ -549,7 +549,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(
     ///                 "text/plain",
     ///                 ctx.header_value(&header::CONTENT_TYPE).await.unwrap().to_str().unwrap()
@@ -582,7 +582,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(StatusCode::OK, ctx.status().await);
     ///             Ok(())
     ///         })
@@ -608,7 +608,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(Version::HTTP_11, ctx.version().await);
     ///             Ok(())
     ///         })
@@ -641,7 +641,7 @@ impl<S> Context<S> {
     ///             ctx.store::<Symbol>("id", "1".to_string()).await;
     ///             next().await
     ///         })
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(1, ctx.load::<Symbol>("id").await.unwrap().parse::<i32>()?);
     ///             assert!(ctx.load::<AnotherSymbol>("id").await.is_none());
     ///             Ok(())
@@ -690,7 +690,7 @@ impl<S> Context<S> {
     ///             ctx.store::<Symbol>("id", "1".to_string()).await;
     ///             next().await
     ///         })
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(1, ctx.load::<Symbol>("id").await.unwrap().parse::<i32>()?);
     ///             Ok(())
     ///         })
@@ -720,7 +720,7 @@ impl<S> Context<S> {
     ///             ctx.store::<Symbol>("id", "x".to_string()).await;
     ///             next().await
     ///         })
-    ///         .end_fn(|ctx| async move {
+    ///         .end(|ctx| async move {
     ///             assert_eq!(1, ctx.load::<Symbol>("id").await.unwrap().parse::<i32>()?);
     ///             Ok(())
     ///         })
@@ -771,7 +771,7 @@ mod tests {
     #[tokio::test]
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .end_fn(|ctx| async move {
+            .end(|ctx| async move {
                 assert_eq!(Version::HTTP_11, ctx.version().await);
                 assert_eq!(StatusCode::OK, ctx.status().await);
                 Ok(())
@@ -800,7 +800,7 @@ mod tests {
                 ctx.state_mut().await.data = 1;
                 next().await
             })
-            .end_fn(|ctx| async move {
+            .end(|ctx| async move {
                 assert_eq!(1, ctx.state().await.data);
                 Ok(())
             })

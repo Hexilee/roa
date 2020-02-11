@@ -1,13 +1,13 @@
-mod endpoint;
+mod controller;
 mod err;
 mod path;
 
-use endpoint::Endpoint;
+use controller::Controller;
 use err::{Conflict, RouterError};
-use path::{join_path, standardize_path, Path};
+use path::{join_path, standardize_path, Path, RegexPath};
 
 use crate::core::{
-    throw, Context, DynHandler, Endpoint, Error, Join, Model, Next, Result, Variable,
+    join, join_all, throw, Context, Endpoint, Error, Middleware, Next, Result, State, Variable,
 };
 use async_trait::async_trait;
 use http::StatusCode;
@@ -25,13 +25,13 @@ pub trait RouterParam {
     async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
 }
 
-enum Node<M: Model> {
-    Router(Router<M>),
-    Endpoint(Endpoint<M>),
+enum Node<S> {
+    Router(Router<S>),
+    Controller(Controller<S>),
 }
 
-impl<M: Model> Node<M> {
-    fn unwrap_router(&mut self) -> &mut Router<M> {
+impl<S> Node<S> {
+    fn unwrap_router(&mut self) -> &mut Router<S> {
         match self {
             Node::Router(router) => router,
             _ => panic!(
@@ -42,11 +42,11 @@ impl<M: Model> Node<M> {
         }
     }
 
-    fn unwrap_endpoint(&mut self) -> &mut Endpoint<M> {
+    fn unwrap_controller(&mut self) -> &mut Controller<S> {
         match self {
-            Node::Endpoint(endpoint) => endpoint,
+            Node::Controller(controller) => controller,
             _ => panic!(
-                r"Node is not a endpoint,
+                r"Node is not a controller,
                   This is a bug of roa-router::Router, please report it to https://github.com/Hexilee/roa
             "
             ),
@@ -54,133 +54,140 @@ impl<M: Model> Node<M> {
     }
 }
 
-pub struct Router<M: Model> {
+pub struct Router<S> {
     root: String,
-    middleware: Join<M>,
-    nodes: Vec<Node<M>>,
+    middlewares: Vec<Arc<dyn Middleware<S>>>,
+    nodes: Vec<Node<S>>,
 }
 
-impl<M: Model> Router<M> {
+pub struct RouteEndpoint<S> {
+    static_route: Trie<String, Arc<dyn Endpoint<S>>>,
+    dynamic_route: Vec<(RegexPath, Arc<dyn Endpoint<S>>)>,
+}
+
+impl<S> Router<S> {
     pub fn new(path: impl ToString) -> Self {
         Self {
             root: path.to_string(),
-            middleware: Join::new(),
+            middlewares: Vec::new(),
             nodes: Vec::new(),
         }
     }
+}
 
-    pub fn gate<F>(
+impl<S: State> Router<S> {
+    pub fn gate(&mut self, middleware: impl Middleware<S>) -> &mut Self {
+        self.middlewares.push(Arc::new(middleware));
+        self
+    }
+
+    pub fn gate_fn<F>(
         &mut self,
-        middleware: impl 'static + Sync + Send + Fn(Context<M>, Next) -> F,
+        middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
     ) -> &mut Self
     where
         F: 'static + Future<Output = Result> + Send,
     {
-        self.middleware.join(middleware);
+        self.gate(middleware);
         self
     }
 
-    pub fn on(&mut self, path: &'static str) -> StdResult<&mut Endpoint<M>, RouterError> {
-        let endpoint = Endpoint::new(join_path([self.root.as_str(), path].as_ref()).parse()?);
+    pub fn on(&mut self, path: &'static str) -> StdResult<&mut Controller<S>, RouterError> {
+        let controller = Controller::new(join_path([self.root.as_str(), path].as_ref()).parse()?);
         let index = self.nodes.len();
-        self.nodes.push(Node::Endpoint(endpoint));
-        Ok(self.nodes[index].unwrap_endpoint())
+        self.nodes.push(Node::Controller(controller));
+        Ok(self.nodes[index].unwrap_controller())
     }
 
-    pub fn route(&mut self, path: &'static str) -> &mut Router<M> {
+    pub fn route(&mut self, path: &'static str) -> &mut Router<S> {
         let router = Router::new(join_path([self.root.as_str(), path].as_ref()));
         let index = self.nodes.len();
         self.nodes.push(Node::Router(router));
         self.nodes[index].unwrap_router()
     }
 
-    fn endpoints(self) -> Vec<Endpoint<M>> {
+    fn controllers(self) -> Vec<Controller<S>> {
         let Self {
-            middleware, nodes, ..
+            middlewares, nodes, ..
         } = self;
-        let mut endpoints = Vec::new();
+        let mut controllers = Vec::new();
         for node in nodes {
             match node {
-                Node::Endpoint(endpoint) => {
-                    endpoints.push(endpoint);
+                Node::Controller(controller) => {
+                    controllers.push(controller);
                 }
-                Node::Router(router) => endpoints.extend(router.endpoints().into_iter()),
+                Node::Router(router) => controllers.extend(router.controllers().into_iter()),
             };
         }
 
-        for endpoint in endpoints.iter_mut() {
-            let mut new_middleware = Join::new();
-            new_middleware.join(middleware.handler());
-            new_middleware.join(endpoint.middleware.handler());
-            endpoint.middleware = new_middleware;
+        // join middlewares
+        for controller in controllers.iter_mut() {
+            let mut new_middlewares = middlewares.clone();
+            new_middlewares.extend(controller.middlewares.clone());
+            controller.middlewares = middlewares;
         }
-        endpoints
+        controllers
     }
 
-    pub fn handler(self) -> StdResult<Box<DynHandler<M>>, Conflict> {
-        let endpoints = self.endpoints();
+    pub fn endpoint(self) -> StdResult<RouteEndpoint<S>, Conflict> {
+        let controllers = self.controllers();
         let mut static_route = Trie::new();
         let mut dynamic_route = Vec::new();
-        for endpoint in endpoints {
-            match &*endpoint.path.clone() {
+        for controller in controllers {
+            match &*controller.path.clone() {
                 Path::Static(path) => {
                     if static_route
-                        .insert(path.to_string(), endpoint.handler()?)
+                        .insert(path.to_string(), controller.endpoint()?.into())
                         .is_some()
                     {
                         return Err(Conflict::Path(path.to_string()));
                     }
                 }
                 Path::Dynamic(regex_path) => {
-                    dynamic_route.push((regex_path.clone(), endpoint.handler()?))
+                    dynamic_route.push((regex_path.clone(), controller.endpoint()?.into()))
                 }
             }
         }
 
-        let static_route = Arc::new(static_route);
-        let dynamic_route = Arc::new(dynamic_route);
-
-        let handler = move |ctx: Context<M>| {
-            let static_route = static_route.clone();
-            let dynamic_route = dynamic_route.clone();
-            async move {
-                let uri = ctx.uri().await;
-                let path =
-                    standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
-                        |err| {
-                            Error::new(
-                                StatusCode::BAD_REQUEST,
-                                format!(
-                                    "{}\npath `{}` is not a valid utf-8 string",
-                                    err,
-                                    uri.path()
-                                ),
-                                true,
-                            )
-                        },
-                    )?);
-                if let Some(handler) = static_route.get(&path) {
-                    return handler(ctx).await;
-                }
-
-                for (regexp_path, handler) in dynamic_route.iter() {
-                    if let Some(cap) = regexp_path.re.captures(&path) {
-                        for var in regexp_path.vars.iter() {
-                            ctx.store::<RouterSymbol>(var, cap[var.as_str()].to_string())
-                                .await;
-                        }
-                        return handler(ctx).await;
-                    }
-                }
-                throw(StatusCode::NOT_FOUND, "")
-            }
-        };
-        Ok(Box::new(handler).dynamic())
+        Ok(RouteEndpoint {
+            static_route,
+            dynamic_route,
+        })
     }
 }
 
 #[async_trait]
-impl<M: Model> RouterParam for Context<M> {
+impl<S: State> Endpoint<S> for RouteEndpoint<S> {
+    async fn handle(self: Arc<Self>, ctx: Context<S>) -> Result {
+        let uri = ctx.uri().await;
+        let path = standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
+            |err| {
+                Error::new(
+                    StatusCode::BAD_REQUEST,
+                    format!("{}\npath `{}` is not a valid utf-8 string", err, uri.path()),
+                    true,
+                )
+            },
+        )?);
+        if let Some(handler) = self.static_route.get(&path) {
+            return handler.clone().handle(ctx).await;
+        }
+
+        for (regexp_path, handler) in self.dynamic_route.iter() {
+            if let Some(cap) = regexp_path.re.captures(&path) {
+                for var in regexp_path.vars.iter() {
+                    ctx.store::<RouterSymbol>(var, cap[var.as_str()].to_string())
+                        .await;
+                }
+                return handler.clone().handle(ctx).await;
+            }
+        }
+        throw(StatusCode::NOT_FOUND, "")
+    }
+}
+
+#[async_trait]
+impl<S: State> RouterParam for Context<S> {
     async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
         self.try_param(name).await.ok_or_else(|| {
             Error::new(
@@ -245,7 +252,7 @@ mod tests {
         struct TestSymbol;
         let mut router = Router::<()>::new("/route");
         router
-            .gate(|ctx, next| async move {
+            .gate_fn(|ctx, next| async move {
                 ctx.store::<TestSymbol>("id", "0".to_string()).await;
                 next().await
             })
@@ -256,7 +263,7 @@ mod tests {
                 assert_eq!(0, id);
                 Ok(())
             });
-        let (addr, server) = App::new(()).end_fn(router.handler()?).run_local()?;
+        let (addr, server) = App::new(()).end(router.endpoint()?).run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route/user", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

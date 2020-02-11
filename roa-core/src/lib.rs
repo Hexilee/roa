@@ -24,7 +24,7 @@
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
-//!     app.end_fn(|ctx| async move {
+//!     app.end(|ctx| async move {
 //!         ctx.resp_mut().await.write_str("Hello, World");
 //!         Ok(())
 //!     });
@@ -61,7 +61,7 @@
 //!         Ok(())
 //!     });
 //!   
-//!     app.end_fn(|ctx| async move {
+//!     app.end(|ctx| async move {
 //!         ctx.resp_mut().await.write_str("Hello, World");
 //!         Ok(())
 //!     });
@@ -138,7 +138,7 @@
 //!             next().await?; // just throw
 //!             unreachable!()
 //!         })
-//!         .end_fn(|_ctx| async move {
+//!         .end(|_ctx| async move {
 //!             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 //!         })
 //!         .run_local()?;
@@ -190,7 +190,7 @@
 //! app.handle_err(app_error_handler);
 //! ```
 
-#![warn(missing_docs)]
+#![warn(missing_docs, clippy::all, clippy::cargo)]
 
 mod app;
 mod body;
@@ -218,7 +218,7 @@ pub use err::{throw, Error, ErrorKind, Result, ResultFuture};
 pub(crate) use handler::default_error_handler;
 
 #[doc(inline)]
-pub use handler::{Endpoint, ErrorHandler, Middleware};
+pub use handler::{ErrorHandler, Middleware};
 
 #[doc(inline)]
 pub use group::{join, join_all};
