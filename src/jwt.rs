@@ -1,81 +1,86 @@
 pub use async_trait::async_trait;
 pub use jsonwebtoken::Validation;
 
-use crate::core::{
-    Context, DynTargetHandler, Error, Model, Next, Result, StatusCode, TargetHandler,
-};
+use crate::core::{join, Context, Error, Middleware, Next, Result, State, StatusCode};
 use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
 use http::HeaderValue;
 use jsonwebtoken::decode;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer};
+use std::result::Result as StdResult;
+use std::sync::Arc;
 
 const INVALID_TOKEN: &str = r#"Bearer realm="<jwt>", error="invalid_token""#;
 
 struct JwtSymbol;
 
 #[async_trait]
-pub trait JwtVerifier<M, C>
+pub trait JwtVerifier<S, C>
 where
-    M: Model,
-    C: 'static + Serialize + DeserializeOwned,
+    C: 'static + DeserializeOwned,
 {
-    async fn verify(&self, validation: &Validation) -> Result<C>;
+    async fn verify_by(&self, validation: &Validation) -> Result<C>;
+    async fn verify(&self) -> Result<C>;
 }
 
-async fn unauthorized_error<M: Model, E: ToString>(
-    ctx: &Context<M>,
-    www_authentication: &'static str,
-) -> impl Fn(E) -> Error {
-    ctx.resp_mut().await.headers.insert(
-        WWW_AUTHENTICATE,
-        HeaderValue::from_static(www_authentication),
-    );
-    |_err| Error::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
+pub fn guard_by<S: State>(secret: impl ToString, validation: Validation) -> impl Middleware<S> {
+    join(
+        Arc::new(catch_www_authenticate),
+        JwtGuard {
+            secret: secret.to_string(),
+            validation,
+        },
+    )
 }
 
-async fn try_get_token<M: Model>(ctx: &Context<M>) -> Result<String> {
+pub fn guard<S: State>(secret: impl ToString) -> impl Middleware<S> {
+    guard_by(secret, Validation::default())
+}
+
+async fn catch_www_authenticate<S: State>(ctx: Context<S>, next: Next) -> Result {
+    let result = next().await;
+    if let Err(ref err) = result {
+        if err.status_code == StatusCode::UNAUTHORIZED {
+            ctx.resp_mut()
+                .await
+                .headers
+                .insert(WWW_AUTHENTICATE, HeaderValue::from_static(INVALID_TOKEN));
+        }
+    }
+    result
+}
+
+struct JwtGuard {
+    secret: String,
+    validation: Validation,
+}
+
+fn unauthorized(_err: impl ToString) -> Error {
+    Error::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
+}
+
+async fn try_get_token<S: State>(ctx: &Context<S>) -> Result<String> {
     match ctx.header(AUTHORIZATION).await {
-        None | Some(Err(_)) => Err((unauthorized_error(ctx, INVALID_TOKEN).await)("")),
+        None | Some(Err(_)) => Err(unauthorized("")),
         Some(Ok(value)) => match value.find("Bearer") {
-            None => Err((unauthorized_error(ctx, INVALID_TOKEN).await)("")),
+            None => Err(unauthorized("")),
             Some(n) => Ok(value[n + 6..].trim().to_string()),
         },
     }
 }
 
-pub fn jwt_verify<M, C>(secret: String, validation: Validation) -> Box<DynTargetHandler<M, Next>>
-where
-    M: Model,
-    C: 'static + Serialize + DeserializeOwned + Send,
-{
-    Box::new(move |ctx, next: Next| {
-        let secret = secret.clone();
-        let validation = validation.clone();
-        async move {
-            let token = try_get_token(&ctx).await?;
-            decode::<C>(&token, secret.as_bytes(), &validation)
-                .map_err(unauthorized_error(&ctx, INVALID_TOKEN).await)?;
-            ctx.store::<JwtSymbol>("secret", secret).await;
-            ctx.store::<JwtSymbol>("token", token).await;
-            next().await
-        }
-    })
-    .dynamic()
-}
-
 #[async_trait]
-impl<M, C> JwtVerifier<M, C> for Context<M>
+impl<S, C> JwtVerifier<S, C> for Context<S>
 where
-    M: Model,
-    C: 'static + Serialize + DeserializeOwned + Send,
+    S: State,
+    C: 'static + DeserializeOwned + Send,
 {
-    async fn verify(&self, validation: &Validation) -> Result<C> {
+    async fn verify_by(&self, validation: &Validation) -> Result<C> {
         let secret = self.load::<JwtSymbol>("secret").await;
         let token = self.load::<JwtSymbol>("token").await;
         match (secret, token) {
-            (Some(secret), Some(token)) => decode(&token, secret.as_bytes(), &validation)
-                .map_err(unauthorized_error(self, INVALID_TOKEN).await)
-                .map(|data| data.claims),
+            (Some(secret), Some(token)) => decode(&token, secret.as_bytes(), validation)
+                .map(|data| data.claims)
+                .map_err(unauthorized),
             _ => Err(Error::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "middleware `jwt_verify` is not set correctly",
@@ -83,11 +88,37 @@ where
             )),
         }
     }
+
+    async fn verify(&self) -> Result<C> {
+        self.verify_by(&Validation::default()).await
+    }
+}
+
+#[async_trait]
+impl<S: State> Middleware<S> for JwtGuard {
+    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
+        struct AlwaysDeserialized;
+        impl<'de> Deserialize<'de> for AlwaysDeserialized {
+            fn deserialize<D>(_deserializer: D) -> StdResult<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                Ok(AlwaysDeserialized {})
+            }
+        }
+
+        let token = try_get_token(&ctx).await?;
+        decode::<AlwaysDeserialized>(&token, self.secret.as_bytes(), &self.validation)
+            .map_err(unauthorized)?;
+        ctx.store::<JwtSymbol>("secret", self.secret.clone()).await;
+        ctx.store::<JwtSymbol>("token", token).await;
+        next().await
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{jwt_verify, JwtVerifier, Validation, INVALID_TOKEN};
+    use super::{guard, JwtVerifier, Validation, INVALID_TOKEN};
     use crate::core::{App, Error};
     use async_std::task::spawn;
     use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
@@ -111,12 +142,9 @@ mod tests {
     async fn verify() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         let (addr, server) = app
-            .gate_fn(jwt_verify::<(), User>(
-                SECRET.to_string(),
-                Validation::default(),
-            ))
-            .gate_fn(move |ctx, _next| async move {
-                let user: User = ctx.verify(&Validation::default()).await?;
+            .gate(guard(SECRET))
+            .end(move |ctx| async move {
+                let user: User = ctx.verify().await?;
                 assert_eq!(0, user.id);
                 assert_eq!("Hexilee", &user.name);
                 Ok(())
@@ -201,7 +229,7 @@ mod tests {
         let mut app = App::new(());
         let (addr, server) = app
             .gate_fn(move |ctx, _next| async move {
-                let result: Result<User, Error> = ctx.verify(&Validation::default()).await;
+                let result: Result<User, Error> = ctx.verify().await;
                 assert!(result.is_err());
                 let status = result.unwrap_err();
                 assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);

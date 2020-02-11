@@ -3,7 +3,7 @@ mod json;
 mod mime_ext;
 mod urlencoded;
 
-use crate::core::{throw, Context, Error, Model, Result};
+use crate::core::{throw, Context, Error, Result, State};
 use crate::header::FriendlyHeaders;
 use askama::Template;
 use async_std::fs::File;
@@ -70,7 +70,7 @@ fn parse_mime(value: &str) -> Result<Mime> {
 }
 
 #[async_trait]
-impl<M: Model> PowerBody for Context<M> {
+impl<S: State> PowerBody for Context<S> {
     async fn request_type(&self) -> Option<Result<Mime>> {
         self.req()
             .await
@@ -152,7 +152,7 @@ impl<M: Model> PowerBody for Context<M> {
         Ok(())
     }
 
-    async fn write_text<S: ToString + Send>(&self, string: S) -> Result {
+    async fn write_text<Str: ToString + Send>(&self, string: Str) -> Result {
         self.resp_mut().await.write_str(string.to_string());
         self.resp_mut()
             .await

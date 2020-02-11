@@ -114,9 +114,10 @@ impl Model for AppModel {
     }
 }
 
-fn crud_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
-    let mut router = Router::<AppModel>::new("/");
-    router.on("/user")?.post(|ctx| async move {
+fn crud_router() -> Result<Router<AppState>, Box<dyn std::error::Error>> {
+    let mut router = Router::<AppState>::new();
+    let mut id_router = Router::<AppState>::new();
+    router.post_fn("", |ctx| async move {
         let user = ctx.read_json().await?;
         let id = ctx.state().await.db.write().await.add(user);
         let mut data = HashMap::new();
@@ -124,16 +125,15 @@ fn crud_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
         ctx.resp_mut().await.status = StatusCode::CREATED;
         ctx.write_json(&data).await
     });
-    router
-        .on("/user/:id")?
-        .get(|ctx| async move {
+    id_router
+        .get_fn("", |ctx| async move {
             let id = ctx.param("id").await?.parse()?;
             match ctx.state().await.db.read().await.get(id) {
                 Some(user) => ctx.write_json(user).await,
                 None => throw(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
             }
         })
-        .put(|ctx| async move {
+        .put_fn("", |ctx| async move {
             let id = ctx.param("id").await?.parse()?;
             let mut user = ctx.read_json().await?;
             if ctx.state().await.db.write().await.update(id, &mut user) {
@@ -142,20 +142,21 @@ fn crud_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
                 throw(StatusCode::NOT_FOUND, format!("id({}) not found", id))
             }
         })
-        .delete(|ctx| async move {
+        .delete_fn("", |ctx| async move {
             let id = ctx.param("id").await?.parse()?;
             match ctx.state().await.db.write().await.delete(id) {
                 Some(user) => ctx.write_json(&user).await,
                 None => throw(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
             }
         });
+    router.include("/:id", id_router);
     Ok(router)
 }
 
 #[tokio::test]
 async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(AppModel::new())
-        .end_fn(crud_router()?.handler()?)
+        .gate(crud_router()?.routes("/user")?)
         .run_local()?;
     spawn(server);
     // first get, 404 Not Found
@@ -231,11 +232,10 @@ async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn batch_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
-    let mut router = Router::<AppModel>::new("/");
+fn batch_router() -> Result<Router<AppState>, Box<dyn std::error::Error>> {
+    let mut router = Router::<AppState>::new();
     router
-        .on("/user")?
-        .post(|ctx| async move {
+        .post_fn("/user", |ctx| async move {
             let users: Vec<User> = ctx.read_json().await?;
             let mut ids = Vec::new();
             let state = ctx.state().await;
@@ -246,7 +246,7 @@ fn batch_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
             ctx.resp_mut().await.status = StatusCode::CREATED;
             ctx.write_json(&ids).await
         })
-        .get(|ctx| async move {
+        .get_fn("/user", |ctx| async move {
             let state = ctx.state().await;
             let db = state.db.read().await;
             let users = match ctx.try_query("name").await {
@@ -261,8 +261,8 @@ fn batch_router() -> Result<Router<AppModel>, Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn batch() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(AppModel::new())
-        .gate_fn(query_parser)
-        .end_fn(batch_router()?.handler()?)
+        .gate(query_parser)
+        .gate(batch_router()?.routes("/")?)
         .run_local()?;
     spawn(server);
     // first get, list empty

@@ -1,4 +1,4 @@
-use crate::core::{Context, Error, Model, Next, Result};
+use crate::core::{Context, Error, Next, Result, State};
 use crate::header::FriendlyHeaders;
 use async_trait::async_trait;
 pub use cookie::Cookie;
@@ -19,7 +19,7 @@ pub trait Cookier {
     async fn set_cookie(&self, cookie: Cookie<'_>) -> Result;
 }
 
-pub async fn cookie_parser<M: Model>(ctx: Context<M>, next: Next) -> Result {
+pub async fn cookie_parser<S: State>(ctx: Context<S>, next: Next) -> Result {
     if let Some(Ok(cookies)) = ctx.header(header::COOKIE).await {
         for cookie in cookies
             .split(';')
@@ -35,7 +35,7 @@ pub async fn cookie_parser<M: Model>(ctx: Context<M>, next: Next) -> Result {
 }
 
 #[async_trait]
-impl<M: Model> Cookier for Context<M> {
+impl<S: State> Cookier for Context<S> {
     async fn cookie(&self, name: &str) -> Result<String> {
         match self.try_cookie(name).await {
             Some(value) => Ok(value),

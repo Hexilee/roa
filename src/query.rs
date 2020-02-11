@@ -1,4 +1,4 @@
-use crate::core::{Context, Error, Model, Next, Result, Variable};
+use crate::core::{Context, Error, Next, Result, State, Variable};
 use async_trait::async_trait;
 use http::StatusCode;
 use url::form_urlencoded::parse;
@@ -11,7 +11,7 @@ pub trait Query {
     async fn try_query<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
 }
 
-pub async fn query_parser<M: Model>(ctx: Context<M>, next: Next) -> Result {
+pub async fn query_parser<S: State>(ctx: Context<S>, next: Next) -> Result {
     let uri = ctx.uri().await;
     let query_string = uri.query().unwrap_or("");
     for (key, value) in parse(query_string.as_bytes()) {
@@ -21,7 +21,7 @@ pub async fn query_parser<M: Model>(ctx: Context<M>, next: Next) -> Result {
 }
 
 #[async_trait]
-impl<M: Model> Query for Context<M> {
+impl<S: State> Query for Context<S> {
     async fn query<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
         self.try_query(name).await.ok_or_else(|| {
             Error::new(

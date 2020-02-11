@@ -5,7 +5,7 @@ use bytesize::ByteSize;
 use chrono::offset::Local;
 use chrono::DateTime;
 use log::info;
-use roa::compress::{compress, Level};
+use roa::compress::Compress;
 use roa::core::{throw, App, Context, Next, Result, StatusCode};
 use roa::logger::logger;
 use roa::preload::*;
@@ -106,15 +106,15 @@ fn format_time(time: SystemTime) -> String {
 #[async_std::main]
 async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
-    let mut router = Router::new("/");
-    router
-        .on("/")?
-        .get(|ctx| serve_dir(ctx, Path::new(".").to_path_buf()));
-    router.on("/*{path}")?.gate(path_checker).get(serve_path);
+    let mut router = Router::new();
+    let mut wildcard_router = Router::new();
+    router.get_fn("/", |ctx| serve_dir(ctx, Path::new(".").to_path_buf()));
+    wildcard_router.gate(path_checker).get_fn("/", serve_path);
+    router.include("/*{path}", wildcard_router);
     App::new(())
-        .gate_fn(logger)
-        .gate_fn(compress(Level::Best))
-        .end_fn(router.handler()?)
+        .gate(logger)
+        .gate(Compress::Best)
+        .gate(router.routes("/")?)
         .listen("127.0.0.1:8000", |addr| {
             info!("Server is listening on {}", addr)
         })?

@@ -1,4 +1,4 @@
-use crate::core::{throw, Context, Model, Result};
+use crate::core::{throw, Context, Result, State};
 use crate::preload::*;
 use async_trait::async_trait;
 use http::{header::HOST, StatusCode};
@@ -13,7 +13,7 @@ pub trait Forward {
 }
 
 #[async_trait]
-impl<M: Model> Forward for Context<M> {
+impl<S: State> Forward for Context<S> {
     async fn host(&self) -> Result<String> {
         if let Some(Ok(value)) = self.req().await.get("x-forwarded-host") {
             Ok(value.to_string())

@@ -1,4 +1,4 @@
-use crate::{Context, Error, Next, Result, State, last};
+use crate::{last, Context, Error, Next, Result, State};
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::future::Future;

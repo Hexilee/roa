@@ -2,8 +2,8 @@ mod executor;
 mod tcp;
 
 use crate::{
-    default_error_handler, join, join_all, Context, Error, ErrorHandler, Middleware, Model,
-    Next, Request, Response, Result,
+    default_error_handler, join, join_all, Context, Error, ErrorHandler, Middleware, Model, Next,
+    Request, Response, Result,
 };
 use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};

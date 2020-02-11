@@ -1,18 +1,20 @@
-use crate::core::{Body, Context, DynTargetHandler, Error, Model, Next, TargetHandler};
+use crate::core::{Body, Context, Error, Middleware, Next, Result, State};
 use accept_encoding::{parse, Encoding};
 use async_compression::flate2::Compression;
 use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
+use async_trait::async_trait;
 use http::header::CONTENT_ENCODING;
 use http::StatusCode;
+use std::sync::Arc;
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum Level {
+pub enum Compress {
     Fast = 0,
     Balance = 1,
     Best = 2,
 }
 
-impl Level {
+impl Compress {
     fn compression(self) -> Compression {
         Compression::new((self as u32) * 4 + 1)
     }
@@ -26,8 +28,9 @@ impl Level {
     }
 }
 
-pub fn compress<M: Model>(level: Level) -> Box<DynTargetHandler<M, Next>> {
-    Box::new(move |ctx: Context<M>, next: Next| async move {
+#[async_trait]
+impl<S: State> Middleware<S> for Compress {
+    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
         next().await?;
         let body: Body = std::mem::take(&mut *ctx.resp_mut().await);
         let content_encoding = match parse(&ctx.req().await.headers)
@@ -36,25 +39,25 @@ pub fn compress<M: Model>(level: Level) -> Box<DynTargetHandler<M, Next>> {
             None | Some(Encoding::Gzip) => {
                 ctx.resp_mut()
                     .await
-                    .write(GzipEncoder::new(body, level.compression()));
+                    .write(GzipEncoder::new(body, self.compression()));
                 Encoding::Gzip.to_header_value()
             }
             Some(Encoding::Deflate) => {
                 ctx.resp_mut()
                     .await
-                    .write(ZlibEncoder::new(body, level.compression()));
+                    .write(ZlibEncoder::new(body, self.compression()));
                 Encoding::Deflate.to_header_value()
             }
             Some(Encoding::Brotli) => {
                 ctx.resp_mut()
                     .await
-                    .write(BrotliEncoder::new(body, level.brotli_level()));
+                    .write(BrotliEncoder::new(body, self.brotli_level()));
                 Encoding::Brotli.to_header_value()
             }
             Some(Encoding::Zstd) => {
                 ctx.resp_mut()
                     .await
-                    .write(ZstdEncoder::new(body, level.zstd_level()));
+                    .write(ZstdEncoder::new(body, self.zstd_level()));
                 Encoding::Zstd.to_header_value()
             }
             Some(Encoding::Identity) => {
@@ -67,17 +70,16 @@ pub fn compress<M: Model>(level: Level) -> Box<DynTargetHandler<M, Next>> {
             .headers
             .append(CONTENT_ENCODING, content_encoding);
         Ok(())
-    })
-    .dynamic()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Level;
+    use super::Compress;
 
     #[test]
     fn fast() {
-        let level = Level::Fast;
+        let level = Compress::Fast;
         assert_eq!(1, level.compression().level());
         assert_eq!(1, level.brotli_level());
         assert_eq!(1, level.zstd_level());
@@ -85,7 +87,7 @@ mod tests {
 
     #[test]
     fn balance() {
-        let level = Level::Balance;
+        let level = Compress::Balance;
         assert_eq!(5, level.compression().level());
         assert_eq!(6, level.brotli_level());
         assert_eq!(11, level.zstd_level());
@@ -93,7 +95,7 @@ mod tests {
 
     #[test]
     fn best() {
-        let level = Level::Best;
+        let level = Compress::Best;
         assert_eq!(9, level.compression().level());
         assert_eq!(11, level.brotli_level());
         assert_eq!(21, level.zstd_level());

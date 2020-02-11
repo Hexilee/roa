@@ -1,6 +1,7 @@
 use super::{Conflict, RouterError};
 use regex::{escape, Captures, Regex};
 use std::collections::HashSet;
+use std::convert::AsRef;
 use std::str::FromStr;
 
 const WILDCARD: &str = r"\*\{(?P<var>\w*)\}";
@@ -9,8 +10,9 @@ const VARIABLE: &str = r"/:(?P<var>\w*)/";
 pub fn standardize_path(raw_path: &str) -> String {
     format!("/{}/", raw_path.trim_matches('/'))
 }
-pub fn join_path(paths: &[&str]) -> String {
+pub fn join_path<'a>(paths: impl 'a + AsRef<[&'a str]>) -> String {
     paths
+        .as_ref()
         .iter()
         .map(|path| path.trim_matches('/'))
         .collect::<Vec<&str>>()
@@ -39,15 +41,6 @@ pub struct RegexPath {
     pub raw: String,
     pub vars: HashSet<String>,
     pub re: Regex,
-}
-
-impl Path {
-    pub fn raw(&self) -> &str {
-        match self {
-            Path::Static(ref path) => path.as_str(),
-            Path::Dynamic(ref re) => re.raw.as_str(),
-        }
-    }
 }
 
 impl FromStr for Path {
