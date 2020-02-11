@@ -2,7 +2,7 @@ mod executor;
 mod tcp;
 
 use crate::{
-    default_error_handler, join, join_all, last, Context, Error, ErrorHandler, Middleware, Model,
+    default_error_handler, join, join_all, Context, Error, ErrorHandler, Middleware, Model,
     Next, Request, Response, Result,
 };
 use executor::Executor;
@@ -309,7 +309,7 @@ impl<M: Model> HttpService<M> {
     pub async fn serve(&self, req: Request) -> Result<Response> {
         let context = Context::new(req, self.app.model.new_state(), self.stream.clone());
         let app = self.app.clone();
-        if let Err(status) = app.middleware.handle(context.clone(), Box::new(last)).await {
+        if let Err(status) = app.middleware.end(context.clone()).await {
             app.error_handler.handle(context.clone(), status).await?;
         }
         let mut response = context.resp_mut().await;

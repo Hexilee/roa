@@ -7,7 +7,7 @@ use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path, RegexPath};
 
 use crate::core::{
-    join, join_all, throw, Context, Endpoint, Error, Middleware, Next, Result, State, Variable,
+    join, join_all, throw, Context, Error, Middleware, Next, Result, State, Variable,
 };
 use async_trait::async_trait;
 use http::StatusCode;

@@ -1,5 +1,5 @@
 use super::{Conflict, Path};
-use crate::core::{join_all, throw, Context, Endpoint, Middleware, Next, Result, State, ResultFuture};
+use crate::core::{join_all, throw, Context, Middleware, Next, Result, State, ResultFuture};
 use http::{Method, StatusCode};
 use std::collections::HashMap;
 use std::future::Future;
@@ -25,11 +25,11 @@ macro_rules! impl_http_method {
 pub struct Controller<S> {
     pub path: Arc<Path>,
     pub(crate) middlewares: Vec<Arc<dyn Middleware<S>>>,
-    handlers: Vec<(Method, Arc<dyn Endpoint<S>>)>,
+    handlers: Vec<(Method, Arc<dyn Middleware<S>>)>,
 }
 
 pub struct CtrlEndpoint<S> {
-    inner: Arc<dyn Endpoint<S>>
+    inner: Arc<dyn Middleware<S>>
 }
 
 impl<S: State> Controller<S> {

@@ -1,4 +1,4 @@
-use crate::{Context, Error, Next, Result, State};
+use crate::{Context, Error, Next, Result, State, last};
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::future::Future;
@@ -38,9 +38,12 @@ use std::future::Future;
 ///
 /// ```
 #[async_trait]
-pub trait Middleware<S>: 'static + Sync + Send {
+pub trait Middleware<S: State>: 'static + Sync + Send {
     /// Handle context and target, then return a future to get status.
     async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result;
+    async fn end(self: Arc<Self>, ctx: Context<S>) -> Result {
+        self.handle(ctx, Box::new(last)).await
+    }
 }
 
 #[async_trait]
