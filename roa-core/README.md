@@ -1,5 +1,5 @@
 [![Build status](https://img.shields.io/travis/Hexilee/roa/master.svg)](https://travis-ci.org/Hexilee/roa)
-[![codecov](https://codecov.io/gh/Hexilee/roa/branch/master/graph/badge.svg)](https://codecov.io/gh/Hexilee/roa) 
+[![codecov](https://codecov.io/gh/Hexilee/roa/branch/master/graph/badge.svg)](https://codecov.io/gh/Hexilee/roa)
 [![Rust Docs](https://docs.rs/roa-core/badge.svg)](https://docs.rs/roa-core)
 [![Crate version](https://img.shields.io/crates/v/roa-core.svg)](https://crates.io/crates/roa-core)
 [![Download](https://img.shields.io/crates/d/roa-core.svg)](https://crates.io/crates/roa-core)
@@ -13,25 +13,23 @@ Roa is an async web framework inspired by koajs, lightweight but powerful.
 ### Application
 
 A Roa application is a structure containing a middleware group which composes and executes middleware functions in a stack-like manner.
-
 The obligatory hello world application:
 
 ```rust
 use roa_core::App;
 use log::info;
 use std::error::Error as StdError;
-
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
     app.end(|ctx| async move {
-      	ctx.resp_mut().await.write_str("Hello, World");
-      	Ok(())
-  	});
+        ctx.resp_mut().await.write_str("Hello, World");
+        Ok(())
+    });
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
-  	.await?;
+    .await?;
     Ok(())
 }
 ```
@@ -50,25 +48,23 @@ use roa_core::App;
 use log::info;
 use std::error::Error as StdError;
 use std::time::Instant;
-
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
-  	app.gate_fn(|_ctx, next| async move {
-    		let inbound = Instant::now();
+    app.gate_fn(|_ctx, next| async move {
+        let inbound = Instant::now();
         next().await?;
         info!("time elapsed: {} ms", inbound.elapsed().as_millis());
         Ok(())
-  	});
-  
+    });
     app.end(|ctx| async move {
-      	ctx.resp_mut().await.write_str("Hello, World");
-      	Ok(())
-  	});
+        ctx.resp_mut().await.write_str("Hello, World");
+        Ok(())
+    });
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
-  	.await?;
+    .await?;
     Ok(())
 }
 ```
@@ -109,9 +105,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-
-
 #### error_handler
+
 App has an error_handler to handle `Error` thrown by the top middleware.
 This is the error_handler:
 
@@ -131,4 +126,3 @@ pub async fn error_handler<M: Model>(context: Context<M>, err: Error) -> Result 
 ```
 
 The Error thrown by this error_handler will be handled by hyper.
-
