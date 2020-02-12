@@ -1,8 +1,51 @@
-use crate::{Context, Middleware, Next, Result, State};
-use async_trait::async_trait;
+use crate::{async_trait, Context, Middleware, Next, Result, State};
 use std::sync::Arc;
 
-/// A structure to join middlewares.
+/// A middleware composing and executing other middlewares in a stack-like manner.
+struct Join<S>(Vec<Arc<dyn Middleware<S>>>);
+
+impl<S> Join<S> {
+    fn new(middlewares: Vec<Arc<dyn Middleware<S>>>) -> Self {
+        Self(middlewares)
+    }
+}
+
+#[async_trait]
+impl<S: State> Middleware<S> for Join<S> {
+    async fn handle(self: Arc<Self>, ctx: Context<S>, mut next: Next) -> Result {
+        for middleware in self.0.iter().rev() {
+            let ctx = ctx.clone();
+            let middleware = middleware.clone();
+            next = Box::new(move || middleware.handle(ctx, next))
+        }
+        next().await
+    }
+}
+
+/// Join two middleware.
+///
+/// ```rust
+/// use roa_core::{Middleware, join, Context, Next};
+/// use std::sync::Arc;
+///
+/// let mut middleware: Arc<dyn Middleware<()>> = Arc::new(|_ctx: Context<()>, next: Next| async move {
+///     next().await
+/// });
+///
+/// middleware = Arc::new(join(middleware, |_ctx: Context<()>, next: Next| async move {
+///     next().await
+/// }));
+/// ```
+pub fn join<S: State>(
+    current: Arc<dyn Middleware<S>>,
+    next: impl Middleware<S>,
+) -> impl Middleware<S> {
+    join_all(vec![current, Arc::new(next)])
+}
+
+/// Join all middlewares in a vector.
+///
+/// All middlewares would be composed and executed in a stack-like manner.
 ///
 /// ### Example
 /// ```rust
@@ -39,33 +82,6 @@ use std::sync::Arc;
 ///     Ok(())
 /// }
 /// ```
-struct Join<S>(Vec<Arc<dyn Middleware<S>>>);
-
-impl<S> Join<S> {
-    fn new(middlewares: Vec<Arc<dyn Middleware<S>>>) -> Self {
-        Self(middlewares)
-    }
-}
-
-#[async_trait]
-impl<S: State> Middleware<S> for Join<S> {
-    async fn handle(self: Arc<Self>, ctx: Context<S>, mut next: Next) -> Result {
-        for middleware in self.0.iter().rev() {
-            let ctx = ctx.clone();
-            let middleware = middleware.clone();
-            next = Box::new(move || middleware.handle(ctx, next))
-        }
-        next().await
-    }
-}
-
-pub fn join<S: State>(
-    current: Arc<dyn Middleware<S>>,
-    next: impl Middleware<S>,
-) -> impl Middleware<S> {
-    join_all(vec![current, Arc::new(next)])
-}
-
 pub fn join_all<S: State>(middlewares: Vec<Arc<dyn Middleware<S>>>) -> impl Middleware<S> {
     Join::new(middlewares)
 }

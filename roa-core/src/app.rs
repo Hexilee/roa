@@ -17,7 +17,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 
 /// The Application of roa.
 /// ### Example
-/// ```rust
+/// ```rust,no_run
 /// use roa_core::App;
 /// use log::info;
 /// use async_std::fs::File;
@@ -36,7 +36,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///         .listen("127.0.0.1:8000", |addr| {
 ///             info!("Server is listening on {}", addr)
 ///         })?;
-///     // server.await;
+///     server.await;
 ///     Ok(())
 /// }
 /// ```
@@ -45,8 +45,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// The `Model` and its `State` is designed to share data or handler between middlewares.
 /// The only one type implemented `Model` by this crate is `()`, you should implement your custom Model if neccassary.
 ///
-/// ### Example
-/// ```rust
+/// ```rust,no_run
 /// use roa_core::{App, Model};
 /// use log::info;
 /// use futures::lock::Mutex;
@@ -97,7 +96,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///         .listen("127.0.0.1:8000", |addr| {
 ///             info!("Server is listening on {}", addr)
 ///         })?;
-///     // server.await;
+///     server.await;
 ///     Ok(())
 /// }
 /// ```
@@ -106,7 +105,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///
 /// `App::listen` returns a hyper::Server, which supports graceful shutdown.
 ///
-/// ```rust
+/// ```rust,no_run
 /// use roa_core::App;
 /// use log::info;
 /// use futures::channel::oneshot;
@@ -123,7 +122,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///             rx.await.ok();
 ///         });
 ///     // Await the `server` receiving the signal...
-///     // server.await;
+///     server.await;
 ///     
 ///     // And later, trigger the signal by calling `tx.send(())`.
 ///     let _ = tx.send(());
@@ -159,6 +158,25 @@ impl<M: Model> App<M> {
         self
     }
 
+    /// A sugar to match a lambda as a middleware.
+    ///
+    /// `App::gate` cannot match a lambda without parameter type indication.
+    ///
+    /// ```rust
+    /// use roa_core::{App, Next};
+    ///
+    /// let mut app = App::new(());
+    /// // app.gate(|_ctx, next| async move { next().await }); compile fails.
+    /// app.gate(|_ctx, next: Next| async move { next().await });
+    /// ```
+    ///
+    /// However, with `App::gate_fn`, you can match a lambda without type indication.
+    /// ```rust
+    /// use roa_core::{App, Next};
+    ///
+    /// let mut app = App::new(());
+    /// app.gate_fn(|_ctx, next| async move { next().await });
+    /// ```
     pub fn gate_fn<F>(
         &mut self,
         middleware: impl 'static + Sync + Send + Fn(Context<M::State>, Next) -> F,
@@ -169,6 +187,47 @@ impl<M: Model> App<M> {
         self.gate(middleware)
     }
 
+    /// A sugar to match a function pointer like `async fn(Context<S>) -> impl Future`
+    /// and use it as a middleware(endpoint).
+    ///
+    /// As the ducument of `Middleware`, an endpoint is defined as a template:
+    ///
+    /// ```rust
+    /// use roa_core::{App, Context, Result};
+    /// use std::future::Future;
+    ///
+    /// fn endpoint<F>(ctx: Context<()>) -> F
+    /// where F: 'static + Send + Future<Output=Result> {
+    ///     unimplemented!()
+    /// }
+    /// ```
+    ///
+    /// However, an async function is not a template,
+    /// it needs a transfer function to suit for `App::gate`.
+    ///
+    /// ```rust
+    /// use roa_core::{App, Context, Result, State, Middleware};
+    /// use std::future::Future;
+    ///
+    /// async fn endpoint(ctx: Context<()>) -> Result {
+    ///     Ok(())
+    /// }
+    ///
+    /// fn transfer<S, F>(endpoint: fn(Context<S>) -> F) -> impl Middleware<S>
+    /// where S: State,
+    ///       F: 'static + Send + Future<Output=Result> {
+    ///     endpoint
+    /// }
+    ///
+    /// App::new(()).gate(transfer(endpoint));
+    /// ```
+    ///
+    /// And `App::end` is a wrapper of `App::gate` with this transfer function.
+    ///
+    /// ```rust
+    /// use roa_core::App;
+    /// App::new(()).end(|_ctx| async { Ok(()) });
+    /// ```
     pub fn end<F>(&mut self, endpoint: fn(Context<M::State>) -> F) -> &mut Self
     where
         F: 'static + Send + Future<Output = Result>,

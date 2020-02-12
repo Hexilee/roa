@@ -38,7 +38,7 @@ use std::future::Future;
 ///     next().await
 /// }
 ///
-/// // capture a variable to avoid transferring closure to function pointer.
+/// // capture a variable to avoid matching lambda as function pointer.
 /// let x = 0;
 /// // moving is necessary to confirm closure is static.
 /// let closure = move |ctx: Context<()>, next: Next| async move {
