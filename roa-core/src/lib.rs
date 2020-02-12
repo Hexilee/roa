@@ -25,13 +25,13 @@
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
 //!     app.end(|ctx| async move {
-//!       	ctx.resp_mut().await.write_str("Hello, World");
-//!       	Ok(())
-//!   	});
+//!         ctx.resp_mut().await.write_str("Hello, World");
+//!         Ok(())
+//!     });
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
-//!   	.await?;
+//!     .await?;
 //!     Ok(())
 //! }
 //! ```
@@ -54,21 +54,21 @@
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
-//!   	app.gate_fn(|_ctx, next| async move {
-//!     		let inbound = Instant::now();
+//!     app.gate_fn(|_ctx, next| async move {
+//!         let inbound = Instant::now();
 //!         next().await?;
 //!         info!("time elapsed: {} ms", inbound.elapsed().as_millis());
 //!         Ok(())
-//!   	});
+//!     });
 //!
 //!     app.end(|ctx| async move {
-//!       	ctx.resp_mut().await.write_str("Hello, World");
-//!       	Ok(())
-//!   	});
+//!         ctx.resp_mut().await.write_str("Hello, World");
+//!         Ok(())
+//!     });
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
-//!   	.await?;
+//!     .await?;
 //!     Ok(())
 //! }
 //! ```
