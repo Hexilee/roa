@@ -137,6 +137,12 @@ impl<S: State> Router<S> {
     }
 }
 
+impl<S: State> Default for Router<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 macro_rules! impl_http_method {
     ($end:ident, $end_fn:ident, $($method:expr),*) => {
         pub fn $end(&mut self, path: &'static str, endpoint: impl Middleware<S>) -> &mut Self {
@@ -223,10 +229,10 @@ impl<S: State> RouteTable<S> {
                     .insert(path.to_string(), endpoint)
                     .is_some()
                 {
-                    return Err(Conflict::Path(path.to_string()).into());
+                    return Err(Conflict::Path(path).into());
                 }
             }
-            Path::Dynamic(regex_path) => self.dynamic_route.push((regex_path.clone(), endpoint)),
+            Path::Dynamic(regex_path) => self.dynamic_route.push((regex_path, endpoint)),
         }
         Ok(())
     }

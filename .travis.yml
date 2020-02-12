@@ -22,6 +22,7 @@ before_script:
 script: # 集成脚本
   - cargo update
   - cargo check --all --all-features
+  - cargo clippy --all-targets --all-features
   - |
     if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then
       cargo test --all-features --all
