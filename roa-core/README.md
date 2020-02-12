@@ -152,15 +152,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
 #### error_handler
-
 App has a error_handler to handle `Error` thrown by the top middleware.
-
-This is the default error_handler:
+This is the top error_handler:
 
 ```rust
 use roa_core::{Context, Error, Result, Model, ErrorKind};
-
-pub async fn default_error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
+pub async fn error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
     context.resp_mut().await.status = err.status_code;
     if err.expose {
         context.resp_mut().await.write_str(&err.message);
@@ -171,26 +168,7 @@ pub async fn default_error_handler<M: Model>(context: Context<M>, err: Error) ->
         Ok(())
     }
 }
-
 ```
 
-The Error thrown by error_handler will be handled by hyper.
-
-You can use `App::handle_err` to set a custom error_handler:
-
-```rust
-use roa_core::{Context, App, Error, Result};
-
-// throw all error to hyper.
-pub async fn app_error_handler(_: Context<()>, err: Error) -> Result {
-    Err(err)
-}
-
-let mut app = App::new(());
-app.handle_err(app_error_handler);
-```
-
-
-
-
-
+The Error thrown by this error_handler will be handled by hyper.
+You can write a middleware to set a custom error_handler.

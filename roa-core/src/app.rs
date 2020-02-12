@@ -1,10 +1,7 @@
 mod executor;
 mod tcp;
 
-use crate::{
-    default_error_handler, join, join_all, Context, Error, ErrorHandler, Middleware, Model, Next,
-    Request, Response, Result,
-};
+use crate::{join, join_all, Context, Error, Middleware, Model, Next, Request, Response, Result};
 use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
@@ -135,7 +132,6 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// ```
 pub struct App<M: Model> {
     middleware: Arc<dyn Middleware<M::State>>,
-    error_handler: Arc<dyn ErrorHandler<M::State>>,
     pub(crate) model: Arc<M>,
 }
 
@@ -153,7 +149,6 @@ impl<M: Model> App<M> {
     pub fn new(model: M) -> Self {
         Self {
             middleware: Arc::new(join_all(Vec::new())),
-            error_handler: Arc::new(default_error_handler),
             model: Arc::new(model),
         }
     }
@@ -179,31 +174,6 @@ impl<M: Model> App<M> {
         F: 'static + Send + Future<Output = Result>,
     {
         self.gate(endpoint)
-    }
-
-    /// Set a custom error handler. error_handler will be called when middlewares return an `Err(Error)`.
-    /// The error thrown by error_handler will be thrown to hyper.
-    /// ```rust
-    /// use roa_core::{Model, Context, Error, ErrorKind, Result};
-    ///
-    /// pub async fn default_error_handler<M: Model>(
-    ///     context: Context<M>,
-    ///     err: Error,
-    /// ) -> Result {
-    ///     context.resp_mut().await.status = err.status_code;
-    ///     if err.expose {
-    ///         context.resp_mut().await.write_str(&err.message);
-    ///     }
-    ///     if err.kind == ErrorKind::ServerError {
-    ///         Err(err)
-    ///     } else {
-    ///         Ok(())
-    ///     }
-    /// }
-    /// ```
-    pub fn handle_err(&mut self, handler: impl ErrorHandler<M::State>) -> &mut Self {
-        self.error_handler = Arc::new(handler);
-        self
     }
 
     /// Listen on a socket addr, return a server and the real addr it binds.
@@ -309,8 +279,14 @@ impl<M: Model> HttpService<M> {
     pub async fn serve(&self, req: Request) -> Result<Response> {
         let context = Context::new(req, self.app.model.new_state(), self.stream.clone());
         let app = self.app.clone();
-        if let Err(status) = app.middleware.end(context.clone()).await {
-            app.error_handler.handle(context.clone(), status).await?;
+        if let Err(err) = app.middleware.end(context.clone()).await {
+            context.resp_mut().await.status = err.status_code;
+            if err.expose {
+                context.resp_mut().await.write_str(&err.message);
+            }
+            if err.need_throw() {
+                return Err(err);
+            }
         }
         let mut response = context.resp_mut().await;
         Ok(std::mem::take(&mut *response))
@@ -321,7 +297,6 @@ impl<M: Model> Clone for App<M> {
     fn clone(&self) -> Self {
         Self {
             middleware: self.middleware.clone(),
-            error_handler: self.error_handler.clone(),
             model: self.model.clone(),
         }
     }

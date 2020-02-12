@@ -155,12 +155,12 @@
 //!
 //! App has a error_handler to handle `Error` thrown by the top middleware.
 //!
-//! This is the default error_handler:
+//! This is the top error_handler:
 //!
 //! ```rust
 //! use roa_core::{Context, Error, Result, Model, ErrorKind};
 //!
-//! pub async fn default_error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
+//! pub async fn error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
 //!     context.resp_mut().await.status = err.status_code;
 //!     if err.expose {
 //!         context.resp_mut().await.write_str(&err.message);
@@ -174,21 +174,11 @@
 //!
 //! ```
 //!
-//! The Error thrown by error_handler will be handled by hyper.
+//! The Error thrown by this error_handler will be handled by hyper.
 //!
-//! You can use `App::handle_err` to set a custom error_handler:
+//! You can write a middleware to set a custom error_handler:
 //!
-//! ```rust
-//! use roa_core::{Context, App, Error, Result};
 //!
-//! // throw all error to hyper.
-//! pub async fn app_error_handler(_: Context<()>, err: Error) -> Result {
-//!     Err(err)
-//! }
-//!
-//! let mut app = App::new(());
-//! app.handle_err(app_error_handler);
-//! ```
 
 #![warn(missing_docs, clippy::all, clippy::cargo)]
 
@@ -197,7 +187,7 @@ mod body;
 mod context;
 mod err;
 mod group;
-mod handler;
+mod middleware;
 mod model;
 mod next;
 mod request;
@@ -215,10 +205,9 @@ pub use context::{Bucket, Context, Variable};
 
 #[doc(inline)]
 pub use err::{throw, Error, ErrorKind, Result, ResultFuture};
-pub(crate) use handler::default_error_handler;
 
 #[doc(inline)]
-pub use handler::{ErrorHandler, Middleware};
+pub use middleware::Middleware;
 
 #[doc(inline)]
 pub use group::{join, join_all};

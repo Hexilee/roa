@@ -77,7 +77,6 @@ impl AddrIncoming {
         self.sleep_on_errors = val;
     }
 
-    #[cfg_attr(tarpaulin, skip)]
     fn poll_next_(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<AddrStream>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
@@ -163,6 +162,7 @@ fn is_connection_error(e: &io::Error) -> bool {
     }
 }
 
+#[cfg_attr(tarpaulin, skip)]
 impl fmt::Debug for AddrIncoming {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("AddrIncoming")
