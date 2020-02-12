@@ -10,7 +10,11 @@ pub type Result<R = ()> = StdResult<R, Error>;
 /// Type alias for `Pin<Box<dyn 'static + Future<Output = Result<R>> + Send>>`.
 pub type ResultFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>> + Send>>;
 
-/// Return an exposed Err(Error).
+/// Throw an `Err(Error)`.
+///
+/// - `throw!(status_code)` will be expanded to `throw!(status_code, "")`
+/// - `throw!(status_code, message)` will be expanded to `throw!(status_code, message, true)`
+/// - `throw!(status_code, message, expose)` will be expanded to `return Err(Error::new(status_code, message, expose));`
 ///
 /// ### Example
 /// ```rust

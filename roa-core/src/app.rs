@@ -43,7 +43,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///
 /// ### Model
 /// The `Model` and its `State` is designed to share data or handler between middlewares.
-/// The only one type implemented `Model` by this crate is `()`, you should implement your custom Model if neccassary.
+/// The only one type implemented `Model` by this crate is `()`, you can implement your custom Model if neccassary.
 ///
 /// ```rust,no_run
 /// use roa_core::{App, Model};
