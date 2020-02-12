@@ -66,7 +66,7 @@ chrono = "0.4"
 default = ["body", "router"]
 full = ["default", "jwt", "cookies", "compress"]
 cookies = ["cookie"]
-jwt = ["jsonwebtoken", "serde"]
+jwt = ["jsonwebtoken", "serde", "serde_json"]
 body = [
     "serde", 
     "mime", 
