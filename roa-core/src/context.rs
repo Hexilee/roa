@@ -55,9 +55,9 @@ pub struct Context<S> {
 /// use roa_core::{Bucket, Variable};
 /// let mut bucket = Bucket::new();
 /// assert!(bucket.get("id").is_none());
-/// assert!(bucket.insert("id", "1".to_string()).is_none());
+/// assert!(bucket.insert("id", "1").is_none());
 /// assert_eq!(1, bucket.get("id").unwrap().parse().unwrap());
-/// assert_eq!(1, bucket.insert("id", "2".to_string()).unwrap().parse().unwrap());
+/// assert_eq!(1, bucket.insert("id", "2").unwrap().parse().unwrap());
 /// ```
 #[derive(Debug, Clone)]
 pub struct Bucket(HashMap<String, String>);
@@ -159,13 +159,13 @@ impl Bucket {
     /// ```rust
     /// use roa_core::{Bucket, Variable};
     /// let mut bucket = Bucket::new();
-    /// assert!(bucket.insert("id", "1".to_string()).is_none());
-    /// assert_eq!(1, bucket.insert("id", "2".to_string()).unwrap().parse().unwrap());
+    /// assert!(bucket.insert("id", "1").is_none());
+    /// assert_eq!(1, bucket.insert("id", "2").unwrap().parse().unwrap());
     /// ```
     #[inline]
-    pub fn insert<'a>(&mut self, name: &'a str, value: String) -> Option<Variable<'a>> {
+    pub fn insert<'a>(&mut self, name: &'a str, value: impl ToString) -> Option<Variable<'a>> {
         self.0
-            .insert(name.to_string(), value)
+            .insert(name.to_string(), value.to_string())
             .map(|value| Variable::new(name, value))
     }
 
@@ -178,7 +178,7 @@ impl Bucket {
     /// use roa_core::{Bucket, Variable};
     /// let mut bucket = Bucket::new();
     /// assert!(bucket.get("id").is_none());
-    /// bucket.insert("id", "1".to_string());
+    /// bucket.insert("id", "1");
     /// assert_eq!(1, bucket.get("id").unwrap().parse().unwrap());
     /// ```
     #[inline]
@@ -638,7 +638,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|ctx, next| async move {
-    ///             ctx.store::<Symbol>("id", "1".to_string()).await;
+    ///             ctx.store::<Symbol>("id", "1".to_owned()).await;
     ///             next().await
     ///         })
     ///         .end(|ctx| async move {
@@ -687,7 +687,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|ctx, next| async move {
-    ///             ctx.store::<Symbol>("id", "1".to_string()).await;
+    ///             ctx.store::<Symbol>("id", "1".to_owned()).await;
     ///             next().await
     ///         })
     ///         .end(|ctx| async move {
@@ -717,7 +717,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|ctx, next| async move {
-    ///             ctx.store::<Symbol>("id", "x".to_string()).await;
+    ///             ctx.store::<Symbol>("id", "x".to_owned()).await;
     ///             next().await
     ///         })
     ///         .end(|ctx| async move {
