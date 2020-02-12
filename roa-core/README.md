@@ -112,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
 #### error_handler
-App has a error_handler to handle `Error` thrown by the top middleware.
+App has an error_handler to handle `Error` thrown by the top middleware.
 This is the error_handler:
 
 ```rust
