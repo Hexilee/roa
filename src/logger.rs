@@ -108,7 +108,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate_fn(logger)
             .gate_fn(
-                move |_ctx, _next| async move { throw(StatusCode::BAD_REQUEST, "Hello, World.") },
+                move |_ctx, _next| async move { throw!(StatusCode::BAD_REQUEST, "Hello, World!") },
             )
             .run_local()?;
         spawn(server);
@@ -120,7 +120,7 @@ mod tests {
         assert_eq!("--> GET /", records[2].1);
         assert_eq!("ERROR", records[3].0);
         assert!(records[3].1.starts_with("<-- GET /"));
-        assert!(records[3].1.ends_with("Hello, World."));
+        assert!(records[3].1.ends_with("Hello, World!"));
         Ok(())
     }
 }

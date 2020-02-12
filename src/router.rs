@@ -255,7 +255,7 @@ impl<S: State> RouteTable<S> {
                 return handler.clone().end(ctx).await;
             }
         }
-        throw(StatusCode::NOT_FOUND, "")
+        throw!(StatusCode::NOT_FOUND)
     }
 }
 
@@ -263,9 +263,9 @@ impl<S: State> RouteTable<S> {
 impl<S: State> Middleware<S> for RouteEndpoint<S> {
     async fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Result {
         match self.0.get(&ctx.method().await) {
-            None => throw(
+            None => throw!(
                 StatusCode::METHOD_NOT_ALLOWED,
-                format!("method {} is not allowed", &ctx.method().await,),
+                format!("method {} is not allowed", &ctx.method().await)
             ),
             Some(handler) => handler.end(ctx).await,
         }

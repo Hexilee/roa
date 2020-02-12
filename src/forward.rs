@@ -20,9 +20,9 @@ impl<S: State> Forward for Context<S> {
         } else if let Some(Ok(value)) = self.req().await.get(HOST) {
             Ok(value.to_string())
         } else {
-            throw(
+            throw!(
                 StatusCode::BAD_REQUEST,
-                "header `host` or `x-forwarded-host` is not set",
+                "header `host` or `x-forwarded-host` is not set"
             )
         }
     }

@@ -13,9 +13,9 @@ pub fn decode(raw_data: &[u8], encoding: &str) -> Result<String> {
                     true,
                 )
             }),
-        None => throw(
+        None => throw!(
             StatusCode::UNSUPPORTED_MEDIA_TYPE,
-            format!("encoding(`{}`) is unsupported", encoding),
+            format!("encoding(`{}`) is unsupported", encoding)
         ),
     }
 }

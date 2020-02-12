@@ -103,9 +103,9 @@ impl<S: State> PowerBody for Context<S> {
                 } else if mime_type == mime::APPLICATION_WWW_FORM_URLENCODED {
                     self.read_form().await
                 } else {
-                    throw(
+                    throw!(
                         StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                        "Content-Type can only be JSON or URLENCODED",
+                        "Content-Type can only be JSON or URLENCODED"
                     )
                 }
             }

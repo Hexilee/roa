@@ -49,7 +49,7 @@ impl<'a> Dir<'a> {
 
 async fn path_checker(ctx: Context<()>, next: Next) -> Result {
     if ctx.param("path").await?.contains("..") {
-        throw(StatusCode::BAD_REQUEST, "invalid path")
+        throw!(StatusCode::BAD_REQUEST, "invalid path")
     } else {
         next().await
     }
@@ -64,7 +64,7 @@ async fn serve_path(ctx: Context<()>) -> Result {
     } else if file_path.is_dir().await {
         serve_dir(ctx, path).await
     } else {
-        throw(StatusCode::NOT_FOUND, "path not found")
+        throw!(StatusCode::NOT_FOUND, "path not found")
     }
 }
 
