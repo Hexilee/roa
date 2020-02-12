@@ -1,5 +1,5 @@
 use askama::Template;
-use async_std::path::{Path, PathBuf};
+use async_std::path::Path;
 use async_std::prelude::*;
 use bytesize::ByteSize;
 use chrono::offset::Local;
