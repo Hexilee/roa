@@ -6,14 +6,14 @@ use std::sync::Arc;
 ///
 /// ### Example
 /// ```rust
-/// use roa_core::{App, join_all, Middleware, Next};
+/// use roa_core::{join_all, App, Middleware, Next};
 /// use async_std::task::spawn;
 /// use futures::lock::Mutex;
 /// use http::StatusCode;
 /// use std::sync::Arc;
 ///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// #[tokio::test]
+/// async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
 ///     let vector = Arc::new(Mutex::new(Vec::new()));
 ///     let mut middlewares = Vec::<Arc<dyn Middleware<()>>>::new();
 ///     for i in 0..100 {

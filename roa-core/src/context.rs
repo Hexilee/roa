@@ -764,7 +764,7 @@ impl<S> Clone for Context<S> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{App, Model};
+    use crate::{App, Context, Model};
     use async_std::task::spawn;
     use http::{StatusCode, Version};
 
@@ -800,7 +800,7 @@ mod tests {
                 ctx.state_mut().await.data = 1;
                 next().await
             })
-            .end(|ctx| async move {
+            .end(|ctx: Context<AppState>| async move {
                 assert_eq!(1, ctx.state().await.data);
                 Ok(())
             })

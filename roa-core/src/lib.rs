@@ -12,7 +12,7 @@
 //!
 //! ### Application
 //!
-//! A Roa application is a structure containing a middleware group which composes and executes middleware functions in a stack-like manner.
+//! A Roa application is a structure containing a middleware group which composes and executes middleware in a stack-like manner.
 //!
 //! The obligatory hello world application:
 //!
@@ -226,3 +226,5 @@ pub use request::Request;
 pub use response::Response;
 
 pub use http::{header, StatusCode};
+
+pub use async_trait::async_trait;
