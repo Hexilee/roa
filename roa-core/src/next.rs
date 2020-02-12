@@ -63,9 +63,8 @@ use crate::ResultFuture;
 ///         .gate_fn(|ctx, next| async move {
 ///             // catch
 ///             if let Err(err) = next().await {
-///                 if err.status_code == StatusCode::IM_A_TEAPOT {
-///                     // teapot is ok
-///                 } else {
+///                 // teapot is ok
+///                 if err.status_code != StatusCode::IM_A_TEAPOT {
 ///                     return Err(err);
 ///                 }
 ///             }
@@ -76,7 +75,7 @@ use crate::ResultFuture;
 ///             unreachable!()
 ///         })
 ///         .gate_fn(|_ctx, _next| async move {
-///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+///             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 ///         })
 ///         .run_local()?;
 ///     spawn(server);

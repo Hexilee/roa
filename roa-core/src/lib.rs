@@ -139,7 +139,7 @@
 //!             unreachable!()
 //!         })
 //!         .end(|_ctx| async move {
-//!             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+//!             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 //!         })
 //!         .run_local()?;
 //!     spawn(server);
@@ -180,7 +180,7 @@
 //!
 //!
 
-#![warn(missing_docs, clippy::all, clippy::cargo)]
+#![warn(missing_docs)]
 
 mod app;
 mod body;
@@ -204,7 +204,7 @@ pub use body::{Body, Callback as BodyCallback};
 pub use context::{Bucket, Context, Variable};
 
 #[doc(inline)]
-pub use err::{throw, Error, ErrorKind, Result, ResultFuture};
+pub use err::{Error, ErrorKind, Result, ResultFuture};
 
 #[doc(inline)]
 pub use middleware::Middleware;

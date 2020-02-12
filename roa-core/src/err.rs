@@ -28,7 +28,7 @@ pub type ResultFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>>
 ///             Ok(())
 ///         })
 ///         .end(|_ctx| async {
-///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")?; // throw
+///             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"); // throw
 ///             unreachable!()
 ///         })
 ///         .run_local()?;
@@ -39,8 +39,17 @@ pub type ResultFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>>
 ///     Ok(())
 /// }
 /// ```
-pub fn throw<R>(status_code: StatusCode, message: impl ToString) -> Result<R> {
-    Err(Error::new(status_code, message, true))
+#[macro_export]
+macro_rules! throw {
+    ($status_code:expr) => {
+        $crate::throw!($status_code, "");
+    };
+    ($status_code:expr, $message:expr) => {
+        $crate::throw!($status_code, $message, true);
+    };
+    ($status_code:expr, $message:expr, $expose:expr) => {
+        return Err($crate::Error::new($status_code, $message, $expose));
+    };
 }
 
 /// The `Error` of roa.
@@ -64,7 +73,7 @@ pub struct Error {
     ///             next().await // not caught
     ///         })
     ///         .end(|_ctx| async {
-    ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
+    ///             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
     ///         })
     ///         .run_local()?;
     ///     spawn(server);
