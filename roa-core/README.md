@@ -73,45 +73,6 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 }
 ```
 
-#### Middleware
-
-`Middleware` is a trait:
-
-```rust
-'static + Sync + Send + Fn(Context<M>, Next) -> impl 'static + Future<Output = Result<R>> + Send;
-```
-
-Example:
-
-```rust
-use roa_core::{Context, Result, Next};
-
-async fn middleware(_ctx: Context<()>, next: Next) -> Result {
-  	next().await
-}
-```
-
-#### Endpoint
-
-`Endpoint` is a trait:
-
-```rust
-'static + Sync + Send + Fn(Context<M>) -> impl 'static + Future<Output = Result<R>> + Send;
-```
-
-Example:
-
-```rust
-use roa_core::{Context, Result, Next};
-
-async fn get(ctx: Context<()>) -> Result {
-	ctx.resp_mut().await.write_str("Hello, World!");
-  	Ok(())
-}
-```
-
-
-
 ### Error Handling
 
 You can catch or straightly throw a Error returned by next.
@@ -126,9 +87,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .gate_fn(|ctx, next| async move {
             // catch
             if let Err(err) = next().await {
-                if err.status_code == StatusCode::IM_A_TEAPOT {
-                    // teapot is ok
-                } else {
+                // teapot is ok
+                if err.status_code != StatusCode::IM_A_TEAPOT {
                     return Err(err)
                 }
             }
@@ -139,7 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             unreachable!()
         })
         .end(|_ctx| async move {
-            throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+            throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
         })
         .run_local()?;
     spawn(server);
@@ -153,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #### error_handler
 App has a error_handler to handle `Error` thrown by the top middleware.
-This is the top error_handler:
+This is the error_handler:
 
 ```rust
 use roa_core::{Context, Error, Result, Model, ErrorKind};
@@ -171,4 +131,4 @@ pub async fn error_handler<M: Model>(context: Context<M>, err: Error) -> Result 
 ```
 
 The Error thrown by this error_handler will be handled by hyper.
-You can write a middleware to set a custom error_handler.
+

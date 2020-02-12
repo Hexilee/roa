@@ -12,7 +12,7 @@
 //!
 //! ### Application
 //!
-//! A Roa application is a structure containing a middleware group which composes and executes middleware in a stack-like manner.
+//! A Roa application is a structure containing a middleware group which composes and executes middleware functions in a stack-like manner.
 //!
 //! The obligatory hello world application:
 //!
@@ -25,13 +25,13 @@
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
 //!     app.end(|ctx| async move {
-//!         ctx.resp_mut().await.write_str("Hello, World");
-//!         Ok(())
-//!     });
+//!       	ctx.resp_mut().await.write_str("Hello, World");
+//!       	Ok(())
+//!   	});
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
-//!     .await?;
+//!   	.await?;
 //!     Ok(())
 //! }
 //! ```
@@ -54,63 +54,24 @@
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
-//!     app.gate_fn(|_ctx, next| async move {
-//!         let inbound = Instant::now();
+//!   	app.gate_fn(|_ctx, next| async move {
+//!     		let inbound = Instant::now();
 //!         next().await?;
 //!         info!("time elapsed: {} ms", inbound.elapsed().as_millis());
 //!         Ok(())
-//!     });
-//!   
+//!   	});
+//!
 //!     app.end(|ctx| async move {
-//!         ctx.resp_mut().await.write_str("Hello, World");
-//!         Ok(())
-//!     });
+//!       	ctx.resp_mut().await.write_str("Hello, World");
+//!       	Ok(())
+//!   	});
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
-//!     .await?;
+//!   	.await?;
 //!     Ok(())
 //! }
 //! ```
-//!
-//! #### Middleware
-//!
-//! `Middleware` is a trait:
-//!
-//! ```rust,compile_fail
-//! 'static + Sync + Send + Fn(Context<M>, Next) -> impl 'static + Future<Output = Result<R>> + Send;
-//! ```
-//!
-//! Example:
-//!
-//! ```rust
-//! use roa_core::{Context, Result, Next};
-//!
-//! async fn middleware(_ctx: Context<()>, next: Next) -> Result {
-//!     next().await
-//! }
-//! ```
-//!
-//! #### Endpoint
-//!
-//! `Endpoint` is a trait:
-//!
-//! ```rust,compile_fail
-//! 'static + Sync + Send + Fn(Context<M>) -> impl 'static + Future<Output = Result<R>> + Send;
-//! ```
-//!
-//! Example:
-//!
-//! ```rust
-//! use roa_core::{Context, Result, Next};
-//!
-//! async fn get(ctx: Context<()>) -> Result {
-//!     ctx.resp_mut().await.write_str("Hello, World!");
-//!     Ok(())
-//! }
-//! ```
-//!
-//!
 //!
 //! ### Error Handling
 //!
@@ -126,10 +87,9 @@
 //!         .gate_fn(|ctx, next| async move {
 //!             // catch
 //!             if let Err(err) = next().await {
-//!                 if err.status_code == StatusCode::IM_A_TEAPOT {
-//!                     // teapot is ok
-//!                 } else {
-//!                     return Err(err);
+//!                 // teapot is ok
+//!                 if err.status_code != StatusCode::IM_A_TEAPOT {
+//!                     return Err(err)
 //!                 }
 //!             }
 //!             Ok(())
@@ -149,17 +109,12 @@
 //! }
 //! ```
 //!
-//!
-//!
 //! #### error_handler
-//!
 //! App has a error_handler to handle `Error` thrown by the top middleware.
-//!
-//! This is the top error_handler:
+//! This is the error_handler:
 //!
 //! ```rust
 //! use roa_core::{Context, Error, Result, Model, ErrorKind};
-//!
 //! pub async fn error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
 //!     context.resp_mut().await.status = err.status_code;
 //!     if err.expose {
@@ -171,15 +126,9 @@
 //!         Ok(())
 //!     }
 //! }
-//!
 //! ```
 //!
 //! The Error thrown by this error_handler will be handled by hyper.
-//!
-//! You can write a middleware to set a custom error_handler:
-//!
-//!
-
 #![warn(missing_docs)]
 
 mod app;
