@@ -1,8 +1,9 @@
-use crate::core::{Error, Request, Response, Result};
-use http::header::{
+//! The header module of roa.
+//! This module provides a Request/Response extension `FriendlyHeaders`.
+use crate::core::header::{
     AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, InvalidHeaderValue, ToStrError,
 };
-use http::StatusCode;
+use crate::core::{Error, Request, Response, Result, StatusCode};
 
 fn handle_invalid_header_value(err: InvalidHeaderValue, value: &str) -> Error {
     Error::new(

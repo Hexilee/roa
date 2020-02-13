@@ -1,8 +1,6 @@
-use crate::core::{Context, Error, Next, Result, State};
+use crate::core::{async_trait, header, Context, Error, Next, Result, State, StatusCode};
 use crate::header::FriendlyHeaders;
-use async_trait::async_trait;
 pub use cookie::Cookie;
-use http::{header, StatusCode};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 const WWW_AUTHENTICATE_BUG_HELP: &str = "

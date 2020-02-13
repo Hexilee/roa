@@ -1,14 +1,13 @@
-use crate::core::{async_trait, Context, Middleware, Next, Result, State};
-use crate::preload::*;
-use async_std::sync::Arc;
-use http::header::{
+use crate::core::header::{
     HeaderName, HeaderValue, ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
     ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
     ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, ORIGIN,
     VARY,
 };
+use crate::core::{async_trait, Context, Middleware, Next, Result, State, StatusCode};
+use crate::preload::*;
+use async_std::sync::Arc;
 use http::Method;
-use http::StatusCode;
 use typed_builder::TypedBuilder;
 
 #[derive(Debug, TypedBuilder)]

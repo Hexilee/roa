@@ -1,6 +1,5 @@
-use crate::core::{throw, Error, Result};
+use crate::core::{throw, Error, Result, StatusCode};
 use encoding::label::encoding_from_whatwg_label;
-use http::StatusCode;
 
 pub fn decode(raw_data: &[u8], encoding: &str) -> Result<String> {
     match encoding_from_whatwg_label(encoding) {

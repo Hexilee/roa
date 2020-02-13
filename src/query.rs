@@ -24,9 +24,7 @@
 //! }
 //! ```
 
-use crate::core::{Context, Error, Next, Result, State, Variable};
-use async_trait::async_trait;
-use http::StatusCode;
+use crate::core::{async_trait, Context, Error, Next, Result, State, StatusCode, Variable};
 use url::form_urlencoded::parse;
 
 /// A unique symbol to store and load variables in Context::storage.

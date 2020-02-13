@@ -1,7 +1,6 @@
-use crate::core::{throw, Context, Result, State};
+use crate::core::header::HOST;
+use crate::core::{async_trait, throw, Context, Result, State, StatusCode};
 use crate::preload::*;
-use async_trait::async_trait;
-use http::{header::HOST, StatusCode};
 use std::net::IpAddr;
 
 #[async_trait]

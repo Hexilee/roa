@@ -1,9 +1,7 @@
-pub use async_trait::async_trait;
 pub use jsonwebtoken::Validation;
 
-use crate::core::{join, Context, Error, Middleware, Next, Result, State, StatusCode};
-use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
-use http::HeaderValue;
+use crate::core::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
+use crate::core::{async_trait, join, Context, Error, Middleware, Next, Result, State, StatusCode};
 use jsonwebtoken::{dangerous_unsafe_decode, decode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;

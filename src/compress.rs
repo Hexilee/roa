@@ -1,10 +1,8 @@
-use crate::core::{Body, Context, Error, Middleware, Next, Result, State};
+use crate::core::header::CONTENT_ENCODING;
+use crate::core::{async_trait, Body, Context, Error, Middleware, Next, Result, State, StatusCode};
 use accept_encoding::{parse, Encoding};
 use async_compression::flate2::Compression;
 use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
-use async_trait::async_trait;
-use http::header::CONTENT_ENCODING;
-use http::StatusCode;
 use std::sync::Arc;
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]

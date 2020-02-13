@@ -4,9 +4,11 @@ mod path;
 use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path, RegexPath};
 
-use crate::core::{join_all, throw, Context, Error, Middleware, Next, Result, State, Variable};
-use async_trait::async_trait;
-use http::{Method, StatusCode};
+use crate::core::{
+    async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State, StatusCode,
+    Variable,
+};
+use http::Method;
 use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
 use std::collections::HashMap;
