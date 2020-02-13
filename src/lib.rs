@@ -23,6 +23,7 @@ pub mod router;
 pub mod compress;
 
 pub mod preload {
+    /// Reexport all extensional traits.
     pub use crate::forward::Forward;
     pub use crate::header::FriendlyHeaders;
     pub use crate::query::Query;
