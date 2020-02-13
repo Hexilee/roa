@@ -1,3 +1,38 @@
+//! The cors module of roa.
+//! This module provides a middleware `Cors`.
+//!
+//! ### Example
+//!
+//! ```rust
+//! use roa::cors::Cors;
+//! use roa::core::{App, StatusCode, header::{ORIGIN, ACCESS_CONTROL_ALLOW_ORIGIN}};
+//! use async_std::task::spawn;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     pretty_env_logger::init();
+//!     let (addr, server) = App::new(())
+//!         .gate(Cors::builder().build())
+//!         .end(|ctx| async move {
+//!             Ok(())
+//!         })
+//!         .run_local()?;
+//!     spawn(server);
+//!     let client = reqwest::Client::new();
+//!     let resp = client
+//!         .get(&format!("http://{}", addr))
+//!         .header(ORIGIN, "github.com")
+//!         .send()
+//!         .await?;
+//!     assert_eq!(StatusCode::OK, resp.status());
+//!     assert_eq!(
+//!         "github.com",
+//!         resp.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap().to_str()?
+//!     );
+//!     Ok(())
+//! }
+//! ```
+
 use crate::core::header::{
     HeaderName, HeaderValue, ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
     ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
@@ -10,6 +45,44 @@ use async_std::sync::Arc;
 use http::Method;
 use typed_builder::TypedBuilder;
 
+/// A middleware to deal with Cross-Origin Resource Sharing (CORS).
+///
+/// ### Default
+///
+/// The default Cors middleware works well,
+/// it will set header "access-control-allow-origin" to "origin" in request,
+/// and set "access-control-allow-credentials" to "true".
+///
+/// And in preflight request,
+/// it will set "access-control-allow-methods" to "GET,HEAD,PUT,POST,DELETE,PATCH",
+/// and set "access-control-max-age" to "86400".
+///
+/// Build a default Cors middleware:
+///
+/// ```rust
+/// use roa::cors::Cors;
+///
+/// let default_cors = Cors::builder().build();
+/// ```
+///
+/// ### Config
+///
+/// You can also configure it:
+///
+/// ```rust
+/// use roa::cors::Cors;
+/// use roa::core::header::{CONTENT_DISPOSITION, AUTHORIZATION};
+/// use http::Method;
+///
+/// let default_cors = Cors::builder()
+///     .allow_origin(Some("github.com".to_owned()))
+///     .allow_methods(vec![Method::GET, Method::POST])
+///     .expose_headers(vec![CONTENT_DISPOSITION])
+///     .allow_headers(vec![AUTHORIZATION])
+///     .max_age(60)
+///     .credentials(false)
+///     .build();
+/// ```
 #[derive(Debug, TypedBuilder)]
 pub struct Cors {
     #[builder(default)]
