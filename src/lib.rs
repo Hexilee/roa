@@ -22,8 +22,8 @@ pub mod router;
 #[cfg(feature = "compress")]
 pub mod compress;
 
+/// Reexport all extensional traits.
 pub mod preload {
-    /// Reexport all extensional traits.
     pub use crate::forward::Forward;
     pub use crate::header::FriendlyHeaders;
     pub use crate::query::Query;

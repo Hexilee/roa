@@ -60,14 +60,74 @@ const ALL_METHODS: [Method; 9] = [
     Method::CONNECT,
 ];
 
+/// A unique symbol to store and load variables in Context::storage.
 struct RouterSymbol;
 
+/// A context extension.
+/// This extension must be used in downstream of middleware `RouteEndpoint`,
+/// otherwise you cannot get expected router parameter.
+///
+/// ### Example
+///
+/// ```rust
+/// use roa::router::{RouterParam, Router};
+/// use roa::core::{App, StatusCode};
+/// use async_std::task::spawn;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let mut router = Router::<()>::new();
+///     router.get("/:id", |ctx| async move {
+///         let id: u64 = ctx.must_param("id").await?.parse()?;
+///         assert_eq!(0, id);
+///         Ok(())
+///     });
+///     let (addr, server) = App::new(())
+///         .gate(router.routes("/user")?)
+///         .run_local()?;
+///     spawn(server);
+///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
+///     assert_eq!(StatusCode::OK, resp.status());
+///     Ok(())
+/// }
+///
+///
+/// ```
 #[async_trait]
 pub trait RouterParam {
+    /// Must get a router parameter, throw 500 INTERNAL SERVER ERROR if it not exists.
     async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a>>;
+
+    /// Try to get a router parameter, return `None` if it not exists.
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::router::{RouterParam, Router};
+    /// use roa::core::{App, StatusCode};
+    /// use async_std::task::spawn;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let mut router = Router::<()>::new();
+    ///     router.get("/:id", |ctx| async move {
+    ///         assert!(ctx.param("name").await.is_none());
+    ///         Ok(())
+    ///     });
+    ///     let (addr, server) = App::new(())
+    ///         .gate(router.routes("/user")?)
+    ///         .run_local()?;
+    ///     spawn(server);
+    ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
+    ///     assert_eq!(StatusCode::OK, resp.status());
+    ///     Ok(())
+    /// }
+    ///
+    ///
+    /// ```
     async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
 }
 
+/// A builder of `RouteEndpoint`.
 pub struct Router<S: State> {
     middlewares: Vec<Arc<dyn Middleware<S>>>,
     endpoints: Vec<(Method, String, Arc<dyn Middleware<S>>)>,
@@ -78,9 +138,14 @@ struct RouteTable<S: State> {
     dynamic_route: Vec<(RegexPath, Arc<dyn Middleware<S>>)>,
 }
 
+/// A endpoint to handle request by uri path and http method.
+///
+/// - Throw 404 NOT FOUND when path is not matched.
+/// - Throw 405 METHOD NOT ALLOWED when method is not allowed.
 pub struct RouteEndpoint<S: State>(HashMap<Method, RouteTable<S>>);
 
 impl<S: State> Router<S> {
+    /// Construct a new router.
     pub fn new() -> Self {
         Self {
             middlewares: Vec::new(),
@@ -88,11 +153,32 @@ impl<S: State> Router<S> {
         }
     }
 
+    /// use a middleware.
     pub fn gate(&mut self, middleware: impl Middleware<S>) -> &mut Self {
         self.middlewares.push(Arc::new(middleware));
         self
     }
 
+    /// A sugar to match a lambda as a middleware.
+    ///
+    /// `Router::gate` cannot match a lambda without parameter type indication.
+    ///
+    /// ```rust
+    /// use roa::core::Next;
+    /// use roa::router::Router;
+    ///
+    /// let mut router = Router::<()>::new();
+    /// // router.gate(|_ctx, next| async move { next().await }); compile fails.
+    /// router.gate(|_ctx, next: Next| async move { next().await });
+    /// ```
+    ///
+    /// However, with `Router::gate_fn`, you can match a lambda without type indication.
+    /// ```rust
+    /// use roa::router::Router;
+    ///
+    /// let mut router = Router::<()>::new();
+    /// router.gate_fn(|_ctx, next| async move { next().await });
+    /// ```
     pub fn gate_fn<F>(
         &mut self,
         middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
@@ -104,6 +190,7 @@ impl<S: State> Router<S> {
         self
     }
 
+    /// Register a new endpoint.
     pub fn end(
         &mut self,
         methods: &[Method],
@@ -118,10 +205,55 @@ impl<S: State> Router<S> {
         self
     }
 
+    /// A sugar to match a function pointer like `async fn(Context<S>) -> impl Future`
+    /// and use register it as an endpoint.
+    ///
+    /// As the ducument of `Middleware`, an endpoint is defined as a template:
+    ///
+    /// ```rust
+    /// use roa::core::{Context, Result};
+    /// use std::future::Future;
+    ///
+    /// fn endpoint<F>(ctx: Context<()>) -> F
+    /// where F: 'static + Send + Future<Output=Result> {
+    ///     unimplemented!()
+    /// }
+    /// ```
+    ///
+    /// However, an async function is not a template,
+    /// it needs a transfer function to suit for `Router::end`.
+    ///
+    /// ```rust
+    /// use roa::core::{Context, Result, State, Middleware};
+    /// use roa::router::Router;
+    /// use std::future::Future;
+    /// use http::Method;
+    ///
+    /// async fn endpoint(ctx: Context<()>) -> Result {
+    ///     Ok(())
+    /// }
+    ///
+    /// fn transfer<S, F>(endpoint: fn(Context<S>) -> F) -> impl Middleware<S>
+    /// where S: State,
+    ///       F: 'static + Send + Future<Output=Result> {
+    ///     endpoint
+    /// }
+    ///
+    /// Router::<()>::new().end([Method::GET].as_ref(), "/", transfer(endpoint));
+    /// ```
+    ///
+    /// And `Router::end_fn` is a wrapper of `Router::end` with this transfer function.
+    ///
+    /// ```rust
+    /// use roa::router::Router;
+    /// use http::Method;
+    ///
+    /// Router::<()>::new().end_fn([Method::GET].as_ref(), "/", |_ctx| async { Ok(()) });
+    /// ```
     pub fn end_fn<F>(
         &mut self,
-        path: &'static str,
         methods: &[Method],
+        path: &'static str,
         endpoint: fn(Context<S>) -> F,
     ) -> &mut Self
     where
@@ -130,10 +262,12 @@ impl<S: State> Router<S> {
         self.end(methods, path, endpoint)
     }
 
+    /// Include another router with prefix, allowing all methods.
     pub fn include(&mut self, prefix: &'static str, router: Router<S>) -> &mut Self {
         self.include_methods(prefix, router, ALL_METHODS)
     }
 
+    /// Include another router with prefix, only allowing method in parameter methods.
     pub fn include_methods(
         &mut self,
         prefix: &'static str,
@@ -161,6 +295,7 @@ impl<S: State> Router<S> {
         })
     }
 
+    /// Build RouteEndpoint with path prefix.
     pub fn routes(self, prefix: &'static str) -> StdResult<RouteEndpoint<S>, RouterError> {
         let mut route_endpoint = RouteEndpoint::default();
         for (method, raw_path, endpoint) in self.on(prefix) {
@@ -391,7 +526,9 @@ mod tests {
 
     #[tokio::test]
     async fn route_not_found() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(()).gate(Router::new().routes("/")?).run_local()?;
+        let (addr, server) = App::new(())
+            .gate(Router::default().routes("/")?)
+            .run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::NOT_FOUND, resp.status());

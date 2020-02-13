@@ -175,6 +175,7 @@ pub trait Cookier {
     async fn set_cookie(&self, cookie: Cookie<'_>) -> Result;
 }
 
+/// A middleware to parse cookie.
 pub async fn cookie_parser<S: State>(ctx: Context<S>, next: Next) -> Result {
     if let Some(Ok(cookies)) = ctx.header(header::COOKIE).await {
         for cookie in cookies
