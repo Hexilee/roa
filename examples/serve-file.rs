@@ -48,7 +48,7 @@ impl<'a> Dir<'a> {
 }
 
 async fn path_checker(ctx: Context<()>, next: Next) -> Result {
-    if ctx.param("path").await?.contains("..") {
+    if ctx.must_param("path").await?.contains("..") {
         throw!(StatusCode::BAD_REQUEST, "invalid path")
     } else {
         next().await
@@ -56,7 +56,7 @@ async fn path_checker(ctx: Context<()>, next: Next) -> Result {
 }
 
 async fn serve_path(ctx: Context<()>) -> Result {
-    let path_value = ctx.param("path").await?;
+    let path_value = ctx.must_param("path").await?;
     let path = path_value.as_ref();
     let file_path = Path::new(".").join(path);
     if file_path.is_file().await {

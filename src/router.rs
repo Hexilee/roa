@@ -1,3 +1,34 @@
+//! The router module of roa.
+//! This module provides a middleware `RouteEndpoint` and a context extension `RouterParam`.
+//!
+//! ### Example
+//!
+//! ```rust
+//! use roa::router::{Router, RouterParam};
+//! use roa::core::{App, StatusCode};
+//! use async_std::task::spawn;
+//!
+//! #[tokio::test]
+//! async fn gate() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut router = Router::<()>::new();
+//!     router
+//!         .gate_fn(|ctx, next| async move {
+//!             next().await
+//!         })
+//!         .get("/", |ctx| async move {
+//!             Ok(())
+//!         });
+//!     let (addr, server) = App::new(()).gate(router.routes("/route")?).run_local()?;
+//!     spawn(server);
+//!     let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
+//!     assert_eq!(StatusCode::OK, resp.status());
+//!
+//!     let resp = reqwest::get(&format!("http://{}/endpoint", addr)).await?;
+//!     assert_eq!(StatusCode::NOT_FOUND, resp.status());
+//!     Ok(())
+//! }
+//! ```
+
 mod err;
 mod path;
 
@@ -33,8 +64,8 @@ struct RouterSymbol;
 
 #[async_trait]
 pub trait RouterParam {
-    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>>;
-    async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
+    async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a>>;
+    async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
 }
 
 pub struct Router<S: State> {
@@ -147,6 +178,7 @@ impl<S: State> Default for Router<S> {
 
 macro_rules! impl_http_method {
     ($end:ident, $($method:expr),*) => {
+        #[allow(missing_docs)]
         pub fn $end<F>(&mut self, path: &'static str, endpoint: fn(Context<S>) -> F) -> &mut Self
         where
             F: 'static + Send + Future<Output = Result>,
@@ -278,8 +310,8 @@ impl<S: State> Middleware<S> for RouteEndpoint<S> {
 
 #[async_trait]
 impl<S: State> RouterParam for Context<S> {
-    async fn param<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
-        self.try_param(name).await.ok_or_else(|| {
+    async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
+        self.param(name).await.ok_or_else(|| {
             Error::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("router variable `{}` is required", name),
@@ -287,7 +319,7 @@ impl<S: State> RouterParam for Context<S> {
             )
         })
     }
-    async fn try_param<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
+    async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
         self.load::<RouterSymbol>(name).await
     }
 }

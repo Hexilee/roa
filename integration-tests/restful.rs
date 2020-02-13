@@ -127,14 +127,14 @@ fn crud_router() -> Result<Router<AppState>, Box<dyn std::error::Error>> {
     });
     id_router
         .get("", |ctx| async move {
-            let id = ctx.param("id").await?.parse()?;
+            let id = ctx.must_param("id").await?.parse()?;
             match ctx.state().await.db.read().await.get(id) {
                 Some(user) => ctx.write_json(user).await,
                 None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
             }
         })
         .put("", |ctx| async move {
-            let id = ctx.param("id").await?.parse()?;
+            let id = ctx.must_param("id").await?.parse()?;
             let mut user = ctx.read_json().await?;
             if ctx.state().await.db.write().await.update(id, &mut user) {
                 ctx.write_json(&user).await
@@ -143,7 +143,7 @@ fn crud_router() -> Result<Router<AppState>, Box<dyn std::error::Error>> {
             }
         })
         .delete("", |ctx| async move {
-            let id = ctx.param("id").await?.parse()?;
+            let id = ctx.must_param("id").await?.parse()?;
             match ctx.state().await.db.write().await.delete(id) {
                 Some(user) => ctx.write_json(&user).await,
                 None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
