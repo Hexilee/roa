@@ -1,4 +1,36 @@
-use crate::core::{async_trait, header, Context, Error, Next, Result, State, StatusCode};
+//! The cookie module of roa.
+//! This module provides a middleware `cookie_parser` and a context extension `Cookier`.
+//!
+//! ### Example
+//!
+//! ```rust
+//! use roa::cookie::{cookie_parser, Cookier};
+//! use roa::core::{App, StatusCode};
+//! use roa::core::header::COOKIE;
+//! use async_std::task::spawn;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let (addr, server) = App::new(())
+//!         .gate(cookie_parser)
+//!         .end(|ctx| async move {
+//!             assert_eq!("Hexilee", ctx.must_cookie("name").await?);
+//!             Ok(())
+//!         })
+//!         .run_local()?;
+//!     spawn(server);
+//!     let client = reqwest::Client::new();
+//!     let resp = client
+//!         .get(&format!("http://{}", addr))
+//!         .header(COOKIE, "name=Hexilee")
+//!         .send()
+//!         .await?;
+//!     assert_eq!(StatusCode::OK, resp.status());
+//!     Ok(())
+//! }
+//! ```
+
+use crate::core::{async_trait, header, throw, Context, Next, Result, State, StatusCode};
 use crate::header::FriendlyHeaders;
 pub use cookie::Cookie;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
@@ -8,12 +40,138 @@ Invalid WWW_AUTHENTICATE value, this is a bug of roa::cookie.
 Please report it to https://github.com/Hexilee/roa.
 ";
 
+/// A unique symbol to store and load variables in Context::storage.
 struct CookieSymbol;
 
+/// A context extension.
+/// The `cookie` and `must_cookie` method of this extension
+/// must be used in downstream of middleware `cookier_parser`,
+/// otherwise you cannot get expected cookie.
+///
+/// ### Example
+///
+/// ```rust
+/// use roa::cookie::{cookie_parser, Cookier};
+/// use roa::core::{App, StatusCode};
+/// use roa::core::header::COOKIE;
+/// use async_std::task::spawn;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     // downstream of `query_parser`
+///     let (addr, server) = App::new(())
+///         .gate(cookie_parser)
+///         .end( |ctx| async move {
+///             assert_eq!("Hexilee", ctx.must_cookie("name").await?);
+///             Ok(())
+///         })
+///         .run_local()?;
+///     spawn(server);
+///     let client = reqwest::Client::new();
+///     let resp = client
+///         .get(&format!("http://{}", addr))
+///         .header(COOKIE, "name=Hexilee")
+///         .send()
+///         .await?;
+///     assert_eq!(StatusCode::OK, resp.status());
+///
+///     // miss `cookie_parser`
+///     let (addr, server) = App::new(())
+///         .end( |ctx| async move {
+///             assert!(ctx.cookie("name").await.is_none());
+///             Ok(())
+///         })
+///         .run_local()?;
+///     spawn(server);
+///     let resp = client
+///         .get(&format!("http://{}", addr))
+///         .header(COOKIE, "name=Hexilee")
+///         .send()
+///         .await?;
+///     assert_eq!(StatusCode::OK, resp.status());
+///     Ok(())
+/// }
+/// ```
 #[async_trait]
 pub trait Cookier {
-    async fn cookie(&self, name: &str) -> Result<String>;
-    async fn try_cookie(&self, name: &str) -> Option<String>;
+    /// Must get a cookie, throw 401 UNAUTHORIZED if it not exists.
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::cookie::{cookie_parser, Cookier};
+    /// use roa::core::{App, StatusCode};
+    /// use async_std::task::spawn;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     // downstream of `query_parser`
+    ///     let (addr, server) = App::new(())
+    ///         .gate(cookie_parser)
+    ///         .end( |ctx| async move {
+    ///             assert_eq!("Hexilee", ctx.must_cookie("name").await?);
+    ///             Ok(())
+    ///         })
+    ///         .run_local()?;
+    ///     spawn(server);
+    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
+    ///     assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
+    ///     Ok(())
+    /// }
+    /// ```
+    async fn must_cookie(&self, name: &str) -> Result<String>;
+
+    /// Try to get a cookie, return `None` if it not exists.
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::cookie::{cookie_parser, Cookier};
+    /// use roa::core::{App, StatusCode};
+    /// use async_std::task::spawn;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     // downstream of `query_parser`
+    ///     let (addr, server) = App::new(())
+    ///         .gate(cookie_parser)
+    ///         .end( |ctx| async move {
+    ///             assert!(ctx.cookie("name").await.is_none());
+    ///             Ok(())
+    ///         })
+    ///         .run_local()?;
+    ///     spawn(server);
+    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
+    ///     assert_eq!(StatusCode::OK, resp.status());
+    ///     Ok(())
+    /// }
+    /// ```
+    async fn cookie(&self, name: &str) -> Option<String>;
+
+    /// Set a cookie in pecent encoding, should not return Err.
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::cookie::{Cookier, Cookie};
+    /// use roa::core::{App, StatusCode};
+    /// use async_std::task::spawn;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     // downstream of `query_parser`
+    ///     let (addr, server) = App::new(())
+    ///         .end( |ctx| async move {
+    ///             ctx.set_cookie(Cookie::new("name", "Hexi Lee")).await?;
+    ///             Ok(())
+    ///         })
+    ///         .run_local()?;
+    ///     spawn(server);
+    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
+    ///     assert_eq!(StatusCode::OK, resp.status());
+    ///     let cookie = resp.cookies().find(|cookie| cookie.name() == "name");
+    ///     assert!(cookie.is_some());
+    ///     assert_eq!("Hexi%20Lee", cookie.unwrap().value());
+    ///     Ok(())
+    /// }
+    /// ```
     async fn set_cookie(&self, cookie: Cookie<'_>) -> Result;
 }
 
@@ -34,8 +192,8 @@ pub async fn cookie_parser<S: State>(ctx: Context<S>, next: Next) -> Result {
 
 #[async_trait]
 impl<S: State> Cookier for Context<S> {
-    async fn cookie(&self, name: &str) -> Result<String> {
-        match self.try_cookie(name).await {
+    async fn must_cookie(&self, name: &str) -> Result<String> {
+        match self.cookie(name).await {
             Some(value) => Ok(value),
             None => {
                 let www_authenticate = format!(
@@ -46,11 +204,11 @@ impl<S: State> Cookier for Context<S> {
                     header::WWW_AUTHENTICATE,
                     www_authenticate.parse().expect(WWW_AUTHENTICATE_BUG_HELP),
                 );
-                Err(Error::new(StatusCode::UNAUTHORIZED, "", false))
+                throw!(StatusCode::UNAUTHORIZED)
             }
         }
     }
-    async fn try_cookie(&self, name: &str) -> Option<String> {
+    async fn cookie(&self, name: &str) -> Option<String> {
         self.load::<CookieSymbol>(name)
             .await
             .map(|var| var.into_value())
@@ -75,9 +233,9 @@ mod tests {
     async fn cookie() -> Result<(), Box<dyn std::error::Error>> {
         // miss cookie
         let (addr, server) = App::new(())
-            .gate_fn(cookie_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert!(ctx.try_cookie("name").await.is_none());
+            .gate(cookie_parser)
+            .end(move |ctx| async move {
+                assert!(ctx.cookie("name").await.is_none());
                 Ok(())
             })
             .run_local()?;
@@ -85,9 +243,9 @@ mod tests {
         reqwest::get(&format!("http://{}", addr)).await?;
 
         let (addr, server) = App::new(())
-            .gate_fn(cookie_parser)
-            .gate_fn(move |ctx, _next| async move {
-                ctx.cookie("nick name").await?;
+            .gate(cookie_parser)
+            .end(move |ctx| async move {
+                ctx.must_cookie("nick name").await?;
                 Ok(())
             })
             .run_local()?;
@@ -104,9 +262,9 @@ mod tests {
         );
         // string value
         let (addr, server) = App::new(())
-            .gate_fn(cookie_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!("Hexilee", ctx.cookie("name").await?);
+            .gate(cookie_parser)
+            .end(move |ctx| async move {
+                assert_eq!("Hexilee", ctx.must_cookie("name").await?);
                 Ok(())
             })
             .run_local()?;
@@ -124,9 +282,9 @@ mod tests {
     #[tokio::test]
     async fn cookie_decode() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate_fn(cookie_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!("bar baz", ctx.cookie("bar baz").await?);
+            .gate(cookie_parser)
+            .end(move |ctx| async move {
+                assert_eq!("bar baz", ctx.must_cookie("bar baz").await?);
                 Ok(())
             })
             .run_local()?;
@@ -144,10 +302,10 @@ mod tests {
     #[tokio::test]
     async fn cookie_action() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate_fn(cookie_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!("bar baz", ctx.cookie("bar baz").await?);
-                assert_eq!("bar foo", ctx.cookie("foo baz").await?);
+            .gate(cookie_parser)
+            .end(move |ctx| async move {
+                assert_eq!("bar baz", ctx.must_cookie("bar baz").await?);
+                assert_eq!("bar foo", ctx.must_cookie("foo baz").await?);
                 Ok(())
             })
             .run_local()?;
@@ -165,7 +323,7 @@ mod tests {
     #[tokio::test]
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate_fn(move |ctx, _next| async move {
+            .end(move |ctx| async move {
                 ctx.set_cookie(Cookie::new("bar baz", "bar baz")).await?;
                 ctx.set_cookie(Cookie::new("bar foo", "foo baz")).await?;
                 Ok(())
