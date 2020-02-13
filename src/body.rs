@@ -1,3 +1,89 @@
+//! The body module of roa.
+//! This module provides a context extension `PowerBody`.
+//!
+//! ### Read/write body in a simpler way.
+//!
+//! The `roa_core` provides several methods to read/write body.
+//!
+//! ```rust
+//! use roa::core::{Context, Result};
+//! use futures::AsyncReadExt;
+//! use futures::io::BufReader;
+//! use async_std::fs::File;
+//!
+//! async fn get(ctx: Context<()>) -> Result {
+//!     // roa_core::Body implements futures::AsyncBufRead.
+//!     let mut data = String::new();
+//!     ctx.req_mut().await.read_to_string(&mut data).await?;
+//!     println!("data: {}", data);
+//!
+//!     ctx.resp_mut()
+//!        .await
+//!        // write object implementing futures::AsyncRead
+//!        .write(File::open("assets/author.txt").await?)
+//!        // write object implementing futures::AsyncBufRead
+//!        .write_buf(BufReader::new(File::open("assets/author.txt").await?))
+//!        .write_buf(b"Hello, World!".as_ref())
+//!        // write `impl ToString`
+//!        .write_str("I am Roa.")
+//!        // write `impl Into<Vec<u8>>`
+//!        .write_bytes(b"Hey Roa.".as_ref());
+//!     Ok(())
+//! }
+//! ```
+//!
+//! These methods is useful, but they do not deal with headers, especially `Content-*` headers.
+//!
+//! The `PowerBody` provides more powerful methods to handle it.
+//!
+//! ```rust
+//! use roa::core::{Context, Result};
+//! use roa::body::PowerBody;
+//! use serde::{Serialize, Deserialize};
+//! use askama::Template;
+//! use async_std::fs::File;
+//! use futures::io::BufReader;
+//!
+//! #[derive(Debug, Serialize, Deserialize, Template)]
+//! #[template(path = "user.html")]
+//! struct User {
+//!     id: u64,
+//!     name: String,
+//! }
+//!
+//! async fn get(ctx: Context<()>) -> Result {
+//!     // deserialize User from request automatically by Content-Type.
+//!     let mut user: User = ctx.read().await?;
+//!
+//!     // deserialize as json.
+//!     user = ctx.read_json().await?;
+//!
+//!     // deserialize as x-form-urlencoded.
+//!     user = ctx.read_form().await?;
+//!
+//!     // serialize object and write it to body,
+//!     // set "Content-Type"
+//!     ctx.write_json(&user).await?;
+//!
+//!     // open file and write it to body,
+//!     // set "Content-Type" and "Content-Disposition"
+//!     ctx.write_file("assets/welcome.html").await?;
+//!
+//!     // write text,
+//!     // set "Content-Type"
+//!     ctx.write_text("Hello, World!").await?;
+//!
+//!     // write object implementing AsyncBufRead,
+//!     // set "Content-Type"
+//!     ctx.write_octet(BufReader::new(File::open("assets/author.txt").await?)).await?;
+//!
+//!     // render html template, based on [askama](https://github.com/djc/askama).
+//!     // set "Content-Type"
+//!     ctx.render(&user).await?;
+//!     Ok(())
+//! }
+//! ```
+
 mod decode;
 mod json;
 mod mime_ext;
@@ -17,7 +103,7 @@ use serde::Serialize;
 
 const APPLICATION_JSON_UTF_8: &str = "application/json; charset=utf-8";
 
-/// A ContextExt.
+/// A context extension to read/write body more simply.
 #[async_trait]
 pub trait PowerBody {
     /// try to get mime content type of request.
