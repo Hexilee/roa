@@ -114,9 +114,9 @@ pub fn guard<S: State>(secret: impl ToString) -> impl Middleware<S> {
 /// Guard downstream.
 ///
 /// The json web token should be deliver by request header "authorization",
-/// in this format: `Authorization: Bearer <token>`.
+/// in format of `Authorization: Bearer <token>`.
 ///
-/// If request is not verified, return 401 UNAUTHORIZED and set response header:
+/// If request fails to pass verification, return 401 UNAUTHORIZED and set response header:
 ///
 /// `WWW-Authenticate: Bearer realm="<jwt>", error="invalid_token"`.
 pub fn guard_by<S: State>(secret: impl ToString, validation: Validation) -> impl Middleware<S> {
