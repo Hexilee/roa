@@ -1,13 +1,80 @@
+//! The forward module of roa.
+//! This module provides a context extension `Forward`,
+//! which is used to parse `X-Forwarded-*` request headers.
+
 use crate::core::header::HOST;
 use crate::core::{async_trait, throw, Context, Result, State, StatusCode};
 use crate::preload::*;
 use std::net::IpAddr;
 
+/// A context extension `Forward` used to parse `X-Forwarded-*` request headers.
 #[async_trait]
 pub trait Forward {
+    /// Get true host.
+    /// - If "x-forwarded-host" is set and valid, use it.
+    /// - Else if "host" is set and valid, use it.
+    /// - Else throw Err(400 BAD REQUEST).
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa::core::{Context, Result};
+    /// use roa::forward::Forward;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     println!("host: {}", ctx.host().await?);
+    ///     Ok(())
+    /// }
+    /// ```
     async fn host(&self) -> Result<String>;
+
+    /// Get true client ip.
+    /// - If "x-forwarded-for" is set and valid, use the first ip.
+    /// - Else use the ip of `Context::remote_addr()`.
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa::core::{Context, Result};
+    /// use roa::forward::Forward;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     println!("client ip: {}", ctx.client_ip().await);
+    ///     Ok(())
+    /// }
+    /// ```
     async fn client_ip(&self) -> IpAddr;
+
+    /// Get true forwarded ips.
+    /// - If "x-forwarded-for" is set and valid, use it.
+    /// - Else return an empty vector.
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa::core::{Context, Result};
+    /// use roa::forward::Forward;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     println!("forwarded ips: {:?}", ctx.forwarded_ips().await);
+    ///     Ok(())
+    /// }
+    /// ```
     async fn forwarded_ips(&self) -> Vec<IpAddr>;
+
+    /// Try to get forwarded proto.
+    /// - If "x-forwarded-proto" is not set, return None.
+    /// - If "x-forwarded-proto" is set but fails to string, return Some(Err(400 BAD REQUEST)).
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa::core::{Context, Result};
+    /// use roa::forward::Forward;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     if let Some(result) = ctx.forwarded_proto().await {
+    ///         println!("forwarded proto: {}", result?);
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
     async fn forwarded_proto(&self) -> Option<Result<String>>;
 }
 
@@ -21,7 +88,7 @@ impl<S: State> Forward for Context<S> {
         } else {
             throw!(
                 StatusCode::BAD_REQUEST,
-                "header `host` or `x-forwarded-host` is not set"
+                "header `host` and `x-forwarded-host` are both not set"
             )
         }
     }
@@ -103,7 +170,7 @@ mod tests {
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
         assert_eq!(
-            "header `host` or `x-forwarded-host` is not set",
+            "header `host` and `x-forwarded-host` are both not set",
             resp.text().await?
         );
         Ok(())
