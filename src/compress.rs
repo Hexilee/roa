@@ -1,28 +1,58 @@
+//! The compress module of roa.
+//! This module provides a middleware `Compress`.
+//!
+//! ### Example
+//!
+//! ```rust
+//! use roa::compress::{Compress, Level};
+//! use roa::body::PowerBody;
+//! use roa::core::{App, StatusCode, header::ACCEPT_ENCODING};
+//! use async_std::task::spawn;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     pretty_env_logger::init();
+//!     let (addr, server) = App::new(())
+//!         .gate_fn(|ctx, next| async move {
+//!             next().await?;
+//!             // compress body to 202 bytes in gzip with quantity Level::Fastest.
+//!             ctx.resp_mut().await.on_finish(|body| assert_eq!(202, body.consumed()));
+//!             Ok(())
+//!         })
+//!         .gate(Compress(Level::Fastest))
+//!         .end(|ctx| async move {
+//!             // the size of assets/welcome.html is 236 bytes.
+//!             ctx.resp_mut().await.on_finish(|body| assert_eq!(236, body.consumed()));
+//!             ctx.write_file("assets/welcome.html").await
+//!         })
+//!         .run_local()?;
+//!     spawn(server);
+//!     let client = reqwest::Client::builder().gzip(true).build()?;
+//!     let resp = client
+//!         .get(&format!("http://{}", addr))
+//!         .header(ACCEPT_ENCODING, "gzip")
+//!         .send()
+//!         .await?;
+//!     assert_eq!(StatusCode::OK, resp.status());
+//!     Ok(())
+//! }
+//! ```
+pub use async_compression::Level;
+
 use crate::core::header::CONTENT_ENCODING;
 use crate::core::{async_trait, Body, Context, Error, Middleware, Next, Result, State, StatusCode};
 use accept_encoding::{parse, Encoding};
-use async_compression::flate2::Compression;
 use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 use std::sync::Arc;
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum Compress {
-    Fast = 0,
-    Balance = 1,
-    Best = 2,
-}
+/// A middleware to negotiate with client and compress response body automatically,
+/// supports gzip, deflate, brotli, zstd and identity.
+#[derive(Debug, Copy, Clone)]
+pub struct Compress(pub Level);
 
-impl Compress {
-    fn compression(self) -> Compression {
-        Compression::new((self as u32) * 4 + 1)
-    }
-
-    fn brotli_level(self) -> u32 {
-        (self as u32) * 5 + 1
-    }
-
-    fn zstd_level(self) -> i32 {
-        (self as i32) * 10 + 1
+impl Default for Compress {
+    fn default() -> Self {
+        Self(Level::Default)
     }
 }
 
@@ -37,25 +67,25 @@ impl<S: State> Middleware<S> for Compress {
             None | Some(Encoding::Gzip) => {
                 ctx.resp_mut()
                     .await
-                    .write(GzipEncoder::new(body, self.compression()));
+                    .write(GzipEncoder::with_quality(body, self.0));
                 Encoding::Gzip.to_header_value()
             }
             Some(Encoding::Deflate) => {
                 ctx.resp_mut()
                     .await
-                    .write(ZlibEncoder::new(body, self.compression()));
+                    .write(ZlibEncoder::with_quality(body, self.0));
                 Encoding::Deflate.to_header_value()
             }
             Some(Encoding::Brotli) => {
                 ctx.resp_mut()
                     .await
-                    .write(BrotliEncoder::new(body, self.brotli_level()));
+                    .write(BrotliEncoder::with_quality(body, self.0));
                 Encoding::Brotli.to_header_value()
             }
             Some(Encoding::Zstd) => {
                 ctx.resp_mut()
                     .await
-                    .write(ZstdEncoder::new(body, self.zstd_level()));
+                    .write(ZstdEncoder::with_quality(body, self.0));
                 Encoding::Zstd.to_header_value()
             }
             Some(Encoding::Identity) => {
@@ -68,34 +98,5 @@ impl<S: State> Middleware<S> for Compress {
             .headers
             .append(CONTENT_ENCODING, content_encoding);
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Compress;
-
-    #[test]
-    fn fast() {
-        let level = Compress::Fast;
-        assert_eq!(1, level.compression().level());
-        assert_eq!(1, level.brotli_level());
-        assert_eq!(1, level.zstd_level());
-    }
-
-    #[test]
-    fn balance() {
-        let level = Compress::Balance;
-        assert_eq!(5, level.compression().level());
-        assert_eq!(6, level.brotli_level());
-        assert_eq!(11, level.zstd_level());
-    }
-
-    #[test]
-    fn best() {
-        let level = Compress::Best;
-        assert_eq!(9, level.compression().level());
-        assert_eq!(11, level.brotli_level());
-        assert_eq!(21, level.zstd_level());
     }
 }

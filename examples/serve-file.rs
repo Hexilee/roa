@@ -120,7 +120,7 @@ async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     router.include("/*{path}", wildcard_router);
     App::new(())
         .gate(logger)
-        .gate(Compress::Best)
+        .gate(Compress::default())
         .gate(router.routes("/")?)
         .listen("127.0.0.1:8000", |addr| {
             info!("Server is listening on {}", addr)

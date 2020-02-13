@@ -48,7 +48,7 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(())
-        .gate(Compress::Best)
+        .gate(Compress::default())
         .end(|ctx| async move { ctx.write_file("assets/welcome.html").await })
         .run_local()?;
     spawn(server);
