@@ -32,7 +32,8 @@ use std::time::Instant;
 
 /// A middleware to log information about request and response.
 ///
-/// Based on crate `log`.
+/// Based on crate `log`, the log level must be greater than `INFO` to log all information,
+/// and should be greater than `ERROR` when you need error information only.
 pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result {
     let start = Instant::now();
     let method = ctx.method().await;
