@@ -146,11 +146,8 @@ impl<S: State> Default for Router<S> {
 }
 
 macro_rules! impl_http_method {
-    ($end:ident, $end_fn:ident, $($method:expr),*) => {
-        pub fn $end(&mut self, path: &'static str, endpoint: impl Middleware<S>) -> &mut Self {
-            self.end([$($method, )*].as_ref(), path, endpoint)
-        }
-        pub fn $end_fn<F>(&mut self, path: &'static str, endpoint: fn(Context<S>) -> F) -> &mut Self
+    ($end:ident, $($method:expr),*) => {
+        pub fn $end<F>(&mut self, path: &'static str, endpoint: fn(Context<S>) -> F) -> &mut Self
         where
             F: 'static + Send + Future<Output = Result>,
         {
@@ -160,18 +157,17 @@ macro_rules! impl_http_method {
 }
 
 impl<S: State> Router<S> {
-    impl_http_method!(get, get_fn, Method::GET);
-    impl_http_method!(post, post_fn, Method::POST);
-    impl_http_method!(put, put_fn, Method::PUT);
-    impl_http_method!(patch, patch_fn, Method::PATCH);
-    impl_http_method!(options, options_fn, Method::OPTIONS);
-    impl_http_method!(delete, delete_fn, Method::DELETE);
-    impl_http_method!(head, head_fn, Method::HEAD);
-    impl_http_method!(trace, trace_fn, Method::TRACE);
-    impl_http_method!(connect, connect_fn, Method::CONNECT);
+    impl_http_method!(get, Method::GET);
+    impl_http_method!(post, Method::POST);
+    impl_http_method!(put, Method::PUT);
+    impl_http_method!(patch, Method::PATCH);
+    impl_http_method!(options, Method::OPTIONS);
+    impl_http_method!(delete, Method::DELETE);
+    impl_http_method!(head, Method::HEAD);
+    impl_http_method!(trace, Method::TRACE);
+    impl_http_method!(connect, Method::CONNECT);
     impl_http_method!(
         all,
-        all_fn,
         Method::GET,
         Method::POST,
         Method::PUT,
@@ -314,7 +310,7 @@ mod tests {
                 ctx.store::<TestSymbol>("id", "0".to_string()).await;
                 next().await
             })
-            .get_fn("/", |ctx| async move {
+            .get("/", |ctx| async move {
                 let id: u64 = ctx.load::<TestSymbol>("id").await.unwrap().parse()?;
                 assert_eq!(0, id);
                 Ok(())
@@ -335,7 +331,7 @@ mod tests {
             ctx.store::<TestSymbol>("id", "0".to_string()).await;
             next().await
         });
-        user_router.get_fn("/", |ctx| async move {
+        user_router.get("/", |ctx| async move {
             let id: u64 = ctx.load::<TestSymbol>("id").await.unwrap().parse()?;
             assert_eq!(0, id);
             Ok(())
@@ -353,8 +349,8 @@ mod tests {
     fn conflict_path() -> Result<(), Box<dyn std::error::Error>> {
         let mut router = Router::<()>::new();
         let mut evil_router = Router::<()>::new();
-        router.get_fn("/route/endpoint", |_ctx| async { Ok(()) });
-        evil_router.get_fn("/endpoint", |_ctx| async { Ok(()) });
+        router.get("/route/endpoint", |_ctx| async { Ok(()) });
+        evil_router.get("/endpoint", |_ctx| async { Ok(()) });
         router.include("/route", evil_router);
         let ret = router.routes("/");
         assert!(ret.is_err());

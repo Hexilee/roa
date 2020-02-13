@@ -115,8 +115,8 @@ async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     let mut router = Router::new();
     let mut wildcard_router = Router::new();
-    router.get_fn("", |ctx| serve_dir(ctx, ""));
-    wildcard_router.gate(path_checker).get_fn("/", serve_path);
+    router.get("", |ctx| serve_dir(ctx, ""));
+    wildcard_router.gate(path_checker).get("/", serve_path);
     router.include("/*{path}", wildcard_router);
     App::new(())
         .gate(logger)
