@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 pub use roa_core as core;
 pub mod cors;
 pub mod forward;

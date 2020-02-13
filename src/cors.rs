@@ -176,7 +176,7 @@ mod tests {
         spawn(server);
         let client = reqwest::Client::new();
 
-        // No Origin
+        // No origin
         let resp = client.get(&format!("http://{}", addr)).send().await?;
         assert_eq!(StatusCode::OK, resp.status());
         assert!(resp.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
@@ -186,7 +186,7 @@ mod tests {
         );
         assert_eq!("Hello, World", resp.text().await?);
 
-        // No origin, simple request
+        // simple request
         let resp = client
             .get(&format!("http://{}", addr))
             .header(ORIGIN, "github.com")
