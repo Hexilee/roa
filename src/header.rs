@@ -1,5 +1,50 @@
 //! The header module of roa.
 //! This module provides a Request/Response extension `FriendlyHeaders`.
+//!
+//! ### When should we use it?
+//!
+//! You can straightly use raw `http::header::HeaderMap` in roa,
+//! but you have to transfer value type between HeadValue and string then
+//! deal with other errors(not `roa::core::Error`) by yourself.
+//! ```rust
+//! use roa::core::{Context, Result, Error, StatusCode};
+//! use roa::core::header::{ORIGIN, CONTENT_TYPE};
+//!
+//! async fn get(ctx: Context<()>) -> Result {
+//!     if let Some(value) = ctx.req().await.headers.get(ORIGIN) {
+//!         // handle `ToStrError`
+//!         let origin = value.to_str().map_err(|_err| Error::new(StatusCode::BAD_REQUEST, "", true))?;
+//!         println!("origin: {}", origin);
+//!     }
+//!     // handle `InvalidHeaderValue`
+//!     ctx.resp_mut()
+//!        .await
+//!        .headers
+//!        .insert(
+//!            CONTENT_TYPE,
+//!            "text/plain".parse().map_err(|_err| Error::new(StatusCode::BAD_REQUEST, "", true))?
+//!        );
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Dealing with error is necessary but as a normal user of roa, it can be annoying.
+//!
+//! If you are finding some simpler methods to deal with header value, `FriendlyHeaders` is suit for you.
+//!
+//! ```rust
+//! use roa::core::{Context, Result, StatusCode};
+//! use roa::core::header::{ORIGIN, CONTENT_TYPE};
+//! use roa::header::FriendlyHeaders;
+//!
+//! async fn get(ctx: Context<()>) -> Result {
+//!     println!("origin: {}", ctx.req().await.must_get(ORIGIN)?);
+//!     ctx.resp_mut()
+//!        .await
+//!        .insert(CONTENT_TYPE, "text/plain")?;
+//!     Ok(())
+//! }
+//! ```
 use crate::core::header::{
     AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, InvalidHeaderValue, ToStrError,
 };
@@ -13,13 +58,23 @@ fn handle_invalid_header_value(err: InvalidHeaderValue, value: &str) -> Error {
     )
 }
 
+/// A Request/Response extension.
 pub trait FriendlyHeaders {
+    /// General error code should be returned when some errors occur.
+    ///
+    /// 400 BAD REQUEST for Request,
+    /// 500 INTERNAL SERVER ERROR for Response.
     const GENERAL_ERROR_CODE: StatusCode;
 
+    /// Get immutable reference of raw header map.
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue>;
 
+    /// Get mutable reference of raw header map.
     fn raw_mut_header_map(&mut self) -> &mut HeaderMap<HeaderValue>;
 
+    /// Deal with `ToStrError`, usually invoked when a header value is gotten,
+    /// then fails to be transferred to string.
+    /// Throw `Self::GENERAL_ERROR_CODE`.
     fn handle_to_str_error(err: ToStrError, value: &HeaderValue) -> Error {
         Error::new(
             Self::GENERAL_ERROR_CODE,
@@ -28,6 +83,8 @@ pub trait FriendlyHeaders {
         )
     }
 
+    /// Deal with None, usually invoked when a header value is not gotten.
+    /// Throw `Self::GENERAL_ERROR_CODE`.
     fn handle_none<K>(key: K) -> Error
     where
         K: AsHeaderName + AsRef<str>,
@@ -39,6 +96,23 @@ pub trait FriendlyHeaders {
         )
     }
 
+    /// Try to get a header value, return None if not exists.
+    /// Return Some(Err) if fails to string.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::core::{Context, Result, StatusCode};
+    /// use roa::core::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::header::FriendlyHeaders;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     if let Some(value) = ctx.req().await.get(ORIGIN) {
+    ///         println!("origin: {}", value?);     
+    ///     }   
+    ///     Ok(())
+    /// }
+    /// ```
     fn get<K>(&self, key: K) -> Option<Result<&str>>
     where
         K: AsHeaderName + AsRef<str>,
@@ -50,6 +124,20 @@ pub trait FriendlyHeaders {
         })
     }
 
+    /// Get a header value.
+    /// Return Err if not exists or fails to string.
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::core::{Context, Result, StatusCode};
+    /// use roa::core::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::header::FriendlyHeaders;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     println!("origin: {}", ctx.req().await.must_get(ORIGIN)?);     
+    ///     Ok(())
+    /// }
+    /// ```
     fn must_get<K>(&self, key: K) -> Result<&str>
     where
         K: AsHeaderName + AsRef<str>,
@@ -60,6 +148,23 @@ pub trait FriendlyHeaders {
         }
     }
 
+    /// Get all header value with the same header name.
+    /// Return Err if one of them fails to string.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::core::{Context, Result, StatusCode};
+    /// use roa::core::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::header::FriendlyHeaders;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     for value in ctx.req().await.get_all(ORIGIN)?.into_iter() {
+    ///         println!("origin: {}", value);
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
     fn get_all<K>(&self, key: K) -> Result<Vec<&str>>
     where
         K: AsHeaderName,
@@ -75,6 +180,23 @@ pub trait FriendlyHeaders {
         Ok(ret)
     }
 
+    /// Insert a header pair.
+    ///
+    /// - Return `Err(500 INTERNAL SERVER ERROR)` if value fails to header value.
+    /// - Return `Ok(Some(old_value))` if header name already exists.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::core::{Context, Result, StatusCode};
+    /// use roa::core::header::CONTENT_TYPE;
+    /// use roa::header::FriendlyHeaders;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     ctx.resp_mut().await.insert(CONTENT_TYPE, "text/plain")?;   
+    ///     Ok(())
+    /// }
+    /// ```
     fn insert<K, V>(&mut self, key: K, val: V) -> Result<Option<String>>
     where
         K: IntoHeaderName,
@@ -97,6 +219,23 @@ pub trait FriendlyHeaders {
         })
     }
 
+    /// Append a header pair.
+    ///
+    /// - Return `Err(500 INTERNAL SERVER ERROR)` if value fails to header value.
+    /// - Return `Ok(true)` if header name already exists.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::core::{Context, Result, StatusCode};
+    /// use roa::core::header::SET_COOKIE;
+    /// use roa::header::FriendlyHeaders;
+    ///
+    /// async fn get(ctx: Context<()>) -> Result {
+    ///     ctx.resp_mut().await.append(SET_COOKIE, "this is a cookie")?;   
+    ///     Ok(())
+    /// }
+    /// ```
     fn append<K, V>(&mut self, key: K, val: V) -> Result<bool>
     where
         K: IntoHeaderName,
