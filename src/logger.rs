@@ -1,8 +1,38 @@
+//! The logger module of roa.
+//! This module provides a middleware `logger`.
+//!
+//! ### Example
+//!
+//! ```rust
+//! use roa::logger::logger;
+//! use roa::body::PowerBody;
+//! use roa::core::{App, StatusCode};
+//! use async_std::task::spawn;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     pretty_env_logger::init();
+//!     let (addr, server) = App::new(())
+//!         .gate(logger)
+//!         .end(|ctx| async move {
+//!             ctx.write_text("Hello, World!").await
+//!         })
+//!         .run_local()?;
+//!     spawn(server);
+//!     let resp = reqwest::get(&format!("http://{}", addr)).await?;
+//!     assert_eq!(StatusCode::OK, resp.status());
+//!     Ok(())
+//! }
+//! ```
+
 use crate::core::{Body, BodyCallback, Context, Model, Next, Result};
 use bytesize::ByteSize;
 use log::{error, info};
 use std::time::Instant;
 
+/// A middleware to log information about request and response.
+///
+/// Based on crate `log`.
 pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result {
     let start = Instant::now();
     let method = ctx.method().await;
