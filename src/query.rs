@@ -1,16 +1,131 @@
+//! The query module of roa.
+//! This module provides a middleware `query_parser` and a context extension `Query`.
+//!
+//! ### Example
+//!
+//! ```rust
+//! use roa::query::{query_parser, Query};
+//! use roa::core::{App, StatusCode};
+//! use async_std::task::spawn;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let (addr, server) = App::new(())
+//!         .gate(query_parser)
+//!         .end(|ctx| async move {
+//!             assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
+//!             Ok(())
+//!         })
+//!         .run_local()?;
+//!     spawn(server);
+//!     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
+//!     assert_eq!(StatusCode::OK, resp.status());
+//!     Ok(())
+//! }
+//! ```
+
 use crate::core::{Context, Error, Next, Result, State, Variable};
 use async_trait::async_trait;
 use http::StatusCode;
 use url::form_urlencoded::parse;
 
+/// A unique symbol to store and load variables in Context::storage.
 struct QuerySymbol;
 
+/// A context extension.
+/// This extension must be used in downstream of middleware `query_parser`,
+/// otherwise you cannot get expected query variable.
+///
+/// ### Example
+///
+/// ```rust
+/// use roa::query::{query_parser, Query};
+/// use roa::core::{App, StatusCode};
+/// use async_std::task::spawn;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     // downstream of `query_parser`
+///     let (addr, server) = App::new(())
+///         .gate(query_parser)
+///         .end( |ctx| async move {
+///             assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
+///             Ok(())
+///         })
+///         .run_local()?;
+///     spawn(server);
+///     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
+///     assert_eq!(StatusCode::OK, resp.status());
+///
+///     // miss `query_parser`
+///     let (addr, server) = App::new(())
+///         .end( |ctx| async move {
+///             assert!(ctx.query("name").await.is_none());
+///             Ok(())
+///         })
+///         .run_local()?;
+///     spawn(server);
+///     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
+///     assert_eq!(StatusCode::OK, resp.status());
+///     Ok(())
+/// }
+/// ```
 #[async_trait]
 pub trait Query {
-    async fn query<'a>(&self, name: &'a str) -> Result<Variable<'a>>;
-    async fn try_query<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
+    /// Must get a variable, throw 400 BAD_REQUEST if it not exists.
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::query::{query_parser, Query};
+    /// use roa::core::{App, StatusCode};
+    /// use async_std::task::spawn;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     // downstream of `query_parser`
+    ///     let (addr, server) = App::new(())
+    ///         .gate(query_parser)
+    ///         .end( |ctx| async move {
+    ///             assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
+    ///             Ok(())
+    ///         })
+    ///         .run_local()?;
+    ///     spawn(server);
+    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
+    ///     assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+    ///     Ok(())
+    /// }
+    /// ```
+    async fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a>>;
+
+    /// Query a variable, return `None` if it not exists.
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa::query::{query_parser, Query};
+    /// use roa::core::{App, StatusCode};
+    /// use async_std::task::spawn;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     // downstream of `query_parser`
+    ///     let (addr, server) = App::new(())
+    ///         .gate(query_parser)
+    ///         .end( |ctx| async move {
+    ///             assert!(ctx.query("name").await.is_none());
+    ///             Ok(())
+    ///         })
+    ///         .run_local()?;
+    ///     spawn(server);
+    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
+    ///     assert_eq!(StatusCode::OK, resp.status());
+    ///     Ok(())
+    /// }
+    /// ```
+    async fn query<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
 }
 
+/// A middleware to parse query.
 pub async fn query_parser<S: State>(ctx: Context<S>, next: Next) -> Result {
     let uri = ctx.uri().await;
     let query_string = uri.query().unwrap_or("");
@@ -22,8 +137,8 @@ pub async fn query_parser<S: State>(ctx: Context<S>, next: Next) -> Result {
 
 #[async_trait]
 impl<S: State> Query for Context<S> {
-    async fn query<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
-        self.try_query(name).await.ok_or_else(|| {
+    async fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
+        self.query(name).await.ok_or_else(|| {
             Error::new(
                 StatusCode::BAD_REQUEST,
                 format!("query `{}` is required", name),
@@ -31,7 +146,7 @@ impl<S: State> Query for Context<S> {
             )
         })
     }
-    async fn try_query<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
+    async fn query<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
         self.load::<QuerySymbol>(name).await
     }
 }
@@ -47,9 +162,9 @@ mod tests {
     async fn query() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
-            .gate_fn(query_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert!(ctx.try_query("name").await.is_none());
+            .gate(query_parser)
+            .end(|ctx| async move {
+                assert!(ctx.query("name").await.is_none());
                 Ok(())
             })
             .run_local()?;
@@ -58,9 +173,9 @@ mod tests {
 
         // string value
         let (addr, server) = App::new(())
-            .gate_fn(query_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
+            .gate(query_parser)
+            .end(|ctx| async move {
+                assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
                 Ok(())
             })
             .run_local()?;
@@ -74,9 +189,9 @@ mod tests {
     async fn query_parse() -> Result<(), Box<dyn std::error::Error>> {
         // invalid int value
         let (addr, server) = App::new(())
-            .gate_fn(query_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert!(ctx.query("age").await?.parse::<u64>().is_err());
+            .gate(query_parser)
+            .end(|ctx| async move {
+                assert!(ctx.must_query("age").await?.parse::<u64>().is_err());
                 Ok(())
             })
             .run_local()?;
@@ -85,9 +200,9 @@ mod tests {
         assert_eq!(StatusCode::OK, resp.status());
 
         let (addr, server) = App::new(())
-            .gate_fn(query_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!(120, ctx.query("age").await?.parse::<u64>()?);
+            .gate(query_parser)
+            .end(|ctx| async move {
+                assert_eq!(120, ctx.must_query("age").await?.parse::<u64>()?);
                 Ok(())
             })
             .run_local()?;
@@ -100,10 +215,10 @@ mod tests {
     #[tokio::test]
     async fn query_action() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate_fn(query_parser)
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!("Hexilee", ctx.query("name").await?.as_ref());
-                assert_eq!("rust", ctx.query("lang").await?.as_ref());
+            .gate(query_parser)
+            .end(|ctx| async move {
+                assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
+                assert_eq!("rust", ctx.must_query("lang").await?.as_ref());
                 Ok(())
             })
             .run_local()?;

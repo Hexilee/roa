@@ -249,7 +249,7 @@ fn batch_router() -> Result<Router<AppState>, Box<dyn std::error::Error>> {
         .get_fn("/user", |ctx| async move {
             let state = ctx.state().await;
             let db = state.db.read().await;
-            let users = match ctx.try_query("name").await {
+            let users = match ctx.query("name").await {
                 Some(name) => db.get_by_name(&name),
                 None => db.main_table.iter().collect(),
             };
