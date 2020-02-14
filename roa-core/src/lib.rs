@@ -75,7 +75,7 @@
 //!
 //! ### Error Handling
 //!
-//! You can catch or straightly throw a Error returned by next.
+//! You can catch or straightly throw an Error returned by next.
 //!
 //! ```rust
 //! use roa_core::{App, throw};

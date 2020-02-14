@@ -1,6 +1,6 @@
 [package]
 name = "roa"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Hexilee <hexileee@gmail.com>"]
 edition = "2018"
 license = "MIT"
