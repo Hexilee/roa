@@ -93,7 +93,7 @@ impl Body {
     /// use futures::io::AsyncReadExt;
     /// #[async_std::test]
     /// async fn body_on_finish() -> std::io::Result<()> {
-    ///     let mut body = Body::new();
+    ///     let mut body = Body::default();
     ///     let mut data = String::new();
     ///     body.write_buf(b"He".as_ref())
     ///         .write_buf(b"llo, ".as_ref())

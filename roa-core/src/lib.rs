@@ -129,6 +129,42 @@
 //! ```
 //!
 //! The Error thrown by this error_handler will be handled by hyper.
+//!
+//! ### Use custom runtime.
+//!
+//! Use hyper::Server::builder to construct a hyper server with your custom runtime.
+//!
+//! #### Example
+//! ```rust,no_run
+//! use roa_core::{App, Server, AddrIncoming, Executor};
+//! use std::future::Future;
+//!
+//! /// An implementation of hyper::rt::Executor based on tokio
+//! #[derive(Copy, Clone)]
+//! pub struct Exec;
+//!
+//! impl<F> Executor<F> for Exec
+//! where
+//!     F: 'static + Send + Future,
+//!     F::Output: 'static + Send,
+//! {
+//!     #[inline]
+//!     fn execute(&self, fut: F) {
+//!         tokio::task::spawn(fut);
+//!     }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let app = App::new(());
+//!     let server = Server::builder(AddrIncoming::bind("127.0.0.1:8080")?)
+//!         .executor(Exec)
+//!         .serve(app);
+//!     server.await?;
+//!     Ok(())
+//! }
+//! ```
+
 #![warn(missing_docs)]
 
 mod app;
@@ -144,7 +180,7 @@ mod response;
 pub(crate) use app::AddrStream;
 
 #[doc(inline)]
-pub use app::App;
+pub use app::{AddrIncoming, App};
 
 #[doc(inline)]
 pub use body::{Body, Callback as BodyCallback};
@@ -177,3 +213,7 @@ pub use response::Response;
 pub use http::{header, StatusCode};
 
 pub use async_trait::async_trait;
+
+pub use hyper::rt::Executor;
+
+pub use hyper::Server;

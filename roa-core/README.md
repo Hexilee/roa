@@ -126,3 +126,36 @@ pub async fn error_handler<M: Model>(context: Context<M>, err: Error) -> Result 
 ```
 
 The Error thrown by this error_handler will be handled by hyper.
+
+### Use custom runtime.
+
+Use `hyper::Server::builder` to construct a hyper server with your custom runtime.
+
+#### Example
+```rust
+use roa_core::{App, Server, AddrIncoming, Executor};
+use std::future::Future;
+/// An implementation of hyper::rt::Executor based on tokio
+#[derive(Copy, Clone)]
+pub struct Exec;
+impl<F> Executor<F> for Exec
+where
+    F: 'static + Send + Future,
+    F::Output: 'static + Send,
+{
+    #[inline]
+    fn execute(&self, fut: F) {
+        tokio::task::spawn(fut);
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let app = App::new(());
+    let server = Server::builder(AddrIncoming::bind("127.0.0.1:8080")?)
+        .executor(Exec)
+        .serve(app);
+    server.await?;
+    Ok(())
+}
+```

@@ -1,18 +1,17 @@
+#[cfg(feature = "runtime")]
 mod executor;
-mod tcp;
 
+mod tcp;
 use crate::{join, join_all, Context, Error, Middleware, Model, Next, Request, Response, Result};
-use executor::Executor;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
-use hyper::Server as HyperServer;
 use std::future::Future;
-use std::net::{SocketAddr, ToSocketAddrs};
 use std::pin::Pin;
 use std::result::Result as StdResult;
 use std::sync::Arc;
 use std::task::Poll;
+
 pub use tcp::{AddrIncoming, AddrStream};
 
 /// The Application of roa.
@@ -136,15 +135,13 @@ pub struct App<M: Model> {
 
 /// An implementation of hyper HttpService.
 pub struct HttpService<M: Model> {
-    app: App<M>,
+    middleware: Arc<dyn Middleware<M::State>>,
     stream: AddrStream,
+    pub(crate) model: Arc<M>,
 }
 
-/// Alias of `HyperServer<AddrIncoming, App<M>, Executor>`.
-pub type Server<M> = HyperServer<AddrIncoming, App<M>, Executor>;
-
 impl<M: Model> App<M> {
-    /// Construct an Application from a Model.
+    /// Construct an application from a model.
     pub fn new(model: M) -> Self {
         Self {
             middleware: Arc::new(join_all(Vec::new())),
@@ -234,13 +231,28 @@ impl<M: Model> App<M> {
     {
         self.gate(endpoint)
     }
+}
 
+#[cfg(feature = "runtime")]
+use executor::Executor;
+
+#[cfg(feature = "runtime")]
+use hyper::Server as HyperServer;
+
+#[cfg(feature = "runtime")]
+use std::net::{SocketAddr, ToSocketAddrs};
+
+#[cfg(feature = "runtime")]
+type Server<M> = HyperServer<AddrIncoming, App<M>, Executor>;
+
+#[cfg(feature = "runtime")]
+impl<M: Model> App<M> {
     /// Listen on a socket addr, return a server and the real addr it binds.
     fn listen_on(&self, addr: impl ToSocketAddrs) -> std::io::Result<(SocketAddr, Server<M>)> {
         let incoming = AddrIncoming::bind(addr)?;
         let local_addr = incoming.local_addr();
         let server = HyperServer::builder(incoming)
-            .executor(Executor {})
+            .executor(Executor)
             .serve(self.clone());
         Ok((local_addr, server))
     }
@@ -309,9 +321,10 @@ impl<M: Model> Service<&AddrStream> for App<M> {
 
     #[inline]
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
-        let app = self.clone();
+        let middleware = self.middleware.clone();
         let stream = stream.clone();
-        Box::pin(async move { Ok(HttpService::new(app, stream)) })
+        let model = self.model.clone();
+        Box::pin(async move { Ok(HttpService::new(middleware, stream, model)) })
     }
 }
 
@@ -331,14 +344,22 @@ impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
 }
 
 impl<M: Model> HttpService<M> {
-    pub fn new(app: App<M>, stream: AddrStream) -> Self {
-        Self { app, stream }
+    pub fn new(
+        middleware: Arc<dyn Middleware<M::State>>,
+        stream: AddrStream,
+        model: Arc<M>,
+    ) -> Self {
+        Self {
+            middleware,
+            stream,
+            model,
+        }
     }
 
     pub async fn serve(&self, req: Request) -> Result<Response> {
-        let context = Context::new(req, self.app.model.new_state(), self.stream.clone());
-        let app = self.app.clone();
-        if let Err(err) = app.middleware.end(context.clone()).await {
+        let context = Context::new(req, self.model.new_state(), self.stream.clone());
+        let middleware = self.middleware.clone();
+        if let Err(err) = middleware.end(context.clone()).await {
             context.resp_mut().await.status = err.status_code;
             if err.expose {
                 context.resp_mut().await.write_str(&err.message);
@@ -364,7 +385,8 @@ impl<M: Model> Clone for App<M> {
 impl<M: Model> Clone for HttpService<M> {
     fn clone(&self) -> Self {
         Self {
-            app: self.app.clone(),
+            middleware: self.middleware.clone(),
+            model: self.model.clone(),
             stream: self.stream.clone(),
         }
     }
