@@ -73,7 +73,7 @@ pub struct Error {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|ctx, next| async move {
+    ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.resp_mut().await.status = StatusCode::OK;
     ///             next().await // not caught
     ///         })

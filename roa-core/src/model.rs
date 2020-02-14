@@ -42,7 +42,7 @@ pub trait State: 'static + Send + Sync + Sized {}
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let (addr, server) = App::new(AppModel::new())
-///         .gate_fn(|ctx, next| async move {
+///         .gate_fn(|mut ctx, next| async move {
 ///             ctx.state_mut().await.id = 1;
 ///             next().await
 ///         })

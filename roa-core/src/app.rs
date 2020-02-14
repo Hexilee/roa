@@ -30,7 +30,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///             info!("{} {}", ctx.method().await, ctx.uri().await);
 ///             next().await
 ///         })
-///         .end(|ctx| async move {
+///         .end(|mut ctx| async move {
 ///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
 ///             Ok(())
 ///         })
@@ -85,7 +85,7 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// #[async_std::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let server = App::new(AppModel::new())
-///         .gate_fn(|ctx, next| async move {
+///         .gate_fn(|mut ctx, next| async move {
 ///             ctx.state_mut().await.id = 1;
 ///             next().await
 ///         })
@@ -364,7 +364,7 @@ impl<M: Model> HttpService<M> {
     }
 
     pub async fn serve(&self, req: Request) -> Result<Response> {
-        let context = Context::new(req, self.model.new_state(), self.stream.clone());
+        let mut context = Context::new(req, self.model.new_state(), self.stream.clone());
         let middleware = self.middleware.clone();
         if let Err(err) = middleware.end(context.clone()).await {
             context.resp_mut().await.status = err.status_code;

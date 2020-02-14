@@ -208,8 +208,8 @@ mod addr_stream {
 
         /// Consumes the AddrStream and returns the underlying IO object
         #[inline]
-        pub fn stream(&self) -> &TcpStream {
-            &*self.inner
+        pub fn stream(&self) -> Arc<TcpStream> {
+            self.inner.clone()
         }
     }
 
@@ -220,7 +220,7 @@ mod addr_stream {
             cx: &mut task::Context<'_>,
             buf: &mut [u8],
         ) -> Poll<io::Result<usize>> {
-            futures::AsyncRead::poll_read(Pin::new(&mut self.stream()), cx, buf)
+            futures::AsyncRead::poll_read(Pin::new(&mut &*self.stream()), cx, buf)
         }
     }
 
@@ -231,7 +231,7 @@ mod addr_stream {
             cx: &mut task::Context<'_>,
             buf: &[u8],
         ) -> Poll<io::Result<usize>> {
-            futures::AsyncWrite::poll_write(Pin::new(&mut self.stream()), cx, buf)
+            futures::AsyncWrite::poll_write(Pin::new(&mut &*self.stream()), cx, buf)
         }
 
         #[inline]
@@ -248,7 +248,7 @@ mod addr_stream {
             self: Pin<&mut Self>,
             cx: &mut task::Context<'_>,
         ) -> Poll<io::Result<()>> {
-            futures::AsyncWrite::poll_close(Pin::new(&mut self.stream()), cx)
+            futures::AsyncWrite::poll_close(Pin::new(&mut &*self.stream()), cx)
         }
     }
 }

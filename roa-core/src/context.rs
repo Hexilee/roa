@@ -29,7 +29,7 @@ use std::str::FromStr;
 ///             info!("{} {}", ctx.method().await, ctx.uri().await);
 ///             next().await
 ///         })
-///         .end(|ctx| async move {
+///         .end(|mut ctx| async move {
 ///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
 ///             Ok(())
 ///         })
@@ -303,7 +303,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(AppModel::new())
-    ///         .gate_fn(|ctx, next| async move {
+    ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.state_mut().await.id = 1;
     ///             next().await
     ///         })
@@ -341,7 +341,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|ctx, next| async move {
+    ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.req_mut().await.method = Method::POST;
     ///             next().await
     ///         })
@@ -357,7 +357,7 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn req_mut(&self) -> RwLockWriteGuard<'_, Request> {
+    pub async fn req_mut(&mut self) -> RwLockWriteGuard<'_, Request> {
         self.request.write().await
     }
 
@@ -372,7 +372,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
+    ///         .end(|mut ctx| async move {
     ///             ctx.resp_mut().await.write_buf(b"Hello, World!".as_ref());
     ///             Ok(())
     ///         })
@@ -385,7 +385,7 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn resp_mut(&self) -> RwLockWriteGuard<'_, Response> {
+    pub async fn resp_mut(&mut self) -> RwLockWriteGuard<'_, Response> {
         self.response.write().await
     }
 
@@ -426,7 +426,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(AppModel::new())
-    ///         .gate_fn(|ctx, next| async move {
+    ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.state_mut().await.id = 1;
     ///             next().await
     ///         })
@@ -443,14 +443,14 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn state_mut(&self) -> RwLockWriteGuard<'_, S> {
+    pub async fn state_mut(&mut self) -> RwLockWriteGuard<'_, S> {
         self.state.write().await
     }
 
     /// Get a mutable reference of storage.
     #[inline]
     pub(crate) async fn storage_mut(
-        &self,
+        &mut self,
     ) -> RwLockWriteGuard<'_, HashMap<TypeId, Bucket>> {
         self.storage.write().await
     }
@@ -646,7 +646,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|ctx, next| async move {
+    ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.store::<Symbol>("id", "1".to_owned()).await;
     ///             next().await
     ///         })
@@ -664,7 +664,7 @@ impl<S> Context<S> {
     /// ```
     #[allow(clippy::needless_lifetimes)]
     pub async fn store<'a, T: 'static>(
-        &self,
+        &mut self,
         name: &'a str,
         value: String,
     ) -> Option<Variable<'a>> {
@@ -695,7 +695,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|ctx, next| async move {
+    ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.store::<Symbol>("id", "1".to_owned()).await;
     ///             next().await
     ///         })
@@ -725,7 +725,7 @@ impl<S> Context<S> {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|ctx, next| async move {
+    ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.store::<Symbol>("id", "x".to_owned()).await;
     ///             next().await
     ///         })
@@ -754,7 +754,7 @@ impl<S> Context<S> {
 
     /// Get reference of raw async_std::net::TcpStream.
     /// This method is dangerous, it's reserved for special scene like websocket.
-    pub fn raw_stream(&self) -> &TcpStream {
+    pub fn raw_stream(&self) -> Arc<TcpStream> {
         self.stream.stream()
     }
 }
@@ -805,7 +805,7 @@ mod tests {
     #[tokio::test]
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(AppModel {})
-            .gate_fn(|ctx, next| async move {
+            .gate_fn(|mut ctx, next| async move {
                 ctx.state_mut().await.data = 1;
                 next().await
             })

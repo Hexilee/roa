@@ -24,7 +24,7 @@
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
-//!     app.end(|ctx| async move {
+//!     app.end(|mut ctx| async move {
 //!         ctx.resp_mut().await.write_str("Hello, World");
 //!         Ok(())
 //!     });
@@ -61,7 +61,7 @@
 //!         Ok(())
 //!     });
 //!
-//!     app.end(|ctx| async move {
+//!     app.end(|mut ctx| async move {
 //!         ctx.resp_mut().await.write_str("Hello, World");
 //!         Ok(())
 //!     });
@@ -115,7 +115,7 @@
 //!
 //! ```rust
 //! use roa_core::{Context, Error, Result, Model, ErrorKind};
-//! pub async fn error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
+//! pub async fn error_handler<M: Model>(mut context: Context<M>, err: Error) -> Result {
 //!     context.resp_mut().await.status = err.status_code;
 //!     if err.expose {
 //!         context.resp_mut().await.write_str(&err.message);

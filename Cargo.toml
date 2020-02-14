@@ -36,7 +36,7 @@ url = "2.1.1"
 percent-encoding = "2.1"
 typed-builder = "0.5.1"
 
-roa-core = { path = "./roa-core", version = "0.3", features = ["runtime"] }
+roa-core = { path = "./roa-core", version = "0.4", features = ["runtime"] }
 cookie = { version = "0.12", features = ["percent-encode"], optional = true }
 jsonwebtoken = { version = "6", optional = true }
 serde = { version = "1", optional = true }
