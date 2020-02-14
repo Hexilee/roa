@@ -160,7 +160,7 @@ mod tests {
     #[tokio::test]
     async fn host_err() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .gate_fn(move |ctx, _next| async move {
+            .end(move |mut ctx| async move {
                 ctx.req_mut().await.headers.remove(HOST);
                 assert_eq!("", ctx.host().await?);
                 Ok(())

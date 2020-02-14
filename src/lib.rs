@@ -26,7 +26,7 @@
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
-//!     app.end(|ctx| async move {
+//!     app.end(|mut ctx| async move {
 //!         ctx.write_text("Hello, World").await
 //!     });
 //!     app.listen("127.0.0.1:8000", |addr| {
@@ -67,7 +67,7 @@
 //!     });
 //!
 //!     // x-response-time
-//!     app.gate_fn(|ctx, next| async move {
+//!     app.gate_fn(|mut ctx, next| async move {
 //!         let start = Instant::now();
 //!         next().await?;
 //!         let ms = start.elapsed().as_millis();
@@ -76,7 +76,7 @@
 //!     });
 //!
 //!     // response
-//!     app.end(|ctx| async move {
+//!     app.end(|mut ctx| async move {
 //!         ctx.write_text("Hello, World").await
 //!     });
 //!
@@ -131,7 +131,7 @@
 //!
 //! ```rust,no_run
 //! use roa_core::{Context, Error, Result, Model, ErrorKind};
-//! pub async fn error_handler<M: Model>(context: Context<M>, err: Error) -> Result {
+//! pub async fn error_handler<M: Model>(mut context: Context<M>, err: Error) -> Result {
 //!     // set status code to err.status_code.
 //!     context.resp_mut().await.status = err.status_code;
 //!     if err.expose {

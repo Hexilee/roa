@@ -65,7 +65,7 @@ impl Model for AppModel {
     }
 }
 
-async fn create_user(ctx: Context<Database>) -> Result {
+async fn create_user(mut ctx: Context<Database>) -> Result {
     let user: User = ctx.read().await?;
     let id = ctx.state().await.create(user).await;
     ctx.write_json(&json!({ "id": id })).await?;
@@ -73,20 +73,20 @@ async fn create_user(ctx: Context<Database>) -> Result {
     Ok(())
 }
 
-async fn get_user(ctx: Context<Database>) -> Result {
+async fn get_user(mut ctx: Context<Database>) -> Result {
     let id: usize = ctx.must_param("id").await?.parse()?;
     let user = ctx.state().await.retrieve(id).await?;
     ctx.write_json(&user).await
 }
 
-async fn update_user(ctx: Context<Database>) -> Result {
+async fn update_user(mut ctx: Context<Database>) -> Result {
     let id: usize = ctx.must_param("id").await?.parse()?;
     let mut user: User = ctx.read().await?;
     ctx.state().await.update(id, &mut user).await?;
     ctx.write_json(&user).await
 }
 
-async fn delete_user(ctx: Context<Database>) -> Result {
+async fn delete_user(mut ctx: Context<Database>) -> Result {
     let id: usize = ctx.must_param("id").await?.parse()?;
     let user = ctx.state().await.delete(id).await?;
     ctx.write_json(&user).await

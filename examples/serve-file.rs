@@ -55,7 +55,7 @@ async fn path_checker(ctx: Context<()>, next: Next) -> Result {
     }
 }
 
-async fn serve_path(ctx: Context<()>) -> Result {
+async fn serve_path(mut ctx: Context<()>) -> Result {
     let path_value = ctx.must_param("path").await?;
     let path = path_value.as_ref();
     let file_path = Path::new(".").join(path);
@@ -68,7 +68,7 @@ async fn serve_path(ctx: Context<()>) -> Result {
     }
 }
 
-async fn serve_dir(ctx: Context<()>, path: &str) -> Result {
+async fn serve_dir(mut ctx: Context<()>, path: &str) -> Result {
     let uri_path = Path::new("/").join(path);
     let mut entries = Path::new(".").join(path).read_dir().await?;
     let title = uri_path

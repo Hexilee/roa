@@ -14,7 +14,7 @@
 //!     pretty_env_logger::init();
 //!     let (addr, server) = App::new(())
 //!         .gate(logger)
-//!         .end(|ctx| async move {
+//!         .end(|mut ctx| async move {
 //!             ctx.write_text("Hello, World!").await
 //!         })
 //!         .run_local()?;
@@ -34,7 +34,7 @@ use std::time::Instant;
 ///
 /// Based on crate `log`, the log level must be greater than `INFO` to log all information,
 /// and should be greater than `ERROR` when you need error information only.
-pub async fn logger<M: Model>(ctx: Context<M>, next: Next) -> Result {
+pub async fn logger<M: Model>(mut ctx: Context<M>, next: Next) -> Result {
     let start = Instant::now();
     let method = ctx.method().await;
     let uri = ctx.uri().await;
@@ -117,7 +117,7 @@ mod tests {
         // info
         let (addr, server) = App::new(())
             .gate_fn(logger)
-            .gate_fn(move |ctx, _next| async move {
+            .end(move |mut ctx| async move {
                 ctx.resp_mut().await.write_str("Hello, World.");
                 Ok(())
             })

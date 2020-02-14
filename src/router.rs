@@ -408,7 +408,7 @@ impl<S: State> RouteTable<S> {
         Ok(())
     }
 
-    async fn end(&self, ctx: Context<S>) -> Result {
+    async fn end(&self, mut ctx: Context<S>) -> Result {
         let uri = ctx.uri().await;
         let path =
             standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
@@ -484,7 +484,7 @@ mod tests {
         struct TestSymbol;
         let mut router = Router::<()>::new();
         router
-            .gate_fn(|ctx, next| async move {
+            .gate_fn(|mut ctx, next| async move {
                 ctx.store::<TestSymbol>("id", "0".to_string()).await;
                 next().await
             })
@@ -505,7 +505,7 @@ mod tests {
         struct TestSymbol;
         let mut router = Router::<()>::new();
         let mut user_router = Router::<()>::new();
-        router.gate_fn(|ctx, next| async move {
+        router.gate_fn(|mut ctx, next| async move {
             ctx.store::<TestSymbol>("id", "0".to_string()).await;
             next().await
         });

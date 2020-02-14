@@ -13,14 +13,14 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     pretty_env_logger::init();
 //!     let (addr, server) = App::new(())
-//!         .gate_fn(|ctx, next| async move {
+//!         .gate_fn(|mut ctx, next| async move {
 //!             next().await?;
 //!             // compress body to 202 bytes in gzip with quantity Level::Fastest.
 //!             ctx.resp_mut().await.on_finish(|body| assert_eq!(202, body.consumed()));
 //!             Ok(())
 //!         })
 //!         .gate(Compress(Level::Fastest))
-//!         .end(|ctx| async move {
+//!         .end(|mut ctx| async move {
 //!             // the size of assets/welcome.html is 236 bytes.
 //!             ctx.resp_mut().await.on_finish(|body| assert_eq!(236, body.consumed()));
 //!             ctx.write_file("assets/welcome.html").await
@@ -62,12 +62,12 @@ impl Default for Compress {
 
 #[async_trait]
 impl<S: State> Middleware<S> for Compress {
-    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
+    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
         next().await?;
         let body: Body = std::mem::take(&mut *ctx.resp_mut().await);
-        let content_encoding = match parse(&ctx.req().await.headers)
-            .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?
-        {
+        let best_encoding = parse(&ctx.req().await.headers)
+            .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?;
+        let content_encoding = match best_encoding {
             None | Some(Encoding::Gzip) => {
                 ctx.resp_mut()
                     .await

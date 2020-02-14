@@ -149,7 +149,7 @@ impl Cors {
 
 #[async_trait]
 impl<S: State> Middleware<S> for Cors {
-    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
+    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
         // Always set Vary header
         // https://github.com/rs/cors/issues/10
         ctx.resp_mut().await.append(VARY, ORIGIN)?;
@@ -243,7 +243,7 @@ mod tests {
         let mut app = App::new(());
         let (addr, server) = app
             .gate(Cors::builder().build())
-            .end(|ctx| async move {
+            .end(|mut ctx| async move {
                 ctx.write_text("Hello, World").await?;
                 Ok(())
             })

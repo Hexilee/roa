@@ -1,6 +1,6 @@
 [package]
 name = "roa"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Hexilee <hexileee@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -102,7 +102,7 @@ required-features = ["body", "router"]
 [[test]]
 name = "serve-file"
 path = "integration-tests/serve-file.rs"
-required-features = ["body", "router"]
+required-features = ["body", "router", "compress"]
 
 [[test]]
 name = "restful"

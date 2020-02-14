@@ -9,7 +9,7 @@ use roa::router::Router;
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(())
-        .end(|ctx| async move { ctx.write_file("assets/author.txt").await })
+        .end(|mut ctx| async move { ctx.write_file("assets/author.txt").await })
         .run_local()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -20,7 +20,7 @@ async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
     let mut router = Router::new();
-    router.get("/:filename", |ctx| async move {
+    router.get("/:filename", |mut ctx| async move {
         let filename = ctx.must_param("filename").await?;
         ctx.write_file(format!("assets/{}", &*filename)).await
     });
@@ -34,7 +34,7 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
     let mut router = Router::new();
-    router.get("/*{path}", |ctx| async move {
+    router.get("/*{path}", |mut ctx| async move {
         let path = ctx.must_param("path").await?;
         ctx.write_file(format!("./{}", &*path)).await
     });
@@ -49,7 +49,7 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(())
         .gate(Compress::default())
-        .end(|ctx| async move { ctx.write_file("assets/welcome.html").await })
+        .end(|mut ctx| async move { ctx.write_file("assets/welcome.html").await })
         .run_local()?;
     spawn(server);
     let client = reqwest::Client::builder().gzip(true).build()?;

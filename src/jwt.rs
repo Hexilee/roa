@@ -134,7 +134,7 @@ pub fn guard_by<S: State>(
     )
 }
 
-async fn catch_www_authenticate<S: State>(ctx: Context<S>, next: Next) -> Result {
+async fn catch_www_authenticate<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let result = next().await;
     if let Err(ref err) = result {
         if err.status_code == StatusCode::UNAUTHORIZED {
@@ -213,7 +213,7 @@ where
 
 #[async_trait]
 impl<S: State> Middleware<S> for JwtGuard {
-    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
+    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
         let token = try_get_token(&ctx).await?;
         decode::<Value>(&token, self.secret.as_bytes(), &self.validation)
             .map_err(unauthorized)?;

@@ -13,7 +13,7 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (addr, server) = App::new(())
 //!         .gate(cookie_parser)
-//!         .end(|ctx| async move {
+//!         .end(|mut ctx| async move {
 //!             assert_eq!("Hexilee", ctx.must_cookie("name").await?);
 //!             Ok(())
 //!         })
@@ -63,7 +63,7 @@ struct CookieSymbol;
 ///     // downstream of `query_parser`
 ///     let (addr, server) = App::new(())
 ///         .gate(cookie_parser)
-///         .end( |ctx| async move {
+///         .end( |mut ctx| async move {
 ///             assert_eq!("Hexilee", ctx.must_cookie("name").await?);
 ///             Ok(())
 ///         })
@@ -109,7 +109,7 @@ pub trait Cookier {
     ///     // downstream of `query_parser`
     ///     let (addr, server) = App::new(())
     ///         .gate(cookie_parser)
-    ///         .end( |ctx| async move {
+    ///         .end( |mut ctx| async move {
     ///             assert_eq!("Hexilee", ctx.must_cookie("name").await?);
     ///             Ok(())
     ///         })
@@ -120,7 +120,7 @@ pub trait Cookier {
     ///     Ok(())
     /// }
     /// ```
-    async fn must_cookie(&self, name: &str) -> Result<String>;
+    async fn must_cookie(&mut self, name: &str) -> Result<String>;
 
     /// Try to get a cookie, return `None` if it not exists.
     /// ### Example
@@ -160,7 +160,7 @@ pub trait Cookier {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     // downstream of `query_parser`
     ///     let (addr, server) = App::new(())
-    ///         .end( |ctx| async move {
+    ///         .end( |mut ctx| async move {
     ///             ctx.set_cookie(Cookie::new("name", "Hexi Lee")).await?;
     ///             Ok(())
     ///         })
@@ -174,11 +174,11 @@ pub trait Cookier {
     ///     Ok(())
     /// }
     /// ```
-    async fn set_cookie(&self, cookie: Cookie<'_>) -> Result;
+    async fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result;
 }
 
 /// A middleware to parse cookie.
-pub async fn cookie_parser<S: State>(ctx: Context<S>, next: Next) -> Result {
+pub async fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     if let Some(Ok(cookies)) = ctx.header(header::COOKIE).await {
         for cookie in cookies
             .split(';')
@@ -195,7 +195,7 @@ pub async fn cookie_parser<S: State>(ctx: Context<S>, next: Next) -> Result {
 
 #[async_trait]
 impl<S: State> Cookier for Context<S> {
-    async fn must_cookie(&self, name: &str) -> Result<String> {
+    async fn must_cookie(&mut self, name: &str) -> Result<String> {
         match self.cookie(name).await {
             Some(value) => Ok(value),
             None => {
@@ -216,7 +216,7 @@ impl<S: State> Cookier for Context<S> {
             .await
             .map(|var| var.into_value())
     }
-    async fn set_cookie(&self, cookie: Cookie<'_>) -> Result {
+    async fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result {
         let cookie_value = cookie.encoded().to_string();
         self.resp_mut()
             .await
@@ -247,7 +247,7 @@ mod tests {
 
         let (addr, server) = App::new(())
             .gate(cookie_parser)
-            .end(move |ctx| async move {
+            .end(move |mut ctx| async move {
                 ctx.must_cookie("nick name").await?;
                 Ok(())
             })
@@ -266,7 +266,7 @@ mod tests {
         // string value
         let (addr, server) = App::new(())
             .gate(cookie_parser)
-            .end(move |ctx| async move {
+            .end(move |mut ctx| async move {
                 assert_eq!("Hexilee", ctx.must_cookie("name").await?);
                 Ok(())
             })
@@ -286,7 +286,7 @@ mod tests {
     async fn cookie_decode() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .gate(cookie_parser)
-            .end(move |ctx| async move {
+            .end(move |mut ctx| async move {
                 assert_eq!("bar baz", ctx.must_cookie("bar baz").await?);
                 Ok(())
             })
@@ -306,7 +306,7 @@ mod tests {
     async fn cookie_action() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .gate(cookie_parser)
-            .end(move |ctx| async move {
+            .end(move |mut ctx| async move {
                 assert_eq!("bar baz", ctx.must_cookie("bar baz").await?);
                 assert_eq!("bar foo", ctx.must_cookie("foo baz").await?);
                 Ok(())
@@ -326,7 +326,7 @@ mod tests {
     #[tokio::test]
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
-            .end(move |ctx| async move {
+            .end(move |mut ctx| async move {
                 ctx.set_cookie(Cookie::new("bar baz", "bar baz")).await?;
                 ctx.set_cookie(Cookie::new("bar foo", "foo baz")).await?;
                 Ok(())
