@@ -54,7 +54,7 @@
 # Cargo.toml
 
 [dependencies]
-roa = "0.3"
+roa = "0.4"
 async-std = { version = "1.4", features = ["attributes"] }
 ```
 
@@ -68,7 +68,7 @@ use std::error::Error as StdError;
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
-    app.end(|ctx| async move {
+    app.end(|mut ctx| async move {
         ctx.write_text("Hello, World").await
     });
     app.listen("127.0.0.1:8000", |addr| {
