@@ -24,7 +24,9 @@
 //! }
 //! ```
 
-use crate::core::{async_trait, Context, Error, Next, Result, State, StatusCode, Variable};
+use crate::core::{
+    async_trait, Context, Error, Next, Result, State, StatusCode, Variable,
+};
 use url::form_urlencoded::parse;
 
 /// A unique symbol to store and load variables in Context::storage.
@@ -221,7 +223,8 @@ mod tests {
             })
             .run_local()?;
         spawn(server);
-        let resp = reqwest::get(&format!("http://{}?name=Hexilee&lang=rust", addr)).await?;
+        let resp =
+            reqwest::get(&format!("http://{}?name=Hexilee&lang=rust", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }

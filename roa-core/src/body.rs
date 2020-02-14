@@ -58,7 +58,10 @@ impl Body {
 
     /// Write reader implementing Read.
     #[inline]
-    pub fn write(&mut self, reader: impl Read + Sync + Send + Unpin + 'static) -> &mut Self {
+    pub fn write(
+        &mut self,
+        reader: impl Read + Sync + Send + Unpin + 'static,
+    ) -> &mut Self {
         self.write_buf(BufReader::new(reader))
     }
 
@@ -138,7 +141,10 @@ impl Drop for Body {
 }
 
 impl BufRead for Body {
-    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<&[u8], Error>> {
+    fn poll_fill_buf(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<&[u8], Error>> {
         let mut_ref = self.get_mut();
         let data = loop {
             if mut_ref.counter >= mut_ref.segments.len() {
@@ -194,7 +200,10 @@ impl<R: BufRead + Unpin> Stream for BodyStream<R> {
     type Item = Result<Vec<u8>, std::io::Error>;
 
     #[inline]
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         let buf: &[u8] = futures::ready!(Pin::new(&mut self.body).poll_fill_buf(cx))?;
         let buf_len = buf.len();
         if buf_len == 0 {

@@ -138,9 +138,9 @@ mod tests {
         // error
         let (addr, server) = App::new(())
             .gate_fn(logger)
-            .gate_fn(
-                move |_ctx, _next| async move { throw!(StatusCode::BAD_REQUEST, "Hello, World!") },
-            )
+            .gate_fn(move |_ctx, _next| async move {
+                throw!(StatusCode::BAD_REQUEST, "Hello, World!")
+            })
             .run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;

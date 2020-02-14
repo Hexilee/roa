@@ -40,9 +40,13 @@
 pub use async_compression::Level;
 
 use crate::core::header::CONTENT_ENCODING;
-use crate::core::{async_trait, Body, Context, Error, Middleware, Next, Result, State, StatusCode};
+use crate::core::{
+    async_trait, Body, Context, Error, Middleware, Next, Result, State, StatusCode,
+};
 use accept_encoding::{parse, Encoding};
-use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
+use async_compression::futures::bufread::{
+    BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder,
+};
 use std::sync::Arc;
 
 /// A middleware to negotiate with client and compress response body automatically,

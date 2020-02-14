@@ -77,7 +77,10 @@ impl AddrIncoming {
         self.sleep_on_errors = val;
     }
 
-    fn poll_next_(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<AddrStream>> {
+    fn poll_next_(
+        &mut self,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<io::Result<AddrStream>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
             match Pin::new(to).poll(cx) {
@@ -232,13 +235,19 @@ mod addr_stream {
         }
 
         #[inline]
-        fn poll_flush(self: Pin<&mut Self>, _cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
+        fn poll_flush(
+            self: Pin<&mut Self>,
+            _cx: &mut task::Context<'_>,
+        ) -> Poll<io::Result<()>> {
             // TCP flush is a noop
             Poll::Ready(Ok(()))
         }
 
         #[inline]
-        fn poll_shutdown(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
+        fn poll_shutdown(
+            self: Pin<&mut Self>,
+            cx: &mut task::Context<'_>,
+        ) -> Poll<io::Result<()>> {
             futures::AsyncWrite::poll_close(Pin::new(&mut self.stream()), cx)
         }
     }

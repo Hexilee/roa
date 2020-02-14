@@ -35,7 +35,9 @@ impl Display for Conflict {
 impl Display for RouterError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
-            RouterError::Conflict(conflict) => f.write_str(&format!("Conflict! {}", conflict)),
+            RouterError::Conflict(conflict) => {
+                f.write_str(&format!("Conflict! {}", conflict))
+            }
             RouterError::MissingVariable(path) => {
                 f.write_str(&format!("missing variable on path {}", path))
             }

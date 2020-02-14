@@ -67,7 +67,9 @@
 pub use jsonwebtoken::Validation;
 
 use crate::core::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
-use crate::core::{async_trait, join, Context, Error, Middleware, Next, Result, State, StatusCode};
+use crate::core::{
+    async_trait, join, Context, Error, Middleware, Next, Result, State, StatusCode,
+};
 use jsonwebtoken::{dangerous_unsafe_decode, decode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -119,7 +121,10 @@ pub fn guard<S: State>(secret: impl ToString) -> impl Middleware<S> {
 /// If request fails to pass verification, return 401 UNAUTHORIZED and set response header:
 ///
 /// `WWW-Authenticate: Bearer realm="<jwt>", error="invalid_token"`.
-pub fn guard_by<S: State>(secret: impl ToString, validation: Validation) -> impl Middleware<S> {
+pub fn guard_by<S: State>(
+    secret: impl ToString,
+    validation: Validation,
+) -> impl Middleware<S> {
     join(
         Arc::new(catch_www_authenticate),
         JwtGuard {
@@ -210,7 +215,8 @@ where
 impl<S: State> Middleware<S> for JwtGuard {
     async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
         let token = try_get_token(&ctx).await?;
-        decode::<Value>(&token, self.secret.as_bytes(), &self.validation).map_err(unauthorized)?;
+        decode::<Value>(&token, self.secret.as_bytes(), &self.validation)
+            .map_err(unauthorized)?;
         ctx.store::<JwtSymbol>("secret", self.secret.clone()).await;
         ctx.store::<JwtSymbol>("token", token).await;
         next().await

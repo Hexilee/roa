@@ -163,7 +163,11 @@ impl Bucket {
     /// assert_eq!(1, bucket.insert("id", "2").unwrap().parse().unwrap());
     /// ```
     #[inline]
-    pub fn insert<'a>(&mut self, name: &'a str, value: impl ToString) -> Option<Variable<'a>> {
+    pub fn insert<'a>(
+        &mut self,
+        name: &'a str,
+        value: impl ToString,
+    ) -> Option<Variable<'a>> {
         self.0
             .insert(name.to_string(), value.to_string())
             .map(|value| Variable::new(name, value))
@@ -445,7 +449,9 @@ impl<S> Context<S> {
 
     /// Get a mutable reference of storage.
     #[inline]
-    pub(crate) async fn storage_mut(&self) -> RwLockWriteGuard<'_, HashMap<TypeId, Bucket>> {
+    pub(crate) async fn storage_mut(
+        &self,
+    ) -> RwLockWriteGuard<'_, HashMap<TypeId, Bucket>> {
         self.storage.write().await
     }
 
@@ -530,7 +536,10 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn header(&self, name: impl AsHeaderName) -> Option<Result<String, ToStrError>> {
+    pub async fn header(
+        &self,
+        name: impl AsHeaderName,
+    ) -> Option<Result<String, ToStrError>> {
         self.req()
             .await
             .headers

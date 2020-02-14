@@ -8,7 +8,8 @@ use std::result::Result as StdResult;
 pub type Result<R = ()> = StdResult<R, Error>;
 
 /// Type alias for `Pin<Box<dyn 'static + Future<Output = Result<R>> + Send>>`.
-pub type ResultFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>> + Send>>;
+pub type ResultFuture<R = ()> =
+    Pin<Box<dyn 'static + Future<Output = Result<R>> + Send>>;
 
 /// Throw an `Err(Error)`.
 ///

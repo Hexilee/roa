@@ -137,7 +137,10 @@ pub trait PowerBody {
     async fn write_text<S: ToString + Send>(&self, string: S) -> Result;
 
     /// write object to response body as "application/octet-stream"
-    async fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(&self, reader: B) -> Result;
+    async fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(
+        &self,
+        reader: B,
+    ) -> Result;
 
     /// write object to response body as extension name of file
     async fn write_file<P: AsRef<Path> + Send>(&self, path: P) -> Result;
@@ -206,7 +209,9 @@ impl<S: State> PowerBody for Context<S> {
                 } else {
                     match mime_type.get_param("charset") {
                         None | Some(mime::UTF_8) => json::from_bytes(&data),
-                        Some(charset) => json::from_str(&decode::decode(&data, charset.as_str())?),
+                        Some(charset) => {
+                            json::from_str(&decode::decode(&data, charset.as_str())?)
+                        }
                     }
                 }
             }
@@ -227,8 +232,9 @@ impl<S: State> PowerBody for Context<S> {
 
     async fn render<B: Template + Sync>(&self, data: &B) -> Result {
         self.resp_mut().await.write_str(
-            data.render()
-                .map_err(|err| Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false))?,
+            data.render().map_err(|err| {
+                Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
+            })?,
         );
         self.resp_mut()
             .await
@@ -244,7 +250,10 @@ impl<S: State> PowerBody for Context<S> {
         Ok(())
     }
 
-    async fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(&self, reader: B) -> Result {
+    async fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(
+        &self,
+        reader: B,
+    ) -> Result {
         self.resp_mut().await.write_buf(reader);
         self.resp_mut()
             .await
@@ -262,7 +271,8 @@ impl<S: State> PowerBody for Context<S> {
                 &mime_guess::from_path(&filename).first_or_octet_stream(),
             )?;
             let encoded_filename =
-                utf8_percent_encode(&filename.to_string_lossy(), NON_ALPHANUMERIC).to_string();
+                utf8_percent_encode(&filename.to_string_lossy(), NON_ALPHANUMERIC)
+                    .to_string();
             self.resp_mut().await.insert(
                 http::header::CONTENT_DISPOSITION,
                 &format!(
@@ -406,7 +416,9 @@ mod tests {
     async fn write_text() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
-            .gate_fn(move |ctx, _next| async move { ctx.write_text("Hello, World!").await })
+            .gate_fn(
+                move |ctx, _next| async move { ctx.write_text("Hello, World!").await },
+            )
             .run_local()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;

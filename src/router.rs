@@ -36,8 +36,8 @@ use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path, RegexPath};
 
 use crate::core::{
-    async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State, StatusCode,
-    Variable,
+    async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State,
+    StatusCode, Variable,
 };
 use http::Method;
 use percent_encoding::percent_decode_str;
@@ -199,8 +199,11 @@ impl<S: State> Router<S> {
     ) -> &mut Self {
         let endpoint_ptr = Arc::new(endpoint);
         for method in methods {
-            self.endpoints
-                .push((method.clone(), path.to_string(), endpoint_ptr.clone()));
+            self.endpoints.push((
+                method.clone(),
+                path.to_string(),
+                endpoint_ptr.clone(),
+            ));
         }
         self
     }
@@ -296,7 +299,10 @@ impl<S: State> Router<S> {
     }
 
     /// Build RouteEndpoint with path prefix.
-    pub fn routes(self, prefix: &'static str) -> StdResult<RouteEndpoint<S>, RouterError> {
+    pub fn routes(
+        self,
+        prefix: &'static str,
+    ) -> StdResult<RouteEndpoint<S>, RouterError> {
         let mut route_endpoint = RouteEndpoint::default();
         for (method, raw_path, endpoint) in self.on(prefix) {
             route_endpoint.insert(method, raw_path, endpoint)?;
@@ -404,15 +410,20 @@ impl<S: State> RouteTable<S> {
 
     async fn end(&self, ctx: Context<S>) -> Result {
         let uri = ctx.uri().await;
-        let path = standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
-            |err| {
-                Error::new(
-                    StatusCode::BAD_REQUEST,
-                    format!("{}\npath `{}` is not a valid utf-8 string", err, uri.path()),
-                    true,
-                )
-            },
-        )?);
+        let path =
+            standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
+                |err| {
+                    Error::new(
+                        StatusCode::BAD_REQUEST,
+                        format!(
+                            "{}\npath `{}` is not a valid utf-8 string",
+                            err,
+                            uri.path()
+                        ),
+                        true,
+                    )
+                },
+            )?);
         if let Some(handler) = self.static_route.get(&path) {
             return handler.clone().end(ctx).await;
         }
@@ -537,7 +548,8 @@ mod tests {
 
     #[tokio::test]
     async fn non_utf8_uri() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(()).gate(Router::new().routes("/")?).run_local()?;
+        let (addr, server) =
+            App::new(()).gate(Router::new().routes("/")?).run_local()?;
         spawn(server);
         let gbk_path = encoding::label::encoding_from_whatwg_label("gbk")
             .unwrap()

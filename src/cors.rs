@@ -34,10 +34,10 @@
 //! ```
 
 use crate::core::header::{
-    HeaderName, HeaderValue, ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
-    ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
-    ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, ORIGIN,
-    VARY,
+    HeaderName, HeaderValue, ACCESS_CONTROL_ALLOW_CREDENTIALS,
+    ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
+    ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_MAX_AGE,
+    ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, ORIGIN, VARY,
 };
 use crate::core::{async_trait, Context, Middleware, Next, Result, State, StatusCode};
 use crate::preload::*;
@@ -202,7 +202,9 @@ impl<S: State> Middleware<S> for Cors {
             // If allow_headers is None, try to assign `Access-Control-Request-Headers` to `Access-Control-Allow-Headers`.
             let mut allow_headers = self.join_allow_headers();
             if allow_headers.is_empty() {
-                if let Some(value) = ctx.header_value(ACCESS_CONTROL_REQUEST_HEADERS).await {
+                if let Some(value) =
+                    ctx.header_value(ACCESS_CONTROL_REQUEST_HEADERS).await
+                {
                     allow_headers = value
                 }
             }
@@ -229,9 +231,10 @@ mod tests {
     use async_std::task::spawn;
     use http::header::{
         ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
-        ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
-        ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD,
-        CONTENT_TYPE, ORIGIN, VARY,
+        ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
+        ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_MAX_AGE,
+        ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, CONTENT_TYPE,
+        ORIGIN, VARY,
     };
     use http::{HeaderValue, StatusCode};
 

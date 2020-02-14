@@ -2,7 +2,9 @@
 mod executor;
 
 mod tcp;
-use crate::{join, join_all, Context, Error, Middleware, Model, Next, Request, Response, Result};
+use crate::{
+    join, join_all, Context, Error, Middleware, Model, Next, Request, Response, Result,
+};
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
@@ -248,7 +250,10 @@ type Server<M> = HyperServer<AddrIncoming, App<M>, Executor>;
 #[cfg(feature = "runtime")]
 impl<M: Model> App<M> {
     /// Listen on a socket addr, return a server and the real addr it binds.
-    fn listen_on(&self, addr: impl ToSocketAddrs) -> std::io::Result<(SocketAddr, Server<M>)> {
+    fn listen_on(
+        &self,
+        addr: impl ToSocketAddrs,
+    ) -> std::io::Result<(SocketAddr, Server<M>)> {
         let incoming = AddrIncoming::bind(addr)?;
         let local_addr = incoming.local_addr();
         let server = HyperServer::builder(incoming)
@@ -311,7 +316,8 @@ macro_rules! impl_poll_ready {
     };
 }
 
-type AppFuture<M> = Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<M>>> + Send>>;
+type AppFuture<M> =
+    Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<M>>> + Send>>;
 
 impl<M: Model> Service<&AddrStream> for App<M> {
     type Response = HttpService<M>;
@@ -328,7 +334,8 @@ impl<M: Model> Service<&AddrStream> for App<M> {
     }
 }
 
-type HttpFuture = Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>>> + Send>>;
+type HttpFuture =
+    Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>>> + Send>>;
 
 impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
     type Response = HttpResponse<HyperBody>;

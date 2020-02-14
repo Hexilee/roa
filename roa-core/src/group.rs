@@ -82,7 +82,9 @@ pub fn join<S: State>(
 ///     Ok(())
 /// }
 /// ```
-pub fn join_all<S: State>(middlewares: Vec<Arc<dyn Middleware<S>>>) -> impl Middleware<S> {
+pub fn join_all<S: State>(
+    middlewares: Vec<Arc<dyn Middleware<S>>>,
+) -> impl Middleware<S> {
     Join::new(middlewares)
 }
 

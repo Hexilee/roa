@@ -30,7 +30,9 @@
 //! }
 //! ```
 
-use crate::core::{async_trait, header, throw, Context, Next, Result, State, StatusCode};
+use crate::core::{
+    async_trait, header, throw, Context, Next, Result, State, StatusCode,
+};
 use crate::header::FriendlyHeaders;
 pub use cookie::Cookie;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};

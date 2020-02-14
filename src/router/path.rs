@@ -66,7 +66,8 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
     let variable_re = must_build(VARIABLE);
     let wildcards: Vec<Captures> = wildcard_re.captures_iter(path).collect();
     let variable_template = path.replace('/', "//"); // to match continuous variables like /:year/:month/:day/
-    let variables: Vec<Captures> = variable_re.captures_iter(&variable_template).collect();
+    let variables: Vec<Captures> =
+        variable_re.captures_iter(&variable_template).collect();
     if wildcards.is_empty() && variables.is_empty() {
         Ok(None)
     } else {
