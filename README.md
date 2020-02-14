@@ -59,6 +59,8 @@ async-std = { version = "1.4", features = ["attributes"] }
 ```
 
 ```rust
+// main.rs
+
 use roa::core::App;
 use roa::preload::*;
 use std::error::Error as StdError;
