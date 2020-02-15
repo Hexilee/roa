@@ -32,7 +32,7 @@
 //! }
 //! ```
 //!
-//! These methods is useful, but they do not deal with headers, especially `Content-*` headers.
+//! These methods are useful, but they do not deal with headers, especially `Content-*` headers.
 //!
 //! The `PowerBody` provides more powerful methods to handle it.
 //!

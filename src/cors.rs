@@ -50,11 +50,11 @@ use typed_builder::TypedBuilder;
 /// ### Default
 ///
 /// The default Cors middleware works well,
-/// it will set header "access-control-allow-origin" to "origin" in request,
+/// it will use "origin" in request as value of response header "access-control-allow-origin",
 /// and set "access-control-allow-credentials" to "true".
 ///
 /// And in preflight request,
-/// it will set "access-control-allow-methods" to "GET,HEAD,PUT,POST,DELETE,PATCH",
+/// it will set "GET,HEAD,PUT,POST,DELETE,PATCH" as value of "access-control-allow-methods",
 /// and set "access-control-max-age" to "86400".
 ///
 /// Build a default Cors middleware:
@@ -74,7 +74,7 @@ use typed_builder::TypedBuilder;
 /// use roa::core::header::{CONTENT_DISPOSITION, AUTHORIZATION};
 /// use http::Method;
 ///
-/// let default_cors = Cors::builder()
+/// let configured_cors = Cors::builder()
 ///     .allow_origin(Some("github.com".to_owned()))
 ///     .allow_methods(vec![Method::GET, Method::POST])
 ///     .expose_headers(vec![CONTENT_DISPOSITION])

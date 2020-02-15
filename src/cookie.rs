@@ -106,7 +106,7 @@ pub trait Cookier {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     // downstream of `query_parser`
+    ///     // downstream of `cookie_parser`
     ///     let (addr, server) = App::new(())
     ///         .gate(cookie_parser)
     ///         .end( |mut ctx| async move {
@@ -132,7 +132,7 @@ pub trait Cookier {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     // downstream of `query_parser`
+    ///     // downstream of `cookie_parser`
     ///     let (addr, server) = App::new(())
     ///         .gate(cookie_parser)
     ///         .end( |ctx| async move {
@@ -158,7 +158,6 @@ pub trait Cookier {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     // downstream of `query_parser`
     ///     let (addr, server) = App::new(())
     ///         .end( |mut ctx| async move {
     ///             ctx.set_cookie(Cookie::new("name", "Hexi Lee")).await?;

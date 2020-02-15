@@ -4,7 +4,7 @@
 //! ### When should we use it?
 //!
 //! You can straightly use raw `http::header::HeaderMap` in roa,
-//! but you have to transfer value type between HeadValue and string then
+//! but you have to transfer value type between HeaderValue and string then
 //! deal with other errors(not `roa::core::Error`) by yourself.
 //! ```rust
 //! use roa::core::{Context, Result, Error, StatusCode};
@@ -28,7 +28,7 @@
 //! }
 //! ```
 //!
-//! Dealing with error is necessary but as a normal user of roa, it can be annoying.
+//! Dealing with errors is necessary but sometimes can be annoying
 //!
 //! If you are finding some simpler methods to deal with header value, `FriendlyHeaders` is suit for you.
 //!
