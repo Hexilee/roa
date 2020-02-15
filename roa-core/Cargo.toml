@@ -24,7 +24,7 @@ travis-ci = { repository = "Hexilee/roa" }
 futures = "0.3"
 bytes = "0.5"
 http = "0.2"
-hyper = { version = "0.13", default-features = false }
+hyper = { version = "0.13", default-features = false, features = ["stream"] }
 async-std = "1.4"
 futures-timer = "3.0"
 log = "0.4"
