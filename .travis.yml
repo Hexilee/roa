@@ -4,6 +4,10 @@ rust:
   - stable
   - nightly
 
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y cmake gcc
+
 before_script:
   - export PATH=$HOME/.cargo/bin:$PATH
   - |
