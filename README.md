@@ -43,8 +43,10 @@
 
 #### Next step
 
-- Streaming multipart form support.
+- Juniper integration.
+- Better context storage.
 - ORM integration.
+- Streaming multipart form support.
 - Websocket support.
 - HTTPS support.
 
