@@ -4,12 +4,14 @@ use async_std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
 use http::{HeaderValue, Method, Uri, Version};
+use std::any::Any;
 use std::any::TypeId;
 use std::collections::HashMap;
-use std::convert::AsRef;
 use std::fmt::Display;
 use std::ops::Deref;
 use std::str::FromStr;
+
+struct PublicScope;
 
 /// A structure to share request, response and other data between middlewares.
 ///
@@ -48,80 +50,48 @@ pub struct Context<S> {
     stream: AddrStream,
 }
 
-/// A wrapper of `HashMap<String, String>`, method `get` return a `Variable`.
-///
-/// ### Example
-/// ```rust
-/// use roa_core::{Bucket, Variable};
-/// let mut bucket = Bucket::new();
-/// assert!(bucket.get("id").is_none());
-/// assert!(bucket.insert("id", "1").is_none());
-/// assert_eq!(1, bucket.get("id").unwrap().parse().unwrap());
-/// assert_eq!(1, bucket.insert("id", "2").unwrap().parse().unwrap());
-/// ```
+/// A wrapper of `HashMap<String, Arc<dyn Any + Send + Sync>>`, method `get` return a `Variable`.
 #[derive(Debug, Clone)]
-pub struct Bucket(HashMap<String, String>);
+struct Bucket(HashMap<String, Arc<dyn Any + Send + Sync>>);
 
-/// A wrapper of String.
-///
-/// ### Example
-/// ```rust
-/// use roa_core::Variable;
-/// use http::StatusCode;
-/// assert_eq!(1, Variable::new("id", "1".to_string()).parse().unwrap());
-/// let result = Variable::new("id", "x".to_string()).parse::<usize>();
-/// assert!(result.is_err());
-/// let status = result.unwrap_err();
-/// assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
-/// assert!(status.message.ends_with("type of variable `id` should be usize"));
-/// ```
+/// A wrapper of Arc<T>.
 #[derive(Debug, Clone)]
-pub struct Variable<'a> {
+pub struct Variable<'a, T> {
     name: &'a str,
-    value: String,
+    value: Arc<T>,
 }
 
-impl Deref for Variable<'_> {
-    type Target = str;
+impl<T> Deref for Variable<'_, T> {
+    type Target = T;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.value
+        &*self.value
     }
 }
 
-impl AsRef<str> for Variable<'_> {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        &self
-    }
-}
-
-impl<'a> Variable<'a> {
+impl<'a, T> Variable<'a, T> {
     /// Construct a variable from name and value.
     #[inline]
-    pub fn new(name: &'a str, value: String) -> Self {
+    fn new(name: &'a str, value: Arc<T>) -> Self {
         Self { name, value }
     }
 
+    /// Into inner value.
+    #[inline]
+    pub fn value(&self) -> Arc<T> {
+        self.value.clone()
+    }
+}
+
+impl Variable<'_, String> {
     /// A wrapper of `str::parse`. Converts `T::FromStr::Err` to `Status` automatically.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::Variable;
-    /// use http::StatusCode;
-    /// let result = Variable::new("id", "x".to_string()).parse::<usize>();
-    /// assert!(result.is_err());
-    /// let status = result.unwrap_err();
-    /// assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
-    /// assert!(status.message.ends_with("type of variable `id` should be usize"));
-    /// ```
     pub fn parse<T>(&self) -> Result<T, Error>
     where
         T: FromStr,
         T::Err: Display,
     {
-        self.as_ref().parse().map_err(|err| {
+        self.deref().parse().map_err(|err| {
             Error::new(
                 StatusCode::BAD_REQUEST,
                 format!(
@@ -133,12 +103,6 @@ impl<'a> Variable<'a> {
                 true,
             )
         })
-    }
-
-    /// Into inner value.
-    #[inline]
-    pub fn into_value(self) -> String {
-        self.value
     }
 }
 
@@ -154,42 +118,31 @@ impl Bucket {
     ///
     /// If the bucket did have this key present, the value is updated, and the old
     /// value is returned.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::{Bucket, Variable};
-    /// let mut bucket = Bucket::new();
-    /// assert!(bucket.insert("id", "1").is_none());
-    /// assert_eq!(1, bucket.insert("id", "2").unwrap().parse().unwrap());
-    /// ```
     #[inline]
-    pub fn insert<'a>(
+    pub fn insert<'a, T: Any + Send + Sync>(
         &mut self,
         name: &'a str,
-        value: impl ToString,
-    ) -> Option<Variable<'a>> {
+        value: T,
+    ) -> Option<Variable<'a, T>> {
         self.0
-            .insert(name.to_string(), value.to_string())
+            .insert(name.to_string(), Arc::new(value))
+            .and_then(|value| value.downcast().ok())
             .map(|value| Variable::new(name, value))
     }
 
     /// If the bucket did not have this key present, [`None`] is returned.
     ///
     /// If the bucket did have this key present, the key-value pair will be returned as a `Variable`
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::{Bucket, Variable};
-    /// let mut bucket = Bucket::new();
-    /// assert!(bucket.get("id").is_none());
-    /// bucket.insert("id", "1");
-    /// assert_eq!(1, bucket.get("id").unwrap().parse().unwrap());
-    /// ```
     #[inline]
-    pub fn get<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
-        self.0.get(name).map(|value| Variable {
-            name,
-            value: value.to_string(),
+    pub fn get<'a, T: Any + Send + Sync>(
+        &self,
+        name: &'a str,
+    ) -> Option<Variable<'a, T>> {
+        self.0.get(name).and_then(|value| {
+            Some(Variable {
+                name,
+                value: value.clone().downcast().ok()?,
+            })
         })
     }
 }
@@ -307,7 +260,7 @@ impl<S> Context<S> {
 
     /// Get an immutable reference of storage.
     #[inline]
-    pub(crate) async fn storage(&self) -> RwLockReadGuard<'_, HashMap<TypeId, Bucket>> {
+    async fn storage(&self) -> RwLockReadGuard<'_, HashMap<TypeId, Bucket>> {
         self.storage.read().await
     }
 
@@ -411,9 +364,7 @@ impl<S> Context<S> {
 
     /// Get a mutable reference of storage.
     #[inline]
-    pub(crate) async fn storage_mut(
-        &mut self,
-    ) -> RwLockWriteGuard<'_, HashMap<TypeId, Bucket>> {
+    async fn storage_mut(&mut self) -> RwLockWriteGuard<'_, HashMap<TypeId, Bucket>> {
         self.storage.write().await
     }
 
@@ -594,7 +545,7 @@ impl<S> Context<S> {
         self.req().await.version
     }
 
-    /// Store key-value pair. Each type has its namespace.
+    /// Store key-value pair in specific scope.
     ///
     /// ### Example
     /// ```rust
@@ -602,19 +553,19 @@ impl<S> Context<S> {
     /// use async_std::task::spawn;
     /// use http::{StatusCode, Method};
     ///
-    /// struct Symbol;
-    /// struct AnotherSymbol;
+    /// struct Scope;
+    /// struct AnotherScope;
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store::<Symbol>("id", "1".to_owned()).await;
+    ///             ctx.store_scoped(Scope, "id", "1".to_string()).await;
     ///             next().await
     ///         })
     ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load::<Symbol>("id").await.unwrap().parse::<i32>()?);
-    ///             assert!(ctx.load::<AnotherSymbol>("id").await.is_none());
+    ///             assert_eq!(1, ctx.load_scoped::<Scope, String>("id").await.unwrap().parse::<i32>()?);
+    ///             assert!(ctx.load_scoped::<AnotherScope, String>("id").await.is_none());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -625,13 +576,18 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[allow(clippy::needless_lifetimes)]
-    pub async fn store<'a, T: 'static>(
+    pub async fn store_scoped<'a, SC, T>(
         &mut self,
+        _scope: SC,
         name: &'a str,
-        value: String,
-    ) -> Option<Variable<'a>> {
+        value: T,
+    ) -> Option<Variable<'a, T>>
+    where
+        SC: Any,
+        T: Any + Send + Sync,
+    {
         let mut storage = self.storage_mut().await;
-        let id = TypeId::of::<T>();
+        let id = TypeId::of::<SC>();
         match storage.get_mut(&id) {
             Some(bucket) => bucket.insert(name, value),
             None => {
@@ -643,26 +599,23 @@ impl<S> Context<S> {
         }
     }
 
-    /// Search for value by key.
+    /// Store key-value pair in public scope.
     ///
     /// ### Example
-    ///
     /// ```rust
     /// use roa_core::App;
     /// use async_std::task::spawn;
     /// use http::{StatusCode, Method};
     ///
-    /// struct Symbol;
-    ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store::<Symbol>("id", "1".to_owned()).await;
+    ///             ctx.store("id", "1".to_string()).await;
     ///             next().await
     ///         })
     ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load::<Symbol>("id").await.unwrap().parse::<i32>()?);
+    ///             assert_eq!(1, ctx.load::<String>("id").await.unwrap().parse::<i32>()?);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -672,41 +625,90 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
+    #[allow(clippy::needless_lifetimes)]
+    pub async fn store<'a, T>(
+        &mut self,
+        name: &'a str,
+        value: T,
+    ) -> Option<Variable<'a, T>>
+    where
+        T: Any + Send + Sync,
+    {
+        self.store_scoped(PublicScope, name, value).await
+    }
+
+    /// Search for value by key in specific scope.
     ///
-    /// ### Parse fails
-    ///
-    /// The loaded value can be parsed as str, and return a 400 BAD REQUEST Error if fails.
+    /// ### Example
     ///
     /// ```rust
     /// use roa_core::App;
     /// use async_std::task::spawn;
     /// use http::{StatusCode, Method};
     ///
-    /// struct Symbol;
+    /// struct Scope;
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store::<Symbol>("id", "x".to_owned()).await;
+    ///             ctx.store_scoped(Scope, "id", "1".to_owned()).await;
     ///             next().await
     ///         })
     ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load::<Symbol>("id").await.unwrap().parse::<i32>()?);
+    ///             assert_eq!(1, ctx.load_scoped::<Scope, String>("id").await.unwrap().parse::<i32>()?);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+    ///     assert_eq!(StatusCode::OK, resp.status());
     ///     Ok(())
     /// }
     /// ```
     #[allow(clippy::needless_lifetimes)]
-    pub async fn load<'a, T: 'static>(&self, name: &'a str) -> Option<Variable<'a>> {
+    pub async fn load_scoped<'a, SC, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
+    where
+        SC: Any,
+        T: Any + Send + Sync,
+    {
         let storage = self.storage().await;
-        let id = TypeId::of::<T>();
+        let id = TypeId::of::<SC>();
         storage.get(&id).and_then(|bucket| bucket.get(name))
+    }
+
+    /// Search for value by key in public scope.
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa_core::App;
+    /// use async_std::task::spawn;
+    /// use http::{StatusCode, Method};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let (addr, server) = App::new(())
+    ///         .gate_fn(|mut ctx, next| async move {
+    ///             ctx.store("id", "1".to_string()).await;
+    ///             next().await
+    ///         })
+    ///         .end(|ctx| async move {
+    ///             assert_eq!(1, ctx.load::<String>("id").await.unwrap().parse::<i32>()?);
+    ///             Ok(())
+    ///         })
+    ///         .run_local()?;
+    ///     spawn(server);
+    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
+    ///     assert_eq!(StatusCode::OK, resp.status());
+    ///     Ok(())
+    /// }
+    /// ```
+    #[allow(clippy::needless_lifetimes)]
+    pub async fn load<'a, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
+    where
+        T: Any + Send + Sync,
+    {
+        self.load_scoped::<PublicScope, T>(name).await
     }
 
     /// Get remote socket addr.
@@ -735,6 +737,7 @@ impl<S> Clone for Context<S> {
 
 #[cfg(test)]
 mod tests {
+    use super::{Bucket, Variable};
     use crate::{App, Context};
     use async_std::task::spawn;
     use http::{StatusCode, Version};
@@ -772,5 +775,40 @@ mod tests {
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
         Ok(())
+    }
+
+    #[test]
+    fn bucket() {
+        let mut bucket = Bucket::new();
+        assert!(bucket.get::<String>("id").is_none());
+        assert!(bucket.insert("id", "1".to_string()).is_none());
+        let id: i32 = bucket.get::<String>("id").unwrap().parse().unwrap();
+        assert_eq!(1, id);
+        assert_eq!(
+            1,
+            bucket
+                .insert("id", "2".to_string())
+                .unwrap()
+                .parse::<i32>()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn variable() {
+        use std::sync::Arc;
+        assert_eq!(
+            1,
+            Variable::new("id", Arc::new("1".to_string()))
+                .parse::<i32>()
+                .unwrap()
+        );
+        let result = Variable::new("id", Arc::new("x".to_string())).parse::<usize>();
+        assert!(result.is_err());
+        let status = result.unwrap_err();
+        assert_eq!(StatusCode::BAD_REQUEST, status.status_code);
+        assert!(status
+            .message
+            .ends_with("type of variable `id` should be usize"));
     }
 }

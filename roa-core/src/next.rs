@@ -13,31 +13,30 @@ use crate::ResultFuture;
 /// use async_std::task::spawn;
 /// use http::StatusCode;
 ///
-/// struct Symbol;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let (addr, server) = App::new(())
 ///         .gate_fn(|mut ctx, next| async move {
-///             ctx.store::<Symbol>("id", "1".to_string()).await;
+///             ctx.store("id", "1".to_string()).await;
 ///             next().await?;
-///             assert_eq!("5", ctx.load::<Symbol>("id").await.unwrap().as_ref());
+///             assert_eq!("5", &*ctx.load::<String>("id").await.unwrap());
 ///             Ok(())
 ///         })
 ///         .gate_fn(|mut ctx, next| async move {
-///             assert_eq!("1", ctx.load::<Symbol>("id").await.unwrap().as_ref());
-///             ctx.store::<Symbol>("id", "2".to_string()).await;
+///             assert_eq!("1", &*ctx.load::<String>("id").await.unwrap());
+///             ctx.store("id", "2".to_string()).await;
 ///             next().await?;
-///             assert_eq!("4", ctx.load::<Symbol>("id").await.unwrap().as_ref());
-///             ctx.store::<Symbol>("id", "5".to_string()).await;
+///             assert_eq!("4", &*ctx.load::<String>("id").await.unwrap());
+///             ctx.store("id", "5".to_string()).await;
 ///             Ok(())
 ///         })
 ///         .gate_fn(|mut ctx, next| async move {
-///             assert_eq!("2", ctx.load::<Symbol>("id").await.unwrap().as_ref());
-///             ctx.store::<Symbol>("id", "3".to_string()).await;
+///             assert_eq!("2", &*ctx.load::<String>("id").await.unwrap());
+///             ctx.store("id", "3".to_string()).await;
 ///             next().await?; // next is none; do nothing
-///             assert_eq!("3", ctx.load::<Symbol>("id").await.unwrap().as_ref());
-///             ctx.store::<Symbol>("id", "4".to_string()).await;
+///             assert_eq!("3", &*ctx.load::<String>("id").await.unwrap());
+///             ctx.store("id", "4".to_string()).await;
 ///             Ok(())
 ///         })
 ///         .run_local()?;

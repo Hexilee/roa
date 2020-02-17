@@ -186,7 +186,7 @@ pub use app::{AddrIncoming, App};
 pub use body::{Body, Callback as BodyCallback};
 
 #[doc(inline)]
-pub use context::{Bucket, Context, Variable};
+pub use context::{Context, Variable};
 
 #[doc(inline)]
 pub use err::{Error, ErrorKind, Result, ResultFuture};
