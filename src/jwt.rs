@@ -77,7 +77,7 @@ use std::sync::Arc;
 
 const INVALID_TOKEN: &str = r#"Bearer realm="<jwt>", error="invalid_token""#;
 
-struct JwtSymbol;
+struct JwtScope;
 
 /// A context extension.
 /// This extension must be used in downstream of middleware `guard` or `guard_by`,
@@ -128,7 +128,7 @@ pub fn guard_by<S: State>(
     join(
         Arc::new(catch_www_authenticate),
         JwtGuard {
-            secret: secret.to_string(),
+            secret: Arc::new(secret.to_string()),
             validation,
         },
     )
@@ -148,7 +148,7 @@ async fn catch_www_authenticate<S: State>(mut ctx: Context<S>, next: Next) -> Re
 }
 
 struct JwtGuard {
-    secret: String,
+    secret: Arc<String>,
     validation: Validation,
 }
 
@@ -181,9 +181,9 @@ where
     C: 'static + DeserializeOwned + Send,
 {
     async fn claims(&self) -> Result<C> {
-        let token = self.load::<JwtSymbol>("token").await;
+        let token = self.load_scoped::<JwtScope, String>("token").await;
         match token {
-            Some(token) => dangerous_unsafe_decode(token.as_ref())
+            Some(token) => dangerous_unsafe_decode(&*token)
                 .map(|data| data.claims)
                 .map_err(|err| {
                     Error::new(
@@ -200,8 +200,8 @@ where
     }
 
     async fn verify(&self, validation: &Validation) -> Result<C> {
-        let secret = self.load::<JwtSymbol>("secret").await;
-        let token = self.load::<JwtSymbol>("token").await;
+        let secret = self.load_scoped::<JwtScope, Arc<String>>("secret").await;
+        let token = self.load_scoped::<JwtScope, String>("token").await;
         match (secret, token) {
             (Some(secret), Some(token)) => decode(&token, secret.as_bytes(), validation)
                 .map(|data| data.claims)
@@ -217,8 +217,9 @@ impl<S: State> Middleware<S> for JwtGuard {
         let token = try_get_token(&ctx).await?;
         decode::<Value>(&token, self.secret.as_bytes(), &self.validation)
             .map_err(unauthorized)?;
-        ctx.store::<JwtSymbol>("secret", self.secret.clone()).await;
-        ctx.store::<JwtSymbol>("token", token).await;
+        ctx.store_scoped(JwtScope, "secret", self.secret.clone())
+            .await;
+        ctx.store_scoped(JwtScope, "token", token).await;
         next().await
     }
 }

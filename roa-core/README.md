@@ -111,8 +111,8 @@ App has an error_handler to handle `Error` thrown by the top middleware.
 This is the error_handler:
 
 ```rust
-use roa_core::{Context, Error, Result, Model, ErrorKind};
-pub async fn error_handler<M: Model>(mut context: Context<M>, err: Error) -> Result {
+use roa_core::{Context, Error, Result, State, ErrorKind};
+pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
     context.resp_mut().await.status = err.status_code;
     if err.expose {
         context.resp_mut().await.write_str(&err.message);

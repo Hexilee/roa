@@ -43,12 +43,12 @@
 
 #### Next step
 
-- Juniper integration.
-- Better context storage.
-- ORM integration.
-- Streaming multipart form support.
-- Websocket support.
-- HTTPS support.
+- [ ] Juniper integration.
+- [x] Better context storage.
+- [ ] ORM integration.
+- [ ] Streaming multipart form support.
+- [ ] Websocket support.
+- [ ] HTTPS support.
 
 #### Get start
 

@@ -13,7 +13,7 @@
 //!     let (addr, server) = App::new(())
 //!         .gate(query_parser)
 //!         .end(|ctx| async move {
-//!             assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
+//!             assert_eq!("Hexilee", &*ctx.must_query("name").await?);
 //!             Ok(())
 //!         })
 //!         .run_local()?;
@@ -29,8 +29,8 @@ use crate::core::{
 };
 use url::form_urlencoded::parse;
 
-/// A unique symbol to store and load variables in Context::storage.
-struct QuerySymbol;
+/// A scope to store and load variables in Context::storage.
+struct QueryScope;
 
 /// A context extension.
 /// This extension must be used in downstream of middleware `query_parser`,
@@ -49,7 +49,7 @@ struct QuerySymbol;
 ///     let (addr, server) = App::new(())
 ///         .gate(query_parser)
 ///         .end( |ctx| async move {
-///             assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
+///             assert_eq!("Hexilee", &*ctx.must_query("name").await?);
 ///             Ok(())
 ///         })
 ///         .run_local()?;
@@ -86,7 +86,7 @@ pub trait Query {
     ///     let (addr, server) = App::new(())
     ///         .gate(query_parser)
     ///         .end( |ctx| async move {
-    ///             assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
+    ///             assert_eq!("Hexilee", &*ctx.must_query("name").await?);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -96,7 +96,7 @@ pub trait Query {
     ///     Ok(())
     /// }
     /// ```
-    async fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a>>;
+    async fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>>;
 
     /// Query a variable, return `None` if it not exists.
     /// ### Example
@@ -122,7 +122,7 @@ pub trait Query {
     ///     Ok(())
     /// }
     /// ```
-    async fn query<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
+    async fn query<'a>(&self, name: &'a str) -> Option<Variable<'a, String>>;
 }
 
 /// A middleware to parse query.
@@ -130,14 +130,14 @@ pub async fn query_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let uri = ctx.uri().await;
     let query_string = uri.query().unwrap_or("");
     for (key, value) in parse(query_string.as_bytes()) {
-        ctx.store::<QuerySymbol>(&key, value.to_string()).await;
+        ctx.store_scoped(QueryScope, &key, value.to_string()).await;
     }
     next().await
 }
 
 #[async_trait]
 impl<S: State> Query for Context<S> {
-    async fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
+    async fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.query(name).await.ok_or_else(|| {
             Error::new(
                 StatusCode::BAD_REQUEST,
@@ -146,8 +146,8 @@ impl<S: State> Query for Context<S> {
             )
         })
     }
-    async fn query<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
-        self.load::<QuerySymbol>(name).await
+    async fn query<'a>(&self, name: &'a str) -> Option<Variable<'a, String>> {
+        self.load_scoped::<QueryScope, String>(name).await
     }
 }
 
@@ -175,7 +175,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(query_parser)
             .end(|ctx| async move {
-                assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
+                assert_eq!("Hexilee", &*ctx.must_query("name").await?);
                 Ok(())
             })
             .run_local()?;
@@ -217,8 +217,8 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(query_parser)
             .end(|ctx| async move {
-                assert_eq!("Hexilee", ctx.must_query("name").await?.as_ref());
-                assert_eq!("rust", ctx.must_query("lang").await?.as_ref());
+                assert_eq!("Hexilee", &*ctx.must_query("name").await?);
+                assert_eq!("rust", &*ctx.must_query("lang").await?);
                 Ok(())
             })
             .run_local()?;

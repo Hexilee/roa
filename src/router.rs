@@ -60,8 +60,8 @@ const ALL_METHODS: [Method; 9] = [
     Method::CONNECT,
 ];
 
-/// A unique symbol to store and load variables in Context::storage.
-struct RouterSymbol;
+/// A scope to store and load variables in Context::storage.
+struct RouterScope;
 
 /// A context extension.
 /// This extension must be used in downstream of middleware `RouteEndpoint`,
@@ -96,7 +96,7 @@ struct RouterSymbol;
 #[async_trait]
 pub trait RouterParam {
     /// Must get a router parameter, throw 500 INTERNAL SERVER ERROR if it not exists.
-    async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a>>;
+    async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>>;
 
     /// Try to get a router parameter, return `None` if it not exists.
     /// ### Example
@@ -124,7 +124,7 @@ pub trait RouterParam {
     ///
     ///
     /// ```
-    async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a>>;
+    async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a, String>>;
 }
 
 /// A builder of `RouteEndpoint`.
@@ -431,7 +431,7 @@ impl<S: State> RouteTable<S> {
         for (regexp_path, handler) in self.dynamic_route.iter() {
             if let Some(cap) = regexp_path.re.captures(&path) {
                 for var in regexp_path.vars.iter() {
-                    ctx.store::<RouterSymbol>(var, cap[var.as_str()].to_string())
+                    ctx.store_scoped(RouterScope, var, cap[var.as_str()].to_string())
                         .await;
                 }
                 return handler.clone().end(ctx).await;
@@ -456,7 +456,7 @@ impl<S: State> Middleware<S> for RouteEndpoint<S> {
 
 #[async_trait]
 impl<S: State> RouterParam for Context<S> {
-    async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a>> {
+    async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.param(name).await.ok_or_else(|| {
             Error::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -465,8 +465,8 @@ impl<S: State> RouterParam for Context<S> {
             )
         })
     }
-    async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a>> {
-        self.load::<RouterSymbol>(name).await
+    async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a, String>> {
+        self.load_scoped::<RouterScope, String>(name).await
     }
 }
 
@@ -481,15 +481,14 @@ mod tests {
 
     #[tokio::test]
     async fn gate() -> Result<(), Box<dyn std::error::Error>> {
-        struct TestSymbol;
         let mut router = Router::<()>::new();
         router
             .gate_fn(|mut ctx, next| async move {
-                ctx.store::<TestSymbol>("id", "0".to_string()).await;
+                ctx.store("id", "0".to_string()).await;
                 next().await
             })
             .get("/", |ctx| async move {
-                let id: u64 = ctx.load::<TestSymbol>("id").await.unwrap().parse()?;
+                let id: u64 = ctx.load::<String>("id").await.unwrap().parse()?;
                 assert_eq!(0, id);
                 Ok(())
             });
@@ -502,15 +501,14 @@ mod tests {
 
     #[tokio::test]
     async fn route() -> Result<(), Box<dyn std::error::Error>> {
-        struct TestSymbol;
         let mut router = Router::<()>::new();
         let mut user_router = Router::<()>::new();
         router.gate_fn(|mut ctx, next| async move {
-            ctx.store::<TestSymbol>("id", "0".to_string()).await;
+            ctx.store("id", "0".to_string()).await;
             next().await
         });
         user_router.get("/", |ctx| async move {
-            let id: u64 = ctx.load::<TestSymbol>("id").await.unwrap().parse()?;
+            let id: u64 = ctx.load::<String>("id").await.unwrap().parse()?;
             assert_eq!(0, id);
             Ok(())
         });
