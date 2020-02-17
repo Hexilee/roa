@@ -4,7 +4,6 @@ use async_std::fs::File;
 use async_std::io;
 use log::info;
 use roa::core::App;
-use roa::preload::*;
 use roa::router::Router;
 use std::error::Error as StdError;
 
