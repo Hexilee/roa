@@ -100,6 +100,11 @@ name = "restful-api"
 path = "examples/restful-api.rs"
 required-features = ["body", "router"]
 
+[[example]]
+name = "file-upload"
+path = "examples/file-upload.rs"
+required-features = ["router"]
+
 [[test]]
 name = "serve-file"
 path = "integration-tests/serve-file.rs"
