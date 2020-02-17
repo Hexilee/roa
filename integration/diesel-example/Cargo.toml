@@ -10,3 +10,7 @@ edition = "2018"
 diesel = { version = "1.4", features = ["extras", "sqlite"] }
 roa = { path = "../..", version = "0.5.0-alpha" }
 roa-diesel = { path = "../../roa-diesel", version = "0.5.0-alpha" }
+async-std = { version = "1.4", features = ["attributes"] }
+log = "0.4"
+dotenv = "0.15.0"
+serde = { version = "1", features = ["derive"] }

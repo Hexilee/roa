@@ -1,5 +1,3 @@
-// Create assets/upload directory before running this example.
-
 use async_std::fs::File;
 use async_std::io;
 use log::info;

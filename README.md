@@ -63,7 +63,7 @@ async-std = { version = "1.4", features = ["attributes"] }
 ```
 
 ```rust
-// main.rs
+lib
 
 use roa::core::App;
 use roa::preload::*;

@@ -7,7 +7,7 @@ use diesel::r2d2::{self, ConnectionManager};
 use diesel::result::{Error as DieselError, OptionalExtension};
 use roa_core::{async_trait, Error, Result, StatusCode};
 
-type PooledConnection<Conn> = r2d2::PooledConnection<ConnectionManager<Conn>>;
+pub type WrapConnection<Conn> = r2d2::PooledConnection<ConnectionManager<Conn>>;
 
 #[async_trait]
 pub trait AsyncQueryDsl<Conn: 'static + Connection> {
@@ -19,7 +19,7 @@ pub trait AsyncQueryDsl<Conn: 'static + Connection> {
     ///
     /// When asking the database to return data from a query, [`load`](#method.load) should
     /// probably be used instead.
-    async fn execute_async<M>(self, conn: PooledConnection<Conn>) -> Result<usize>
+    async fn execute_async(self, conn: WrapConnection<Conn>) -> Result<usize>
     where
         Self: ExecuteDsl<Conn>;
     /// Executes the given query, returning a `Vec` with the returned rows.
@@ -40,7 +40,7 @@ pub trait AsyncQueryDsl<Conn: 'static + Connection> {
     /// [`execute`]: fn.execute.html
     /// [`sql_query`]: ../fn.sql_query.html
     ///
-    async fn load_async<U>(self, conn: PooledConnection<Conn>) -> Result<Vec<U>>
+    async fn load_async<U>(self, conn: WrapConnection<Conn>) -> Result<Vec<U>>
     where
         U: 'static + Send,
         Self: LoadQuery<Conn, U>;
@@ -54,10 +54,7 @@ pub trait AsyncQueryDsl<Conn: 'static + Connection> {
     /// When this method is called on an insert, update, or delete statement,
     /// it will implicitly add a `RETURNING *` to the query,
     /// unless a returning clause was already specified.
-    async fn get_result_async<U>(
-        self,
-        conn: PooledConnection<Conn>,
-    ) -> Result<Option<U>>
+    async fn get_result_async<U>(self, conn: WrapConnection<Conn>) -> Result<Option<U>>
     where
         U: 'static + Send,
         Self: LoadQuery<Conn, U>;
@@ -68,7 +65,7 @@ pub trait AsyncQueryDsl<Conn: 'static + Connection> {
     /// sense for insert, update, and delete statements.
     ///
     /// [`load`]: #method.load
-    async fn get_results_async<U>(self, conn: PooledConnection<Conn>) -> Result<Vec<U>>
+    async fn get_results_async<U>(self, conn: WrapConnection<Conn>) -> Result<Vec<U>>
     where
         U: 'static + Send,
         Self: LoadQuery<Conn, U>;
@@ -81,7 +78,7 @@ pub trait AsyncQueryDsl<Conn: 'static + Connection> {
     /// returned. If the query truly is optional, you can call `.optional()` on
     /// the result of this to get a `Result<Option<U>>`.
     ///
-    async fn first_async<U>(self, conn: PooledConnection<Conn>) -> Result<Option<U>>
+    async fn first_async<U>(self, conn: WrapConnection<Conn>) -> Result<Option<U>>
     where
         U: 'static + Send,
         Self: LimitDsl,
@@ -94,7 +91,7 @@ where
     T: 'static + Send + RunQueryDsl<Conn>,
     Conn: 'static + Connection,
 {
-    async fn execute_async<M>(self, conn: PooledConnection<Conn>) -> Result<usize>
+    async fn execute_async(self, conn: WrapConnection<Conn>) -> Result<usize>
     where
         Self: ExecuteDsl<Conn>,
     {
@@ -121,7 +118,7 @@ where
     /// [`execute`]: fn.execute.html
     /// [`sql_query`]: ../fn.sql_query.html
     ///
-    async fn load_async<U>(self, conn: PooledConnection<Conn>) -> Result<Vec<U>>
+    async fn load_async<U>(self, conn: WrapConnection<Conn>) -> Result<Vec<U>>
     where
         U: 'static + Send,
         Self: LoadQuery<Conn, U>,
@@ -142,7 +139,7 @@ where
     /// When this method is called on an insert, update, or delete statement,
     /// it will implicitly add a `RETURNING *` to the query,
     /// unless a returning clause was already specified.
-    async fn get_result_async<U>(self, conn: PooledConnection<Conn>) -> Result<Option<U>>
+    async fn get_result_async<U>(self, conn: WrapConnection<Conn>) -> Result<Option<U>>
     where
         U: 'static + Send,
         Self: LoadQuery<Conn, U>,
@@ -159,7 +156,7 @@ where
     /// sense for insert, update, and delete statements.
     ///
     /// [`load`]: #method.load
-    async fn get_results_async<U>(self, conn: PooledConnection<Conn>) -> Result<Vec<U>>
+    async fn get_results_async<U>(self, conn: WrapConnection<Conn>) -> Result<Vec<U>>
     where
         U: 'static + Send,
         Self: LoadQuery<Conn, U>,
@@ -175,7 +172,7 @@ where
     /// returned. If the query truly is optional, you can call `.optional()` on
     /// the result of this to get a `Result<Option<U>>`.
     ///
-    async fn first_async<U>(self, conn: PooledConnection<Conn>) -> Result<Option<U>>
+    async fn first_async<U>(self, conn: WrapConnection<Conn>) -> Result<Option<U>>
     where
         U: 'static + Send,
         Self: LimitDsl,
