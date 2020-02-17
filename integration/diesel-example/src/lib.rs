@@ -6,17 +6,14 @@ mod endpoints;
 mod models;
 mod schema;
 
-use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
-use diesel::RunQueryDsl;
+use roa_diesel::{AsyncQuery, BuilderExt, Pool};
 
+pub type State = Pool<SqliteConnection>;
 pub use std::error::Error as StdError;
 
-type State = Pool<ConnectionManager<SqliteConnection>>;
-
-pub fn create_pool() -> Result<State, Box<dyn StdError>> {
-    let manager = ConnectionManager::<SqliteConnection>::new(":memory:");
-    let pool = Pool::builder().build(manager)?;
+pub async fn create_pool() -> Result<State, Box<dyn StdError>> {
+    let pool = Pool::builder().build_on(":memory:")?;
     diesel::sql_query(
         r"
         CREATE TABLE posts (
@@ -27,7 +24,8 @@ pub fn create_pool() -> Result<State, Box<dyn StdError>> {
         )
     ",
     )
-    .execute(&*pool.get()?)?;
+    .execute_async(pool.get().await?)
+    .await?;
     Ok(pool)
 }
 
