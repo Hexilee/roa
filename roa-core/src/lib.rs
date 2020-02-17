@@ -114,8 +114,8 @@
 //! This is the error_handler:
 //!
 //! ```rust
-//! use roa_core::{Context, Error, Result, Model, ErrorKind};
-//! pub async fn error_handler<M: Model>(mut context: Context<M>, err: Error) -> Result {
+//! use roa_core::{Context, Error, Result, ErrorKind, State};
+//! pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
 //!     context.resp_mut().await.status = err.status_code;
 //!     if err.expose {
 //!         context.resp_mut().await.write_str(&err.message);
@@ -173,10 +173,10 @@ mod context;
 mod err;
 mod group;
 mod middleware;
-mod model;
 mod next;
 mod request;
 mod response;
+mod state;
 pub(crate) use app::AddrStream;
 
 #[doc(inline)]
@@ -197,9 +197,8 @@ pub use middleware::Middleware;
 #[doc(inline)]
 pub use group::{join, join_all};
 
-#[doc(inline)]
-pub use model::{Model, State};
 pub(crate) use next::last;
+pub use state::State;
 
 #[doc(inline)]
 pub use next::Next;

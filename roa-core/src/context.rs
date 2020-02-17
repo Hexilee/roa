@@ -270,39 +270,20 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, Model};
+    /// use roa_core::App;
     /// use log::info;
     /// use async_std::task::spawn;
     /// use http::StatusCode;
     ///
-    /// struct AppModel {
-    ///     default_id: u64,
-    /// }
-    ///
-    /// struct AppState {
+    /// #[derive(Clone)]
+    /// struct State {
     ///     id: u64,
     /// }
     ///
-    /// impl AppModel {
-    ///     fn new() -> Self {
-    ///         Self {
-    ///             default_id: 0,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// impl Model for AppModel {
-    ///     type State = AppState;
-    ///     fn new_state(&self) -> Self::State {
-    ///         AppState {
-    ///             id: self.default_id,
-    ///         }
-    ///     }
-    /// }
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(AppModel::new())
+    ///     let (addr, server) = App::new(State { id: 0 })
     ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.state_mut().await.id = 1;
     ///             next().await
@@ -393,39 +374,20 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, Model};
+    /// use roa_core::App;
     /// use log::info;
     /// use async_std::task::spawn;
     /// use http::StatusCode;
     ///
-    /// struct AppModel {
-    ///     default_id: u64,
-    /// }
-    ///
-    /// struct AppState {
+    /// #[derive(Clone)]
+    /// struct State {
     ///     id: u64,
     /// }
     ///
-    /// impl AppModel {
-    ///     fn new() -> Self {
-    ///         Self {
-    ///             default_id: 0,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// impl Model for AppModel {
-    ///     type State = AppState;
-    ///     fn new_state(&self) -> Self::State {
-    ///         AppState {
-    ///             id: self.default_id,
-    ///         }
-    ///     }
-    /// }
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(AppModel::new())
+    ///     let (addr, server) = App::new(State { id: 0 })
     ///         .gate_fn(|mut ctx, next| async move {
     ///             ctx.state_mut().await.id = 1;
     ///             next().await
@@ -773,7 +735,7 @@ impl<S> Clone for Context<S> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{App, Context, Model};
+    use crate::{App, Context};
     use async_std::task::spawn;
     use http::{StatusCode, Version};
 
@@ -790,26 +752,19 @@ mod tests {
         reqwest::get(&format!("http://{}", addr)).await?;
         Ok(())
     }
-
-    struct AppModel;
-    struct AppState {
+    #[derive(Clone)]
+    struct State {
         data: usize,
-    }
-    impl Model for AppModel {
-        type State = AppState;
-        fn new_state(&self) -> Self::State {
-            AppState { data: 0 }
-        }
     }
 
     #[tokio::test]
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(AppModel {})
+        let (addr, server) = App::new(State { data: 1 })
             .gate_fn(|mut ctx, next| async move {
                 ctx.state_mut().await.data = 1;
                 next().await
             })
-            .end(|ctx: Context<AppState>| async move {
+            .end(|ctx: Context<State>| async move {
                 assert_eq!(1, ctx.state().await.data);
                 Ok(())
             })

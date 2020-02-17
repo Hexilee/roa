@@ -3,7 +3,7 @@ mod executor;
 
 mod tcp;
 use crate::{
-    join, join_all, Context, Error, Middleware, Model, Next, Request, Response, Result,
+    join, join_all, Context, Error, Middleware, Next, Request, Response, Result, State,
 };
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
@@ -47,44 +47,30 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// The only one type implemented `Model` by this crate is `()`, you can implement your custom Model if neccassary.
 ///
 /// ```rust,no_run
-/// use roa_core::{App, Model};
+/// use roa_core::App;
 /// use log::info;
 /// use futures::lock::Mutex;
 /// use std::sync::Arc;
 /// use std::collections::HashMap;
 ///
-/// struct AppModel {
-///     default_id: u64,
-///     database: Arc<Mutex<HashMap<u64, String>>>,
-/// }
-///
-/// struct AppState {
+/// #[derive(Clone)]
+/// struct State {
 ///     id: u64,
 ///     database: Arc<Mutex<HashMap<u64, String>>>,
 /// }
 ///
-/// impl AppModel {
+/// impl State {
 ///     fn new() -> Self {
 ///         Self {
-///             default_id: 0,
+///             id: 0,
 ///             database: Arc::new(Mutex::new(HashMap::new()))
-///         }
-///     }
-/// }
-///
-/// impl Model for AppModel {
-///     type State = AppState;
-///     fn new_state(&self) -> Self::State {
-///         AppState {
-///             id: self.default_id,
-///             database: self.database.clone(),
 ///         }
 ///     }
 /// }
 ///
 /// #[async_std::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let server = App::new(AppModel::new())
+///     let server = App::new(State::new())
 ///         .gate_fn(|mut ctx, next| async move {
 ///             ctx.state_mut().await.id = 1;
 ///             next().await
@@ -130,29 +116,29 @@ pub use tcp::{AddrIncoming, AddrStream};
 ///     Ok(())
 /// }
 /// ```
-pub struct App<M: Model> {
-    middleware: Arc<dyn Middleware<M::State>>,
-    pub(crate) model: Arc<M>,
+pub struct App<S> {
+    middleware: Arc<dyn Middleware<S>>,
+    pub(crate) state: S,
 }
 
 /// An implementation of hyper HttpService.
-pub struct HttpService<M: Model> {
-    middleware: Arc<dyn Middleware<M::State>>,
+pub struct HttpService<S> {
+    middleware: Arc<dyn Middleware<S>>,
     stream: AddrStream,
-    pub(crate) model: Arc<M>,
+    pub(crate) state: S,
 }
 
-impl<M: Model> App<M> {
+impl<S: State> App<S> {
     /// Construct an application from a model.
-    pub fn new(model: M) -> Self {
+    pub fn new(state: S) -> Self {
         Self {
             middleware: Arc::new(join_all(Vec::new())),
-            model: Arc::new(model),
+            state,
         }
     }
 
     /// Use a middleware.
-    pub fn gate(&mut self, middleware: impl Middleware<M::State>) -> &mut Self {
+    pub fn gate(&mut self, middleware: impl Middleware<S>) -> &mut Self {
         self.middleware = Arc::new(join(self.middleware.clone(), middleware));
         self
     }
@@ -178,7 +164,7 @@ impl<M: Model> App<M> {
     /// ```
     pub fn gate_fn<F>(
         &mut self,
-        middleware: impl 'static + Sync + Send + Fn(Context<M::State>, Next) -> F,
+        middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
     ) -> &mut Self
     where
         F: 'static + Send + Future<Output = Result>,
@@ -227,7 +213,7 @@ impl<M: Model> App<M> {
     /// use roa_core::App;
     /// App::new(()).end(|_ctx| async { Ok(()) });
     /// ```
-    pub fn end<F>(&mut self, endpoint: fn(Context<M::State>) -> F) -> &mut Self
+    pub fn end<F>(&mut self, endpoint: fn(Context<S>) -> F) -> &mut Self
     where
         F: 'static + Send + Future<Output = Result>,
     {
@@ -245,15 +231,15 @@ use hyper::Server as HyperServer;
 use std::net::{SocketAddr, ToSocketAddrs};
 
 #[cfg(feature = "runtime")]
-type Server<M> = HyperServer<AddrIncoming, App<M>, Executor>;
+type Server<S> = HyperServer<AddrIncoming, App<S>, Executor>;
 
 #[cfg(feature = "runtime")]
-impl<M: Model> App<M> {
+impl<S: State> App<S> {
     /// Listen on a socket addr, return a server and the real addr it binds.
     fn listen_on(
         &self,
         addr: impl ToSocketAddrs,
-    ) -> std::io::Result<(SocketAddr, Server<M>)> {
+    ) -> std::io::Result<(SocketAddr, Server<S>)> {
         let incoming = AddrIncoming::bind(addr)?;
         let local_addr = incoming.local_addr();
         let server = HyperServer::builder(incoming)
@@ -267,14 +253,14 @@ impl<M: Model> App<M> {
         &self,
         addr: impl ToSocketAddrs,
         callback: impl Fn(SocketAddr),
-    ) -> std::io::Result<Server<M>> {
+    ) -> std::io::Result<Server<S>> {
         let (addr, server) = self.listen_on(addr)?;
         callback(addr);
         Ok(server)
     }
 
     /// Listen on an unused port of 0.0.0.0, return a server and the real addr it binds.
-    pub fn run(&self) -> std::io::Result<(SocketAddr, Server<M>)> {
+    pub fn run(&self) -> std::io::Result<(SocketAddr, Server<S>)> {
         self.listen_on("0.0.0.0:0")
     }
 
@@ -302,7 +288,7 @@ impl<M: Model> App<M> {
     ///     Ok(())
     /// }
     /// ```
-    pub fn run_local(&self) -> std::io::Result<(SocketAddr, Server<M>)> {
+    pub fn run_local(&self) -> std::io::Result<(SocketAddr, Server<S>)> {
         self.listen_on("127.0.0.1:0")
     }
 }
@@ -316,28 +302,28 @@ macro_rules! impl_poll_ready {
     };
 }
 
-type AppFuture<M> =
-    Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<M>>> + Send>>;
+type AppFuture<S> =
+    Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<S>>> + Send>>;
 
-impl<M: Model> Service<&AddrStream> for App<M> {
-    type Response = HttpService<M>;
+impl<S: State> Service<&AddrStream> for App<S> {
+    type Response = HttpService<S>;
     type Error = std::io::Error;
-    type Future = AppFuture<M>;
+    type Future = AppFuture<S>;
     impl_poll_ready!();
 
     #[inline]
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
         let middleware = self.middleware.clone();
         let stream = stream.clone();
-        let model = self.model.clone();
-        Box::pin(async move { Ok(HttpService::new(middleware, stream, model)) })
+        let state = self.state.clone();
+        Box::pin(async move { Ok(HttpService::new(middleware, stream, state)) })
     }
 }
 
 type HttpFuture =
     Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>>> + Send>>;
 
-impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
+impl<S: State> Service<HttpRequest<HyperBody>> for HttpService<S> {
     type Response = HttpResponse<HyperBody>;
     type Error = Error;
     type Future = HttpFuture;
@@ -350,22 +336,26 @@ impl<M: Model> Service<HttpRequest<HyperBody>> for HttpService<M> {
     }
 }
 
-impl<M: Model> HttpService<M> {
+impl<S: State> HttpService<S> {
     pub fn new(
-        middleware: Arc<dyn Middleware<M::State>>,
+        middleware: Arc<dyn Middleware<S>>,
         stream: AddrStream,
-        model: Arc<M>,
+        state: S,
     ) -> Self {
         Self {
             middleware,
             stream,
-            model,
+            state,
         }
     }
 
-    pub async fn serve(&self, req: Request) -> Result<Response> {
-        let mut context = Context::new(req, self.model.new_state(), self.stream.clone());
-        let middleware = self.middleware.clone();
+    pub async fn serve(self, req: Request) -> Result<Response> {
+        let Self {
+            middleware,
+            stream,
+            state,
+        } = self;
+        let mut context = Context::new(req, state, stream);
         if let Err(err) = middleware.end(context.clone()).await {
             context.resp_mut().await.status = err.status_code;
             if err.expose {
@@ -380,20 +370,20 @@ impl<M: Model> HttpService<M> {
     }
 }
 
-impl<M: Model> Clone for App<M> {
+impl<S: State> Clone for App<S> {
     fn clone(&self) -> Self {
         Self {
             middleware: self.middleware.clone(),
-            model: self.model.clone(),
+            state: self.state.clone(),
         }
     }
 }
 
-impl<M: Model> Clone for HttpService<M> {
+impl<S: State> Clone for HttpService<S> {
     fn clone(&self) -> Self {
         Self {
             middleware: self.middleware.clone(),
-            model: self.model.clone(),
+            state: self.state.clone(),
             stream: self.stream.clone(),
         }
     }
