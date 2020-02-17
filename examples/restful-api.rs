@@ -1,5 +1,5 @@
 use async_std::sync::{Arc, RwLock};
-use roa::core::{throw, App, Context, Model, Result, StatusCode};
+use roa::core::{throw, App, Context, Result, StatusCode};
 use roa::preload::*;
 use roa::router::Router;
 use serde::{Deserialize, Serialize};
@@ -54,17 +54,6 @@ impl Database {
     }
 }
 
-struct AppModel {
-    db: Database,
-}
-
-impl Model for AppModel {
-    type State = Database;
-    fn new_state(&self) -> Self::State {
-        self.db.clone()
-    }
-}
-
 async fn create_user(mut ctx: Context<Database>) -> Result {
     let user: User = ctx.read().await?;
     let id = ctx.state().await.create(user).await;
@@ -94,9 +83,7 @@ async fn delete_user(mut ctx: Context<Database>) -> Result {
 
 #[async_std::main]
 async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
-    let mut app = App::new(AppModel {
-        db: Database::new(),
-    });
+    let mut app = App::new(Database::new());
     let mut router = Router::new();
     router
         .post("/", create_user)

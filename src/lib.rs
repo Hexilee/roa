@@ -130,8 +130,8 @@
 //! This is the error_handler:
 //!
 //! ```rust,no_run
-//! use roa_core::{Context, Error, Result, Model, ErrorKind};
-//! pub async fn error_handler<M: Model>(mut context: Context<M>, err: Error) -> Result {
+//! use roa_core::{Context, Error, Result, State, ErrorKind};
+//! pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
 //!     // set status code to err.status_code.
 //!     context.resp_mut().await.status = err.status_code;
 //!     if err.expose {

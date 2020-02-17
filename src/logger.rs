@@ -25,7 +25,7 @@
 //! }
 //! ```
 
-use crate::core::{Body, BodyCallback, Context, Model, Next, Result};
+use crate::core::{Body, BodyCallback, Context, Next, Result, State};
 use bytesize::ByteSize;
 use log::{error, info};
 use std::time::Instant;
@@ -34,7 +34,7 @@ use std::time::Instant;
 ///
 /// Based on crate `log`, the log level must be greater than `INFO` to log all information,
 /// and should be greater than `ERROR` when you need error information only.
-pub async fn logger<M: Model>(mut ctx: Context<M>, next: Next) -> Result {
+pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let start = Instant::now();
     let method = ctx.method().await;
     let uri = ctx.uri().await;
