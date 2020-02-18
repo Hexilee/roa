@@ -31,7 +31,7 @@ async fn find_post(
 }
 
 async fn create_post(mut ctx: Context<State>) -> Result {
-    let data: PostData = ctx.read().await?;
+    let data: PostData = ctx.read_json().await?;
     let conn = ctx.state().await.get().await?;
     let post = spawn(async move {
         conn.transaction::<Post, WrapError, _>(|| {
@@ -64,7 +64,7 @@ async fn update_post(mut ctx: Context<State>) -> Result {
         title,
         body,
         published,
-    } = ctx.read().await?;
+    } = ctx.read_json().await?;
 
     let conn = ctx.state().await.get().await?;
     match find_post(conn, id).await? {

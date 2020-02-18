@@ -65,6 +65,9 @@ slab = "0.4.2"
 multimap = "0.8.0"
 hyper = "0.13"
 chrono = "0.4"
+mime = "0.3"
+encoding = "0.2"
+askama = "0.9"
 
 [features]
 default = []
