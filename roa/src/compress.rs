@@ -23,7 +23,7 @@
 //!         .end(|mut ctx| async move {
 //!             // the size of assets/welcome.html is 236 bytes.
 //!             ctx.resp_mut().on_finish(|body| assert_eq!(236, body.consumed()));
-//!             ctx.write_file("assets/welcome.html").await
+//!             ctx.write_file("../assets/welcome.html").await
 //!         })
 //!         .run_local()?;
 //!     spawn(server);

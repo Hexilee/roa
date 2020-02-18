@@ -18,7 +18,7 @@
 //!         })
 //!         .run_local()?;
 //!     spawn(server);
-//!     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr))?;
+//!     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
 //!     assert_eq!(StatusCode::OK, resp.status());
 //!     Ok(())
 //! }
@@ -58,7 +58,7 @@ struct QueryScope;
 ///     // miss `query_parser`
 ///     let (addr, server) = App::new(())
 ///         .end( |ctx| async move {
-///             assert!(ctx.query("name").await.is_none());
+///             assert!(ctx.query("name").is_none());
 ///             Ok(())
 ///         })
 ///         .run_local()?;

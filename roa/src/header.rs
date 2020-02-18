@@ -39,7 +39,6 @@
 //! async fn get(mut ctx: Context<()>) -> Result {
 //!     println!("origin: {}", ctx.req().must_get(ORIGIN)?);
 //!     ctx.resp_mut()
-//!        .await
 //!        .insert(CONTENT_TYPE, "text/plain")?;
 //!     Ok(())
 //! }
