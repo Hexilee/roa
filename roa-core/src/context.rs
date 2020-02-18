@@ -9,7 +9,7 @@ use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -726,6 +726,20 @@ impl<S> Context<S> {
     /// This method is dangerous, it's reserved for special scene like websocket.
     pub fn raw_stream(&self) -> Arc<TcpStream> {
         self.inner().stream.stream()
+    }
+}
+
+impl<S> Deref for Context<S> {
+    type Target = S;
+
+    fn deref(&self) -> &Self::Target {
+        self.state()
+    }
+}
+
+impl<S> DerefMut for Context<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.state_mut()
     }
 }
 
