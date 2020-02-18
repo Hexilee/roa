@@ -88,7 +88,7 @@ mod help;
 use content_type::{Content, ContentType};
 use futures::{AsyncBufRead as BufRead, AsyncReadExt};
 use help::bug_report;
-use roa_core::{Context, Result, ResultFuture, State};
+use roa_core::{async_trait, Context, Result, State};
 
 #[cfg(feature = "json")]
 mod decode;
@@ -113,17 +113,18 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 /// A context extension to read/write body more simply.
+#[async_trait(?Send)]
 pub trait PowerBody: Content {
     /// read request body as Vec<u8>.
-    fn body_buf(&mut self) -> ResultFuture<Vec<u8>>;
+    async fn body_buf(&mut self) -> Result<Vec<u8>>;
 
     /// read request body as "application/json".
     #[cfg(feature = "json")]
-    fn read_json<B: DeserializeOwned>(&mut self) -> ResultFuture<B>;
+    async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B>;
 
     /// read request body as "application/x-www-form-urlencoded".
     #[cfg(feature = "urlencoded")]
-    fn read_form<B: DeserializeOwned>(&mut self) -> ResultFuture<B>;
+    async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B>;
 
     // read request body as "multipart/form-data"
     #[cfg(feature = "multipart")]
@@ -148,40 +149,33 @@ pub trait PowerBody: Content {
 
     /// write object to response body as extension name of file
     #[cfg(feature = "file")]
-    fn write_file<P: 'static + AsRef<Path> + Send>(&mut self, path: P) -> ResultFuture;
+    async fn write_file<P: 'static + AsRef<Path> + Send>(&mut self, path: P) -> Result;
 }
 
+#[async_trait(?Send)]
 impl<S: State> PowerBody for Context<S> {
-    fn body_buf(&mut self) -> ResultFuture<Vec<u8>> {
-        Box::pin(async move {
-            let mut data = Vec::new();
-            self.req_mut().read_to_end(&mut data).await?;
-            Ok(data)
-        })
+    async fn body_buf(&mut self) -> Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.req_mut().read_to_end(&mut data).await?;
+        Ok(data)
     }
 
     #[cfg(feature = "json")]
-    fn read_json<B: DeserializeOwned>(&mut self) -> ResultFuture<B> {
-        Box::pin(async move {
-            let content_type = self.content_type()?;
-            content_type.expect(mime::APPLICATION_JSON)?;
-            let data = self.body_buf().await?;
-            match content_type.charset() {
-                None | Some(mime::UTF_8) => json::from_bytes(&data),
-                Some(charset) => {
-                    json::from_str(&decode::decode(&data, charset.as_str())?)
-                }
-            }
-        })
+    async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B> {
+        let content_type = self.content_type()?;
+        content_type.expect(mime::APPLICATION_JSON)?;
+        let data = self.body_buf().await?;
+        match content_type.charset() {
+            None | Some(mime::UTF_8) => json::from_bytes(&data),
+            Some(charset) => json::from_str(&decode::decode(&data, charset.as_str())?),
+        }
     }
 
     #[cfg(feature = "urlencoded")]
-    fn read_form<B: DeserializeOwned>(&mut self) -> ResultFuture<B> {
-        Box::pin(async move {
-            self.content_type()?
-                .expect(mime::APPLICATION_WWW_FORM_URLENCODED)?;
-            urlencoded::from_bytes(&self.body_buf().await?)
-        })
+    async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B> {
+        self.content_type()?
+            .expect(mime::APPLICATION_WWW_FORM_URLENCODED)?;
+        urlencoded::from_bytes(&self.body_buf().await?)
     }
 
     #[cfg(feature = "multipart")]
@@ -232,8 +226,8 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "file")]
-    fn write_file<P: 'static + AsRef<Path> + Send>(&mut self, path: P) -> ResultFuture {
-        Box::pin(write_file(self, path))
+    async fn write_file<P: 'static + AsRef<Path> + Send>(&mut self, path: P) -> Result {
+        write_file(self, path).await
     }
 }
 
