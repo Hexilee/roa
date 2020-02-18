@@ -62,7 +62,7 @@ impl<S: State> Middleware<S> for Compress {
     fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Next {
         Box::pin(async move {
             next.await?;
-            let body: Body = std::mem::take(&mut *ctx.resp_mut().await);
+            let body = std::mem::take(&mut **ctx.resp_mut());
             let best_encoding = parse(&ctx.req().headers)
                 .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?;
             let content_encoding = match best_encoding {

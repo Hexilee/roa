@@ -21,12 +21,12 @@ pub struct WrapError(MultipartError);
 pub struct BodyStream<R: AsyncBufRead>(R);
 
 impl Multipart {
-    pub async fn new<S: State>(ctx: &mut Context<S>) -> Self {
+    pub fn new<S: State>(ctx: &mut Context<S>) -> Self {
         let mut map = HeaderMap::new();
-        if let Some(value) = ctx.header_value(CONTENT_TYPE).await {
+        if let Some(value) = ctx.header_value(CONTENT_TYPE) {
             map.insert(CONTENT_TYPE, value)
         }
-        let body = std::mem::take(&mut **ctx.req_mut().await);
+        let body = std::mem::take(&mut **ctx.req_mut());
         Multipart(ActixMultipart::new(&map, BodyStream(body)))
     }
 }
@@ -118,7 +118,3 @@ impl Display for WrapError {
 }
 
 impl std::error::Error for WrapError {}
-
-// DON'T SEND Field and Multipart to other thread!
-unsafe impl Send for Field {}
-unsafe impl Send for Multipart {}

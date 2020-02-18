@@ -1,6 +1,4 @@
-use crate::Result;
-use std::future::Future;
-use std::pin::Pin;
+use crate::ResultFuture;
 
 /// Type of the second parameter in a middleware.
 ///
@@ -86,7 +84,7 @@ use std::pin::Pin;
 /// }
 /// ```
 ///
-pub type Next<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>>>>;
+pub type Next = ResultFuture<'static, ()>;
 
 /// The last.
 pub fn last() -> Next {

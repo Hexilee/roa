@@ -189,7 +189,7 @@ pub use body::{Body, Callback as BodyCallback};
 pub use context::{Context, Variable};
 
 #[doc(inline)]
-pub use err::{Error, ErrorKind, Result};
+pub use err::{Error, ErrorKind, Result, ResultFuture};
 
 #[doc(inline)]
 pub use middleware::Middleware;

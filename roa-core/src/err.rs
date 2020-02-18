@@ -1,6 +1,11 @@
 pub use http::StatusCode;
 use std::fmt::{Display, Formatter};
+use std::future::Future;
+use std::pin::Pin;
 use std::result::Result as StdResult;
+
+/// Type alias for `Pin<Box<dyn 'a + Future<Output = Result<R>>>>`.
+pub type ResultFuture<'a, R = ()> = Pin<Box<dyn 'a + Future<Output = Result<R>>>>;
 
 /// Type alias for `StdResult<R, Error>`.
 pub type Result<R = ()> = StdResult<R, Error>;

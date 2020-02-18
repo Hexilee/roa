@@ -1,7 +1,7 @@
 use crate::help::bug_report;
 use mime::{Mime, Name};
 use roa_core::header::{HeaderValue, CONTENT_TYPE};
-use roa_core::{async_trait, throw, Context, Error, Result, State, StatusCode};
+use roa_core::{throw, Context, Error, Result, State, StatusCode};
 use std::str::FromStr;
 
 fn handle_content_type_error(err: impl ToString) -> Error {
@@ -12,15 +12,13 @@ fn handle_content_type_error(err: impl ToString) -> Error {
     )
 }
 
-#[async_trait]
 pub trait Content {
-    async fn content_type(&self) -> Result<ContentType>;
+    fn content_type(&self) -> Result<ContentType>;
 }
 
-#[async_trait]
 impl<S: State> Content for Context<S> {
-    async fn content_type(&self) -> Result<ContentType> {
-        let req = self.req().await;
+    fn content_type(&self) -> Result<ContentType> {
+        let req = self.req();
         let value = req.headers.get(CONTENT_TYPE).ok_or_else(|| {
             Error::new(StatusCode::BAD_REQUEST, "Header Content-Type not set", true)
         })?;
@@ -78,7 +76,6 @@ impl FromStr for ContentType {
 #[cfg(test)]
 mod test {
     use super::ContentType;
-    use std::str::FromStr;
     use test_case::test_case;
 
     #[test_case("application/json; charset=utf-8; FOO=BAR" => "application/json")]
