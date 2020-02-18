@@ -21,6 +21,7 @@ exclude = [".travis.yml", "*.sh"]
 members = [
     "roa-core",
     "roa-diesel",
+    "roa-multipart",
     "integration/diesel-example"
 ]
 
