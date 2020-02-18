@@ -46,9 +46,9 @@
 - [ ] Juniper integration.
 - [x] Better context storage.
 - [ ] Database integration.
-  - [ ] diesel
+  - [x] diesel
   - [ ] sled
-- [ ] Streaming multipart form support.
+- [x] Streaming multipart form support.
 - [ ] Websocket support.
 - [ ] HTTPS support.
 
