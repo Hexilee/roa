@@ -213,3 +213,5 @@ pub use http::{header, StatusCode};
 pub use hyper::rt::Executor;
 
 pub use hyper::Server;
+
+pub use async_trait::async_trait;

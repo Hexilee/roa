@@ -39,7 +39,7 @@ use crate::core::header::{
     ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_MAX_AGE,
     ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, ORIGIN, VARY,
 };
-use crate::core::{Context, Middleware, Next, State, StatusCode};
+use crate::core::{async_trait, Context, Middleware, Next, Result, State, StatusCode};
 use crate::preload::*;
 use async_std::sync::Arc;
 use http::Method;
@@ -147,75 +147,71 @@ impl Cors {
     }
 }
 
+#[async_trait(?Send)]
 impl<S: State> Middleware<S> for Cors {
-    fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Next {
-        Box::pin(async move {
-            // Always set Vary header
-            // https://github.com/rs/cors/issues/10
-            ctx.resp_mut().append(VARY, ORIGIN)?;
+    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
+        // Always set Vary header
+        // https://github.com/rs/cors/issues/10
+        ctx.resp_mut().append(VARY, ORIGIN)?;
 
-            if !self.if_continue(&ctx) {
-                return next.await;
-            }
+        if !self.if_continue(&ctx) {
+            return next.await;
+        }
 
-            // If Options::allow_origin is None, `Access-Control-Allow-Origin` will be set to `Origin`.
-            let allow_origin = match self.allow_origin {
-                Some(ref origin) => origin.clone(),
-                None => ctx.req().get(ORIGIN).expect(BUG_HELP)?.to_owned(),
-            };
+        // If Options::allow_origin is None, `Access-Control-Allow-Origin` will be set to `Origin`.
+        let allow_origin = match self.allow_origin {
+            Some(ref origin) => origin.clone(),
+            None => ctx.req().get(ORIGIN).expect(BUG_HELP)?.to_owned(),
+        };
 
-            // Set "Access-Control-Allow-Origin"
+        // Set "Access-Control-Allow-Origin"
+        ctx.resp_mut()
+            .insert(ACCESS_CONTROL_ALLOW_ORIGIN, allow_origin)?;
+
+        // Try to set "Access-Control-Allow-Credentials"
+        if self.credentials {
             ctx.resp_mut()
-                .insert(ACCESS_CONTROL_ALLOW_ORIGIN, allow_origin)?;
+                .insert(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true")?;
+        }
 
-            // Try to set "Access-Control-Allow-Credentials"
-            if self.credentials {
+        if ctx.method() != Method::OPTIONS {
+            // Simple Request
+            // Set "Access-Control-Expose-Headers"
+            if !self.expose_headers.is_empty() {
                 ctx.resp_mut()
-                    .insert(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true")?;
+                    .insert(ACCESS_CONTROL_EXPOSE_HEADERS, self.join_expose_headers())?;
+            }
+            next.await
+        } else {
+            // Preflight Request
+            // Set "Access-Control-Max-Age"
+            ctx.resp_mut()
+                .insert(ACCESS_CONTROL_MAX_AGE, self.max_age.to_string())?;
+
+            // Try to set "Access-Control-Allow-Methods"
+            if !self.allow_methods.is_empty() {
+                ctx.resp_mut()
+                    .insert(ACCESS_CONTROL_ALLOW_METHODS, self.join_methods())?;
             }
 
-            if ctx.method() != Method::OPTIONS {
-                // Simple Request
-                // Set "Access-Control-Expose-Headers"
-                if !self.expose_headers.is_empty() {
-                    ctx.resp_mut().insert(
-                        ACCESS_CONTROL_EXPOSE_HEADERS,
-                        self.join_expose_headers(),
-                    )?;
+            // If allow_headers is None, try to assign `Access-Control-Request-Headers` to `Access-Control-Allow-Headers`.
+            let mut allow_headers = self.join_allow_headers();
+            if allow_headers.is_empty() {
+                if let Some(value) = ctx.header_value(ACCESS_CONTROL_REQUEST_HEADERS) {
+                    allow_headers = value
                 }
-                next.await
-            } else {
-                // Preflight Request
-                // Set "Access-Control-Max-Age"
-                ctx.resp_mut()
-                    .insert(ACCESS_CONTROL_MAX_AGE, self.max_age.to_string())?;
-
-                // Try to set "Access-Control-Allow-Methods"
-                if !self.allow_methods.is_empty() {
-                    ctx.resp_mut()
-                        .insert(ACCESS_CONTROL_ALLOW_METHODS, self.join_methods())?;
-                }
-
-                // If allow_headers is None, try to assign `Access-Control-Request-Headers` to `Access-Control-Allow-Headers`.
-                let mut allow_headers = self.join_allow_headers();
-                if allow_headers.is_empty() {
-                    if let Some(value) = ctx.header_value(ACCESS_CONTROL_REQUEST_HEADERS)
-                    {
-                        allow_headers = value
-                    }
-                }
-
-                // Try to set "Access-Control-Allow-Methods"
-                if !allow_headers.is_empty() {
-                    ctx.resp_mut()
-                        .headers
-                        .insert(ACCESS_CONTROL_ALLOW_HEADERS, allow_headers);
-                }
-
-                ctx.resp_mut().status = StatusCode::NO_CONTENT;
-                Ok(())
             }
-        })
+
+            // Try to set "Access-Control-Allow-Methods"
+            if !allow_headers.is_empty() {
+                ctx.resp_mut()
+                    .headers
+                    .insert(ACCESS_CONTROL_ALLOW_HEADERS, allow_headers);
+            }
+
+            ctx.resp_mut().status = StatusCode::NO_CONTENT;
+            Ok(())
+        }
     }
 }
 

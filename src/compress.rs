@@ -40,7 +40,9 @@
 pub use async_compression::Level;
 
 use crate::core::header::CONTENT_ENCODING;
-use crate::core::{Context, Error, Middleware, Next, State, StatusCode};
+use crate::core::{
+    async_trait, Context, Error, Middleware, Next, Result, State, StatusCode,
+};
 use accept_encoding::{parse, Encoding};
 use async_compression::futures::bufread::{
     BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder,
@@ -58,43 +60,42 @@ impl Default for Compress {
     }
 }
 
+#[async_trait(?Send)]
 impl<S: State> Middleware<S> for Compress {
-    fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Next {
-        Box::pin(async move {
-            next.await?;
-            let body = std::mem::take(&mut **ctx.resp_mut());
-            let best_encoding = parse(&ctx.req().headers)
-                .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?;
-            let content_encoding = match best_encoding {
-                None | Some(Encoding::Gzip) => {
-                    ctx.resp_mut()
-                        .write(GzipEncoder::with_quality(body, self.0));
-                    Encoding::Gzip.to_header_value()
-                }
-                Some(Encoding::Deflate) => {
-                    ctx.resp_mut()
-                        .write(ZlibEncoder::with_quality(body, self.0));
-                    Encoding::Deflate.to_header_value()
-                }
-                Some(Encoding::Brotli) => {
-                    ctx.resp_mut()
-                        .write(BrotliEncoder::with_quality(body, self.0));
-                    Encoding::Brotli.to_header_value()
-                }
-                Some(Encoding::Zstd) => {
-                    ctx.resp_mut()
-                        .write(ZstdEncoder::with_quality(body, self.0));
-                    Encoding::Zstd.to_header_value()
-                }
-                Some(Encoding::Identity) => {
-                    ctx.resp_mut().write_buf(body);
-                    Encoding::Identity.to_header_value()
-                }
-            };
-            ctx.resp_mut()
-                .headers
-                .append(CONTENT_ENCODING, content_encoding);
-            Ok(())
-        })
+    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
+        next.await?;
+        let body = std::mem::take(&mut **ctx.resp_mut());
+        let best_encoding = parse(&ctx.req().headers)
+            .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?;
+        let content_encoding = match best_encoding {
+            None | Some(Encoding::Gzip) => {
+                ctx.resp_mut()
+                    .write(GzipEncoder::with_quality(body, self.0));
+                Encoding::Gzip.to_header_value()
+            }
+            Some(Encoding::Deflate) => {
+                ctx.resp_mut()
+                    .write(ZlibEncoder::with_quality(body, self.0));
+                Encoding::Deflate.to_header_value()
+            }
+            Some(Encoding::Brotli) => {
+                ctx.resp_mut()
+                    .write(BrotliEncoder::with_quality(body, self.0));
+                Encoding::Brotli.to_header_value()
+            }
+            Some(Encoding::Zstd) => {
+                ctx.resp_mut()
+                    .write(ZstdEncoder::with_quality(body, self.0));
+                Encoding::Zstd.to_header_value()
+            }
+            Some(Encoding::Identity) => {
+                ctx.resp_mut().write_buf(body);
+                Encoding::Identity.to_header_value()
+            }
+        };
+        ctx.resp_mut()
+            .headers
+            .append(CONTENT_ENCODING, content_encoding);
+        Ok(())
     }
 }

@@ -34,8 +34,8 @@ use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path, RegexPath};
 
 use crate::core::{
-    join_all, throw, Context, Error, Middleware, Next, Result, State, StatusCode,
-    Variable,
+    async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State,
+    StatusCode, Variable,
 };
 use http::Method;
 use percent_encoding::percent_decode_str;
@@ -437,17 +437,16 @@ impl<S: State> RouteTable<S> {
     }
 }
 
+#[async_trait(?Send)]
 impl<S: State> Middleware<S> for RouteEndpoint<S> {
-    fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Next {
-        Box::pin(async move {
-            match self.0.get(&ctx.method()) {
-                None => throw!(
-                    StatusCode::METHOD_NOT_ALLOWED,
-                    format!("method {} is not allowed", &ctx.method())
-                ),
-                Some(handler) => handler.end(ctx).await,
-            }
-        })
+    async fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Result {
+        match self.0.get(&ctx.method()) {
+            None => throw!(
+                StatusCode::METHOD_NOT_ALLOWED,
+                format!("method {} is not allowed", &ctx.method())
+            ),
+            Some(handler) => handler.end(ctx).await,
+        }
     }
 }
 

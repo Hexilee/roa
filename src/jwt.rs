@@ -67,7 +67,9 @@
 pub use jsonwebtoken::Validation;
 
 use crate::core::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
-use crate::core::{join, Context, Error, Middleware, Next, Result, State, StatusCode};
+use crate::core::{
+    async_trait, join, Context, Error, Middleware, Next, Result, State, StatusCode,
+};
 use jsonwebtoken::{dangerous_unsafe_decode, decode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -206,16 +208,15 @@ where
     }
 }
 
+#[async_trait(?Send)]
 impl<S: State> Middleware<S> for JwtGuard {
-    fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Next {
-        Box::pin(async move {
-            let token = try_get_token(&ctx)?;
-            decode::<Value>(&token, self.secret.as_bytes(), &self.validation)
-                .map_err(unauthorized)?;
-            ctx.store_scoped(JwtScope, "secret", self.secret.clone());
-            ctx.store_scoped(JwtScope, "token", token);
-            next.await
-        })
+    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
+        let token = try_get_token(&ctx)?;
+        decode::<Value>(&token, self.secret.as_bytes(), &self.validation)
+            .map_err(unauthorized)?;
+        ctx.store_scoped(JwtScope, "secret", self.secret.clone());
+        ctx.store_scoped(JwtScope, "token", token);
+        next.await
     }
 }
 

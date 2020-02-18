@@ -1,4 +1,4 @@
-use crate::{Context, Middleware, Next, State};
+use crate::{async_trait, Context, Middleware, Next, Result, State};
 use std::sync::Arc;
 
 /// A middleware composing and executing other middlewares in a stack-like manner.
@@ -10,14 +10,15 @@ impl<S> Join<S> {
     }
 }
 
+#[async_trait(?Send)]
 impl<S: State> Middleware<S> for Join<S> {
-    fn handle(self: Arc<Self>, ctx: Context<S>, mut next: Next) -> Next {
+    async fn handle(self: Arc<Self>, ctx: Context<S>, mut next: Next) -> Result {
         for middleware in self.0.iter().rev() {
             let ctx = unsafe { ctx.clone() };
             let middleware = middleware.clone();
             next = middleware.handle(ctx, next)
         }
-        next
+        next.await
     }
 }
 

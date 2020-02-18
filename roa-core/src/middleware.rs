@@ -1,4 +1,4 @@
-use crate::{last, Context, Next, Result, State};
+use crate::{async_trait, last, Context, Next, Result, State};
 use async_std::sync::Arc;
 use std::future::Future;
 
@@ -87,7 +87,7 @@ use std::future::Future;
 /// A trait middleware is an object implementing trait `Middleware`.
 ///
 /// ```rust
-/// use roa_core::{State, Middleware, Context, Next, Result};
+/// use roa_core::{State, Middleware, Context, Next, Result, async_trait};
 /// use async_std::sync::Arc;
 /// use std::time::Instant;
 ///
@@ -95,29 +95,30 @@ use std::future::Future;
 ///
 /// struct Logger;
 ///
+/// #[async_trait(?Send)]
 /// impl <S: State> Middleware<S> for Logger {
-///     fn handle(self:Arc<Self>, ctx: Context<S>, next: Next) -> Next {
-///         Box::pin(async move {
-///             let start = Instant::now();
-///             let result = next.await;
-///             println!("time elapsed: {}ms", start.elapsed().as_millis());
-///             result
-///         } )      
+///     async fn handle(self:Arc<Self>, ctx: Context<S>, next: Next) -> Result {
+///         let start = Instant::now();
+///         let result = next.await;
+///         println!("time elapsed: {}ms", start.elapsed().as_millis());
+///         result
 ///     }
 /// }
 ///
 /// is_middleware(Logger);
 /// ```
+#[async_trait(?Send)]
 pub trait Middleware<S: State>: 'static + Sync + Send {
     /// Handle context and next, then return a future to get status.
-    fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Next;
+    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result;
 
     /// Handle context as an endpoint.
-    fn end(self: Arc<Self>, ctx: Context<S>) -> Next {
-        self.handle(ctx, last())
+    async fn end(self: Arc<Self>, ctx: Context<S>) -> Result {
+        self.handle(ctx, last()).await
     }
 }
 
+#[async_trait(?Send)]
 impl<S, F, T> Middleware<S> for T
 where
     S: State,
@@ -125,18 +126,19 @@ where
     F: 'static + Future<Output = Result>,
 {
     #[inline]
-    fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Next {
-        Box::pin((self)(ctx, next))
+    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
+        (self)(ctx, next).await
     }
 }
 
+#[async_trait(?Send)]
 impl<S, F> Middleware<S> for fn(Context<S>) -> F
 where
     S: State,
     F: 'static + Future<Output = Result>,
 {
     #[inline]
-    fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Next {
-        Box::pin((self)(ctx))
+    async fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Result {
+        (self)(ctx).await
     }
 }
