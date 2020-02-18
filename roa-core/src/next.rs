@@ -83,7 +83,7 @@ use crate::ResultFuture;
 ///     Ok(())
 /// }
 /// ```
-pub type Next = Box<dyn FnOnce() -> ResultFuture + Sync + Send>;
+pub type Next = Box<dyn FnOnce() -> ResultFuture>;
 
 pub fn last() -> ResultFuture {
     Box::pin(async move { Ok(()) })

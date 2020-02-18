@@ -1,14 +1,16 @@
 use crate::{AddrStream, Error, Request, Response};
 use async_std::net::{SocketAddr, TcpStream};
-use async_std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use async_std::sync::Arc;
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
 use http::{HeaderValue, Method, Uri, Version};
 use std::any::Any;
 use std::any::TypeId;
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::ops::Deref;
+use std::rc::Rc;
 use std::str::FromStr;
 
 struct PublicScope;
@@ -42,11 +44,13 @@ struct PublicScope;
 ///     Ok(())
 /// }
 /// ```
-pub struct Context<S> {
-    request: Arc<RwLock<Request>>,
-    response: Arc<RwLock<Response>>,
-    state: Arc<RwLock<S>>,
-    storage: Arc<RwLock<HashMap<TypeId, Bucket>>>,
+pub struct Context<S>(Rc<UnsafeCell<Inner<S>>>);
+
+struct Inner<S> {
+    request: Request,
+    response: Response,
+    state: S,
+    storage: HashMap<TypeId, Bucket>,
     stream: AddrStream,
 }
 
@@ -156,13 +160,27 @@ impl Default for Bucket {
 impl<S> Context<S> {
     /// Construct a context from a request, an app and a addr_stream.  
     pub(crate) fn new(request: Request, state: S, stream: AddrStream) -> Self {
-        Self {
-            request: Arc::new(RwLock::new(request)),
-            response: Arc::new(RwLock::new(Response::new())),
-            state: Arc::new(RwLock::new(state)),
-            storage: Arc::new(RwLock::new(HashMap::new())),
+        let inner = Inner {
+            request,
+            response: Response::new(),
+            state,
+            storage: HashMap::new(),
             stream,
-        }
+        };
+        Self(Rc::new(UnsafeCell::new(inner)))
+    }
+
+    // clone context is unsafe
+    pub(crate) unsafe fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+
+    fn inner(&self) -> &Inner<S> {
+        unsafe { &*self.0.get() }
+    }
+
+    fn inner_mut(&mut self) -> &mut Inner<S> {
+        unsafe { &mut *self.0.get() }
     }
 
     /// Get an immutable reference of request.
@@ -188,8 +206,8 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn req(&self) -> RwLockReadGuard<'_, Request> {
-        self.request.read().await
+    pub fn req(&self) -> &Request {
+        &self.inner().request
     }
 
     /// Get an immutable reference of response.
@@ -215,8 +233,8 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn resp(&self) -> RwLockReadGuard<'_, Response> {
-        self.response.read().await
+    pub fn resp(&self) -> &Response {
+        &self.inner().response
     }
 
     /// Get an immutable reference of state.
@@ -254,14 +272,14 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn state(&self) -> RwLockReadGuard<'_, S> {
-        self.state.read().await
+    pub fn state(&self) -> &S {
+        &self.inner().state
     }
 
     /// Get an immutable reference of storage.
     #[inline]
-    async fn storage(&self) -> RwLockReadGuard<'_, HashMap<TypeId, Bucket>> {
-        self.storage.read().await
+    fn storage(&self) -> &HashMap<TypeId, Bucket> {
+        &self.inner().storage
     }
 
     /// Get a mutable reference of request.
@@ -291,8 +309,8 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn req_mut(&mut self) -> RwLockWriteGuard<'_, Request> {
-        self.request.write().await
+    pub fn req_mut(&mut self) -> &mut Request {
+        &mut self.inner_mut().request
     }
 
     /// Get a mutable reference of response.
@@ -319,8 +337,8 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn resp_mut(&mut self) -> RwLockWriteGuard<'_, Response> {
-        self.response.write().await
+    pub fn resp_mut(&mut self) -> &mut Response {
+        &mut self.inner_mut().response
     }
 
     /// Get a mutable reference of state.
@@ -358,14 +376,14 @@ impl<S> Context<S> {
     /// }
     /// ```
     #[inline]
-    pub async fn state_mut(&mut self) -> RwLockWriteGuard<'_, S> {
-        self.state.write().await
+    pub fn state_mut(&mut self) -> &mut S {
+        &mut self.inner_mut().state
     }
 
     /// Get a mutable reference of storage.
     #[inline]
-    async fn storage_mut(&mut self) -> RwLockWriteGuard<'_, HashMap<TypeId, Bucket>> {
-        self.storage.write().await
+    fn storage_mut(&mut self) -> &mut HashMap<TypeId, Bucket> {
+        &mut self.inner_mut().storage
     }
 
     /// Clone URI.
@@ -390,8 +408,8 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn uri(&self) -> Uri {
-        self.req().await.uri.clone()
+    pub fn uri(&self) -> Uri {
+        self.req().uri.clone()
     }
 
     /// Clone request::method.
@@ -416,8 +434,8 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn method(&self) -> Method {
-        self.req().await.method.clone()
+    pub fn method(&self) -> Method {
+        self.req().method.clone()
     }
 
     /// Search for a header value and try to get its string copy.
@@ -449,12 +467,8 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn header(
-        &self,
-        name: impl AsHeaderName,
-    ) -> Option<Result<String, ToStrError>> {
+    pub fn header(&self, name: impl AsHeaderName) -> Option<Result<String, ToStrError>> {
         self.req()
-            .await
             .headers
             .get(name)
             .map(|value| value.to_str().map(|str| str.to_string()))
@@ -489,8 +503,8 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn header_value(&self, name: impl AsHeaderName) -> Option<HeaderValue> {
-        self.req().await.headers.get(name).cloned()
+    pub fn header_value(&self, name: impl AsHeaderName) -> Option<HeaderValue> {
+        self.req().headers.get(name).cloned()
     }
 
     /// Clone response::status.
@@ -515,8 +529,8 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn status(&self) -> StatusCode {
-        self.resp().await.status
+    pub fn status(&self) -> StatusCode {
+        self.resp().status
     }
 
     /// Clone request::version.
@@ -541,8 +555,8 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn version(&self) -> Version {
-        self.req().await.version
+    pub fn version(&self) -> Version {
+        self.req().version
     }
 
     /// Store key-value pair in specific scope.
@@ -575,8 +589,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    #[allow(clippy::needless_lifetimes)]
-    pub async fn store_scoped<'a, SC, T>(
+    pub fn store_scoped<'a, SC, T>(
         &mut self,
         _scope: SC,
         name: &'a str,
@@ -586,7 +599,7 @@ impl<S> Context<S> {
         SC: Any,
         T: Any + Send + Sync,
     {
-        let mut storage = self.storage_mut().await;
+        let storage = self.storage_mut();
         let id = TypeId::of::<SC>();
         match storage.get_mut(&id) {
             Some(bucket) => bucket.insert(name, value),
@@ -625,16 +638,11 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    #[allow(clippy::needless_lifetimes)]
-    pub async fn store<'a, T>(
-        &mut self,
-        name: &'a str,
-        value: T,
-    ) -> Option<Variable<'a, T>>
+    pub fn store<'a, T>(&mut self, name: &'a str, value: T) -> Option<Variable<'a, T>>
     where
         T: Any + Send + Sync,
     {
-        self.store_scoped(PublicScope, name, value).await
+        self.store_scoped(PublicScope, name, value)
     }
 
     /// Search for value by key in specific scope.
@@ -666,13 +674,12 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    #[allow(clippy::needless_lifetimes)]
-    pub async fn load_scoped<'a, SC, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
+    pub fn load_scoped<'a, SC, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
     where
         SC: Any,
         T: Any + Send + Sync,
     {
-        let storage = self.storage().await;
+        let storage = self.storage();
         let id = TypeId::of::<SC>();
         storage.get(&id).and_then(|bucket| bucket.get(name))
     }
@@ -703,35 +710,22 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     /// ```
-    #[allow(clippy::needless_lifetimes)]
-    pub async fn load<'a, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
+    pub fn load<'a, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
     where
         T: Any + Send + Sync,
     {
-        self.load_scoped::<PublicScope, T>(name).await
+        self.load_scoped::<PublicScope, T>(name)
     }
 
     /// Get remote socket addr.
     pub fn remote_addr(&self) -> SocketAddr {
-        self.stream.remote_addr()
+        self.inner().stream.remote_addr()
     }
 
     /// Get reference of raw async_std::net::TcpStream.
     /// This method is dangerous, it's reserved for special scene like websocket.
     pub fn raw_stream(&self) -> Arc<TcpStream> {
-        self.stream.stream()
-    }
-}
-
-impl<S> Clone for Context<S> {
-    fn clone(&self) -> Self {
-        Self {
-            request: self.request.clone(),
-            response: self.response.clone(),
-            state: self.state.clone(),
-            storage: self.storage.clone(),
-            stream: self.stream.clone(),
-        }
+        self.inner().stream.stream()
     }
 }
 

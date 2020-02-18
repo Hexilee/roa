@@ -1,6 +1,5 @@
-use crate::{last, Context, Next, Result, State};
+use crate::{last, Context, Next, Result, ResultFuture, State};
 use async_std::sync::Arc;
-use async_trait::async_trait;
 use std::future::Future;
 
 /// ### Middleware
@@ -108,38 +107,35 @@ use std::future::Future;
 ///
 /// is_middleware(Logger);
 /// ```
-#[async_trait]
 pub trait Middleware<S: State>: 'static + Sync + Send {
     /// Handle context and next, then return a future to get status.
-    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result;
+    fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> ResultFuture;
 
     /// Handle context as an endpoint.
-    async fn end(self: Arc<Self>, ctx: Context<S>) -> Result {
-        self.handle(ctx, Box::new(last)).await
+    fn end(self: Arc<Self>, ctx: Context<S>) -> ResultFuture {
+        self.handle(ctx, Box::new(last))
     }
 }
 
-#[async_trait]
 impl<S, F, T> Middleware<S> for T
 where
     S: State,
     T: 'static + Sync + Send + Fn(Context<S>, Next) -> F,
-    F: 'static + Future<Output = Result> + Send,
+    F: 'static + Future<Output = Result>,
 {
     #[inline]
-    async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result {
-        (self)(ctx, next).await
+    fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> ResultFuture {
+        Box::pin((self)(ctx, next))
     }
 }
 
-#[async_trait]
 impl<S, F> Middleware<S> for fn(Context<S>) -> F
 where
     S: State,
-    F: 'static + Future<Output = Result> + Send,
+    F: 'static + Future<Output = Result>,
 {
     #[inline]
-    async fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Result {
-        (self)(ctx).await
+    fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> ResultFuture {
+        Box::pin((self)(ctx))
     }
 }

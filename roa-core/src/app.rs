@@ -1,10 +1,11 @@
 #[cfg(feature = "runtime")]
 mod executor;
-
+mod future;
 mod tcp;
 use crate::{
     join, join_all, Context, Error, Middleware, Next, Request, Response, Result, State,
 };
+use future::SendFuture;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
@@ -332,7 +333,10 @@ impl<S: State> Service<HttpRequest<HyperBody>> for HttpService<S> {
     #[inline]
     fn call(&mut self, req: HttpRequest<HyperBody>) -> Self::Future {
         let service = self.clone();
-        Box::pin(async move { Ok(service.serve(req.into()).await?.into()) })
+        Box::pin(async move {
+            let serve_future = SendFuture(Box::pin(service.serve(req.into())));
+            Ok(serve_future.await?.into())
+        })
     }
 }
 
@@ -356,17 +360,16 @@ impl<S: State> HttpService<S> {
             state,
         } = self;
         let mut context = Context::new(req, state, stream);
-        if let Err(err) = middleware.end(context.clone()).await {
-            context.resp_mut().await.status = err.status_code;
+        if let Err(err) = middleware.end(unsafe { context.clone() }).await {
+            context.resp_mut().status = err.status_code;
             if err.expose {
-                context.resp_mut().await.write_str(&err.message);
+                context.resp_mut().write_str(&err.message);
             }
             if err.need_throw() {
                 return Err(err);
             }
         }
-        let mut response = context.resp_mut().await;
-        Ok(std::mem::take(&mut *response))
+        Ok(std::mem::take(&mut *context.resp_mut()))
     }
 }
 

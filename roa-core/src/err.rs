@@ -7,9 +7,8 @@ use std::result::Result as StdResult;
 /// Type alias for `StdResult<R, Error>`.
 pub type Result<R = ()> = StdResult<R, Error>;
 
-/// Type alias for `Pin<Box<dyn 'static + Future<Output = Result<R>> + Send>>`.
-pub type ResultFuture<R = ()> =
-    Pin<Box<dyn 'static + Future<Output = Result<R>> + Send>>;
+/// Type alias for `Pin<Box<dyn 'static + Future<Output = Result<R>>>>`.
+pub type ResultFuture<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>>>>;
 
 /// Throw an `Err(Error)`.
 ///
@@ -26,10 +25,10 @@ pub type ResultFuture<R = ()> =
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let (addr, server) = App::new(())
-///         .gate_fn(|ctx, next| async move {
+///         .gate_fn(|mut ctx, next| async move {
 ///             next().await?; // throw
 ///             unreachable!();
-///             ctx.resp_mut().await.status = StatusCode::OK;
+///             ctx.resp_mut().status = StatusCode::OK;
 ///             Ok(())
 ///         })
 ///         .end(|_ctx| async {

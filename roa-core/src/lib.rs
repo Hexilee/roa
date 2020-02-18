@@ -211,8 +211,6 @@ pub use response::Response;
 
 pub use http::{header, StatusCode};
 
-pub use async_trait::async_trait;
-
 pub use hyper::rt::Executor;
 
 pub use hyper::Server;
