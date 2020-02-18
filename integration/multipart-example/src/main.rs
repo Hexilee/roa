@@ -1,10 +1,12 @@
 use async_std::fs::File;
 use async_std::io;
 use async_std::path::Path;
+use futures::stream::TryStreamExt;
 use futures::StreamExt;
 use log::info;
 use roa::body::PowerBody;
-use roa::core::{throw, App, Error, StatusCode};
+use roa::core::{App, Error, StatusCode};
+use roa::logger::logger;
 use roa::router::Router;
 use std::error::Error as StdError;
 
@@ -19,7 +21,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     router.post("/file", |mut ctx| async move {
         let mut form = ctx.multipart().await;
         while let Some(item) = form.next().await {
-            let mut field = item?;
+            let field = item?;
             let content_disposition = field.content_disposition().ok_or_else(|| {
                 Error::new(
                     StatusCode::BAD_REQUEST,
@@ -32,13 +34,14 @@ async fn main() -> Result<(), Box<dyn StdError>> {
                 Some(filename) => {
                     let path = Path::new("./upload");
                     let mut file = File::create(path.join(filename)).await?;
-                    io::copy(&mut field.reader(), &mut file).await?;
+                    io::copy(&mut field.into_async_read(), &mut file).await?;
                 }
             }
         }
         Ok(())
     });
-    app.gate(router.routes("/")?)
+    app.gate(logger)
+        .gate(router.routes("/")?)
         .listen("127.0.0.1:8000", |addr| {
             info!("Server is listening on {}", addr)
         })?
