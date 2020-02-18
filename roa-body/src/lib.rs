@@ -59,7 +59,7 @@
 //!     user = ctx.read_form().await?;
 //!
 //!     // read multipart form
-//!     let form = ctx.multipart().await?;
+//!     let form = ctx.multipart().await;
 //!
 //!     // serialize object and write it to body,
 //!     // set "Content-Type"
@@ -129,7 +129,7 @@ pub trait PowerBody: Content {
 
     // read request body as "multipart/form-data"
     #[cfg(feature = "multipart")]
-    async fn multipart(&mut self) -> Result<Multipart>;
+    async fn multipart(&mut self) -> Multipart;
 
     /// write object to response body as "application/json; charset=utf-8"
     #[cfg(feature = "json")]
@@ -181,8 +181,8 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "multipart")]
-    async fn multipart(&mut self) -> Result<Multipart> {
-        unimplemented!()
+    async fn multipart(&mut self) -> Multipart {
+        Multipart::new(self).await
     }
 
     #[cfg(feature = "json")]
