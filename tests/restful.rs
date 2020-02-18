@@ -94,33 +94,33 @@ fn crud_router() -> Result<Router<State>, Box<dyn std::error::Error>> {
     let mut id_router = Router::<State>::new();
     router.post("", |mut ctx| async move {
         let user = ctx.read_json().await?;
-        let id = ctx.state().await.write().await.add(user);
+        let id = ctx.write().await.add(user);
         let mut data = HashMap::new();
         data.insert("id", id);
-        ctx.resp_mut().await.status = StatusCode::CREATED;
-        ctx.write_json(&data).await
+        ctx.resp_mut().status = StatusCode::CREATED;
+        ctx.write_json(&data)
     });
     id_router
         .get("", |ctx| async move {
-            let id = ctx.must_param("id").await?.parse()?;
-            match ctx.state().await.read().await.get(id) {
-                Some(user) => ctx.clone().write_json(user).await,
+            let id = ctx.must_param("id")?.parse()?;
+            match ctx.read().await.get(id) {
+                Some(user) => ctx.write_json(&user.clone()),
                 None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
             }
         })
         .put("", |mut ctx| async move {
-            let id = ctx.must_param("id").await?.parse()?;
+            let id = ctx.must_param("id")?.parse()?;
             let mut user = ctx.read_json().await?;
-            if ctx.state().await.write().await.update(id, &mut user) {
-                ctx.write_json(&user).await
+            if ctx.write().await.update(id, &mut user) {
+                ctx.write_json(&user)
             } else {
                 throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id))
             }
         })
         .delete("", |ctx| async move {
-            let id = ctx.must_param("id").await?.parse()?;
-            match ctx.state().await.write().await.delete(id) {
-                Some(user) => ctx.clone().write_json(&user).await,
+            let id = ctx.must_param("id")?.parse()?;
+            match ctx.write().await.delete(id) {
+                Some(user) => ctx.write_json(&user.clone()),
                 None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
             }
         });
@@ -213,22 +213,22 @@ fn batch_router() -> Result<Router<State>, Box<dyn std::error::Error>> {
         .post("/user", |mut ctx| async move {
             let users: Vec<User> = ctx.read_json().await?;
             let mut ids = Vec::new();
-            let state = ctx.state().await;
             for user in users {
-                ids.push(state.write().await.add(user))
+                ids.push(ctx.write().await.add(user))
             }
-            drop(state);
-            ctx.resp_mut().await.status = StatusCode::CREATED;
-            ctx.write_json(&ids).await
+            ctx.resp_mut().status = StatusCode::CREATED;
+            ctx.write_json(&ids)
         })
         .get("/user", |ctx| async move {
-            let state = ctx.state().await;
-            let db = state.read().await;
-            let users = match ctx.query("name").await {
-                Some(name) => db.get_by_name(&name),
-                None => db.main_table.iter().collect(),
-            };
-            ctx.clone().write_json(&users).await
+            let users = match ctx.query("name") {
+                Some(name) => ctx.read().await.get_by_name(&name),
+                None => ctx.read().await.main_table.iter().collect(),
+            }
+            .iter()
+            .map(|(id, user)| (id, user.clone()))
+            .collect::<Vec<(usize, User)>>();
+            
+            ctx.write_json(&users)
         });
     Ok(router)
 }

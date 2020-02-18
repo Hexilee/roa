@@ -21,8 +21,8 @@ async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
     let mut router = Router::new();
     router.get("/:filename", |mut ctx| async move {
-        let filename = ctx.must_param("filename").await?;
-        ctx.write_file(format!("assets/{}", &*filename)).await
+        let filename = ctx.must_param("filename")?;
+        ctx.write_file(format!("assets/{}", &*filename))
     });
     let (addr, server) = App::new(()).gate(router.routes("/")?).run_local()?;
     spawn(server);
@@ -35,8 +35,8 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
     let mut router = Router::new();
     router.get("/*{path}", |mut ctx| async move {
-        let path = ctx.must_param("path").await?;
-        ctx.write_file(format!("./{}", &*path)).await
+        let path = ctx.must_param("path")?;
+        ctx.write_file(format!("./{}", &*path))
     });
     let (addr, server) = App::new(()).gate(router.routes("/")?).run_local()?;
     spawn(server);

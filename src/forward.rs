@@ -158,7 +158,7 @@ mod tests {
     async fn host_err() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .end(move |mut ctx| async move {
-                ctx.req_mut().await.headers.remove(HOST);
+                ctx.req_mut().headers.remove(HOST);
                 assert_eq!("", ctx.host()?);
                 Ok(())
             })

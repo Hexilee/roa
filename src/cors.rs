@@ -223,7 +223,6 @@ impl<S: State> Middleware<S> for Cors {
 mod tests {
     use super::Cors;
     use crate::core::App;
-    use crate::preload::*;
     use async_std::task::spawn;
     use http::header::{
         ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
@@ -240,7 +239,7 @@ mod tests {
         let (addr, server) = app
             .gate(Cors::builder().build())
             .end(|mut ctx| async move {
-                ctx.write_text("Hello, World")?;
+                ctx.resp_mut().write_str("Hello, World");
                 Ok(())
             })
             .run_local()?;
