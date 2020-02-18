@@ -28,12 +28,10 @@ impl<S: State> Middleware<S> for Join<S> {
 /// use std::sync::Arc;
 ///
 /// let mut middleware: Arc<dyn Middleware<()>> = Arc::new(|_ctx: Context<()>, next: Next| async move {
-///     next().await
+///     next.await
 /// });
 ///
-/// middleware = Arc::new(join(middleware, |_ctx: Context<()>, next: Next| async move {
-///     next().await
-/// }));
+/// middleware = Arc::new(join(middleware, |_ctx: Context<()>, next: Next| next));
 /// ```
 pub fn join<S: State>(
     current: Arc<dyn Middleware<S>>,
@@ -64,7 +62,7 @@ pub fn join<S: State>(
 ///             let vec = vec.clone();
 ///             async move {
 ///                 vec.lock().await.push(i);
-///                 next().await?;
+///                 next.await?;
 ///                 vec.lock().await.push(i);
 ///                 Ok(())
 ///             }
@@ -105,7 +103,7 @@ mod tests {
                 let vec = vec.clone();
                 async move {
                     vec.lock().await.push(i);
-                    next().await?;
+                    next.await?;
                     vec.lock().await.push(i);
                     Ok(())
                 }

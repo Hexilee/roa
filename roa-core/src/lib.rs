@@ -25,7 +25,7 @@
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
 //!     app.end(|mut ctx| async move {
-//!         ctx.resp_mut().await.write_str("Hello, World");
+//!         ctx.resp_mut().write_str("Hello, World");
 //!         Ok(())
 //!     });
 //!     app.listen("127.0.0.1:8000", |addr| {
@@ -40,7 +40,7 @@
 //!
 //! The following example responds with "Hello World", however, the request flows through
 //! the `logging` middleware to mark when the request started, then continue
-//! to yield control through the response middleware. When a middleware invokes `next().await`
+//! to yield control through the response middleware. When a middleware invokes `next.await`
 //! the function suspends and passes control to the next middleware defined. After there are no more
 //! middleware to execute downstream, the stack will unwind and each middleware is resumed to perform
 //! its upstream behaviour.
@@ -56,13 +56,13 @@
 //!     let mut app = App::new(());
 //!     app.gate_fn(|_ctx, next| async move {
 //!         let inbound = Instant::now();
-//!         next().await?;
+//!         next.await?;
 //!         info!("time elapsed: {} ms", inbound.elapsed().as_millis());
 //!         Ok(())
 //!     });
 //!
 //!     app.end(|mut ctx| async move {
-//!         ctx.resp_mut().await.write_str("Hello, World");
+//!         ctx.resp_mut().write_str("Hello, World");
 //!         Ok(())
 //!     });
 //!     app.listen("127.0.0.1:8000", |addr| {
@@ -86,7 +86,7 @@
 //!     let (addr, server) = App::new(())
 //!         .gate_fn(|ctx, next| async move {
 //!             // catch
-//!             if let Err(err) = next().await {
+//!             if let Err(err) = next.await {
 //!                 // teapot is ok
 //!                 if err.status_code != StatusCode::IM_A_TEAPOT {
 //!                     return Err(err)
@@ -95,7 +95,7 @@
 //!             Ok(())
 //!         })
 //!         .gate_fn(|ctx, next| async move {
-//!             next().await?; // just throw
+//!             next.await?; // just throw
 //!             unreachable!()
 //!         })
 //!         .end(|_ctx| async move {
@@ -116,9 +116,9 @@
 //! ```rust
 //! use roa_core::{Context, Error, Result, ErrorKind, State};
 //! pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
-//!     context.resp_mut().await.status = err.status_code;
+//!     context.resp_mut().status = err.status_code;
 //!     if err.expose {
-//!         context.resp_mut().await.write_str(&err.message);
+//!         context.resp_mut().write_str(&err.message);
 //!     }
 //!     if err.kind == ErrorKind::ServerError {
 //!         Err(err)

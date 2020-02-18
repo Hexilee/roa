@@ -20,11 +20,11 @@
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let (addr, server) = App::new(State { id: 0 })
 ///         .gate_fn(|mut ctx, next| async move {
-///             ctx.state_mut().await.id = 1;
-///             next().await
+///             ctx.id = 1;
+///             next.await
 ///         })
 ///         .end(|ctx| async move {
-///             let id = ctx.state().await.id;
+///             let id = ctx.id;
 ///             assert_eq!(1, id);
 ///             Ok(())
 ///         })

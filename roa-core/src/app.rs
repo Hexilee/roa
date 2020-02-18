@@ -28,11 +28,11 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let server = App::new(())
 ///         .gate_fn(|ctx, next| async move {
-///             info!("{} {}", ctx.method().await, ctx.uri().await);
-///             next().await
+///             info!("{} {}", ctx.method(), ctx.uri());
+///             next.await
 ///         })
 ///         .end(|mut ctx| async move {
-///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
+///             ctx.resp_mut().write(File::open("assets/welcome.html").await?);
 ///             Ok(())
 ///         })
 ///         .listen("127.0.0.1:8000", |addr| {
@@ -73,12 +73,12 @@ pub use tcp::{AddrIncoming, AddrStream};
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let server = App::new(State::new())
 ///         .gate_fn(|mut ctx, next| async move {
-///             ctx.state_mut().await.id = 1;
-///             next().await
+///             ctx.id = 1;
+///             next.await
 ///         })
 ///         .end(|ctx| async move {
-///             let id = ctx.state().await.id;
-///             ctx.state().await.database.lock().await.get(&id);
+///             let id = ctx.id;
+///             ctx.database.lock().await.get(&id);
 ///             Ok(())
 ///         })
 ///         .listen("127.0.0.1:8000", |addr| {
@@ -152,8 +152,8 @@ impl<S: State> App<S> {
     /// use roa_core::{App, Next};
     ///
     /// let mut app = App::new(());
-    /// // app.gate(|_ctx, next| async move { next().await }); compile fails.
-    /// app.gate(|_ctx, next: Next| async move { next().await });
+    /// // app.gate(|_ctx, next| async move { next.await }); compile fails.
+    /// app.gate(|_ctx, next: Next| async move { next.await });
     /// ```
     ///
     /// However, with `App::gate_fn`, you can match a lambda without type indication.
@@ -161,7 +161,7 @@ impl<S: State> App<S> {
     /// use roa_core::{App, Next};
     ///
     /// let mut app = App::new(());
-    /// app.gate_fn(|_ctx, next| async move { next().await });
+    /// app.gate_fn(|_ctx, next| async move { next.await });
     /// ```
     pub fn gate_fn<F>(
         &mut self,
@@ -201,7 +201,7 @@ impl<S: State> App<S> {
     ///
     /// fn transfer<S, F>(endpoint: fn(Context<S>) -> F) -> impl Middleware<S>
     /// where S: State,
-    ///       F: 'static + Send + Future<Output=Result> {
+    ///       F: 'static + Future<Output=Result> {
     ///     endpoint
     /// }
     ///
@@ -278,7 +278,7 @@ impl<S: State> App<S> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|_ctx, next| async move {
     ///             let inbound = Instant::now();
-    ///             next().await?;
+    ///             next.await?;
     ///             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
     ///             Ok(())
     ///         })
@@ -404,7 +404,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate_fn(|_ctx, next| async move {
                 let inbound = Instant::now();
-                next().await?;
+                next.await?;
                 println!("time elapsed: {} ms", inbound.elapsed().as_millis());
                 Ok(())
             })

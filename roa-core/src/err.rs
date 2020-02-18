@@ -21,7 +21,7 @@ pub type Result<R = ()> = StdResult<R, Error>;
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let (addr, server) = App::new(())
 ///         .gate_fn(|mut ctx, next| async move {
-///             next().await?; // throw
+///             next.await?; // throw
 ///             unreachable!();
 ///             ctx.resp_mut().status = StatusCode::OK;
 ///             Ok(())
@@ -68,8 +68,8 @@ pub struct Error {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.resp_mut().await.status = StatusCode::OK;
-    ///             next().await // not caught
+    ///             ctx.resp_mut().status = StatusCode::OK;
+    ///             next.await // not caught
     ///         })
     ///         .end(|_ctx| async {
     ///             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw

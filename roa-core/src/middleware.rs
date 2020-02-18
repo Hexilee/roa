@@ -19,11 +19,11 @@ use std::future::Future;
 ///     middleware: impl 'static + Send + Sync + Fn(Context<S>, Next) -> F
 /// ) -> impl Middleware<S>
 /// where S: State,
-///       F: 'static + Send + Future<Output=Result> {
+///       F: 'static + Future<Output=Result> {
 ///     middleware
 /// }
 ///
-/// is_normal(|_ctx: Context<()>, next| next());
+/// is_normal(|_ctx: Context<()>, next| next);
 /// ```
 ///
 /// Both of function pointers and closures are middlewares:
@@ -34,7 +34,7 @@ use std::future::Future;
 /// fn is_middleware<S: State>(_: impl Middleware<S>) {}
 ///
 /// async fn function_ptr(_ctx: Context<()>, next: Next) -> Result {
-///     next().await
+///     next.await
 /// }
 ///
 /// // capture a variable to avoid matching lambda as function pointer.
@@ -42,7 +42,7 @@ use std::future::Future;
 /// // moving is necessary to confirm closure is static.
 /// let closure = move |ctx: Context<()>, next: Next| async move {
 ///     let x = x;
-///     next().await
+///     next.await
 /// };
 ///
 /// is_middleware(function_ptr);
@@ -75,7 +75,7 @@ use std::future::Future;
 /// // is_middleware(endpoint); compile fails!
 ///
 /// fn to_middleware<F>(middleware: fn(Context<()>) -> F) -> impl Middleware<()>
-/// where F: 'static + Send + Future<Output=Result> {
+/// where F: 'static + Future<Output=Result> {
 ///     middleware
 /// }
 ///
@@ -87,7 +87,7 @@ use std::future::Future;
 /// A trait middleware is an object implementing trait `Middleware`.
 ///
 /// ```rust
-/// use roa_core::{State, Middleware, async_trait, Context, Next, Result};
+/// use roa_core::{State, Middleware, Context, Next, Result};
 /// use async_std::sync::Arc;
 /// use std::time::Instant;
 ///
@@ -95,13 +95,14 @@ use std::future::Future;
 ///
 /// struct Logger;
 ///
-/// #[async_trait]
 /// impl <S: State> Middleware<S> for Logger {
-///     async fn handle(self:Arc<Self>, ctx: Context<S>, next: Next) -> Result {
-///         let start = Instant::now();
-///         let result = next().await;
-///         println!("time elapsed: {}ms", start.elapsed().as_millis());
-///         result
+///     fn handle(self:Arc<Self>, ctx: Context<S>, next: Next) -> Next {
+///         Box::pin(async move {
+///             let start = Instant::now();
+///             let result = next.await;
+///             println!("time elapsed: {}ms", start.elapsed().as_millis());
+///             result
+///         } )      
 ///     }
 /// }
 ///

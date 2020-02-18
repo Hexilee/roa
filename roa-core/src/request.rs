@@ -92,7 +92,7 @@ mod tests {
         let mut app = App::new(());
         app.gate_fn(|mut ctx, _next| async move {
             let mut data = String::new();
-            ctx.req_mut().await.read_to_string(&mut data).await?;
+            ctx.req_mut().read_to_string(&mut data).await?;
             assert_eq!("Hello, World!", data);
             Ok(())
         });

@@ -30,11 +30,11 @@ struct PublicScope;
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let server = App::new(())
 ///         .gate_fn(|ctx, next| async move {
-///             info!("{} {}", ctx.method().await, ctx.uri().await);
-///             next().await
+///             info!("{} {}", ctx.method(), ctx.uri());
+///             next.await
 ///         })
 ///         .end(|mut ctx| async move {
-///             ctx.resp_mut().await.write(File::open("assets/welcome.html").await?);
+///             ctx.resp_mut().write(File::open("assets/welcome.html").await?);
 ///             Ok(())
 ///         })
 ///         .listen("127.0.0.1:8000", |addr| {
@@ -195,7 +195,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end(|ctx| async move {
-    ///             assert_eq!(Method::GET, ctx.req().await.method);
+    ///             assert_eq!(Method::GET, ctx.req().method);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -222,7 +222,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end(|ctx| async move {
-    ///             assert_eq!(StatusCode::OK, ctx.resp().await.status);
+    ///             assert_eq!(StatusCode::OK, ctx.resp().status);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -256,11 +256,11 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(State { id: 0 })
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.state_mut().await.id = 1;
-    ///             next().await
+    ///             ctx.state_mut().id = 1;
+    ///             next.await
     ///         })
     ///         .end(|ctx| async move {
-    ///             let id = ctx.state().await.id;
+    ///             let id = ctx.state().id;
     ///             assert_eq!(1, id);
     ///             Ok(())
     ///         })
@@ -294,11 +294,11 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.req_mut().await.method = Method::POST;
-    ///             next().await
+    ///             ctx.req_mut().method = Method::POST;
+    ///             next.await
     ///         })
     ///         .end(|ctx| async move {
-    ///             assert_eq!(Method::POST, ctx.req().await.method);
+    ///             assert_eq!(Method::POST, ctx.req().method);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -325,7 +325,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end(|mut ctx| async move {
-    ///             ctx.resp_mut().await.write_buf(b"Hello, World!".as_ref());
+    ///             ctx.resp_mut().write_buf(b"Hello, World!".as_ref());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -360,11 +360,11 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(State { id: 0 })
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.state_mut().await.id = 1;
-    ///             next().await
+    ///             ctx.state_mut().id = 1;
+    ///             next.await
     ///         })
     ///         .end(|ctx| async move {
-    ///             let id = ctx.state().await.id;
+    ///             let id = ctx.state().id;
     ///             assert_eq!(1, id);
     ///             Ok(())
     ///         })
@@ -398,7 +398,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end(|ctx| async move {
-    ///             assert_eq!("/path", ctx.uri().await.to_string());
+    ///             assert_eq!("/path", ctx.uri().to_string());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -424,7 +424,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end(|ctx| async move {
-    ///             assert_eq!(Method::GET, ctx.method().await);
+    ///             assert_eq!(Method::GET, ctx.method());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -452,7 +452,7 @@ impl<S> Context<S> {
     ///         .end(|ctx| async move {
     ///             assert_eq!(
     ///                 "text/plain",
-    ///                 ctx.header(&header::CONTENT_TYPE).await.unwrap().unwrap()
+    ///                 ctx.header(&header::CONTENT_TYPE).unwrap().unwrap()
     ///             );
     ///             Ok(())
     ///         })
@@ -488,7 +488,7 @@ impl<S> Context<S> {
     ///         .end(|ctx| async move {
     ///             assert_eq!(
     ///                 "text/plain",
-    ///                 ctx.header_value(&header::CONTENT_TYPE).await.unwrap().to_str().unwrap()
+    ///                 ctx.header_value(&header::CONTENT_TYPE).unwrap().to_str().unwrap()
     ///             );
     ///             Ok(())
     ///         })
@@ -519,7 +519,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end(|ctx| async move {
-    ///             assert_eq!(StatusCode::OK, ctx.status().await);
+    ///             assert_eq!(StatusCode::OK, ctx.status());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -545,7 +545,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end(|ctx| async move {
-    ///             assert_eq!(Version::HTTP_11, ctx.version().await);
+    ///             assert_eq!(Version::HTTP_11, ctx.version());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -574,12 +574,12 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store_scoped(Scope, "id", "1".to_string()).await;
-    ///             next().await
+    ///             ctx.store_scoped(Scope, "id", "1".to_string());
+    ///             next.await
     ///         })
     ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load_scoped::<Scope, String>("id").await.unwrap().parse::<i32>()?);
-    ///             assert!(ctx.load_scoped::<AnotherScope, String>("id").await.is_none());
+    ///             assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
+    ///             assert!(ctx.load_scoped::<AnotherScope, String>("id").is_none());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -624,11 +624,11 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store("id", "1".to_string()).await;
-    ///             next().await
+    ///             ctx.store("id", "1".to_string());
+    ///             next.await
     ///         })
     ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load::<String>("id").await.unwrap().parse::<i32>()?);
+    ///             assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -660,11 +660,11 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store_scoped(Scope, "id", "1".to_owned()).await;
-    ///             next().await
+    ///             ctx.store_scoped(Scope, "id", "1".to_owned());
+    ///             next.await
     ///         })
     ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load_scoped::<Scope, String>("id").await.unwrap().parse::<i32>()?);
+    ///             assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -696,11 +696,11 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store("id", "1".to_string()).await;
-    ///             next().await
+    ///             ctx.store("id", "1".to_string());
+    ///             next.await
     ///         })
     ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load::<String>("id").await.unwrap().parse::<i32>()?);
+    ///             assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -773,10 +773,10 @@ mod tests {
         let (addr, server) = App::new(State { data: 1 })
             .gate_fn(|mut ctx, next| async move {
                 ctx.data = 1;
-                next().await
+                next.await
             })
             .end(|ctx: Context<State>| async move {
-                assert_eq!(1, ctx.state().await.data);
+                assert_eq!(1, ctx.state().data);
                 Ok(())
             })
             .run_local()?;
