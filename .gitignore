@@ -1,5 +1,5 @@
 /target
 **/*.rs.bk
 Cargo.lock
-assets/upload/*
+**/upload/*
 .env
