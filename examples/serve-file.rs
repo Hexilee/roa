@@ -48,10 +48,10 @@ impl<'a> Dir<'a> {
 }
 
 async fn path_checker(ctx: Context<()>, next: Next) -> Result {
-    if ctx.must_param("path").await?.contains("..") {
+    if ctx.must_param("path")?.contains("..") {
         throw!(StatusCode::BAD_REQUEST, "invalid path")
     } else {
-        next().await
+        next.await
     }
 }
 

@@ -1,0 +1,72 @@
+[package]
+name = "roa"
+version = "0.5.0-alpha"
+authors = ["Hexilee <hexileee@gmail.com>"]
+edition = "2018"
+license = "MIT"
+readme = "./README.md"
+repository = "https://github.com/Hexilee/roa"
+documentation = "https://docs.rs/roa"
+homepage = "https://github.com/Hexilee/roa"
+description = """
+async web framework inspired by koajs, lightweight but powerful.
+"""
+keywords = ["http", "web", "framework", "async"]
+categories = ["network-programming", "asynchronous",
+              "web-programming::http-server"]
+exclude = [".travis.yml", "*.sh"]
+
+[package.metadata.docs.rs]
+features = ["full"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[badges]
+travis-ci = { repository = "Hexilee/roa" }
+
+[dependencies]
+http = "0.2"
+log = "0.4"
+futures = "0.3"
+async-std = "1.4"
+bytesize = "1.0"
+async-trait = "0.1.22"
+url = "2.1.1"
+percent-encoding = "2.1"
+typed-builder = "0.5.1"
+
+roa-core = { path = "../roa-core", version = "0.5.0-alpha", features = ["runtime"] }
+roa-body = { path = "../roa-body", version = "0.5.0-alpha", features = ["full"], optional = true }
+cookie = { version = "0.12", features = ["percent-encode"], optional = true }
+jsonwebtoken = { version = "6", optional = true }
+serde = { version = "1", optional = true }
+serde_json = { version = "1.0", optional = true }
+radix_trie = { version = "0.1.6", optional = true }
+regex = { version = "1.3", optional = true }
+async-compression = { version = "0.3", features = ["all-algorithms", "futures-bufread"], optional = true }
+accept-encoding = { package = "accept-encoding-fork", version = "=0.2.0-alpha.3", optional = true }
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["full"] }
+reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
+async-std = { version = "1.4", features = ["attributes"] }
+pretty_env_logger = "0.3"
+serde = { version = "1", features = ["derive"] }
+test-case = "1.0.0"
+lazy_static = "1.4.0"
+slab = "0.4.2"
+multimap = "0.8.0"
+hyper = "0.13"
+chrono = "0.4"
+mime = "0.3"
+encoding = "0.2"
+askama = "0.9"
+
+[features]
+default = []
+full = ["body", "router", "jwt", "cookies", "compress"]
+cookies = ["cookie"]
+jwt = ["jsonwebtoken", "serde", "serde_json"]
+body = ["roa-body"]
+router = ["regex", "radix_trie"]
+compress = ["async-compression", "accept-encoding"]

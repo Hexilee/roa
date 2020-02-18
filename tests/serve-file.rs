@@ -21,7 +21,7 @@ async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
     let mut router = Router::new();
     router.get("/:filename", |mut ctx| async move {
-        let filename = ctx.must_param("filename")?;
+        let filename = ctx.must_param("filename")?.value();
         ctx.write_file(format!("assets/{}", &*filename))
     });
     let (addr, server) = App::new(()).gate(router.routes("/")?).run_local()?;
