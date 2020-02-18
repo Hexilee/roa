@@ -61,7 +61,7 @@ impl ContentType {
         } else {
             throw!(
                 StatusCode::BAD_REQUEST,
-                format!("content type not matched. {} != {}", other, pure_type)
+                format!("content type unmatched. {} != {}", other, pure_type)
             )
         }
     }
@@ -79,20 +79,12 @@ impl FromStr for ContentType {
 mod test {
     use super::ContentType;
     use std::str::FromStr;
+    use test_case::test_case;
 
-    #[test]
-    fn test_pure_type() {
-        assert_eq!(
-            &Mime::from_str("application/json; charset=utf-8; FOO=BAR")
-                .unwrap()
-                .pure_type(),
-            &"application/json"
-        );
-        assert_eq!(
-            &Mime::from_str("image/svg+xml; FOO=BAR")
-                .unwrap()
-                .pure_type(),
-            &"image/svg+xml"
-        );
+    #[test_case("application/json; charset=utf-8; FOO=BAR" => "application/json")]
+    #[test_case("image/svg+xml; FOO=BAR" => "image/svg+xml")]
+    fn pure_type(mime_type: &str) -> String {
+        let content_type: ContentType = mime_type.parse().unwrap();
+        content_type.pure_type().unwrap().to_string()
     }
 }

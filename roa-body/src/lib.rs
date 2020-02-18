@@ -53,10 +53,13 @@
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
 //!     // deserialize as json.
-//!     user = ctx.read_json().await?;
+//!     let mut user: User = ctx.read_json().await?;
 //!
 //!     // deserialize as x-form-urlencoded.
 //!     user = ctx.read_form().await?;
+//!
+//!     // read multipart form
+//!     let form = ctx.multipart().await?;
 //!
 //!     // serialize object and write it to body,
 //!     // set "Content-Type"
@@ -126,7 +129,7 @@ pub trait PowerBody: Content {
 
     // read request body as "multipart/form-data"
     #[cfg(feature = "multipart")]
-    async fn read_multipart(&mut self) -> Result<Multipart>;
+    async fn multipart(&mut self) -> Result<Multipart>;
 
     /// write object to response body as "application/json; charset=utf-8"
     #[cfg(feature = "json")]
@@ -178,7 +181,7 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "multipart")]
-    async fn read_multipart(&mut self) -> Result<Multipart> {
+    async fn multipart(&mut self) -> Result<Multipart> {
         unimplemented!()
     }
 
@@ -237,8 +240,7 @@ impl<S: State> PowerBody for Context<S> {
 
 #[cfg(test)]
 mod tests {
-    use super::{PowerBody, APPLICATION_JSON_UTF_8};
-    use crate::core::App;
+    use super::PowerBody;
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;
@@ -246,6 +248,7 @@ mod tests {
     use futures::io::BufReader;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
+    use roa_core::App;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone, Template)]
@@ -256,11 +259,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read() -> Result<(), Box<dyn std::error::Error>> {
+    async fn read_json() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
         let (addr, server) = App::new(())
             .end(move |mut ctx| async move {
-                let user: User = ctx.read().await?;
+                let user: User = ctx.read_json().await?;
                 assert_eq!(
                     User {
                         id: 0,
@@ -290,14 +293,6 @@ mod tests {
             .await?
             .ends_with("Content-Type value is invalid"));
 
-        // no Content-Type, default json
-        let resp = client
-            .get(&format!("http://{}", addr))
-            .body(serde_json::to_vec(&data)?)
-            .send()
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status());
-
         // json
         let resp = client
             .get(&format!("http://{}", addr))
@@ -306,24 +301,16 @@ mod tests {
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
 
-        // x-www-form-urlencoded
-        let resp = client
-            .get(&format!("http://{}", addr))
-            .form(&data)
-            .send()
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status());
-
-        // unsupported Content-Type
+        // unmatched Content-Type
         let resp = client
             .get(&format!("http://{}", addr))
             .body(serde_json::to_vec(&data)?)
             .header(CONTENT_TYPE, "text/xml")
             .send()
             .await?;
-        assert_eq!(StatusCode::UNSUPPORTED_MEDIA_TYPE, resp.status());
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
         assert_eq!(
-            "Content-Type can only be JSON or URLENCODED",
+            "content type unmatched. application/json != text/xml",
             resp.text().await?
         );
 
@@ -340,6 +327,65 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn read_form() -> Result<(), Box<dyn std::error::Error>> {
+        // miss key
+        let (addr, server) = App::new(())
+            .end(move |mut ctx| async move {
+                let user: User = ctx.read_form().await?;
+                assert_eq!(
+                    User {
+                        id: 0,
+                        name: "Hexilee".to_string()
+                    },
+                    user
+                );
+                Ok(())
+            })
+            .run_local()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+
+        let data = User {
+            id: 0,
+            name: "Hexilee".to_string(),
+        };
+        // err mime type
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(CONTENT_TYPE, "text/plain/html")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+        assert!(resp
+            .text()
+            .await?
+            .ends_with("Content-Type value is invalid"));
+
+        // x-www-form-urlencoded
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .form(&data)
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+
+        // unmatched Content-Type
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .body(serde_json::to_vec(&data)?)
+            .header(CONTENT_TYPE, "text/xml")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+        assert_eq!(
+            "content type unmatched. application/x-www-form-urlencoded != text/xml",
+            resp.text().await?
+        );
+
         Ok(())
     }
 
@@ -381,8 +427,10 @@ mod tests {
         // miss key
         let (addr, server) = App::new(())
             .end(move |mut ctx| async move {
-                ctx.write_octet(BufReader::new(File::open("assets/author.txt").await?))
-                    .await
+                ctx.write_octet(BufReader::new(
+                    File::open("../assets/author.txt").await?,
+                ))
+                .await
             })
             .run_local()?;
         spawn(server);
@@ -393,26 +441,6 @@ mod tests {
             resp.headers()[CONTENT_TYPE]
         );
         assert_eq!("Hexilee", resp.text().await?);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn response_type() -> Result<(), Box<dyn std::error::Error>> {
-        // miss key
-        let (addr, server) = App::new(())
-            .end(move |mut ctx| async move {
-                ctx.write_json(&()).await?;
-                assert_eq!(
-                    APPLICATION_JSON_UTF_8,
-                    ctx.response_type().await.unwrap().unwrap().as_ref()
-                );
-                Ok(())
-            })
-            .run_local()?;
-        spawn(server);
-        let resp = reqwest::get(&format!("http://{}", addr)).await?;
-        assert_eq!(StatusCode::OK, resp.status());
-        assert_eq!(APPLICATION_JSON_UTF_8, resp.headers()[CONTENT_TYPE]);
         Ok(())
     }
 }
