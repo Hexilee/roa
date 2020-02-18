@@ -11,14 +11,13 @@
 //! use roa::core::header::{ORIGIN, CONTENT_TYPE};
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
-//!     if let Some(value) = ctx.req().await.headers.get(ORIGIN) {
+//!     if let Some(value) = ctx.req().headers.get(ORIGIN) {
 //!         // handle `ToStrError`
 //!         let origin = value.to_str().map_err(|_err| Error::new(StatusCode::BAD_REQUEST, "", true))?;
 //!         println!("origin: {}", origin);
 //!     }
 //!     // handle `InvalidHeaderValue`
 //!     ctx.resp_mut()
-//!        .await
 //!        .headers
 //!        .insert(
 //!            CONTENT_TYPE,
@@ -38,7 +37,7 @@
 //! use roa::header::FriendlyHeaders;
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
-//!     println!("origin: {}", ctx.req().await.must_get(ORIGIN)?);
+//!     println!("origin: {}", ctx.req().must_get(ORIGIN)?);
 //!     ctx.resp_mut()
 //!        .await
 //!        .insert(CONTENT_TYPE, "text/plain")?;
@@ -107,7 +106,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     if let Some(value) = ctx.req().await.get(ORIGIN) {
+    ///     if let Some(value) = ctx.req().get(ORIGIN) {
     ///         println!("origin: {}", value?);     
     ///     }   
     ///     Ok(())
@@ -134,7 +133,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     println!("origin: {}", ctx.req().await.must_get(ORIGIN)?);     
+    ///     println!("origin: {}", ctx.req().must_get(ORIGIN)?);     
     ///     Ok(())
     /// }
     /// ```
@@ -159,7 +158,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     for value in ctx.req().await.get_all(ORIGIN)?.into_iter() {
+    ///     for value in ctx.req().get_all(ORIGIN)?.into_iter() {
     ///         println!("origin: {}", value);
     ///     }
     ///     Ok(())
@@ -193,7 +192,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(mut ctx: Context<()>) -> Result {
-    ///     ctx.resp_mut().await.insert(CONTENT_TYPE, "text/plain")?;   
+    ///     ctx.resp_mut().insert(CONTENT_TYPE, "text/plain")?;   
     ///     Ok(())
     /// }
     /// ```
@@ -232,7 +231,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(mut ctx: Context<()>) -> Result {
-    ///     ctx.resp_mut().await.append(SET_COOKIE, "this is a cookie")?;   
+    ///     ctx.resp_mut().append(SET_COOKIE, "this is a cookie")?;   
     ///     Ok(())
     /// }
     /// ```

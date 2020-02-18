@@ -12,10 +12,8 @@
 //! async fn gate() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut router = Router::<()>::new();
 //!     router
-//!         .gate_fn(|ctx, next| async move {
-//!             next().await
-//!         })
-//!         .get("/", |ctx| async move {
+//!         .gate_fn(|_ctx, next| next)
+//!         .get("/", |_ctx| async move {
 //!             Ok(())
 //!         });
 //!     let (addr, server) = App::new(()).gate(router.routes("/route")?).run_local()?;
@@ -78,7 +76,7 @@ struct RouterScope;
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut router = Router::<()>::new();
 ///     router.get("/:id", |ctx| async move {
-///         let id: u64 = ctx.must_param("id").await?.parse()?;
+///         let id: u64 = ctx.must_param("id")?.parse()?;
 ///         assert_eq!(0, id);
 ///         Ok(())
 ///     });
@@ -93,10 +91,9 @@ struct RouterScope;
 ///
 ///
 /// ```
-#[async_trait]
 pub trait RouterParam {
     /// Must get a router parameter, throw 500 INTERNAL SERVER ERROR if it not exists.
-    async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>>;
+    fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>>;
 
     /// Try to get a router parameter, return `None` if it not exists.
     /// ### Example
@@ -110,7 +107,7 @@ pub trait RouterParam {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let mut router = Router::<()>::new();
     ///     router.get("/:id", |ctx| async move {
-    ///         assert!(ctx.param("name").await.is_none());
+    ///         assert!(ctx.param("name").is_none());
     ///         Ok(())
     ///     });
     ///     let (addr, server) = App::new(())
@@ -124,7 +121,7 @@ pub trait RouterParam {
     ///
     ///
     /// ```
-    async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a, String>>;
+    fn param<'a>(&self, name: &'a str) -> Option<Variable<'a, String>>;
 }
 
 /// A builder of `RouteEndpoint`.
@@ -168,8 +165,8 @@ impl<S: State> Router<S> {
     /// use roa::router::Router;
     ///
     /// let mut router = Router::<()>::new();
-    /// // router.gate(|_ctx, next| async move { next().await }); compile fails.
-    /// router.gate(|_ctx, next: Next| async move { next().await });
+    /// // router.gate(|_ctx, next| next); compile fails.
+    /// router.gate(|_ctx, next: Next| next);
     /// ```
     ///
     /// However, with `Router::gate_fn`, you can match a lambda without type indication.
@@ -177,14 +174,14 @@ impl<S: State> Router<S> {
     /// use roa::router::Router;
     ///
     /// let mut router = Router::<()>::new();
-    /// router.gate_fn(|_ctx, next| async move { next().await });
+    /// router.gate_fn(|_ctx, next| next);
     /// ```
     pub fn gate_fn<F>(
         &mut self,
         middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result> + Send,
+        F: 'static + Future<Output = Result>,
     {
         self.gate(middleware);
         self
@@ -238,7 +235,7 @@ impl<S: State> Router<S> {
     ///
     /// fn transfer<S, F>(endpoint: fn(Context<S>) -> F) -> impl Middleware<S>
     /// where S: State,
-    ///       F: 'static + Send + Future<Output=Result> {
+    ///       F: 'static + Future<Output=Result> {
     ///     endpoint
     /// }
     ///
@@ -260,7 +257,7 @@ impl<S: State> Router<S> {
         endpoint: fn(Context<S>) -> F,
     ) -> &mut Self
     where
-        F: 'static + Future<Output = Result> + Send,
+        F: 'static + Future<Output = Result>,
     {
         self.end(methods, path, endpoint)
     }
@@ -322,7 +319,7 @@ macro_rules! impl_http_method {
         #[allow(missing_docs)]
         pub fn $end<F>(&mut self, path: &'static str, endpoint: fn(Context<S>) -> F) -> &mut Self
         where
-            F: 'static + Send + Future<Output = Result>,
+            F: 'static + Future<Output = Result>,
         {
             self.end([$($method, )*].as_ref(), path, endpoint)
         }
@@ -409,7 +406,7 @@ impl<S: State> RouteTable<S> {
     }
 
     async fn end(&self, mut ctx: Context<S>) -> Result {
-        let uri = ctx.uri().await;
+        let uri = ctx.uri();
         let path =
             standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
                 |err| {
@@ -441,23 +438,25 @@ impl<S: State> RouteTable<S> {
     }
 }
 
-#[async_trait]
 impl<S: State> Middleware<S> for RouteEndpoint<S> {
-    async fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Result {
-        match self.0.get(&ctx.method().await) {
-            None => throw!(
-                StatusCode::METHOD_NOT_ALLOWED,
-                format!("method {} is not allowed", &ctx.method().await)
-            ),
-            Some(handler) => handler.end(ctx).await,
+    fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Next {
+        match self.0.get(&ctx.method()) {
+            None => {
+                async move {
+                    throw!(
+                        StatusCode::METHOD_NOT_ALLOWED,
+                        format!("method {} is not allowed", &ctx.method())
+                    )
+                }
+            }
+            Some(handler) => handler.end(ctx),
         }
     }
 }
 
-#[async_trait]
 impl<S: State> RouterParam for Context<S> {
-    async fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
-        self.param(name).await.ok_or_else(|| {
+    fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
+        self.param(name).ok_or_else(|| {
             Error::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("router variable `{}` is required", name),
@@ -465,8 +464,8 @@ impl<S: State> RouterParam for Context<S> {
             )
         })
     }
-    async fn param<'a>(&self, name: &'a str) -> Option<Variable<'a, String>> {
-        self.load_scoped::<RouterScope, String>(name).await
+    fn param<'a>(&self, name: &'a str) -> Option<Variable<'a, String>> {
+        self.load_scoped::<RouterScope, String>(name)
     }
 }
 
@@ -484,11 +483,11 @@ mod tests {
         let mut router = Router::<()>::new();
         router
             .gate_fn(|mut ctx, next| async move {
-                ctx.store("id", "0".to_string()).await;
-                next().await
+                ctx.store("id", "0".to_string());
+                next.await
             })
             .get("/", |ctx| async move {
-                let id: u64 = ctx.load::<String>("id").await.unwrap().parse()?;
+                let id: u64 = ctx.load::<String>("id").unwrap().parse()?;
                 assert_eq!(0, id);
                 Ok(())
             });
@@ -504,11 +503,11 @@ mod tests {
         let mut router = Router::<()>::new();
         let mut user_router = Router::<()>::new();
         router.gate_fn(|mut ctx, next| async move {
-            ctx.store("id", "0".to_string()).await;
-            next().await
+            ctx.store("id", "0".to_string());
+            next.await
         });
         user_router.get("/", |ctx| async move {
-            let id: u64 = ctx.load::<String>("id").await.unwrap().parse()?;
+            let id: u64 = ctx.load::<String>("id").unwrap().parse()?;
             assert_eq!(0, id);
             Ok(())
         });

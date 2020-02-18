@@ -14,7 +14,7 @@
 //!     let (addr, server) = App::new(())
 //!         .gate(cookie_parser)
 //!         .end(|mut ctx| async move {
-//!             assert_eq!("Hexilee", ctx.must_cookie("name").await?.value());
+//!             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
 //!             Ok(())
 //!         })
 //!         .run_local()?;
@@ -30,9 +30,7 @@
 //! }
 //! ```
 
-use crate::core::{
-    async_trait, header, throw, Context, Next, Result, State, StatusCode,
-};
+use crate::core::{header, throw, Context, Next, Result, State, StatusCode};
 use crate::header::FriendlyHeaders;
 pub use cookie::Cookie;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
@@ -65,7 +63,7 @@ struct CookieScope;
 ///     let (addr, server) = App::new(())
 ///         .gate(cookie_parser)
 ///         .end( |mut ctx| async move {
-///             assert_eq!("Hexilee", ctx.must_cookie("name").await?.value());
+///             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
 ///             Ok(())
 ///         })
 ///         .run_local()?;
@@ -81,7 +79,7 @@ struct CookieScope;
 ///     // miss `cookie_parser`
 ///     let (addr, server) = App::new(())
 ///         .end( |ctx| async move {
-///             assert!(ctx.cookie("name").await.is_none());
+///             assert!(ctx.cookie("name").is_none());
 ///             Ok(())
 ///         })
 ///         .run_local()?;
@@ -95,7 +93,6 @@ struct CookieScope;
 ///     Ok(())
 /// }
 /// ```
-#[async_trait]
 pub trait Cookier {
     /// Must get a cookie, throw 401 UNAUTHORIZED if it not exists.
     /// ### Example
@@ -111,7 +108,7 @@ pub trait Cookier {
     ///     let (addr, server) = App::new(())
     ///         .gate(cookie_parser)
     ///         .end( |mut ctx| async move {
-    ///             assert_eq!("Hexilee", ctx.must_cookie("name").await?.value());
+    ///             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -121,7 +118,7 @@ pub trait Cookier {
     ///     Ok(())
     /// }
     /// ```
-    async fn must_cookie(&mut self, name: &str) -> Result<Arc<Cookie<'static>>>;
+    fn must_cookie(&mut self, name: &str) -> Result<Arc<Cookie<'static>>>;
 
     /// Try to get a cookie, return `None` if it not exists.
     /// ### Example
@@ -137,7 +134,7 @@ pub trait Cookier {
     ///     let (addr, server) = App::new(())
     ///         .gate(cookie_parser)
     ///         .end( |ctx| async move {
-    ///             assert!(ctx.cookie("name").await.is_none());
+    ///             assert!(ctx.cookie("name").is_none());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -147,7 +144,7 @@ pub trait Cookier {
     ///     Ok(())
     /// }
     /// ```
-    async fn cookie(&self, name: &str) -> Option<Arc<Cookie<'static>>>;
+    fn cookie(&self, name: &str) -> Option<Arc<Cookie<'static>>>;
 
     /// Set a cookie in pecent encoding, should not return Err.
     /// ### Example
@@ -161,7 +158,7 @@ pub trait Cookier {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end( |mut ctx| async move {
-    ///             ctx.set_cookie(Cookie::new("name", "Hexi Lee")).await?;
+    ///             ctx.set_cookie(Cookie::new("name", "Hexi Lee"))?;
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -174,12 +171,12 @@ pub trait Cookier {
     ///     Ok(())
     /// }
     /// ```
-    async fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result;
+    fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result;
 }
 
 /// A middleware to parse cookie.
-pub async fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
-    if let Some(Ok(cookies)) = ctx.header(header::COOKIE).await {
+pub fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Next {
+    if let Some(Ok(cookies)) = ctx.header(header::COOKIE) {
         for cookie in cookies
             .split(';')
             .map(|cookie| cookie.trim())
@@ -187,24 +184,22 @@ pub async fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result 
             .filter_map(|cookie| cookie.ok())
         {
             let name = cookie.name().to_string();
-            ctx.store_scoped(CookieScope, &name, cookie.into_owned())
-                .await;
+            ctx.store_scoped(CookieScope, &name, cookie.into_owned());
         }
     }
-    next().await
+    next
 }
 
-#[async_trait]
 impl<S: State> Cookier for Context<S> {
-    async fn must_cookie(&mut self, name: &str) -> Result<Arc<Cookie<'static>>> {
-        match self.cookie(name).await {
+    fn must_cookie(&mut self, name: &str) -> Result<Arc<Cookie<'static>>> {
+        match self.cookie(name) {
             Some(value) => Ok(value),
             None => {
                 let www_authenticate = format!(
                     r#"Cookie name="{}""#,
                     utf8_percent_encode(name, NON_ALPHANUMERIC).to_string()
                 );
-                self.resp_mut().await.headers.insert(
+                self.resp_mut().headers.insert(
                     header::WWW_AUTHENTICATE,
                     www_authenticate.parse().expect(WWW_AUTHENTICATE_BUG_HELP),
                 );
@@ -213,14 +208,12 @@ impl<S: State> Cookier for Context<S> {
         }
     }
 
-    async fn cookie(&self, name: &str) -> Option<Arc<Cookie<'static>>> {
-        Some(self.load_scoped::<CookieScope, Cookie>(name).await?.value())
+    fn cookie(&self, name: &str) -> Option<Arc<Cookie<'static>>> {
+        Some(self.load_scoped::<CookieScope, Cookie>(name)?.value())
     }
-    async fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result {
+    fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result {
         let cookie_value = cookie.encoded().to_string();
-        self.resp_mut()
-            .await
-            .append(header::SET_COOKIE, cookie_value)?;
+        self.resp_mut().append(header::SET_COOKIE, cookie_value)?;
         Ok(())
     }
 }
@@ -238,7 +231,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(cookie_parser)
             .end(move |ctx| async move {
-                assert!(ctx.cookie("name").await.is_none());
+                assert!(ctx.cookie("name").is_none());
                 Ok(())
             })
             .run_local()?;
@@ -248,7 +241,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(cookie_parser)
             .end(move |mut ctx| async move {
-                ctx.must_cookie("nick name").await?;
+                ctx.must_cookie("nick name")?;
                 Ok(())
             })
             .run_local()?;
@@ -267,7 +260,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(cookie_parser)
             .end(move |mut ctx| async move {
-                assert_eq!("Hexilee", ctx.must_cookie("name").await?.value());
+                assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
                 Ok(())
             })
             .run_local()?;
@@ -287,7 +280,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(cookie_parser)
             .end(move |mut ctx| async move {
-                assert_eq!("bar baz", ctx.must_cookie("bar baz").await?.value());
+                assert_eq!("bar baz", ctx.must_cookie("bar baz")?.value());
                 Ok(())
             })
             .run_local()?;
@@ -307,8 +300,8 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(cookie_parser)
             .end(move |mut ctx| async move {
-                assert_eq!("bar baz", ctx.must_cookie("bar baz").await?.value());
-                assert_eq!("bar foo", ctx.must_cookie("foo baz").await?.value());
+                assert_eq!("bar baz", ctx.must_cookie("bar baz")?.value());
+                assert_eq!("bar foo", ctx.must_cookie("foo baz")?.value());
                 Ok(())
             })
             .run_local()?;
@@ -327,8 +320,8 @@ mod tests {
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .end(move |mut ctx| async move {
-                ctx.set_cookie(Cookie::new("bar baz", "bar baz")).await?;
-                ctx.set_cookie(Cookie::new("bar foo", "foo baz")).await?;
+                ctx.set_cookie(Cookie::new("bar baz", "bar baz"))?;
+                ctx.set_cookie(Cookie::new("bar foo", "foo baz"))?;
                 Ok(())
             })
             .run_local()?;

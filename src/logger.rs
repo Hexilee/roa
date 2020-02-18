@@ -15,7 +15,7 @@
 //!     let (addr, server) = App::new(())
 //!         .gate(logger)
 //!         .end(|mut ctx| async move {
-//!             ctx.write_text("Hello, World!").await
+//!             ctx.write_text("Hello, World!")
 //!         })
 //!         .run_local()?;
 //!     spawn(server);
@@ -36,14 +36,14 @@ use std::time::Instant;
 /// and should be greater than `ERROR` when you need error information only.
 pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let start = Instant::now();
-    let method = ctx.method().await;
-    let uri = ctx.uri().await;
+    let method = ctx.method();
+    let uri = ctx.uri();
     info!("--> {} {}", method, uri.path());
     let path = uri.path().to_string();
-    let result = next().await;
+    let result = next.await;
     let callback: Box<BodyCallback> = match result {
         Ok(()) => {
-            let status_code = ctx.status().await;
+            let status_code = ctx.status();
             Box::new(move |body: &Body| {
                 info!(
                     "<-- {} {} {}ms {} {}",
@@ -55,9 +55,9 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                 )
             })
         }
-        Err(ref status) => {
-            let message = status.message.clone();
-            let status_code = status.status_code;
+        Err(ref err) => {
+            let message = err.message.clone();
+            let status_code = err.status_code;
             Box::new(move |_| {
                 error!(
                     "<-- {} {} {}ms {}\n{}",
@@ -70,7 +70,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
             })
         }
     };
-    ctx.resp_mut().await.on_finish(callback);
+    ctx.resp_mut().on_finish(callback);
     result
 }
 
@@ -118,7 +118,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate_fn(logger)
             .end(move |mut ctx| async move {
-                ctx.resp_mut().await.write_str("Hello, World.");
+                ctx.resp_mut().write_str("Hello, World.");
                 Ok(())
             })
             .run_local()?;

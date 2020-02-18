@@ -30,7 +30,7 @@
 //!     let (addr, server) = app
 //!         .gate(guard(SECRET))
 //!         .end(move |ctx| async move {
-//!             let user: User = ctx.claims().await?;
+//!             let user: User = ctx.claims()?;
 //!             assert_eq!(0, user.id);
 //!             assert_eq!("Hexilee", &user.name);
 //!             Ok(())
@@ -67,9 +67,7 @@
 pub use jsonwebtoken::Validation;
 
 use crate::core::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
-use crate::core::{
-    async_trait, join, Context, Error, Middleware, Next, Result, State, StatusCode,
-};
+use crate::core::{join, Context, Error, Middleware, Next, Result, State, StatusCode};
 use jsonwebtoken::{dangerous_unsafe_decode, decode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -91,21 +89,20 @@ struct JwtScope;
 /// use serde_json::Value;
 ///
 /// async fn get(ctx: Context<()>) -> Result {
-///     let claims: Value = ctx.claims().await?;
+///     let claims: Value = ctx.claims()?;
 ///     Ok(())
 /// }
 /// ```
-#[async_trait]
 pub trait JwtVerifier<S, C>
 where
     C: 'static + DeserializeOwned,
 {
     /// Deserialize claims from token.
-    async fn claims(&self) -> Result<C>;
+    fn claims(&self) -> Result<C>;
 
     /// Verify token and deserialize claims with a validation.
     /// Use this method if this validation is different from that one of guard or guard_by.
-    async fn verify(&self, validation: &Validation) -> Result<C>;
+    fn verify(&self, validation: &Validation) -> Result<C>;
 }
 
 /// Guard by default validation.
@@ -135,11 +132,10 @@ pub fn guard_by<S: State>(
 }
 
 async fn catch_www_authenticate<S: State>(mut ctx: Context<S>, next: Next) -> Result {
-    let result = next().await;
+    let result = next.await;
     if let Err(ref err) = result {
         if err.status_code == StatusCode::UNAUTHORIZED {
             ctx.resp_mut()
-                .await
                 .headers
                 .insert(WWW_AUTHENTICATE, HeaderValue::from_static(INVALID_TOKEN));
         }
@@ -164,8 +160,8 @@ fn guard_not_set() -> Error {
     )
 }
 
-async fn try_get_token<S: State>(ctx: &Context<S>) -> Result<String> {
-    match ctx.header(AUTHORIZATION).await {
+fn try_get_token<S: State>(ctx: &Context<S>) -> Result<String> {
+    match ctx.header(AUTHORIZATION) {
         None | Some(Err(_)) => Err(unauthorized("")),
         Some(Ok(value)) => match value.find("Bearer") {
             None => Err(unauthorized("")),
@@ -174,14 +170,13 @@ async fn try_get_token<S: State>(ctx: &Context<S>) -> Result<String> {
     }
 }
 
-#[async_trait]
 impl<S, C> JwtVerifier<S, C> for Context<S>
 where
     S: State,
     C: 'static + DeserializeOwned + Send,
 {
-    async fn claims(&self) -> Result<C> {
-        let token = self.load_scoped::<JwtScope, String>("token").await;
+    fn claims(&self) -> Result<C> {
+        let token = self.load_scoped::<JwtScope, String>("token");
         match token {
             Some(token) => dangerous_unsafe_decode(&*token)
                 .map(|data| data.claims)
@@ -199,9 +194,9 @@ where
         }
     }
 
-    async fn verify(&self, validation: &Validation) -> Result<C> {
-        let secret = self.load_scoped::<JwtScope, Arc<String>>("secret").await;
-        let token = self.load_scoped::<JwtScope, String>("token").await;
+    fn verify(&self, validation: &Validation) -> Result<C> {
+        let secret = self.load_scoped::<JwtScope, Arc<String>>("secret");
+        let token = self.load_scoped::<JwtScope, String>("token");
         match (secret, token) {
             (Some(secret), Some(token)) => decode(&token, secret.as_bytes(), validation)
                 .map(|data| data.claims)
@@ -211,16 +206,16 @@ where
     }
 }
 
-#[async_trait]
 impl<S: State> Middleware<S> for JwtGuard {
-    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
-        let token = try_get_token(&ctx).await?;
-        decode::<Value>(&token, self.secret.as_bytes(), &self.validation)
-            .map_err(unauthorized)?;
-        ctx.store_scoped(JwtScope, "secret", self.secret.clone())
-            .await;
-        ctx.store_scoped(JwtScope, "token", token).await;
-        next().await
+    fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Next {
+        Box::pin(async move {
+            let token = try_get_token(&ctx)?;
+            decode::<Value>(&token, self.secret.as_bytes(), &self.validation)
+                .map_err(unauthorized)?;
+            ctx.store_scoped(JwtScope, "secret", self.secret.clone());
+            ctx.store_scoped(JwtScope, "token", token);
+            next().await
+        })
     }
 }
 
@@ -247,12 +242,12 @@ mod tests {
     const SECRET: &str = "123456";
 
     #[tokio::test]
-    async fn verify() -> Result<(), Box<dyn std::error::Error>> {
+    async fn claims() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         let (addr, server) = app
             .gate(guard(SECRET))
             .end(move |ctx| async move {
-                let user: User = ctx.claims().await?;
+                let user: User = ctx.claims()?;
                 assert_eq!(0, user.id);
                 assert_eq!("Hexilee", &user.name);
                 Ok(())
@@ -338,7 +333,7 @@ mod tests {
         let mut app = App::new(());
         let (addr, server) = app
             .gate_fn(move |ctx, _next| async move {
-                let result: Result<User, Error> = ctx.claims().await;
+                let result: Result<User, Error> = ctx.claims();
                 assert!(result.is_err());
                 let status = result.unwrap_err();
                 assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);

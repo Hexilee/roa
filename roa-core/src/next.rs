@@ -88,6 +88,7 @@ use std::pin::Pin;
 ///
 pub type Next<R = ()> = Pin<Box<dyn 'static + Future<Output = Result<R>>>>;
 
+/// The last.
 pub fn last() -> Next {
     Box::pin(async move { Ok(()) })
 }

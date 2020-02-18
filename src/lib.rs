@@ -27,7 +27,7 @@
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
 //!     app.end(|mut ctx| async move {
-//!         ctx.write_text("Hello, World").await
+//!         ctx.write_text("Hello, World")
 //!     });
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
@@ -38,13 +38,13 @@
 //! ```
 //!
 //! #### Cascading
-//! Like koajs, middleware suspends and passes control to "downstream" by invoking `next().await`.
-//! Then control flows back "upstream" when `next().await` returns.
+//! Like koajs, middleware suspends and passes control to "downstream" by invoking `next.await`.
+//! Then control flows back "upstream" when `next.await` returns.
 //!
 //! The following example responds with "Hello World",
 //! however first the request flows through the x-response-time and logging middleware to mark
 //! when the request started, then continue to yield control through the response middleware.
-//! When a middleware invokes next() the function suspends and passes control to the next middleware defined.
+//! When a middleware invokes next the function suspends and passes control to the next middleware defined.
 //! After there are no more middleware to execute downstream,
 //! the stack will unwind and each middleware is resumed to perform its upstream behaviour.
 //!
@@ -60,24 +60,24 @@
 //!     let mut app = App::new(());
 //!     // logger
 //!     app.gate_fn(|ctx, next| async move {
-//!       next().await?;
-//!       let rt = ctx.resp().await.must_get("x-response-time")?.to_owned();
-//!       info!("{} {} - {}", ctx.method().await, ctx.uri().await, rt);
+//!       next.await?;
+//!       let rt = ctx.resp().must_get("x-response-time")?;
+//!       info!("{} {} - {}", ctx.method(), ctx.uri(), rt);
 //!       Ok(())
 //!     });
 //!
 //!     // x-response-time
 //!     app.gate_fn(|mut ctx, next| async move {
 //!         let start = Instant::now();
-//!         next().await?;
+//!         next.await?;
 //!         let ms = start.elapsed().as_millis();
-//!         ctx.resp_mut().await.insert("x-response-time", format!("{}ms", ms))?;
+//!         ctx.resp_mut().insert("x-response-time", format!("{}ms", ms))?;
 //!         Ok(())
 //!     });
 //!
 //!     // response
 //!     app.end(|mut ctx| async move {
-//!         ctx.write_text("Hello, World").await
+//!         ctx.write_text("Hello, World")
 //!     });
 //!
 //!     app.listen("127.0.0.1:8000", |addr| {
@@ -102,7 +102,7 @@
 //!     App::new(())
 //!         .gate_fn(|ctx, next| async move {
 //!             // catch
-//!             if let Err(err) = next().await {
+//!             if let Err(err) = next.await {
 //!                 // teapot is ok
 //!                 if err.status_code != StatusCode::IM_A_TEAPOT {
 //!                     return Err(err)
@@ -111,7 +111,7 @@
 //!             Ok(())
 //!         })
 //!         .gate_fn(|ctx, next| async move {
-//!             next().await?; // just throw
+//!             next.await?; // just throw
 //!             unreachable!()
 //!         })
 //!         .end(|_ctx| async move {
@@ -133,10 +133,10 @@
 //! use roa_core::{Context, Error, Result, State, ErrorKind};
 //! pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
 //!     // set status code to err.status_code.
-//!     context.resp_mut().await.status = err.status_code;
+//!     context.resp_mut().status = err.status_code;
 //!     if err.expose {
 //!         // write err.message to response body if err.expose.
-//!         context.resp_mut().await.write_str(&err.message);
+//!         context.resp_mut().write_str(&err.message);
 //!     }
 //!     if err.kind == ErrorKind::ServerError {
 //!         // thrown to hyper
@@ -165,7 +165,7 @@
 //!     let mut router = Router::<()>::new();
 //!     // get dynamic "/:id"
 //!     router.get("/:id", |ctx| async move {
-//!         let id: u64 = ctx.must_param("id").await?.parse()?;
+//!         let id: u64 = ctx.must_param("id")?.parse()?;
 //!         // do something
 //!         Ok(())
 //!     });
@@ -198,7 +198,7 @@
 //!     App::new(())
 //!         .gate(query_parser)
 //!         .end( |ctx| async move {
-//!             let id: u64 = ctx.must_query("id").await?.parse()?;
+//!             let id: u64 = ctx.must_query("id")?.parse()?;
 //!             Ok(())
 //!         })
 //!         .listen("127.0.0.1:8080", |addr| {

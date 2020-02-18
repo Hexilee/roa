@@ -3,12 +3,11 @@
 //! which is used to parse `X-Forwarded-*` request headers.
 
 use crate::core::header::HOST;
-use crate::core::{async_trait, throw, Context, Result, State, StatusCode};
+use crate::core::{throw, Context, Result, State, StatusCode};
 use crate::preload::*;
 use std::net::IpAddr;
 
 /// A context extension `Forward` used to parse `X-Forwarded-*` request headers.
-#[async_trait]
 pub trait Forward {
     /// Get true host.
     /// - If "x-forwarded-host" is set and valid, use it.
@@ -21,11 +20,11 @@ pub trait Forward {
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     println!("host: {}", ctx.host().await?);
+    ///     println!("host: {}", ctx.host()?);
     ///     Ok(())
     /// }
     /// ```
-    async fn host(&self) -> Result<String>;
+    fn host(&self) -> Result<String>;
 
     /// Get true client ip.
     /// - If "x-forwarded-for" is set and valid, use the first ip.
@@ -37,11 +36,11 @@ pub trait Forward {
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     println!("client ip: {}", ctx.client_ip().await);
+    ///     println!("client ip: {}", ctx.client_ip());
     ///     Ok(())
     /// }
     /// ```
-    async fn client_ip(&self) -> IpAddr;
+    fn client_ip(&self) -> IpAddr;
 
     /// Get true forwarded ips.
     /// - If "x-forwarded-for" is set and valid, use it.
@@ -53,11 +52,11 @@ pub trait Forward {
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     println!("forwarded ips: {:?}", ctx.forwarded_ips().await);
+    ///     println!("forwarded ips: {:?}", ctx.forwarded_ips());
     ///     Ok(())
     /// }
     /// ```
-    async fn forwarded_ips(&self) -> Vec<IpAddr>;
+    fn forwarded_ips(&self) -> Vec<IpAddr>;
 
     /// Try to get forwarded proto.
     /// - If "x-forwarded-proto" is not set, return None.
@@ -69,21 +68,20 @@ pub trait Forward {
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     if let Some(result) = ctx.forwarded_proto().await {
+    ///     if let Some(result) = ctx.forwarded_proto() {
     ///         println!("forwarded proto: {}", result?);
     ///     }
     ///     Ok(())
     /// }
     /// ```
-    async fn forwarded_proto(&self) -> Option<Result<String>>;
+    fn forwarded_proto(&self) -> Option<Result<String>>;
 }
 
-#[async_trait]
 impl<S: State> Forward for Context<S> {
-    async fn host(&self) -> Result<String> {
-        if let Some(Ok(value)) = self.req().await.get("x-forwarded-host") {
+    fn host(&self) -> Result<String> {
+        if let Some(Ok(value)) = self.req().get("x-forwarded-host") {
             Ok(value.to_string())
-        } else if let Some(Ok(value)) = self.req().await.get(HOST) {
+        } else if let Some(Ok(value)) = self.req().get(HOST) {
             Ok(value.to_string())
         } else {
             throw!(
@@ -93,8 +91,8 @@ impl<S: State> Forward for Context<S> {
         }
     }
 
-    async fn client_ip(&self) -> IpAddr {
-        let addrs = self.forwarded_ips().await;
+    fn client_ip(&self) -> IpAddr {
+        let addrs = self.forwarded_ips();
         if addrs.is_empty() {
             self.remote_addr().ip()
         } else {
@@ -102,9 +100,9 @@ impl<S: State> Forward for Context<S> {
         }
     }
 
-    async fn forwarded_ips(&self) -> Vec<IpAddr> {
+    fn forwarded_ips(&self) -> Vec<IpAddr> {
         let mut addrs = Vec::new();
-        if let Some(Ok(value)) = self.req().await.get("x-forwarded-for") {
+        if let Some(Ok(value)) = self.req().get("x-forwarded-for") {
             for addr_str in value.split(',') {
                 if let Ok(addr) = addr_str.trim().parse() {
                     addrs.push(addr)
@@ -114,9 +112,8 @@ impl<S: State> Forward for Context<S> {
         addrs
     }
 
-    async fn forwarded_proto(&self) -> Option<Result<String>> {
+    fn forwarded_proto(&self) -> Option<Result<String>> {
         self.req()
-            .await
             .get("x-forwarded-proto")
             .map(|result| result.map(|value| value.to_string()))
     }
@@ -134,7 +131,7 @@ mod tests {
     async fn host() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .gate_fn(move |ctx, _next| async move {
-                assert_eq!("github.com", ctx.host().await?);
+                assert_eq!("github.com", ctx.host()?);
                 Ok(())
             })
             .run_local()?;
@@ -162,7 +159,7 @@ mod tests {
         let (addr, server) = App::new(())
             .end(move |mut ctx| async move {
                 ctx.req_mut().await.headers.remove(HOST);
-                assert_eq!("", ctx.host().await?);
+                assert_eq!("", ctx.host()?);
                 Ok(())
             })
             .run_local()?;
@@ -180,7 +177,7 @@ mod tests {
     async fn client_ip() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .gate_fn(move |ctx, _next| async move {
-                assert_eq!(ctx.remote_addr().ip(), ctx.client_ip().await);
+                assert_eq!(ctx.remote_addr().ip(), ctx.client_ip());
                 Ok(())
             })
             .run_local()?;
@@ -189,7 +186,7 @@ mod tests {
 
         let (addr, server) = App::new(())
             .gate_fn(move |ctx, _next| async move {
-                assert_eq!("192.168.0.1", ctx.client_ip().await.to_string());
+                assert_eq!("192.168.0.1", ctx.client_ip().to_string());
                 Ok(())
             })
             .run_local()?;
@@ -208,7 +205,7 @@ mod tests {
     async fn forwarded_proto() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .gate_fn(move |ctx, _next| async move {
-                assert_eq!("https", ctx.forwarded_proto().await.unwrap()?);
+                assert_eq!("https", ctx.forwarded_proto().unwrap()?);
                 Ok(())
             })
             .run_local()?;

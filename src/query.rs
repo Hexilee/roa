@@ -13,20 +13,18 @@
 //!     let (addr, server) = App::new(())
 //!         .gate(query_parser)
 //!         .end(|ctx| async move {
-//!             assert_eq!("Hexilee", &*ctx.must_query("name").await?);
+//!             assert_eq!("Hexilee", &*ctx.must_query("name")?);
 //!             Ok(())
 //!         })
 //!         .run_local()?;
 //!     spawn(server);
-//!     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
+//!     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr))?;
 //!     assert_eq!(StatusCode::OK, resp.status());
 //!     Ok(())
 //! }
 //! ```
 
-use crate::core::{
-    async_trait, Context, Error, Next, Result, State, StatusCode, Variable,
-};
+use crate::core::{Context, Error, Next, Result, State, StatusCode, Variable};
 use url::form_urlencoded::parse;
 
 /// A scope to store and load variables in Context::storage.
@@ -49,7 +47,7 @@ struct QueryScope;
 ///     let (addr, server) = App::new(())
 ///         .gate(query_parser)
 ///         .end( |ctx| async move {
-///             assert_eq!("Hexilee", &*ctx.must_query("name").await?);
+///             assert_eq!("Hexilee", &*ctx.must_query("name")?);
 ///             Ok(())
 ///         })
 ///         .run_local()?;
@@ -70,7 +68,6 @@ struct QueryScope;
 ///     Ok(())
 /// }
 /// ```
-#[async_trait]
 pub trait Query {
     /// Must get a variable, throw 400 BAD_REQUEST if it not exists.
     /// ### Example
@@ -86,7 +83,7 @@ pub trait Query {
     ///     let (addr, server) = App::new(())
     ///         .gate(query_parser)
     ///         .end( |ctx| async move {
-    ///             assert_eq!("Hexilee", &*ctx.must_query("name").await?);
+    ///             assert_eq!("Hexilee", &*ctx.must_query("name")?);
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -96,7 +93,7 @@ pub trait Query {
     ///     Ok(())
     /// }
     /// ```
-    async fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>>;
+    fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>>;
 
     /// Query a variable, return `None` if it not exists.
     /// ### Example
@@ -112,7 +109,7 @@ pub trait Query {
     ///     let (addr, server) = App::new(())
     ///         .gate(query_parser)
     ///         .end( |ctx| async move {
-    ///             assert!(ctx.query("name").await.is_none());
+    ///             assert!(ctx.query("name").is_none());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
@@ -122,23 +119,22 @@ pub trait Query {
     ///     Ok(())
     /// }
     /// ```
-    async fn query<'a>(&self, name: &'a str) -> Option<Variable<'a, String>>;
+    fn query<'a>(&self, name: &'a str) -> Option<Variable<'a, String>>;
 }
 
 /// A middleware to parse query.
 pub async fn query_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
-    let uri = ctx.uri().await;
+    let uri = ctx.uri();
     let query_string = uri.query().unwrap_or("");
     for (key, value) in parse(query_string.as_bytes()) {
-        ctx.store_scoped(QueryScope, &key, value.to_string()).await;
+        ctx.store_scoped(QueryScope, &key, value.to_string());
     }
-    next().await
+    next.await
 }
 
-#[async_trait]
 impl<S: State> Query for Context<S> {
-    async fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
-        self.query(name).await.ok_or_else(|| {
+    fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
+        self.query(name).ok_or_else(|| {
             Error::new(
                 StatusCode::BAD_REQUEST,
                 format!("query `{}` is required", name),
@@ -146,8 +142,8 @@ impl<S: State> Query for Context<S> {
             )
         })
     }
-    async fn query<'a>(&self, name: &'a str) -> Option<Variable<'a, String>> {
-        self.load_scoped::<QueryScope, String>(name).await
+    fn query<'a>(&self, name: &'a str) -> Option<Variable<'a, String>> {
+        self.load_scoped::<QueryScope, String>(name)
     }
 }
 
@@ -164,7 +160,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(query_parser)
             .end(|ctx| async move {
-                assert!(ctx.query("name").await.is_none());
+                assert!(ctx.query("name").is_none());
                 Ok(())
             })
             .run_local()?;
@@ -175,7 +171,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(query_parser)
             .end(|ctx| async move {
-                assert_eq!("Hexilee", &*ctx.must_query("name").await?);
+                assert_eq!("Hexilee", &*ctx.must_query("name")?);
                 Ok(())
             })
             .run_local()?;
@@ -191,7 +187,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(query_parser)
             .end(|ctx| async move {
-                assert!(ctx.must_query("age").await?.parse::<u64>().is_err());
+                assert!(ctx.must_query("age")?.parse::<u64>().is_err());
                 Ok(())
             })
             .run_local()?;
@@ -202,7 +198,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(query_parser)
             .end(|ctx| async move {
-                assert_eq!(120, ctx.must_query("age").await?.parse::<u64>()?);
+                assert_eq!(120, ctx.must_query("age")?.parse::<u64>()?);
                 Ok(())
             })
             .run_local()?;
@@ -217,8 +213,8 @@ mod tests {
         let (addr, server) = App::new(())
             .gate(query_parser)
             .end(|ctx| async move {
-                assert_eq!("Hexilee", &*ctx.must_query("name").await?);
-                assert_eq!("rust", &*ctx.must_query("lang").await?);
+                assert_eq!("Hexilee", &*ctx.must_query("name")?);
+                assert_eq!("rust", &*ctx.must_query("lang")?);
                 Ok(())
             })
             .run_local()?;

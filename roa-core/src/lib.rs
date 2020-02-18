@@ -197,11 +197,10 @@ pub use middleware::Middleware;
 #[doc(inline)]
 pub use group::{join, join_all};
 
-pub(crate) use next::last;
 pub use state::State;
 
 #[doc(inline)]
-pub use next::Next;
+pub use next::{last, Next};
 
 #[doc(inline)]
 pub use request::Request;
