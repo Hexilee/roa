@@ -168,7 +168,7 @@ impl<S: State> App<S> {
         middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
     ) -> &mut Self
     where
-        F: 'static + Send + Future<Output = Result>,
+        F: 'static + Future<Output = Result>,
     {
         self.gate(middleware)
     }
@@ -216,7 +216,7 @@ impl<S: State> App<S> {
     /// ```
     pub fn end<F>(&mut self, endpoint: fn(Context<S>) -> F) -> &mut Self
     where
-        F: 'static + Send + Future<Output = Result>,
+        F: 'static + Future<Output = Result>,
     {
         self.gate(endpoint)
     }

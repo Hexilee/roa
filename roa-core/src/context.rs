@@ -754,8 +754,8 @@ mod tests {
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .end(|ctx| async move {
-                assert_eq!(Version::HTTP_11, ctx.version().await);
-                assert_eq!(StatusCode::OK, ctx.status().await);
+                assert_eq!(Version::HTTP_11, ctx.version());
+                assert_eq!(StatusCode::OK, ctx.status());
                 Ok(())
             })
             .run_local()?;
@@ -772,7 +772,7 @@ mod tests {
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(State { data: 1 })
             .gate_fn(|mut ctx, next| async move {
-                ctx.state_mut().await.data = 1;
+                ctx.data = 1;
                 next().await
             })
             .end(|ctx: Context<State>| async move {

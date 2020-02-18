@@ -1,4 +1,4 @@
-use crate::{last, Context, Next, Result, ResultFuture, State};
+use crate::{last, Context, Next, Result, State};
 use async_std::sync::Arc;
 use std::future::Future;
 
@@ -109,11 +109,11 @@ use std::future::Future;
 /// ```
 pub trait Middleware<S: State>: 'static + Sync + Send {
     /// Handle context and next, then return a future to get status.
-    fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> ResultFuture;
+    fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Next;
 
     /// Handle context as an endpoint.
-    fn end(self: Arc<Self>, ctx: Context<S>) -> ResultFuture {
-        self.handle(ctx, Box::new(last))
+    fn end(self: Arc<Self>, ctx: Context<S>) -> Next {
+        self.handle(ctx, last())
     }
 }
 
@@ -124,7 +124,7 @@ where
     F: 'static + Future<Output = Result>,
 {
     #[inline]
-    fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> ResultFuture {
+    fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Next {
         Box::pin((self)(ctx, next))
     }
 }
@@ -135,7 +135,7 @@ where
     F: 'static + Future<Output = Result>,
 {
     #[inline]
-    fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> ResultFuture {
+    fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Next {
         Box::pin((self)(ctx))
     }
 }
