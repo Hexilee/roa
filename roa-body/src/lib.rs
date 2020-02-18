@@ -1,4 +1,4 @@
-//! The body module of roa.
+//! The body crate of roa.
 //! This module provides a context extension `PowerBody`.
 //!
 //! ### Read/write body in a simpler way.
@@ -6,7 +6,7 @@
 //! The `roa_core` provides several methods to read/write body.
 //!
 //! ```rust
-//! use roa::core::{Context, Result};
+//! use roa_core::{Context, Result};
 //! use futures::AsyncReadExt;
 //! use futures::io::BufReader;
 //! use async_std::fs::File;
@@ -37,8 +37,8 @@
 //! The `PowerBody` provides more powerful methods to handle it.
 //!
 //! ```rust
-//! use roa::core::{Context, Result};
-//! use roa::body::PowerBody;
+//! use roa_core::{Context, Result};
+//! use roa_body::PowerBody;
 //! use serde::{Serialize, Deserialize};
 //! use askama::Template;
 //! use async_std::fs::File;
@@ -52,9 +52,6 @@
 //! }
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
-//!     // deserialize User from request automatically by Content-Type.
-//!     let mut user: User = ctx.read().await?;
-//!
 //!     // deserialize as json.
 //!     user = ctx.read_json().await?;
 //!
@@ -84,53 +81,59 @@
 //! }
 //! ```
 
-mod decode;
-mod json;
-mod mime_ext;
-mod urlencoded;
-
-use crate::core::{async_trait, throw, Context, Error, Result, State, StatusCode};
-use crate::header::FriendlyHeaders;
-use askama::Template;
-use async_std::fs::File;
-use async_std::path::Path;
+mod content_type;
+mod help;
+use content_type::{Content, ContentType};
 use futures::{AsyncBufRead as BufRead, AsyncReadExt};
-use mime::Mime;
-use mime_ext::MimeExt;
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use help::bug_report;
+use roa_core::{async_trait, Context, Result, State};
 
-const APPLICATION_JSON_UTF_8: &str = "application/json; charset=utf-8";
+#[cfg(feature = "json")]
+mod decode;
+#[cfg(feature = "json")]
+mod json;
+#[cfg(feature = "multipart")]
+mod multipart;
+#[cfg(feature = "multipart")]
+use multipart::Multipart;
+#[cfg(feature = "urlencoded")]
+mod urlencoded;
+#[cfg(feature = "template")]
+use askama::Template;
+#[cfg(feature = "file")]
+mod file;
+#[cfg(feature = "file")]
+use file::{Path, WriteFile};
+#[cfg(any(feature = "json", feature = "urlencoded"))]
+use serde::de::DeserializeOwned;
+
+#[cfg(feature = "json")]
+use serde::Serialize;
 
 /// A context extension to read/write body more simply.
 #[async_trait]
-pub trait PowerBody {
-    /// try to get mime content type of request.
-    async fn request_type(&self) -> Option<Result<Mime>>;
-
-    /// try to get mime content type of response.
-    async fn response_type(&self) -> Option<Result<Mime>>;
-
+pub trait PowerBody: Content {
     /// read request body as Vec<u8>.
     async fn body_buf(&mut self) -> Result<Vec<u8>>;
 
-    /// read request body by Content-Type.
-    async fn read<B: DeserializeOwned>(&mut self) -> Result<B>;
-
     /// read request body as "application/json".
+    #[cfg(feature = "json")]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B>;
 
     /// read request body as "application/x-www-form-urlencoded".
+    #[cfg(feature = "urlencoded")]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B>;
 
     // read request body as "multipart/form-data"
-    // async fn read_multipart(&self) -> Result<B, Status>;
+    #[cfg(feature = "multipart")]
+    async fn read_multipart(&mut self) -> Result<Multipart>;
 
     /// write object to response body as "application/json; charset=utf-8"
+    #[cfg(feature = "json")]
     async fn write_json<B: Serialize + Sync>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/html; charset=utf-8"
+    #[cfg(feature = "template")]
     async fn render<B: Template + Sync>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/plain; charset=utf-8"
@@ -143,110 +146,73 @@ pub trait PowerBody {
     ) -> Result;
 
     /// write object to response body as extension name of file
+    #[cfg(feature = "file")]
     async fn write_file<P: AsRef<Path> + Send>(&mut self, path: P) -> Result;
-}
-
-fn parse_mime(value: &str) -> Result<Mime> {
-    value.parse().map_err(|err| {
-        Error::new(
-            StatusCode::BAD_REQUEST,
-            format!("{}\nContent-Type value is invalid", err),
-            true,
-        )
-    })
 }
 
 #[async_trait]
 impl<S: State> PowerBody for Context<S> {
-    async fn request_type(&self) -> Option<Result<Mime>> {
-        self.req()
-            .await
-            .get(http::header::CONTENT_TYPE)
-            .map(|result| result.and_then(parse_mime))
-    }
-
-    async fn response_type(&self) -> Option<Result<Mime>> {
-        self.resp()
-            .await
-            .get(http::header::CONTENT_TYPE)
-            .map(|result| result.and_then(parse_mime))
-    }
-
     async fn body_buf(&mut self) -> Result<Vec<u8>> {
         let mut data = Vec::new();
         self.req_mut().await.read_to_end(&mut data).await?;
         Ok(data)
     }
 
-    // return BAD_REQUEST status while parsing Content-Type fails.
-    // Content-Type can only be JSON or URLENCODED, otherwise this function will return UNSUPPORTED_MEDIA_TYPE error.
-    async fn read<B: DeserializeOwned>(&mut self) -> Result<B> {
-        match self.request_type().await {
-            None => self.read_json().await,
-            Some(ret) => {
-                let mime_type = ret?.pure_type();
-                if mime_type == mime::APPLICATION_JSON {
-                    self.read_json().await
-                } else if mime_type == mime::APPLICATION_WWW_FORM_URLENCODED {
-                    self.read_form().await
-                } else {
-                    throw!(
-                        StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                        "Content-Type can only be JSON or URLENCODED"
-                    )
-                }
-            }
-        }
-    }
-
+    #[cfg(feature = "json")]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B> {
+        let content_type = self.content_type().await?;
+        content_type.expect(mime::APPLICATION_JSON)?;
         let data = self.body_buf().await?;
-        match self.request_type().await {
-            None | Some(Err(_)) => json::from_bytes(&data),
-            Some(Ok(mime_type)) => {
-                if mime_type.pure_type() != mime::APPLICATION_JSON {
-                    json::from_bytes(&data)
-                } else {
-                    match mime_type.get_param("charset") {
-                        None | Some(mime::UTF_8) => json::from_bytes(&data),
-                        Some(charset) => {
-                            json::from_str(&decode::decode(&data, charset.as_str())?)
-                        }
-                    }
-                }
-            }
+        match content_type.charset() {
+            None | Some(mime::UTF_8) => json::from_bytes(&data),
+            Some(charset) => json::from_str(&decode::decode(&data, charset.as_str())?),
         }
     }
 
+    #[cfg(feature = "urlencoded")]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B> {
+        self.content_type()
+            .await?
+            .expect(mime::APPLICATION_WWW_FORM_URLENCODED)?;
         urlencoded::from_bytes(&self.body_buf().await?)
     }
 
+    #[cfg(feature = "multipart")]
+    async fn read_multipart(&mut self) -> Result<Multipart> {
+        unimplemented!()
+    }
+
+    #[cfg(feature = "json")]
     async fn write_json<B: Serialize + Sync>(&mut self, data: &B) -> Result {
         self.resp_mut().await.write_bytes(json::to_bytes(data)?);
+        let content_type: ContentType = "application/json; charset=utf-8".parse()?;
         self.resp_mut()
             .await
-            .insert(http::header::CONTENT_TYPE, APPLICATION_JSON_UTF_8)?;
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type.to_value()?);
         Ok(())
     }
 
+    #[cfg(feature = "template")]
     async fn render<B: Template + Sync>(&mut self, data: &B) -> Result {
-        self.resp_mut().await.write_str(
-            data.render().map_err(|err| {
-                Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
-            })?,
-        );
         self.resp_mut()
             .await
-            .insert(http::header::CONTENT_TYPE, &mime::TEXT_HTML_UTF_8)?;
+            .write_str(data.render().map_err(bug_report)?);
+        let content_type: ContentType = "text/html; charset=utf-8".parse()?;
+        self.resp_mut()
+            .await
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type.to_value()?);
         Ok(())
     }
 
     async fn write_text<Str: ToString + Send>(&mut self, string: Str) -> Result {
         self.resp_mut().await.write_str(string.to_string());
+        let content_type: ContentType = "text/plain; charset=utf-8".parse()?;
         self.resp_mut()
             .await
-            .insert(http::header::CONTENT_TYPE, &mime::TEXT_PLAIN_UTF_8)?;
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type.to_value()?);
         Ok(())
     }
 
@@ -255,33 +221,17 @@ impl<S: State> PowerBody for Context<S> {
         reader: B,
     ) -> Result {
         self.resp_mut().await.write_buf(reader);
+        let content_type: ContentType = "application/octet-stream".parse()?;
         self.resp_mut()
             .await
-            .insert(http::header::CONTENT_TYPE, &mime::APPLICATION_OCTET_STREAM)?;
+            .headers
+            .insert(http::header::CONTENT_TYPE, content_type.to_value()?);
         Ok(())
     }
 
+    #[cfg(feature = "file")]
     async fn write_file<P: AsRef<Path> + Send>(&mut self, path: P) -> Result {
-        let path = path.as_ref();
-        self.resp_mut().await.write(File::open(path).await?);
-
-        if let Some(filename) = path.file_name() {
-            self.resp_mut().await.insert(
-                http::header::CONTENT_TYPE,
-                &mime_guess::from_path(&filename).first_or_octet_stream(),
-            )?;
-            let encoded_filename =
-                utf8_percent_encode(&filename.to_string_lossy(), NON_ALPHANUMERIC)
-                    .to_string();
-            self.resp_mut().await.insert(
-                http::header::CONTENT_DISPOSITION,
-                &format!(
-                    "filename={}; filename*=utf-8''{}",
-                    &encoded_filename, &encoded_filename
-                ),
-            )?;
-        }
-        Ok(())
+        WriteFile::write_file(self, path).await
     }
 }
 

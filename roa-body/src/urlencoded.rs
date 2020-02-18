@@ -1,4 +1,4 @@
-use crate::core::{Error, Result, StatusCode};
+use roa_core::{Error, Result, StatusCode};
 use serde::de::DeserializeOwned;
 
 pub fn from_bytes<B: DeserializeOwned>(data: &[u8]) -> Result<B> {

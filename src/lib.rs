@@ -222,15 +222,15 @@
 
 #![warn(missing_docs)]
 
+#[cfg(feature = "body")]
+pub use roa_body as body;
 pub use roa_core as core;
+
 pub mod cors;
 pub mod forward;
 pub mod header;
 pub mod logger;
 pub mod query;
-
-#[cfg(feature = "body")]
-pub mod body;
 
 #[cfg(feature = "cookies")]
 pub mod cookie;
