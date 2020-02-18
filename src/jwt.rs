@@ -214,7 +214,7 @@ impl<S: State> Middleware<S> for JwtGuard {
                 .map_err(unauthorized)?;
             ctx.store_scoped(JwtScope, "secret", self.secret.clone());
             ctx.store_scoped(JwtScope, "token", token);
-            next().await
+            next.await
         })
     }
 }

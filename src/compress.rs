@@ -40,7 +40,7 @@
 pub use async_compression::Level;
 
 use crate::core::header::CONTENT_ENCODING;
-use crate::core::{Body, Context, Error, Middleware, Next, State, StatusCode};
+use crate::core::{Context, Error, Middleware, Next, State, StatusCode};
 use accept_encoding::{parse, Encoding};
 use async_compression::futures::bufread::{
     BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder,

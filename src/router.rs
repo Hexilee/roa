@@ -34,8 +34,8 @@ use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path, RegexPath};
 
 use crate::core::{
-    async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State,
-    StatusCode, Variable,
+    join_all, throw, Context, Error, Middleware, Next, Result, State, StatusCode,
+    Variable,
 };
 use http::Method;
 use percent_encoding::percent_decode_str;
@@ -428,8 +428,7 @@ impl<S: State> RouteTable<S> {
         for (regexp_path, handler) in self.dynamic_route.iter() {
             if let Some(cap) = regexp_path.re.captures(&path) {
                 for var in regexp_path.vars.iter() {
-                    ctx.store_scoped(RouterScope, var, cap[var.as_str()].to_string())
-                        .await;
+                    ctx.store_scoped(RouterScope, var, cap[var.as_str()].to_string());
                 }
                 return handler.clone().end(ctx).await;
             }
@@ -440,17 +439,15 @@ impl<S: State> RouteTable<S> {
 
 impl<S: State> Middleware<S> for RouteEndpoint<S> {
     fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Next {
-        match self.0.get(&ctx.method()) {
-            None => {
-                async move {
-                    throw!(
-                        StatusCode::METHOD_NOT_ALLOWED,
-                        format!("method {} is not allowed", &ctx.method())
-                    )
-                }
+        Box::pin(async move {
+            match self.0.get(&ctx.method()) {
+                None => throw!(
+                    StatusCode::METHOD_NOT_ALLOWED,
+                    format!("method {} is not allowed", &ctx.method())
+                ),
+                Some(handler) => handler.end(ctx).await,
             }
-            Some(handler) => handler.end(ctx),
-        }
+        })
     }
 }
 
