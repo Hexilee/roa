@@ -101,10 +101,15 @@ fn crud_router() -> Result<Router<State>, Box<dyn std::error::Error>> {
         ctx.write_json(&data)
     });
     id_router
-        .get("", |ctx| async move {
+        .get("", |mut ctx| async move {
             let id = ctx.must_param("id")?.parse()?;
-            match ctx.read().await.get(id) {
-                Some(user) => ctx.write_json(&user.clone()),
+            let db = ctx.read().await;
+            match db.get(id) {
+                Some(user) => {
+                    let data = user.clone();
+                    drop(db);
+                    ctx.write_json(&data)
+                }
                 None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
             }
         })
@@ -117,10 +122,14 @@ fn crud_router() -> Result<Router<State>, Box<dyn std::error::Error>> {
                 throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id))
             }
         })
-        .delete("", |ctx| async move {
+        .delete("", |mut ctx| async move {
             let id = ctx.must_param("id")?.parse()?;
-            match ctx.write().await.delete(id) {
-                Some(user) => ctx.write_json(&user.clone()),
+            let mut db = ctx.write().await;
+            match db.delete(id) {
+                Some(user) => {
+                    drop(db);
+                    ctx.write_json(&user)
+                }
                 None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
             }
         });
@@ -219,15 +228,24 @@ fn batch_router() -> Result<Router<State>, Box<dyn std::error::Error>> {
             ctx.resp_mut().status = StatusCode::CREATED;
             ctx.write_json(&ids)
         })
-        .get("/user", |ctx| async move {
+        .get("/user", |mut ctx| async move {
             let users = match ctx.query("name") {
-                Some(name) => ctx.read().await.get_by_name(&name),
-                None => ctx.read().await.main_table.iter().collect(),
-            }
-            .iter()
-            .map(|(id, user)| (id, user.clone()))
-            .collect::<Vec<(usize, User)>>();
-            
+                Some(name) => ctx
+                    .read()
+                    .await
+                    .get_by_name(&name)
+                    .into_iter()
+                    .map(|(id, user)| (id, user.clone()))
+                    .collect::<Vec<(usize, User)>>(),
+                None => ctx
+                    .read()
+                    .await
+                    .main_table
+                    .iter()
+                    .map(|(id, user)| (id, user.clone()))
+                    .collect::<Vec<(usize, User)>>(),
+            };
+
             ctx.write_json(&users)
         });
     Ok(router)

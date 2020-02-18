@@ -23,13 +23,24 @@ reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
 async-std = { version = "1.4", features = ["attributes"] }
 pretty_env_logger = "0.3"
 serde = { version = "1", features = ["derive"] }
-test-case = "1.0.0"
 roa = { path = "./roa", features = ["full"] }
+test-case = "1.0.0"
+lazy_static = "1.4.0"
+slab = "0.4.2"
+multimap = "0.8.0"
+hyper = "0.13"
+chrono = "0.4"
+mime = "0.3"
+encoding = "0.2"
+askama = "0.9"
+http = "0.2"
+bytesize = "1.0"
+serde_json = "1.0"
+log = "0.4"
 
 [[example]]
 name = "serve-file"
 path = "examples/serve-file.rs"
-required-features = ["body", "compress", "router"]
 
 [[example]]
 name = "hello-world"

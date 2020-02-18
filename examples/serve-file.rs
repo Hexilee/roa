@@ -56,7 +56,7 @@ async fn path_checker(ctx: Context<()>, next: Next) -> Result {
 }
 
 async fn serve_path(mut ctx: Context<()>) -> Result {
-    let path_value = ctx.must_param("path").await?;
+    let path_value = ctx.must_param("path")?;
     let path = path_value.as_ref();
     let file_path = Path::new(".").join(path);
     if file_path.is_file().await {
@@ -102,7 +102,7 @@ async fn serve_dir(mut ctx: Context<()>, path: &str) -> Result {
             })
         }
     }
-    ctx.render(&dir).await
+    ctx.render(&dir)
 }
 
 fn format_time(time: SystemTime) -> String {

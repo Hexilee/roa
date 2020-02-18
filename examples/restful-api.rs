@@ -57,28 +57,28 @@ impl Database {
 async fn create_user(mut ctx: Context<Database>) -> Result {
     let user: User = ctx.read_json().await?;
     let id = ctx.create(user).await;
-    ctx.write_json(&json!({ "id": id })).await?;
-    ctx.resp_mut().await.status = StatusCode::CREATED;
+    ctx.write_json(&json!({ "id": id }))?;
+    ctx.resp_mut().status = StatusCode::CREATED;
     Ok(())
 }
 
 async fn get_user(mut ctx: Context<Database>) -> Result {
-    let id: usize = ctx.must_param("id").await?.parse()?;
-    let user = ctx.state().await.retrieve(id).await?;
-    ctx.write_json(&user).await
+    let id: usize = ctx.must_param("id")?.parse()?;
+    let user = ctx.retrieve(id).await?;
+    ctx.write_json(&user)
 }
 
 async fn update_user(mut ctx: Context<Database>) -> Result {
-    let id: usize = ctx.must_param("id").await?.parse()?;
+    let id: usize = ctx.must_param("id")?.parse()?;
     let mut user: User = ctx.read_json().await?;
-    ctx.state().await.update(id, &mut user).await?;
-    ctx.write_json(&user).await
+    ctx.update(id, &mut user).await?;
+    ctx.write_json(&user)
 }
 
 async fn delete_user(mut ctx: Context<Database>) -> Result {
-    let id: usize = ctx.must_param("id").await?.parse()?;
-    let user = ctx.state().await.delete(id).await?;
-    ctx.write_json(&user).await
+    let id: usize = ctx.must_param("id")?.parse()?;
+    let user = ctx.delete(id).await?;
+    ctx.write_json(&user)
 }
 
 #[async_std::main]
