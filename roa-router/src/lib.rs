@@ -4,8 +4,8 @@
 //! ### Example
 //!
 //! ```rust
-//! use roa::router::{Router, RouterParam};
-//! use roa::core::{App, StatusCode};
+//! use roa_router::{Router, RouterParam};
+//! use roa_core::{App, StatusCode};
 //! use async_std::task::spawn;
 //!
 //! #[tokio::test]
@@ -33,13 +33,13 @@ mod path;
 use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path, RegexPath};
 
-use crate::core::{
-    async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State,
-    StatusCode, Variable,
-};
 use http::Method;
 use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
+use roa_core::{
+    async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State,
+    StatusCode, Variable,
+};
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::future::Future;
@@ -68,8 +68,8 @@ struct RouterScope;
 /// ### Example
 ///
 /// ```rust
-/// use roa::router::{RouterParam, Router};
-/// use roa::core::{App, StatusCode};
+/// use roa_router::{RouterParam, Router};
+/// use roa_core::{App, StatusCode};
 /// use async_std::task::spawn;
 ///
 /// #[tokio::main]
@@ -99,8 +99,8 @@ pub trait RouterParam {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::router::{RouterParam, Router};
-    /// use roa::core::{App, StatusCode};
+    /// use roa_router::{RouterParam, Router};
+    /// use roa_core::{App, StatusCode};
     /// use async_std::task::spawn;
     ///
     /// #[tokio::main]
@@ -161,8 +161,8 @@ impl<S: State> Router<S> {
     /// `Router::gate` cannot match a lambda without parameter type indication.
     ///
     /// ```rust
-    /// use roa::core::Next;
-    /// use roa::router::Router;
+    /// use roa_core::Next;
+    /// use roa_router::Router;
     ///
     /// let mut router = Router::<()>::new();
     /// // router.gate(|_ctx, next| next); compile fails.
@@ -171,7 +171,7 @@ impl<S: State> Router<S> {
     ///
     /// However, with `Router::gate_fn`, you can match a lambda without type indication.
     /// ```rust
-    /// use roa::router::Router;
+    /// use roa_router::Router;
     ///
     /// let mut router = Router::<()>::new();
     /// router.gate_fn(|_ctx, next| next);
@@ -211,7 +211,7 @@ impl<S: State> Router<S> {
     /// As the ducument of `Middleware`, an endpoint is defined as a template:
     ///
     /// ```rust
-    /// use roa::core::{Context, Result};
+    /// use roa_core::{Context, Result};
     /// use std::future::Future;
     ///
     /// fn endpoint<F>(ctx: Context<()>) -> F
@@ -224,8 +224,8 @@ impl<S: State> Router<S> {
     /// it needs a transfer function to suit for `Router::end`.
     ///
     /// ```rust
-    /// use roa::core::{Context, Result, State, Middleware};
-    /// use roa::router::Router;
+    /// use roa_core::{Context, Result, State, Middleware};
+    /// use roa_router::Router;
     /// use std::future::Future;
     /// use http::Method;
     ///
@@ -245,7 +245,7 @@ impl<S: State> Router<S> {
     /// And `Router::end_fn` is a wrapper of `Router::end` with this transfer function.
     ///
     /// ```rust
-    /// use roa::router::Router;
+    /// use roa_router::Router;
     /// use http::Method;
     ///
     /// Router::<()>::new().end_fn([Method::GET].as_ref(), "/", |_ctx| async { Ok(()) });
@@ -468,11 +468,11 @@ impl<S: State> RouterParam for Context<S> {
 #[cfg(test)]
 mod tests {
     use super::Router;
-    use crate::core::App;
     use async_std::task::spawn;
     use encoding::EncoderTrap;
     use http::StatusCode;
     use percent_encoding::NON_ALPHANUMERIC;
+    use roa_core::App;
 
     #[tokio::test]
     async fn gate() -> Result<(), Box<dyn std::error::Error>> {

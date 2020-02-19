@@ -225,6 +225,8 @@
 #[cfg(feature = "body")]
 pub use roa_body as body;
 pub use roa_core as core;
+#[cfg(feature = "router")]
+pub use roa_router as router;
 
 pub mod cors;
 pub mod forward;
@@ -237,9 +239,6 @@ pub mod cookie;
 
 #[cfg(feature = "jwt")]
 pub mod jwt;
-
-#[cfg(feature = "router")]
-pub mod router;
 
 #[cfg(feature = "compress")]
 pub mod compress;
