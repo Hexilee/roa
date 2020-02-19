@@ -16,6 +16,7 @@ members = [
     "roa-multipart",
     "roa-router",
     "roa-sled",
+    "roa-websocket",
     "integration/diesel-example",
     "integration/multipart-example"
 ]
