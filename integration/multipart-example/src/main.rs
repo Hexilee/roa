@@ -5,7 +5,7 @@ use futures::stream::TryStreamExt;
 use futures::StreamExt;
 use log::info;
 use roa::body::PowerBody;
-use roa::core::{App, Error, StatusCode};
+use roa::core::{throw, App, StatusCode};
 use roa::logger::logger;
 use roa::router::Router;
 use std::error::Error as StdError;
@@ -22,10 +22,11 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         let mut form = ctx.multipart();
         while let Some(item) = form.next().await {
             let field = item?;
+            info!("{}", field.content_type());
             match field.content_disposition() {
-                None => continue,
+                None => throw!(StatusCode::BAD_REQUEST, "content disposition not set"),
                 Some(content_disposition) => match content_disposition.get_filename() {
-                    None => continue,
+                    None => continue, // ignore none file field
                     Some(filename) => {
                         let path = Path::new("./upload");
                         let mut file = File::create(path.join(filename)).await?;
