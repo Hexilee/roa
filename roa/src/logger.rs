@@ -25,10 +25,67 @@
 //! }
 //! ```
 
-use crate::core::{Body, BodyCallback, Context, Next, Result, State};
+use crate::core::{Context, Next, Result, State};
+use async_std::task::spawn;
+use bytes::Bytes;
 use bytesize::ByteSize;
+use futures::task::{self, Poll};
+use futures::{Future, Stream};
 use log::{error, info};
+use std::io;
+use std::pin::Pin;
 use std::time::Instant;
+
+#[derive(Debug)]
+struct Logger<S, F, Fut>
+where
+    F: FnOnce(u64) -> Fut,
+{
+    counter: u64,
+    stream: S,
+    task_ready: Option<F>,
+}
+
+impl<S, F, Fut> Logger<S, F, Fut>
+where
+    F: FnOnce(u64) -> Fut,
+{
+    fn log(&mut self) -> Fut {
+        let task_ready = self.task_ready.take().expect(
+            r"
+            task_ready is None, this is a bug, please report it to https://github.com/Hexilee/roa.
+        ",
+        );
+        task_ready(self.counter)
+    }
+}
+
+impl<S, F, Fut> Stream for Logger<S, F, Fut>
+where
+    F: Unpin + FnOnce(u64) -> Fut,
+    Fut: 'static + Send + Future,
+    Fut::Output: 'static + Send,
+    S: 'static + Send + Send + Unpin + Stream<Item = io::Result<Bytes>>,
+{
+    type Item = io::Result<Bytes>;
+
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        match Pin::new(&mut self.stream).poll_next(cx) {
+            Poll::Ready(Some(Ok(bytes))) => {
+                self.counter += bytes.len() as u64;
+                Poll::Ready(Some(Ok(bytes)))
+            }
+            Poll::Ready(None) => {
+                spawn(self.log());
+                Poll::Ready(None)
+            }
+            poll => poll,
+        }
+    }
+}
 
 /// A middleware to log information about request and response.
 ///
@@ -41,36 +98,44 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     info!("--> {} {}", method, uri.path());
     let path = uri.path().to_string();
     let result = next.await;
-    let callback: Box<BodyCallback> = match result {
+    let counter = 0;
+    match result {
         Ok(()) => {
             let status_code = ctx.status();
-            Box::new(move |body: &Body| {
-                info!(
-                    "<-- {} {} {}ms {} {}",
-                    method,
-                    path,
-                    start.elapsed().as_millis(),
-                    ByteSize(body.consumed() as u64),
-                    status_code,
-                )
-            })
+            ctx.resp_mut().map_body(move |stream| Logger {
+                counter,
+                stream,
+                task_ready: Some(move |counter| async move {
+                    info!(
+                        "<-- {} {} {}ms {} {}",
+                        method,
+                        path,
+                        start.elapsed().as_millis(),
+                        ByteSize(counter),
+                        status_code,
+                    );
+                }),
+            });
         }
         Err(ref err) => {
             let message = err.message.clone();
             let status_code = err.status_code;
-            Box::new(move |_| {
-                error!(
-                    "<-- {} {} {}ms {}\n{}",
-                    method,
-                    path,
-                    start.elapsed().as_millis(),
-                    status_code,
-                    message,
-                )
-            })
+            ctx.resp_mut().map_body(move |stream| Logger {
+                counter,
+                stream,
+                task_ready: Some(move |_counter| async move {
+                    error!(
+                        "<-- {} {} {}ms {}\n{}",
+                        method,
+                        path,
+                        start.elapsed().as_millis(),
+                        status_code,
+                        message,
+                    );
+                }),
+            });
         }
     };
-    ctx.resp_mut().on_finish(callback);
     result
 }
 

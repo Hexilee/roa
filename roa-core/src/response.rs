@@ -13,15 +13,15 @@ type BoxStream =
     Pin<Box<dyn 'static + Send + Sync + Stream<Item = Result<Bytes, Error>>>>;
 
 trait StreamMapper {
-    fn map(&self, stream: BoxStream) -> BoxStream;
+    fn map(self: Box<Self>, stream: BoxStream) -> BoxStream;
 }
 
 impl<F, S> StreamMapper for F
 where
-    F: 'static + Send + Sync + Fn(BoxStream) -> S,
+    F: 'static + FnOnce(BoxStream) -> S,
     S: 'static + Send + Sync + Stream<Item = Result<Bytes, Error>>,
 {
-    fn map(&self, stream: BoxStream) -> BoxStream {
+    fn map(self: Box<Self>, stream: BoxStream) -> BoxStream {
         Box::pin(self(stream))
     }
 }
@@ -56,7 +56,7 @@ impl Response {
     /// Register a body mapper to process body stream.
     pub fn map_body<F, S>(&mut self, mapper: F)
     where
-        F: 'static + Send + Sync + Fn(BoxStream) -> S,
+        F: 'static + FnOnce(BoxStream) -> S,
         S: 'static + Send + Sync + Stream<Item = Result<Bytes, Error>>,
     {
         self.stream_mapper.push(Box::new(mapper))

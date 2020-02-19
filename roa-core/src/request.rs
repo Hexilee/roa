@@ -52,6 +52,12 @@ impl From<http::Request<Body>> for Request {
     }
 }
 
+impl Default for Request {
+    fn default() -> Self {
+        http::Request::new(Body::empty()).into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::App;
