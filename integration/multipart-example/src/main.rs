@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
             match field.content_disposition() {
                 None => throw!(StatusCode::BAD_REQUEST, "content disposition not set"),
                 Some(content_disposition) => match content_disposition.get_filename() {
-                    None => continue, // ignore none file field
+                    None => continue, // ignore non-file field
                     Some(filename) => {
                         let path = Path::new("./upload");
                         let mut file = File::create(path.join(filename)).await?;
