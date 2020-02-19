@@ -1,9 +1,30 @@
 //! A module for Response and its body
 mod body;
 use body::Body;
+use bytes::Bytes;
+use futures::Stream;
 use http::{HeaderValue, StatusCode, Version};
 use hyper::HeaderMap;
+use std::io::Error;
 use std::ops::{Deref, DerefMut};
+use std::pin::Pin;
+
+type BoxStream =
+    Pin<Box<dyn 'static + Send + Sync + Stream<Item = Result<Bytes, Error>>>>;
+
+trait StreamMapper {
+    fn map(&self, stream: BoxStream) -> BoxStream;
+}
+
+impl<F, S> StreamMapper for F
+where
+    F: 'static + Send + Sync + Fn(BoxStream) -> S,
+    S: 'static + Send + Sync + Stream<Item = Result<Bytes, Error>>,
+{
+    fn map(&self, stream: BoxStream) -> BoxStream {
+        Box::pin(self(stream))
+    }
+}
 
 /// Http response type of roa.
 pub struct Response {
@@ -15,7 +36,10 @@ pub struct Response {
 
     /// Raw header map.
     pub headers: HeaderMap<HeaderValue>,
+
     body: Body,
+
+    stream_mapper: Vec<Box<dyn StreamMapper>>,
 }
 
 impl Response {
@@ -25,7 +49,16 @@ impl Response {
             version: Version::default(),
             headers: HeaderMap::default(),
             body: Body::new(),
+            stream_mapper: Vec::new(),
         }
+    }
+
+    pub fn map_body<F, S>(&mut self, mapper: F)
+    where
+        F: 'static + Send + Sync + Fn(BoxStream) -> S,
+        S: 'static + Send + Sync + Stream<Item = Result<Bytes, Error>>,
+    {
+        self.stream_mapper.push(Box::new(mapper))
     }
 
     fn into_resp(self) -> http::Response<hyper::Body> {
@@ -35,11 +68,16 @@ impl Response {
             version,
             headers,
             body,
+            stream_mapper,
         } = self;
         parts.status = status;
         parts.version = version;
         parts.headers = headers;
-        http::Response::from_parts(parts, body.stream().into())
+        let mut stream: BoxStream = Box::pin(body.into_stream());
+        for mapper in stream_mapper {
+            stream = mapper.map(stream)
+        }
+        http::Response::from_parts(parts, hyper::Body::wrap_stream(stream))
     }
 }
 

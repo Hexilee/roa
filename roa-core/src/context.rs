@@ -325,7 +325,7 @@ impl<S> Context<S> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let (addr, server) = App::new(())
     ///         .end(|mut ctx| async move {
-    ///             ctx.resp_mut().write_buf(b"Hello, World!".as_ref());
+    ///             ctx.resp_mut().write(b"Hello, World!".as_ref());
     ///             Ok(())
     ///         })
     ///         .run_local()?;
