@@ -18,7 +18,8 @@ members = [
     "roa-sled",
     "roa-websocket",
     "integration/diesel-example",
-    "integration/multipart-example"
+    "integration/multipart-example",
+    "integration/websocket-example"
 ]
 
 [dev-dependencies]

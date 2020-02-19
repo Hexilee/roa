@@ -24,6 +24,15 @@ where
     _fut: PhantomData<Fut>,
 }
 
+unsafe impl<F, S, Fut> Send for Websocket<F, S, Fut> where
+    F: Sync + Fn(S, WebSocketStream<Upgraded>) -> Fut
+{
+}
+unsafe impl<F, S, Fut> Sync for Websocket<F, S, Fut> where
+    F: Sync + Fn(S, WebSocketStream<Upgraded>) -> Fut
+{
+}
+
 impl<F, S, Fut> Websocket<F, S, Fut>
 where
     F: Fn(S, WebSocketStream<Upgraded>) -> Fut,
@@ -47,7 +56,7 @@ impl<F, S, Fut> Middleware<S> for Websocket<F, S, Fut>
 where
     S: State,
     F: 'static + Sync + Send + Fn(S, WebSocketStream<Upgraded>) -> Fut,
-    Fut: 'static + Sync + Send + Future<Output = ()>,
+    Fut: 'static + Send + Future<Output = ()>,
 {
     async fn handle(
         self: Arc<Self>,
