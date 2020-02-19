@@ -53,6 +53,7 @@ impl Response {
         }
     }
 
+    /// Register a body mapper to process body stream.
     pub fn map_body<F, S>(&mut self, mapper: F)
     where
         F: 'static + Send + Sync + Fn(BoxStream) -> S,
