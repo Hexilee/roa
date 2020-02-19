@@ -4,7 +4,7 @@ use actix_multipart::Field as ActixField;
 use actix_multipart::Multipart as ActixMultipart;
 use actix_multipart::MultipartError;
 use bytes::Bytes;
-use futures::{AsyncBufRead, Stream};
+use futures::{AsyncBufRead, Stream, TryStreamExt};
 use roa_core::header::CONTENT_TYPE;
 use roa_core::{Context, Error, State, StatusCode};
 use std::fmt::{self, Display, Formatter};
@@ -17,7 +17,6 @@ pub struct Multipart(ActixMultipart);
 pub struct Field(ActixField);
 #[derive(Debug)]
 pub struct WrapError(MultipartError);
-struct BodyStream<R: AsyncBufRead>(R);
 
 impl Multipart {
     pub fn new<S: State>(ctx: &mut Context<S>) -> Self {
@@ -25,28 +24,19 @@ impl Multipart {
         if let Some(value) = ctx.header_value(CONTENT_TYPE) {
             map.insert(CONTENT_TYPE, value)
         }
-        let body = std::mem::take(&mut **ctx.req_mut());
-        Multipart(ActixMultipart::new(&map, BodyStream(body)))
-    }
-}
-
-impl<R: AsyncBufRead + Unpin> Stream for BodyStream<R> {
-    type Item = Result<Bytes, PayloadError>;
-
-    #[inline]
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        let buf: &[u8] = futures::ready!(Pin::new(&mut self.0).poll_fill_buf(cx))?;
-        let buf_len = buf.len();
-        if buf_len == 0 {
-            Poll::Ready(None)
-        } else {
-            let data = Bytes::from(buf.to_vec());
-            Pin::new(&mut self.0).consume(buf_len);
-            Poll::Ready(Some(Ok(data)))
-        }
+        Multipart(ActixMultipart::new(
+            &map,
+            ctx.req_mut().body_stream().map_err(|err: hyper::Error| {
+                if err.is_incomplete_message() {
+                    PayloadError::Incomplete(Some(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        err,
+                    )))
+                } else {
+                    PayloadError::Io(io::Error::new(io::ErrorKind::Other, err))
+                }
+            }),
+        ))
     }
 }
 

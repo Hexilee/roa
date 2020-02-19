@@ -6,7 +6,7 @@
 //! ```rust
 //! use roa::compress::{Compress, Level};
 //! use roa::body::{PowerBody, DispositionType::*};
-//! use roa::core::{App, StatusCode, header::ACCEPT_ENCODING};
+//! use roa::core::{App, StatusCode, header::ACCEPT_ENCODING, Middleware, Context, Next};
 //! use async_std::task::spawn;
 //! use futures::Stream;
 //! use std::io;
@@ -32,29 +32,38 @@
 //!     ) -> Poll<Option<Self::Item>> {
 //!         match Pin::new(&mut self.stream).poll_next(cx) {
 //!             Poll::Ready(Some(Ok(bytes))) => {
-//!                 self.counter += bytes.len() as u64;
+//!                 self.counter += bytes.len();
 //!                 Poll::Ready(Some(Ok(bytes)))
+//!             }
+//!             Poll::Ready(None) => {
+//!                 assert_eq!(self.assert_counter, self.counter);
+//!                 Poll::Ready(None)
 //!             }
 //!             poll => poll,
 //!         }
 //!     }
 //! }
 //!
+//! fn assert_consumed(assert_counter: usize) -> impl Middleware<()> {
+//!     move |mut ctx: Context<()>, next: Next| async move {
+//!         next.await?;
+//!         ctx.resp_mut().map_body(move |stream| Consumer{
+//!             counter: 0,
+//!             stream,
+//!             assert_counter
+//!         });
+//!         Ok(())
+//!     }
+//! }
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     pretty_env_logger::init();
 //!     let (addr, server) = App::new(())
-//!         .gate_fn(|mut ctx, next| async move {
-//!             next.await?;
-//!             // compress body to 202 bytes in gzip with quantity Level::Fastest.
-//!             ctx.resp_mut().on_finish(|body| assert_eq!(202, body.consumed()));
-//!             Ok(())
-//!         })
+//!         .gate(assert_consumed(202)) // compressed
 //!         .gate(Compress(Level::Fastest))
+//!         .gate(assert_consumed(236)) // the size of assets/welcome.html is 236 bytes.
 //!         .end(|mut ctx| async move {
-//!             // the size of assets/welcome.html is 236 bytes.
-//!             ctx.resp_mut().on_finish(|body| assert_eq!(236, body.consumed()));
 //!             ctx.write_file("../assets/welcome.html", Inline).await
 //!         })
 //!         .run_local()?;
