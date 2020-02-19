@@ -4,7 +4,7 @@ use async_std::path::Path;
 use futures::stream::TryStreamExt;
 use futures::StreamExt;
 use log::info;
-use roa::body::PowerBody;
+use roa::body::{DispositionType, PowerBody};
 use roa::core::{throw, App, StatusCode};
 use roa::logger::logger;
 use roa::router::Router;
@@ -16,7 +16,8 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
     let mut router = Router::<()>::new();
     router.get("/", |mut ctx| async move {
-        ctx.write_file("./assets/index.html").await
+        ctx.write_file("./assets/index.html", DispositionType::Inline)
+            .await
     });
     router.post("/file", |mut ctx| async move {
         let mut form = ctx.multipart();

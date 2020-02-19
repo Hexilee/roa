@@ -5,7 +5,7 @@
 //!
 //! ```rust
 //! use roa::compress::{Compress, Level};
-//! use roa::body::PowerBody;
+//! use roa::body::{PowerBody, DispositionType::*};
 //! use roa::core::{App, StatusCode, header::ACCEPT_ENCODING};
 //! use async_std::task::spawn;
 //!
@@ -23,7 +23,7 @@
 //!         .end(|mut ctx| async move {
 //!             // the size of assets/welcome.html is 236 bytes.
 //!             ctx.resp_mut().on_finish(|body| assert_eq!(236, body.consumed()));
-//!             ctx.write_file("../assets/welcome.html").await
+//!             ctx.write_file("../assets/welcome.html", Inline).await
 //!         })
 //!         .run_local()?;
 //!     spawn(server);

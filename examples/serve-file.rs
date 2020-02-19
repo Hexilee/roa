@@ -5,6 +5,7 @@ use bytesize::ByteSize;
 use chrono::offset::Local;
 use chrono::DateTime;
 use log::info;
+use roa::body::DispositionType::*;
 use roa::compress::Compress;
 use roa::core::{throw, App, Context, Next, Result, StatusCode};
 use roa::logger::logger;
@@ -60,7 +61,7 @@ async fn serve_path(mut ctx: Context<()>) -> Result {
     let path = path_value.as_ref();
     let file_path = Path::new(".").join(path);
     if file_path.is_file().await {
-        ctx.write_file(file_path).await
+        ctx.write_file(file_path, Inline).await
     } else if file_path.is_dir().await {
         serve_dir(ctx, path).await
     } else {

@@ -37,7 +37,7 @@
 //!
 //! ```rust
 //! use roa_core::{Context, Result};
-//! use roa_body::PowerBody;
+//! use roa_body::{PowerBody, DispositionType::*};
 //! use serde::{Serialize, Deserialize};
 //! use askama::Template;
 //! use async_std::fs::File;
@@ -66,7 +66,7 @@
 //!
 //!     // open file and write it to body,
 //!     // set "Content-Type" and "Content-Disposition"
-//!     ctx.write_file("assets/welcome.html").await?;
+//!     ctx.write_file("assets/welcome.html", Inline).await?;
 //!
 //!     // write text,
 //!     // set "Content-Type"
@@ -104,6 +104,8 @@ mod urlencoded;
 use askama::Template;
 #[cfg(feature = "file")]
 mod file;
+#[cfg(feature = "file")]
+pub use file::DispositionType;
 #[cfg(feature = "file")]
 use file::{write_file, Path};
 #[cfg(any(feature = "json", feature = "urlencoded"))]
@@ -149,7 +151,11 @@ pub trait PowerBody: Content {
 
     /// write object to response body as extension name of file
     #[cfg(feature = "file")]
-    async fn write_file<P: 'static + AsRef<Path> + Send>(&mut self, path: P) -> Result;
+    async fn write_file<P: 'static + AsRef<Path> + Send>(
+        &mut self,
+        path: P,
+        typ: DispositionType,
+    ) -> Result;
 }
 
 #[async_trait(?Send)]
@@ -226,8 +232,12 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "file")]
-    async fn write_file<P: 'static + AsRef<Path> + Send>(&mut self, path: P) -> Result {
-        write_file(self, path).await
+    async fn write_file<P: 'static + AsRef<Path> + Send>(
+        &mut self,
+        path: P,
+        typ: DispositionType,
+    ) -> Result {
+        write_file(self, path, typ).await
     }
 }
 

@@ -1,6 +1,7 @@
 use async_std::fs::read_to_string;
 use async_std::task::spawn;
 use http::header::ACCEPT_ENCODING;
+use roa::body::DispositionType;
 use roa::compress::Compress;
 use roa::core::App;
 use roa::preload::*;
@@ -9,7 +10,10 @@ use roa::router::Router;
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(())
-        .end(|mut ctx| async move { ctx.write_file("assets/author.txt").await })
+        .end(|mut ctx| async move {
+            ctx.write_file("assets/author.txt", DispositionType::Inline)
+                .await
+        })
         .run_local()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -22,7 +26,8 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
     let mut router = Router::<()>::new();
     router.get("/:filename", |mut ctx| async move {
         let filename = ctx.must_param("filename")?;
-        ctx.write_file(format!("assets/{}", &*filename)).await
+        ctx.write_file(format!("assets/{}", &*filename), DispositionType::Inline)
+            .await
     });
     let (addr, server) = App::new(()).gate(router.routes("/")?).run_local()?;
     spawn(server);
@@ -36,7 +41,8 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
     let mut router = Router::<()>::new();
     router.get("/*{path}", |mut ctx| async move {
         let path = ctx.must_param("path")?;
-        ctx.write_file(format!("./{}", &*path)).await
+        ctx.write_file(format!("./{}", &*path), DispositionType::Inline)
+            .await
     });
     let (addr, server) = App::new(()).gate(router.routes("/")?).run_local()?;
     spawn(server);
@@ -49,7 +55,10 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(())
         .gate(Compress::default())
-        .end(|mut ctx| async move { ctx.write_file("assets/welcome.html").await })
+        .end(|mut ctx| async move {
+            ctx.write_file("assets/welcome.html", DispositionType::Inline)
+                .await
+        })
         .run_local()?;
     spawn(server);
     let client = reqwest::Client::builder().gzip(true).build()?;
