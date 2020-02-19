@@ -12,17 +12,14 @@
 //! use async_std::fs::File;
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
-//!     // roa_core::Body implements futures::AsyncBufRead.
+//!     // roa_core::Body implements futures::AsyncRead.
 //!     let mut data = String::new();
-//!     ctx.req_mut().read_to_string(&mut data).await?;
+//!     ctx.req_mut().body().read_to_string(&mut data).await?;
 //!     println!("data: {}", data);
 //!
 //!     ctx.resp_mut()
 //!        // write object implementing futures::AsyncRead
 //!        .write(File::open("assets/author.txt").await?)
-//!        // write object implementing futures::AsyncBufRead
-//!        .write_buf(BufReader::new(File::open("assets/author.txt").await?))
-//!        .write_buf(b"Hello, World!".as_ref())
 //!        // write `impl ToString`
 //!        .write_str("I am Roa.")
 //!        // write `impl Into<Vec<u8>>`
@@ -69,9 +66,9 @@
 //!     // set "Content-Type"
 //!     ctx.write_text("Hello, World!")?;
 //!
-//!     // write object implementing AsyncBufRead,
+//!     // write object implementing AsyncRead,
 //!     // set "Content-Type"
-//!     ctx.write_octet(BufReader::new(File::open("assets/author.txt").await?))?;
+//!     ctx.write_octet(File::open("assets/author.txt").await?)?;
 //!
 //!     // render html template, based on [askama](https://github.com/djc/askama).
 //!     // set "Content-Type"
@@ -83,7 +80,7 @@
 mod content_type;
 mod help;
 use content_type::{Content, ContentType};
-use futures::{AsyncBufRead as BufRead, AsyncReadExt};
+use futures::{AsyncRead, AsyncReadExt};
 use help::bug_report;
 use roa_core::{async_trait, Context, Result, State};
 
@@ -133,7 +130,7 @@ pub trait PowerBody: Content {
     fn write_text<S: ToString + Send>(&mut self, string: S) -> Result;
 
     /// write object to response body as "application/octet-stream"
-    fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(
+    fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(
         &mut self,
         reader: B,
     ) -> Result;
@@ -151,7 +148,7 @@ pub trait PowerBody: Content {
 impl<S: State> PowerBody for Context<S> {
     async fn body_buf(&mut self) -> Result<Vec<u8>> {
         let mut data = Vec::new();
-        self.req_mut().read_to_end(&mut data).await?;
+        self.req_mut().body().read_to_end(&mut data).await?;
         Ok(data)
     }
 
@@ -203,11 +200,11 @@ impl<S: State> PowerBody for Context<S> {
         Ok(())
     }
 
-    fn write_octet<B: 'static + BufRead + Unpin + Sync + Send>(
+    fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(
         &mut self,
         reader: B,
     ) -> Result {
-        self.resp_mut().write_buf(reader);
+        self.resp_mut().write(reader);
         let content_type: ContentType = "application/octet-stream".parse()?;
         self.resp_mut()
             .headers
