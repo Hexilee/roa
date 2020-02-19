@@ -28,7 +28,7 @@ travis-ci = { repository = "Hexilee/roa" }
 http = "0.2"
 log = "0.4"
 futures = "0.3"
-async-std = "1.4"
+async-std = "1.5.0"
 bytesize = "1.0"
 async-trait = "0.1.22"
 url = "2.1.1"
@@ -49,7 +49,7 @@ accept-encoding = { package = "accept-encoding-fork", version = "=0.2.0-alpha.3"
 [dev-dependencies]
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
-async-std = { version = "1.4", features = ["attributes"] }
+async-std = { version = "1.5.0", features = ["attributes"] }
 pretty_env_logger = "0.3"
 serde = { version = "1", features = ["derive"] }
 test-case = "1.0.0"
