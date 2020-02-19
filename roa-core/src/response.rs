@@ -1,4 +1,6 @@
-use crate::Body;
+//! A module for Response and its body
+mod body;
+use body::Body;
 use http::{HeaderValue, StatusCode, Version};
 use hyper::HeaderMap;
 use std::ops::{Deref, DerefMut};

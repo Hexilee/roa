@@ -4,7 +4,7 @@ use async_std::task::{Context, Poll};
 use std::pin::Pin;
 
 /// Callback when body is finished.
-pub type Callback = dyn 'static + Sync + Send + Unpin + Fn(&Body);
+type Callback = dyn 'static + Sync + Send + Unpin + Fn(&Body);
 
 /// The Body of Request and Response.
 /// ### Example
@@ -91,7 +91,7 @@ impl Body {
     /// Callback when dropping body.
     /// ### Example
     /// ```rust
-    /// use roa_core::Body;
+    /// use roa_core::response::Body;
     /// use async_std::fs::File;
     /// use futures::io::AsyncReadExt;
     /// #[async_std::test]

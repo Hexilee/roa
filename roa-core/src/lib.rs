@@ -168,7 +168,6 @@
 #![warn(missing_docs)]
 
 mod app;
-mod body;
 mod context;
 mod err;
 mod group;
@@ -181,9 +180,6 @@ pub(crate) use app::AddrStream;
 
 #[doc(inline)]
 pub use app::{AddrIncoming, App};
-
-#[doc(inline)]
-pub use body::{Body, Callback as BodyCallback};
 
 #[doc(inline)]
 pub use context::{Context, Variable};
