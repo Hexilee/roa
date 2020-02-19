@@ -13,6 +13,7 @@ members = [
     "roa-core",
     "roa-diesel",
     "roa-body",
+    "roa-multipart",
     "integration/diesel-example",
     "integration/multipart-example"
 ]

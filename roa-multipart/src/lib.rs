@@ -15,10 +15,9 @@ use std::task::{self, Poll};
 
 pub struct Multipart(ActixMultipart);
 pub struct Field(ActixField);
-
 #[derive(Debug)]
 pub struct WrapError(MultipartError);
-pub struct BodyStream<R: AsyncBufRead>(R);
+struct BodyStream<R: AsyncBufRead>(R);
 
 impl Multipart {
     pub fn new<S: State>(ctx: &mut Context<S>) -> Self {

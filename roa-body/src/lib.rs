@@ -57,9 +57,6 @@
 //!     // deserialize as x-form-urlencoded.
 //!     user = ctx.read_form().await?;
 //!
-//!     // read multipart form
-//!     let form = ctx.multipart();
-//!
 //!     // serialize object and write it to body,
 //!     // set "Content-Type"
 //!     ctx.write_json(&user)?;
@@ -94,10 +91,6 @@ use roa_core::{async_trait, Context, Result, State};
 mod decode;
 #[cfg(feature = "json")]
 mod json;
-#[cfg(feature = "multipart")]
-mod multipart;
-#[cfg(feature = "multipart")]
-use multipart::Multipart;
 #[cfg(feature = "urlencoded")]
 mod urlencoded;
 #[cfg(feature = "template")]
@@ -127,10 +120,6 @@ pub trait PowerBody: Content {
     /// read request body as "application/x-www-form-urlencoded".
     #[cfg(feature = "urlencoded")]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B>;
-
-    // read request body as "multipart/form-data"
-    #[cfg(feature = "multipart")]
-    fn multipart(&mut self) -> Multipart;
 
     /// write object to response body as "application/json; charset=utf-8"
     #[cfg(feature = "json")]
@@ -182,11 +171,6 @@ impl<S: State> PowerBody for Context<S> {
         self.content_type()?
             .expect(mime::APPLICATION_WWW_FORM_URLENCODED)?;
         urlencoded::from_bytes(&self.body_buf().await?)
-    }
-
-    #[cfg(feature = "multipart")]
-    fn multipart(&mut self) -> Multipart {
-        Multipart::new(self)
     }
 
     #[cfg(feature = "json")]

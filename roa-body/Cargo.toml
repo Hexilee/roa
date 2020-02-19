@@ -14,9 +14,6 @@ async-std = "1.4"
 mime = "0.3"
 
 roa-core = { path = "../roa-core", version = "0.5.0-alpha" }
-bytes = { version = "0.5", optional = true }
-actix-http = { version = "1.0", optional = true }
-actix-multipart = { version = "0.2", optional = true }
 serde = { version = "1", optional = true }
 askama = { version = "0.9", optional = true }
 serde_json = { version = "1.0", optional = true }
@@ -33,9 +30,8 @@ roa-core = { path = "../roa-core", version = "0.5.0-alpha", features = ["runtime
 
 [features]
 default = []
-full = ["json", "urlencoded", "multipart", "file", "template"]
+full = ["json", "urlencoded", "file", "template"]
 json = ["serde", "serde_json", "encoding"]
 urlencoded = ["serde", "serde_urlencoded"]
-multipart = ["actix-multipart", "actix-http", "bytes"]
-file = ["mime_guess", "actix-http", "percent-encoding"]
+file = ["mime_guess", "percent-encoding"]
 template = ["askama"]

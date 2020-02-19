@@ -8,6 +8,7 @@ use roa::body::{DispositionType, PowerBody};
 use roa::core::{throw, App, StatusCode};
 use roa::logger::logger;
 use roa::router::Router;
+use roa_multipart::Multipart;
 use std::error::Error as StdError;
 
 #[async_std::main]
@@ -20,7 +21,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
             .await
     });
     router.post("/file", |mut ctx| async move {
-        let mut form = ctx.multipart();
+        let mut form = Multipart::new(&mut ctx);
         while let Some(item) = form.next().await {
             let field = item?;
             info!("{}", field.content_type());

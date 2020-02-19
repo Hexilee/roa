@@ -1,0 +1,14 @@
+[package]
+name = "roa-multipart"
+version = "0.5.0-alpha"
+authors = ["Hexilee <hexileee@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+roa-core = { path = "../roa-core", version = "0.5.0-alpha" }
+bytes = "0.5"
+actix-http = "1.0"
+actix-multipart = "0.2"
+futures = "0.3"
