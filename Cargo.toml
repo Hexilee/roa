@@ -15,6 +15,7 @@ members = [
     "roa-body",
     "roa-multipart",
     "roa-router",
+    "roa-sled",
     "integration/diesel-example",
     "integration/multipart-example"
 ]
