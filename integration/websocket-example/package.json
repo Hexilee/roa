@@ -1,0 +1,24 @@
+{
+  "name": "chat",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@types/material-ui": "^0.21.6",
+    "@types/react": "^16.8.19",
+    "@types/react-dom": "^16.8.4",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-react": "^6.24.1",
+    "json-server": "^0.15.0",
+    "typescript": "^3.5.1"
+  },
+  "scripts": {
+    "dev": "parcel frontend/index.html",
+    "build": "parcel build frontend/index.html"
+  }
+}

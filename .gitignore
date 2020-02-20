@@ -3,3 +3,4 @@
 Cargo.lock
 **/upload/*
 .env
+node_modules
