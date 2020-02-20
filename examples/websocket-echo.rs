@@ -12,7 +12,7 @@ use std::error::Error as StdError;
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let mut app = App::new(());
-    let mut router = Router::<()>::new();
+    let mut router = Router::new();
     router.end(
         [Method::GET].as_ref(),
         "/chat",
