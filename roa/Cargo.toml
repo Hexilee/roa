@@ -65,7 +65,7 @@ askama = "0.9"
 
 [features]
 default = []
-full = ["body", "router", "jwt", "cookies", "compress"]
+full = ["body", "router", "jwt", "cookies", "compress", "websocket"]
 cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde", "serde_json"]
 body = ["roa-body"]
