@@ -11,8 +11,11 @@ use roa_core::{
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
-pub use tokio_tungstenite::tungstenite::{self, protocol::WebSocketConfig};
-use tokio_tungstenite::{accept_async_with_config, WebSocketStream};
+pub use tokio_tungstenite::tungstenite::{
+    self,
+    protocol::{Message, WebSocketConfig},
+};
+use tokio_tungstenite::WebSocketStream;
 
 pub struct Websocket<F, S, Fut>
 where
@@ -90,12 +93,15 @@ where
                 spawn(async move {
                     match body.on_upgrade().await {
                         Err(err) => log::error!("websocket upgrade error: {}", err),
-                        Ok(upgraded) => match accept_async_with_config(upgraded, config)
-                            .await
-                        {
-                            Err(err) => log::error!("websocket accept error: {}", err),
-                            Ok(websocket) => task(state, websocket).await,
-                        },
+                        Ok(upgraded) => {
+                            let websocket = WebSocketStream::from_raw_socket(
+                                upgraded,
+                                tungstenite::protocol::Role::Server,
+                                config,
+                            )
+                            .await;
+                            task(state, websocket).await
+                        }
                     }
                 });
                 ctx.resp_mut().status = StatusCode::SWITCHING_PROTOCOLS;
