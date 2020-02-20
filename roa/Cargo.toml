@@ -39,6 +39,7 @@ bytes = "0.5"
 roa-core = { path = "../roa-core", version = "0.5.0-alpha", features = ["runtime"] }
 roa-body = { path = "../roa-body", version = "0.5.0-alpha", features = ["full"], optional = true }
 roa-router = { path = "../roa-router", version = "0.5.0-alpha", optional = true }
+roa-websocket = { path = "../roa-websocket", version = "0.5.0-alpha", optional = true }
 cookie = { version = "0.12", features = ["percent-encode"], optional = true }
 jsonwebtoken = { version = "6", optional = true }
 serde = { version = "1", optional = true }
@@ -69,4 +70,5 @@ cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde", "serde_json"]
 body = ["roa-body"]
 router = ["roa-router"]
+websocket = ["roa-websocket"]
 compress = ["async-compression", "accept-encoding"]

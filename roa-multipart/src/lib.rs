@@ -4,7 +4,7 @@ use actix_multipart::Field as ActixField;
 use actix_multipart::Multipart as ActixMultipart;
 use actix_multipart::MultipartError;
 use bytes::Bytes;
-use futures::{AsyncBufRead, Stream, TryStreamExt};
+use futures::{Stream, TryStreamExt};
 use roa_core::header::CONTENT_TYPE;
 use roa_core::{Context, Error, State, StatusCode};
 use std::fmt::{self, Display, Formatter};

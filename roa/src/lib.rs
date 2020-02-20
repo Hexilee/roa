@@ -228,6 +228,9 @@ pub use roa_core as core;
 #[cfg(feature = "router")]
 pub use roa_router as router;
 
+#[cfg(feature = "websocket")]
+pub use roa_websocket as websocket;
+
 pub mod cors;
 pub mod forward;
 pub mod header;

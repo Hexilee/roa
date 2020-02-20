@@ -4,10 +4,11 @@ use futures::stream::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-const CHUNK_SIZE: usize = 1024;
+const CHUNK_SIZE: usize = 4096;
 
 /// The Body of Request and Response.
 pub struct Body {
+    chunk_size: usize,
     counter: usize,
     segments: Vec<Segment>,
 }
@@ -17,6 +18,7 @@ type Segment = Box<dyn AsyncRead + Sync + Send + Unpin + 'static>;
 impl Body {
     pub(crate) fn new() -> Self {
         Self {
+            chunk_size: CHUNK_SIZE,
             counter: 0,
             segments: Vec::new(),
         }
@@ -42,6 +44,13 @@ impl Body {
     #[inline]
     pub fn write_str(&mut self, data: impl ToString) -> &mut Self {
         self.write_bytes(data.to_string())
+    }
+
+    /// Set chunk size.
+    #[inline]
+    pub fn chuck_size(&mut self, size: usize) -> &mut Self {
+        self.chunk_size = size;
+        self
     }
 
     /// Into a stream.
@@ -73,8 +82,9 @@ impl Stream for BodyStream {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        let mut chunk = BytesMut::with_capacity(CHUNK_SIZE);
-        unsafe { chunk.set_len(CHUNK_SIZE) };
+        let chunk_size = self.0.chunk_size;
+        let mut chunk = BytesMut::with_capacity(chunk_size);
+        unsafe { chunk.set_len(chunk_size) };
         let bytes = futures::ready!(Pin::new(&mut self.0).poll_read(cx, &mut *chunk))?;
         if bytes == 0 {
             Poll::Ready(None)
