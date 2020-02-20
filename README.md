@@ -49,7 +49,7 @@
   - [x] diesel
   - [ ] sled
 - [x] Streaming multipart form support.
-- [ ] Websocket support.
+- [x] Websocket support.
 - [ ] HTTPS support.
 
 #### Get start
