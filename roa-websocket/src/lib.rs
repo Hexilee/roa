@@ -17,9 +17,11 @@ pub use tokio_tungstenite::tungstenite::{
 };
 use tokio_tungstenite::WebSocketStream;
 
+pub type SocketStream = WebSocketStream<Upgraded>;
+
 pub struct Websocket<F, S, Fut>
 where
-    F: Fn(S, WebSocketStream<Upgraded>) -> Fut,
+    F: Fn(S, SocketStream) -> Fut,
 {
     task: Arc<F>,
     config: Option<WebSocketConfig>,
@@ -28,17 +30,17 @@ where
 }
 
 unsafe impl<F, S, Fut> Send for Websocket<F, S, Fut> where
-    F: Sync + Fn(S, WebSocketStream<Upgraded>) -> Fut
+    F: Sync + Fn(S, SocketStream) -> Fut
 {
 }
 unsafe impl<F, S, Fut> Sync for Websocket<F, S, Fut> where
-    F: Sync + Fn(S, WebSocketStream<Upgraded>) -> Fut
+    F: Sync + Fn(S, SocketStream) -> Fut
 {
 }
 
 impl<F, S, Fut> Websocket<F, S, Fut>
 where
-    F: Fn(S, WebSocketStream<Upgraded>) -> Fut,
+    F: Fn(S, SocketStream) -> Fut,
 {
     pub fn new(task: F) -> Self {
         Self::with_config(None, task)
@@ -58,7 +60,7 @@ where
 impl<F, S, Fut> Middleware<S> for Websocket<F, S, Fut>
 where
     S: State,
-    F: 'static + Sync + Send + Fn(S, WebSocketStream<Upgraded>) -> Fut,
+    F: 'static + Sync + Send + Fn(S, SocketStream) -> Fut,
     Fut: 'static + Send + Future<Output = ()>,
 {
     async fn handle(
