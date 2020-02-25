@@ -37,6 +37,8 @@ typed-builder = "0.5.1"
 bytes = "0.5"
 
 roa-core = { path = "../roa-core", version = "0.5.0-alpha", features = ["runtime"] }
+roa-tcp = { path = "../roa-tcp", version = "0.5.0-alpha", optional = true }
+roa-tls = { path = "../roa-tls", version = "0.5.0-alpha", optional = true }
 roa-body = { path = "../roa-body", version = "0.5.0-alpha", features = ["full"], optional = true }
 roa-router = { path = "../roa-router", version = "0.5.0-alpha", optional = true }
 roa-websocket = { path = "../roa-websocket", version = "0.5.0-alpha", optional = true }
@@ -64,8 +66,10 @@ encoding = "0.2"
 askama = "0.9"
 
 [features]
-default = []
-full = ["body", "router", "jwt", "cookies", "compress", "websocket"]
+default = ["tcp"]
+full = ["tcp", "tls", "body", "router", "jwt", "cookies", "compress", "websocket"]
+tcp = ["roa-tcp"]
+tls = ["roa-tls"]
 cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde", "serde_json"]
 body = ["roa-body"]

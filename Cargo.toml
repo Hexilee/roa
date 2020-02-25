@@ -10,6 +10,8 @@ publish = false
 [workspace]
 members = [
     "roa",
+    "roa-tcp",
+    "roa-tls",
     "roa-core",
     "roa-diesel",
     "roa-body",
