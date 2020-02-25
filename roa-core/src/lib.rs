@@ -178,7 +178,7 @@ mod response;
 mod state;
 
 #[doc(inline)]
-pub use app::{AddrIncoming, AddrStream, App};
+pub use app::{AddrStream, App};
 
 #[doc(inline)]
 pub use context::{Context, Variable};

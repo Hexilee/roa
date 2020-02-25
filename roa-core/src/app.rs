@@ -1,7 +1,5 @@
-#[cfg(feature = "runtime")]
-mod executor;
 mod future;
-mod tcp;
+mod stream;
 use crate::{
     join, join_all, Context, Error, Middleware, Next, Request, Response, Result, State,
 };
@@ -16,7 +14,7 @@ use std::result::Result as StdResult;
 use std::sync::Arc;
 use std::task::Poll;
 
-pub use tcp::{AddrIncoming, AddrStream};
+pub use stream::AddrStream;
 
 /// The Application of roa.
 /// ### Example
@@ -223,78 +221,6 @@ impl<S: State> App<S> {
     }
 }
 
-#[cfg(feature = "runtime")]
-use executor::Executor;
-
-#[cfg(feature = "runtime")]
-use hyper::Server as HyperServer;
-
-#[cfg(feature = "runtime")]
-use std::net::ToSocketAddrs;
-
-#[cfg(feature = "runtime")]
-type Server<S> = HyperServer<AddrIncoming, App<S>, Executor>;
-
-#[cfg(feature = "runtime")]
-impl<S: State> App<S> {
-    /// Listen on a socket addr, return a server and the real addr it binds.
-    fn listen_on(
-        &self,
-        addr: impl ToSocketAddrs,
-    ) -> std::io::Result<(SocketAddr, Server<S>)> {
-        let incoming = AddrIncoming::bind(addr)?;
-        let local_addr = incoming.local_addr();
-        let server = HyperServer::builder(incoming)
-            .executor(Executor)
-            .serve(self.clone());
-        Ok((local_addr, server))
-    }
-
-    /// Listen on a socket addr, return a server, and pass real addr to the callback.
-    pub fn listen(
-        &self,
-        addr: impl ToSocketAddrs,
-        callback: impl Fn(SocketAddr),
-    ) -> std::io::Result<Server<S>> {
-        let (addr, server) = self.listen_on(addr)?;
-        callback(addr);
-        Ok(server)
-    }
-
-    /// Listen on an unused port of 0.0.0.0, return a server and the real addr it binds.
-    pub fn run(&self) -> std::io::Result<(SocketAddr, Server<S>)> {
-        self.listen_on("0.0.0.0:0")
-    }
-
-    /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
-    /// ### Example
-    /// ```rust
-    /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::StatusCode;
-    /// use std::time::Instant;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|_ctx, next| async move {
-    ///             let inbound = Instant::now();
-    ///             next.await?;
-    ///             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn run_local(&self) -> std::io::Result<(SocketAddr, Server<S>)> {
-        self.listen_on("127.0.0.1:0")
-    }
-}
-
 macro_rules! impl_poll_ready {
     () => {
         #[inline]
@@ -316,11 +242,9 @@ impl<S: State> Service<&AddrStream> for App<S> {
     #[inline]
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
         let middleware = self.middleware.clone();
-        let stream = stream.clone();
+        let addr = stream.remote_addr();
         let state = self.state.clone();
-        Box::pin(
-            async move { Ok(HttpService::new(middleware, stream.remote_addr(), state)) },
-        )
+        Box::pin(async move { Ok(HttpService::new(middleware, addr, state)) })
     }
 }
 
