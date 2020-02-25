@@ -1,5 +1,5 @@
-use crate::{AddrStream, Error, Request, Response};
-use async_std::net::{SocketAddr, TcpStream};
+use crate::{Error, Request, Response};
+use async_std::net::SocketAddr;
 use async_std::sync::Arc;
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
@@ -51,7 +51,7 @@ struct Inner<S> {
     response: Response,
     state: S,
     storage: HashMap<TypeId, Bucket>,
-    stream: AddrStream,
+    remote_addr: SocketAddr,
 }
 
 /// A wrapper of `HashMap<String, Arc<dyn Any + Send + Sync>>`, method `get` return a `Variable`.
@@ -159,13 +159,13 @@ impl Default for Bucket {
 
 impl<S> Context<S> {
     /// Construct a context from a request, an app and a addr_stream.  
-    pub(crate) fn new(request: Request, state: S, stream: AddrStream) -> Self {
+    pub(crate) fn new(request: Request, state: S, remote_addr: SocketAddr) -> Self {
         let inner = Inner {
             request,
             response: Response::new(),
             state,
             storage: HashMap::new(),
-            stream,
+            remote_addr,
         };
         Self(Rc::new(UnsafeCell::new(inner)))
     }
@@ -719,13 +719,7 @@ impl<S> Context<S> {
 
     /// Get remote socket addr.
     pub fn remote_addr(&self) -> SocketAddr {
-        self.inner().stream.remote_addr()
-    }
-
-    /// Get reference of raw async_std::net::TcpStream.
-    /// This method is dangerous, it's reserved for special scene like websocket.
-    pub fn raw_stream(&self) -> Arc<TcpStream> {
-        self.inner().stream.stream()
+        self.inner().remote_addr
     }
 }
 

@@ -176,10 +176,9 @@ mod next;
 mod request;
 mod response;
 mod state;
-pub(crate) use app::AddrStream;
 
 #[doc(inline)]
-pub use app::{AddrIncoming, App};
+pub use app::{AddrIncoming, AddrStream, App};
 
 #[doc(inline)]
 pub use context::{Context, Variable};

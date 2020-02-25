@@ -10,6 +10,7 @@ use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
 use std::future::Future;
+use std::net::SocketAddr;
 use std::pin::Pin;
 use std::result::Result as StdResult;
 use std::sync::Arc;
@@ -125,7 +126,7 @@ pub struct App<S> {
 /// An implementation of hyper HttpService.
 pub struct HttpService<S> {
     middleware: Arc<dyn Middleware<S>>,
-    stream: AddrStream,
+    remote_addr: SocketAddr,
     pub(crate) state: S,
 }
 
@@ -229,7 +230,7 @@ use executor::Executor;
 use hyper::Server as HyperServer;
 
 #[cfg(feature = "runtime")]
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::ToSocketAddrs;
 
 #[cfg(feature = "runtime")]
 type Server<S> = HyperServer<AddrIncoming, App<S>, Executor>;
@@ -317,7 +318,9 @@ impl<S: State> Service<&AddrStream> for App<S> {
         let middleware = self.middleware.clone();
         let stream = stream.clone();
         let state = self.state.clone();
-        Box::pin(async move { Ok(HttpService::new(middleware, stream, state)) })
+        Box::pin(
+            async move { Ok(HttpService::new(middleware, stream.remote_addr(), state)) },
+        )
     }
 }
 
@@ -343,12 +346,12 @@ impl<S: State> Service<HttpRequest<HyperBody>> for HttpService<S> {
 impl<S: State> HttpService<S> {
     pub fn new(
         middleware: Arc<dyn Middleware<S>>,
-        stream: AddrStream,
+        remote_addr: SocketAddr,
         state: S,
     ) -> Self {
         Self {
             middleware,
-            stream,
+            remote_addr,
             state,
         }
     }
@@ -356,10 +359,10 @@ impl<S: State> HttpService<S> {
     pub async fn serve(self, req: Request) -> Result<Response> {
         let Self {
             middleware,
-            stream,
+            remote_addr,
             state,
         } = self;
-        let mut context = Context::new(req, state, stream);
+        let mut context = Context::new(req, state, remote_addr);
         if let Err(err) = middleware.end(unsafe { context.clone() }).await {
             context.resp_mut().status = err.status_code;
             if err.expose {
@@ -387,7 +390,7 @@ impl<S: State> Clone for HttpService<S> {
         Self {
             middleware: self.middleware.clone(),
             state: self.state.clone(),
-            stream: self.stream.clone(),
+            remote_addr: self.remote_addr,
         }
     }
 }
