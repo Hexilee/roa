@@ -1,6 +1,4 @@
 use crate::{Error, Request, Response};
-use async_std::net::SocketAddr;
-use async_std::sync::Arc;
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
 use http::{HeaderValue, Method, Uri, Version};
@@ -9,9 +7,11 @@ use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::Arc;
 
 struct PublicScope;
 

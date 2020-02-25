@@ -1,6 +1,6 @@
 use crate::{async_trait, last, Context, Next, Result, State};
-use async_std::sync::Arc;
 use std::future::Future;
+use std::sync::Arc;
 
 /// ### Middleware
 ///
