@@ -5,6 +5,7 @@ use http::Method;
 use log::{error, info};
 use roa::core::App;
 use roa::logger::logger;
+use roa::preload::*;
 use roa::router::Router;
 use roa::websocket::{tungstenite::Error as WsError, Message, SocketStream, Websocket};
 use slab::Slab;

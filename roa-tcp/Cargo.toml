@@ -13,3 +13,6 @@ hyper = { version = "0.13", default-features = false }
 async-std = "1.5.0"
 futures = "0.3"
 log = "0.4"
+
+[features]
+runtime = []

@@ -2,6 +2,7 @@ use diesel_example::{create_pool, post_router, StdError};
 use log::info;
 use roa::core::App;
 use roa::logger::logger;
+use roa::preload::*;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {

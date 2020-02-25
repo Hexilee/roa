@@ -222,6 +222,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(feature = "tcp")]
+pub use roa_tcp as tcp;
+
 #[cfg(feature = "body")]
 pub use roa_body as body;
 pub use roa_core as core;
@@ -251,6 +254,9 @@ pub mod preload {
     pub use crate::forward::Forward;
     pub use crate::header::FriendlyHeaders;
     pub use crate::query::Query;
+
+    #[cfg(feature = "tcp")]
+    pub use crate::tcp::TcpServer;
 
     #[cfg(feature = "body")]
     pub use crate::body::PowerBody;

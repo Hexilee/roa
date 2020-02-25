@@ -7,6 +7,7 @@ use log::info;
 use roa::body::{DispositionType, PowerBody};
 use roa::core::{throw, App, StatusCode};
 use roa::logger::logger;
+use roa::preload::*;
 use roa::router::Router;
 use roa_multipart::Multipart;
 use std::error::Error as StdError;

@@ -1,4 +1,7 @@
+#[cfg(feature = "runtime")]
 mod exec;
+
+#[cfg(feature = "runtime")]
 pub use exec::{Executor, TcpServer};
 
 use async_std::net::{SocketAddr, TcpListener};
