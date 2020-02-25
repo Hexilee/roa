@@ -1,6 +1,6 @@
 use futures::task::{Context, Poll};
 use std::future::Future;
-use tokio::macros::support::Pin;
+use std::pin::Pin;
 
 pub struct SendFuture<F>(pub F);
 
