@@ -1,7 +1,7 @@
 use crate::{Error, Request, Response};
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
-use http::{HeaderValue, Method, Uri, Version};
+use http::{Method, Uri, Version};
 use std::any::Any;
 use std::any::TypeId;
 use std::cell::UnsafeCell;
@@ -26,23 +26,15 @@ struct PublicScope;
 /// use log::info;
 /// use async_std::fs::File;
 ///
-/// #[async_std::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let server = App::new(())
-///         .gate_fn(|ctx, next| async move {
-///             info!("{} {}", ctx.method(), ctx.uri());
-///             next.await
-///         })
-///         .end(|mut ctx| async move {
-///             ctx.resp_mut().write(File::open("assets/welcome.html").await?);
-///             Ok(())
-///         })
-///         .listen("127.0.0.1:8000", |addr| {
-///             info!("Server is listening on {}", addr)
-///         })?;
-///     // server.await;
+/// let mut app = App::new(());
+/// app.gate_fn(|ctx, next| async move {
+///     info!("{} {}", ctx.method(), ctx.uri());
+///     next.await
+/// });
+/// app.end(|mut ctx| async move {
+///     ctx.resp_mut().write(File::open("assets/welcome.html").await?);
 ///     Ok(())
-/// }
+/// });
 /// ```
 pub struct Context<S>(Rc<UnsafeCell<Inner<S>>>);
 
@@ -188,22 +180,13 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
+    /// use roa_core::http::Method;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(Method::GET, ctx.req().method);
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(Method::GET, ctx.req().method);
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     #[inline]
     pub fn req(&self) -> &Request {
@@ -215,22 +198,13 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::StatusCode;
+    /// use roa_core::http::StatusCode;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(StatusCode::OK, ctx.resp().status);
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(StatusCode::OK, ctx.resp().status);
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     #[inline]
     pub fn resp(&self) -> &Response {
@@ -242,34 +216,17 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use log::info;
-    /// use async_std::task::spawn;
-    /// use http::StatusCode;
     ///
     /// #[derive(Clone)]
     /// struct State {
     ///     id: u64,
     /// }
     ///
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(State { id: 0 })
-    ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.state_mut().id = 1;
-    ///             next.await
-    ///         })
-    ///         .end(|ctx| async move {
-    ///             let id = ctx.state().id;
-    ///             assert_eq!(1, id);
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(State { id: 0 });
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(0, ctx.state().id);
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     #[inline]
     pub fn state(&self) -> &S {
@@ -287,26 +244,17 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
+    /// use roa_core::http::Method;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.req_mut().method = Method::POST;
-    ///             next.await
-    ///         })
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(Method::POST, ctx.req().method);
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.gate_fn(|mut ctx, next| async move {
+    ///     ctx.req_mut().method = Method::POST;
+    ///     next.await
+    /// });
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(Method::POST, ctx.req().method);
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     #[inline]
     pub fn req_mut(&mut self) -> &mut Request {
@@ -318,23 +266,12 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::StatusCode;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|mut ctx| async move {
-    ///             ctx.resp_mut().write(b"Hello, World!".as_ref());
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
-    ///     assert_eq!("Hello, World!", resp.text().await?);
+    /// let mut app = App::new(());
+    /// app.end(|mut ctx| async move {
+    ///     ctx.resp_mut().write(b"Hello, World!".as_ref());
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     #[inline]
     pub fn resp_mut(&mut self) -> &mut Response {
@@ -346,34 +283,21 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use log::info;
-    /// use async_std::task::spawn;
-    /// use http::StatusCode;
     ///
     /// #[derive(Clone)]
     /// struct State {
     ///     id: u64,
     /// }
     ///
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(State { id: 0 })
-    ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.state_mut().id = 1;
-    ///             next.await
-    ///         })
-    ///         .end(|ctx| async move {
-    ///             let id = ctx.state().id;
-    ///             assert_eq!(1, id);
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(State { id: 0 });
+    /// app.gate_fn(|mut ctx, next| async move {
+    ///     ctx.state_mut().id = 1;
+    ///     next.await
+    /// });
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(1, ctx.state().id);
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     #[inline]
     pub fn state_mut(&mut self) -> &mut S {
@@ -391,25 +315,15 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
-    ///             assert_eq!("/path", ctx.uri().to_string());
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.end(|ctx| async move {
+    ///     assert_eq!("/", ctx.uri().to_string());
     ///     Ok(())
-    /// }
+    /// });
     /// ```
-    pub fn uri(&self) -> Uri {
-        self.req().uri.clone()
+    pub fn uri(&self) -> &Uri {
+        &self.req().uri
     }
 
     /// Clone request::method.
@@ -417,25 +331,16 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
+    /// use http::Method;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(Method::GET, ctx.method());
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(Method::GET, ctx.method());
     ///     Ok(())
-    /// }
+    /// });
     /// ```
-    pub fn method(&self) -> Method {
-        self.req().method.clone()
+    pub fn method(&self) -> &Method {
+        &self.req().method
     }
 
     /// Search for a header value and try to get its string copy.
@@ -443,91 +348,32 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method, header};
+    /// use roa_core::http::{StatusCode, header};
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(
-    ///                 "text/plain",
-    ///                 ctx.header(&header::CONTENT_TYPE).unwrap().unwrap()
-    ///             );
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::Client::new()
-    ///         .get(&format!("http://{}", addr))
-    ///         .header(&header::CONTENT_TYPE, "text/plain")
-    ///         .send()
-    ///         .await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(
+    ///         "text/plain",
+    ///         ctx.header(&header::CONTENT_TYPE).unwrap().unwrap()
+    ///     );
     ///     Ok(())
-    /// }
+    /// });
     /// ```
-    pub fn header(&self, name: impl AsHeaderName) -> Option<Result<String, ToStrError>> {
-        self.req()
-            .headers
-            .get(name)
-            .map(|value| value.to_str().map(|str| str.to_string()))
-    }
-
-    /// Search for a header value and clone it.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method, header};
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(
-    ///                 "text/plain",
-    ///                 ctx.header_value(&header::CONTENT_TYPE).unwrap().to_str().unwrap()
-    ///             );
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::Client::new()
-    ///         .get(&format!("http://{}", addr))
-    ///         .header(&header::CONTENT_TYPE, "text/plain")
-    ///         .send()
-    ///         .await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn header_value(&self, name: impl AsHeaderName) -> Option<HeaderValue> {
-        self.req().headers.get(name).cloned()
+    pub fn header(&self, name: impl AsHeaderName) -> Option<Result<&str, ToStrError>> {
+        self.req().headers.get(name).map(|value| value.to_str())
     }
 
     /// Clone response::status.
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
+    /// use roa_core::{App, http::StatusCode};
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(StatusCode::OK, ctx.status());
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(StatusCode::OK, ctx.status());
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     pub fn status(&self) -> StatusCode {
         self.resp().status
@@ -538,22 +384,13 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Version};
+    /// use roa_core::http::{StatusCode, Version};
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(Version::HTTP_11, ctx.version());
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(Version::HTTP_11, ctx.version());
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     pub fn version(&self) -> Version {
         self.req().version
@@ -564,30 +401,21 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
+    /// use roa_core::http::{StatusCode, Method};
     ///
     /// struct Scope;
     /// struct AnotherScope;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store_scoped(Scope, "id", "1".to_string());
-    ///             next.await
-    ///         })
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
-    ///             assert!(ctx.load_scoped::<AnotherScope, String>("id").is_none());
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.gate_fn(|mut ctx, next| async move {
+    ///     ctx.store_scoped(Scope, "id", "1".to_string());
+    ///     next.await
+    /// });
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
+    ///     assert!(ctx.load_scoped::<AnotherScope, String>("id").is_none());
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     pub fn store_scoped<'a, SC, T>(
         &mut self,
@@ -617,26 +445,17 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
+    /// use roa_core::http::{StatusCode, Method};
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store("id", "1".to_string());
-    ///             next.await
-    ///         })
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.gate_fn(|mut ctx, next| async move {
+    ///     ctx.store("id", "1".to_string());
+    ///     next.await
+    /// });
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     pub fn store<'a, T>(&mut self, name: &'a str, value: T) -> Option<Variable<'a, T>>
     where
@@ -651,28 +470,18 @@ impl<S> Context<S> {
     ///
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
     ///
     /// struct Scope;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store_scoped(Scope, "id", "1".to_owned());
-    ///             next.await
-    ///         })
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.gate_fn(|mut ctx, next| async move {
+    ///     ctx.store_scoped(Scope, "id", "1".to_owned());
+    ///     next.await
+    /// });
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     pub fn load_scoped<'a, SC, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
     where
@@ -689,26 +498,16 @@ impl<S> Context<S> {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use async_std::task::spawn;
-    /// use http::{StatusCode, Method};
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.store("id", "1".to_string());
-    ///             next.await
-    ///         })
-    ///         .end(|ctx| async move {
-    ///             assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
-    ///             Ok(())
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}/path", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    /// let mut app = App::new(());
+    /// app.gate_fn(|mut ctx, next| async move {
+    ///     ctx.store("id", "1".to_string());
+    ///     next.await
+    /// });
+    /// app.end(|ctx| async move {
+    ///     assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
-    /// }
+    /// });
     /// ```
     pub fn load<'a, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
     where
@@ -740,21 +539,19 @@ impl<S> DerefMut for Context<S> {
 #[cfg(test)]
 mod tests {
     use super::{Bucket, Variable};
-    use crate::{App, Context};
-    use http::{Request, StatusCode, Version};
-    use hyper::service::Service;
-    use hyper::Body;
+    use crate::{App, Context, Request};
+    use http::{StatusCode, Version};
 
     #[async_std::test]
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
-        let mut service = App::new(())
+        let service = App::new(())
             .end(|ctx| async move {
                 assert_eq!(Version::HTTP_11, ctx.version());
                 assert_eq!(StatusCode::OK, ctx.status());
                 Ok(())
             })
             .fake_service();
-        service.call(Request::new(Body::empty())).await?;
+        service.serve(Request::default()).await?;
         Ok(())
     }
     #[derive(Clone)]
@@ -764,7 +561,7 @@ mod tests {
 
     #[async_std::test]
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
-        let mut service = App::new(State { data: 1 })
+        let service = App::new(State { data: 1 })
             .gate_fn(|mut ctx, next| async move {
                 ctx.data = 1;
                 next.await
@@ -774,7 +571,7 @@ mod tests {
                 Ok(())
             })
             .fake_service();
-        service.call(Request::new(Body::empty())).await?;
+        service.serve(Request::default()).await?;
         Ok(())
     }
 

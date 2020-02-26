@@ -8,7 +8,9 @@
 //!
 //! ### Introduction
 //!
-//! Roa is an async web framework inspired by koajs, lightweight but powerful.
+//! Core components of Roa framework.
+//!
+//! If you are new to roa, please go to the documentation of roa framework.
 //!
 //! ### Application
 //!
@@ -16,24 +18,14 @@
 //!
 //! The obligatory hello world application:
 //!
-//! ```rust,no_run
+//! ```rust
 //! use roa_core::App;
-//! use log::info;
-//! use std::error::Error as StdError;
 //!
-//! #[async_std::main]
-//! async fn main() -> Result<(), Box<dyn StdError>> {
-//!     let mut app = App::new(());
-//!     app.end(|mut ctx| async move {
-//!         ctx.resp_mut().write_str("Hello, World");
-//!         Ok(())
-//!     });
-//!     app.listen("127.0.0.1:8000", |addr| {
-//!         info!("Server is listening on {}", addr)
-//!     })?
-//!     .await?;
+//! let mut app = App::new(());
+//! app.end(|mut ctx| async move {
+//!     ctx.resp_mut().write_str("Hello, World");
 //!     Ok(())
-//! }
+//! });
 //! ```
 //!
 //! #### Cascading
@@ -45,32 +37,23 @@
 //! middleware to execute downstream, the stack will unwind and each middleware is resumed to perform
 //! its upstream behaviour.
 //!
-//! ```rust,no_run
+//! ```rust
 //! use roa_core::App;
-//! use log::info;
-//! use std::error::Error as StdError;
 //! use std::time::Instant;
+//! use log::info;
 //!
-//! #[async_std::main]
-//! async fn main() -> Result<(), Box<dyn StdError>> {
-//!     let mut app = App::new(());
-//!     app.gate_fn(|_ctx, next| async move {
-//!         let inbound = Instant::now();
-//!         next.await?;
-//!         info!("time elapsed: {} ms", inbound.elapsed().as_millis());
-//!         Ok(())
-//!     });
-//!
-//!     app.end(|mut ctx| async move {
-//!         ctx.resp_mut().write_str("Hello, World");
-//!         Ok(())
-//!     });
-//!     app.listen("127.0.0.1:8000", |addr| {
-//!         info!("Server is listening on {}", addr)
-//!     })?
-//!     .await?;
+//! let mut app = App::new(());
+//! app.gate_fn(|_ctx, next| async move {
+//!     let inbound = Instant::now();
+//!     next.await?;
+//!     info!("time elapsed: {} ms", inbound.elapsed().as_millis());
 //!     Ok(())
-//! }
+//! });
+//!
+//! app.end(|mut ctx| async move {
+//!     ctx.resp_mut().write_str("Hello, World");
+//!     Ok(())
+//! });
 //! ```
 //!
 //! ### Error Handling
@@ -79,34 +62,26 @@
 //!
 //! ```rust
 //! use roa_core::{App, throw};
-//! use async_std::task::spawn;
-//! use http::StatusCode;
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let (addr, server) = App::new(())
-//!         .gate_fn(|ctx, next| async move {
-//!             // catch
-//!             if let Err(err) = next.await {
-//!                 // teapot is ok
-//!                 if err.status_code != StatusCode::IM_A_TEAPOT {
-//!                     return Err(err)
-//!                 }
-//!             }
-//!             Ok(())
-//!         })
-//!         .gate_fn(|ctx, next| async move {
-//!             next.await?; // just throw
-//!             unreachable!()
-//!         })
-//!         .end(|_ctx| async move {
-//!             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
-//!         })
-//!         .run_local()?;
-//!     spawn(server);
-//!     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-//!     assert_eq!(StatusCode::OK, resp.status());
+//! use roa_core::http::StatusCode;
+//!         
+//! let mut app = App::new(());
+//! app.gate_fn(|ctx, next| async move {
+//!     // catch
+//!     if let Err(err) = next.await {
+//!         // teapot is ok
+//!         if err.status_code != StatusCode::IM_A_TEAPOT {
+//!             return Err(err)
+//!         }
+//!     }
 //!     Ok(())
-//! }
+//! });
+//! app.gate_fn(|ctx, next| async move {
+//!     next.await?; // just throw
+//!     unreachable!()
+//! });
+//! app.end(|_ctx| async move {
+//!     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+//! });
 //! ```
 //!
 //! #### error_handler
@@ -130,40 +105,10 @@
 //!
 //! The Error thrown by this error_handler will be handled by hyper.
 //!
-//! ### Use custom runtime.
+//! ### HTTP Server.
 //!
-//! Use hyper::Server::builder to construct a hyper server with your custom runtime.
-//!
-//! #### Example
-//! ```rust,no_run
-//! use roa_core::{App, Server, AddrIncoming, Executor};
-//! use std::future::Future;
-//!
-//! /// An implementation of hyper::rt::Executor based on tokio
-//! #[derive(Copy, Clone)]
-//! pub struct Exec;
-//!
-//! impl<F> Executor<F> for Exec
-//! where
-//!     F: 'static + Send + Future,
-//!     F::Output: 'static + Send,
-//! {
-//!     #[inline]
-//!     fn execute(&self, fut: F) {
-//!         tokio::task::spawn(fut);
-//!     }
-//! }
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let app = App::new(());
-//!     let server = Server::builder(AddrIncoming::bind("127.0.0.1:8080")?)
-//!         .executor(Exec)
-//!         .serve(app);
-//!     server.await?;
-//!     Ok(())
-//! }
-//! ```
+//! Use roa_core::Server to construct a http server.
+//! Please refer to crate roa-tcp for more information.
 
 #![warn(missing_docs)]
 
@@ -203,10 +148,8 @@ pub use request::Request;
 #[doc(inline)]
 pub use response::Response;
 
-pub use http::{header, StatusCode};
+pub use http;
 
-pub use hyper::rt::Executor;
-
-pub use hyper::Server;
+pub use hyper::{rt::Executor, Server};
 
 pub use async_trait::async_trait;

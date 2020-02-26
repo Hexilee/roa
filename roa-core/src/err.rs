@@ -19,29 +19,19 @@ pub type Result<R = ()> = StdResult<R, Error>;
 /// ### Example
 /// ```rust
 /// use roa_core::{App, throw};
-/// use async_std::task::spawn;
-/// use http::StatusCode;
+/// use roa_core::http::StatusCode;
 ///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let (addr, server) = App::new(())
-///         .gate_fn(|mut ctx, next| async move {
-///             next.await?; // throw
-///             unreachable!();
-///             ctx.resp_mut().status = StatusCode::OK;
-///             Ok(())
-///         })
-///         .end(|_ctx| async {
-///             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"); // throw
-///             unreachable!()
-///         })
-///         .run_local()?;
-///     spawn(server);
-///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-///     assert_eq!(StatusCode::IM_A_TEAPOT, resp.status());
-///     assert_eq!("I'm a teapot!", resp.text().await?);
+/// let mut app = App::new(());
+/// app.gate_fn(|mut ctx, next| async move {
+///     next.await?; // throw
+///     unreachable!();
+///     ctx.resp_mut().status = StatusCode::OK;
 ///     Ok(())
-/// }
+/// });
+/// app.end(|_ctx| async {
+///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"); // throw
+///     unreachable!()
+/// });
 /// ```
 #[macro_export]
 macro_rules! throw {
@@ -66,26 +56,16 @@ pub struct Error {
     /// ### Example
     /// ```rust
     /// use roa_core::{App, throw};
-    /// use async_std::task::spawn;
-    /// use http::StatusCode;
+    /// use roa_core::http::StatusCode;
     ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|mut ctx, next| async move {
-    ///             ctx.resp_mut().status = StatusCode::OK;
-    ///             next.await // not caught
-    ///         })
-    ///         .end(|_ctx| async {
-    ///             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::IM_A_TEAPOT, resp.status());
-    ///     assert_eq!("I'm a teapot!", resp.text().await?);
-    ///     Ok(())
-    /// }
+    /// let mut app = App::new(());
+    /// app.gate_fn(|mut ctx, next| async move {
+    ///     ctx.resp_mut().status = StatusCode::OK;
+    ///     next.await // not caught
+    /// });
+    /// app.end(|_ctx| async {
+    ///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
+    /// });
     /// ```
     pub status_code: StatusCode,
 
@@ -97,37 +77,13 @@ pub struct Error {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, throw, Error};
-    /// use async_std::task::spawn;
-    /// use http::StatusCode;
+    /// use roa_core::{App, Error};
+    /// use roa_core::http::StatusCode;
     ///
-    /// #[tokio::test]
-    /// async fn exposed() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|_ctx| async {
-    ///             throw(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::IM_A_TEAPOT, resp.status());
-    ///     assert_eq!("I'm a teapot!", resp.text().await?);
-    ///     Ok(())
-    /// }
-    ///
-    /// #[tokio::test]
-    /// async fn not_exposed() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end(|_ctx| async {
-    ///             Err(Error::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // throw
-    ///         })
-    ///         .run_local()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::IM_A_TEAPOT, resp.status());
-    ///     assert_eq!("", resp.text().await?);
-    ///     Ok(())
-    /// }
+    /// let mut app = App::new(());
+    /// app.end(|_ctx| async {
+    ///     Err(Error::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // message won't be exposed to user.
+    /// });
     /// ```
     pub message: String,
 

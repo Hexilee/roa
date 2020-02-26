@@ -44,42 +44,6 @@ pub fn join<S: State>(
 /// Join all middlewares in a vector.
 ///
 /// All middlewares would be composed and executed in a stack-like manner.
-///
-/// ### Example
-/// ```rust
-/// use roa_core::{join_all, App, Middleware, Next};
-/// use async_std::task::spawn;
-/// use futures::lock::Mutex;
-/// use http::StatusCode;
-/// use std::sync::Arc;
-///
-/// #[tokio::test]
-/// async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
-///     let vector = Arc::new(Mutex::new(Vec::new()));
-///     let mut middlewares = Vec::<Arc<dyn Middleware<()>>>::new();
-///     for i in 0..100 {
-///         let vec = vector.clone();
-///         middlewares.push(Arc::new(move |_ctx, next: Next| {
-///             let vec = vec.clone();
-///             async move {
-///                 vec.lock().await.push(i);
-///                 next.await?;
-///                 vec.lock().await.push(i);
-///                 Ok(())
-///             }
-///         }));
-///     }
-///     let (addr, server) = App::new(()).gate(join_all(middlewares)).run_local()?;
-///     spawn(server);
-///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-///     assert_eq!(StatusCode::OK, resp.status());
-///     for i in 0..100 {
-///         assert_eq!(i, vector.lock().await[i]);
-///         assert_eq!(i, vector.lock().await[199 - i]);
-///     }
-///     Ok(())
-/// }
-/// ```
 pub fn join_all<S: State>(
     middlewares: Vec<Arc<dyn Middleware<S>>>,
 ) -> impl Middleware<S> {
@@ -88,11 +52,9 @@ pub fn join_all<S: State>(
 
 #[cfg(test)]
 mod tests {
-    use crate::{join_all, App, Middleware, Next};
+    use crate::{join_all, App, Middleware, Next, Request};
     use futures::lock::Mutex;
-    use http::{Request, StatusCode};
-    use hyper::service::Service;
-    use hyper::Body;
+    use http::StatusCode;
     use std::sync::Arc;
 
     #[async_std::test]
@@ -111,9 +73,9 @@ mod tests {
                 }
             }));
         }
-        let mut service = App::new(()).gate(join_all(middlewares)).fake_service();
-        let resp = service.call(Request::new(Body::empty())).await?;
-        assert_eq!(StatusCode::OK, resp.status());
+        let service = App::new(()).gate(join_all(middlewares)).fake_service();
+        let resp = service.serve(Request::default()).await?;
+        assert_eq!(StatusCode::OK, resp.status);
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);

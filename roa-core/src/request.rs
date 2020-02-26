@@ -37,6 +37,12 @@ impl Request {
             .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
             .into_async_read()
     }
+
+    /// Only for test.
+    #[cfg(test)]
+    pub fn set_body(&mut self, body: Body) {
+        self.body = body
+    }
 }
 
 impl From<http::Request<Body>> for Request {
@@ -60,10 +66,9 @@ impl Default for Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::App;
+    use crate::{App, Request};
     use futures::AsyncReadExt;
-    use http::{Request, StatusCode};
-    use hyper::service::Service;
+    use http::StatusCode;
     use hyper::Body;
 
     #[async_std::test]
@@ -75,11 +80,11 @@ mod tests {
             assert_eq!("Hello, World!", data);
             Ok(())
         });
-        let mut service = app.fake_service();
-        let resp = service
-            .call(Request::new(Body::from("Hello, World!")))
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status());
+        let service = app.fake_service();
+        let mut req = Request::default();
+        req.set_body(Body::from("Hello, World!"));
+        let resp = service.serve(req).await?;
+        assert_eq!(StatusCode::OK, resp.status);
         Ok(())
     }
 }

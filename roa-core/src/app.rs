@@ -23,28 +23,20 @@ pub use stream::AddrStream;
 /// use log::info;
 /// use async_std::fs::File;
 ///
-/// #[async_std::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let server = App::new(())
-///         .gate_fn(|ctx, next| async move {
-///             info!("{} {}", ctx.method(), ctx.uri());
-///             next.await
-///         })
-///         .end(|mut ctx| async move {
-///             ctx.resp_mut().write(File::open("assets/welcome.html").await?);
-///             Ok(())
-///         })
-///         .listen("127.0.0.1:8000", |addr| {
-///             info!("Server is listening on {}", addr)
-///         })?;
-///     server.await;
+/// let mut app = App::new(());
+/// app.gate_fn(|ctx, next| async move {
+///     info!("{} {}", ctx.method(), ctx.uri());
+///     next.await
+/// });
+/// app.end(|mut ctx| async move {
+///     ctx.resp_mut().write(File::open("assets/welcome.html").await?);
 ///     Ok(())
-/// }
+/// });
 /// ```
 ///
-/// ### Model
-/// The `Model` and its `State` is designed to share data or handler between middlewares.
-/// The only one type implemented `Model` by this crate is `()`, you can implement your custom Model if neccassary.
+/// ### State
+/// The `State` is designed to share data or handler between middlewares.
+/// The only one type implemented `State` by this crate is `()`, you can implement your custom state if neccassary.
 ///
 /// ```rust,no_run
 /// use roa_core::App;
@@ -68,54 +60,18 @@ pub use stream::AddrStream;
 ///     }
 /// }
 ///
-/// #[async_std::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let server = App::new(State::new())
-///         .gate_fn(|mut ctx, next| async move {
-///             ctx.id = 1;
-///             next.await
-///         })
-///         .end(|ctx| async move {
-///             let id = ctx.id;
-///             ctx.database.lock().await.get(&id);
-///             Ok(())
-///         })
-///         .listen("127.0.0.1:8000", |addr| {
-///             info!("Server is listening on {}", addr)
-///         })?;
-///     server.await;
+/// let mut app = App::new(State::new());
+/// app.gate_fn(|mut ctx, next| async move {
+///     ctx.id = 1;
+///     next.await
+/// });
+/// app.end(|ctx| async move {
+///     let id = ctx.id;
+///     ctx.database.lock().await.get(&id);
 ///     Ok(())
-/// }
+/// });
 /// ```
 ///
-/// ### Graceful Shutdown
-///
-/// `App::listen` returns a hyper::Server, which supports graceful shutdown.
-///
-/// ```rust,no_run
-/// use roa_core::App;
-/// use log::info;
-/// use futures::channel::oneshot;
-///
-/// #[async_std::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     // Prepare some signal for when the server should start shutting down...
-///     let (tx, rx) = oneshot::channel::<()>();
-///     let server = App::new(())
-///         .listen("127.0.0.1:8000", |addr| {
-///             info!("Server is listening on {}", addr)
-///         })?
-///         .with_graceful_shutdown(async {
-///             rx.await.ok();
-///         });
-///     // Await the `server` receiving the signal...
-///     server.await;
-///     
-///     // And later, trigger the signal by calling `tx.send(())`.
-///     let _ = tx.send(());
-///     Ok(())
-/// }
-/// ```
 pub struct App<S> {
     middleware: Arc<dyn Middleware<S>>,
     pub(crate) state: S,
@@ -220,6 +176,7 @@ impl<S: State> App<S> {
         self.gate(endpoint)
     }
 
+    /// Make a fake http service for test.
     #[cfg(test)]
     pub fn fake_service(&self) -> HttpService<S> {
         let middleware = self.middleware.clone();
@@ -288,6 +245,8 @@ impl<S: State> HttpService<S> {
         }
     }
 
+    /// Receive a request then return a response.
+    /// The entry point of middlewares.
     pub async fn serve(self, req: Request) -> Result<Response> {
         let Self {
             middleware,
@@ -329,15 +288,13 @@ impl<S: State> Clone for HttpService<S> {
 
 #[cfg(test)]
 mod tests {
-    use crate::App;
-    use http::{Request, StatusCode};
-    use hyper::service::Service;
-    use hyper::Body;
+    use crate::{App, Request};
+    use http::StatusCode;
     use std::time::Instant;
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let mut service = App::new(())
+        let service = App::new(())
             .gate_fn(|_ctx, next| async move {
                 let inbound = Instant::now();
                 next.await?;
@@ -345,8 +302,8 @@ mod tests {
                 Ok(())
             })
             .fake_service();
-        let resp = service.call(Request::new(Body::empty())).await?;
-        assert_eq!(StatusCode::OK, resp.status());
+        let resp = service.serve(Request::default()).await?;
+        assert_eq!(StatusCode::OK, resp.status);
         Ok(())
     }
 }

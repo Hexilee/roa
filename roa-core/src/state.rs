@@ -6,34 +6,23 @@
 /// ### Example
 /// ```rust
 /// use roa_core::App;
-/// use log::info;
-/// use async_std::task::spawn;
-/// use http::StatusCode;
+/// use roa_core::http::StatusCode;
 ///
 /// #[derive(Clone)]
 /// struct State {
 ///     id: u64,
 /// }
 ///
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let (addr, server) = App::new(State { id: 0 })
-///         .gate_fn(|mut ctx, next| async move {
-///             ctx.id = 1;
-///             next.await
-///         })
-///         .end(|ctx| async move {
-///             let id = ctx.id;
-///             assert_eq!(1, id);
-///             Ok(())
-///         })
-///         .run_local()?;
-///     spawn(server);
-///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-///     assert_eq!(StatusCode::OK, resp.status());
+/// let mut app = App::new(State { id: 0 });
+/// app.gate_fn(|mut ctx, next| async move {
+///     ctx.id = 1;
+///     next.await
+/// });
+/// app.end(|ctx| async move {
+///     let id = ctx.id;
+///     assert_eq!(1, id);
 ///     Ok(())
-/// }
+/// });
 /// ```
 pub trait State: 'static + Clone + Send + Sync + Sized {}
 
