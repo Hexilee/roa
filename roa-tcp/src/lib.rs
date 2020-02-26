@@ -7,9 +7,8 @@ pub use exec::{Executor, TcpServer};
 use async_std::net::{SocketAddr, TcpListener};
 use futures::FutureExt as _;
 use futures_timer::Delay;
-use hyper::server::accept::Accept;
 use log::{debug, error, trace};
-use roa_core::AddrStream;
+use roa_core::{Accept, AddrStream};
 use std::fmt;
 use std::future::Future;
 use std::io;
@@ -19,7 +18,7 @@ use std::task::{self, Poll};
 use std::time::Duration;
 
 /// A stream of connections from binding to an address.
-/// As an implementation of hyper::server::accept::Accept.
+/// As an implementation of roa_core::Accept.
 #[must_use = "streams do nothing unless polled"]
 pub struct TcpIncoming {
     addr: SocketAddr,
@@ -30,12 +29,14 @@ pub struct TcpIncoming {
 }
 
 impl TcpIncoming {
-    pub fn new(addr: impl ToSocketAddrs) -> io::Result<Self> {
+    /// Creates a new `TcpIncoming` binding to provided socket address.
+    pub fn bind(addr: impl ToSocketAddrs) -> io::Result<Self> {
         let listener = StdListener::bind(addr)?;
         TcpIncoming::from_std(listener)
     }
 
-    pub(crate) fn from_std(listener: StdListener) -> io::Result<Self> {
+    /// Creates a new `TcpIncoming` from std TcpListener.
+    pub fn from_std(listener: StdListener) -> io::Result<Self> {
         let addr = listener.local_addr()?;
         Ok(TcpIncoming {
             listener: listener.into(),
@@ -46,18 +47,12 @@ impl TcpIncoming {
         })
     }
 
-    /// Creates a new `AddrIncoming` binding to provided socket address.
-    pub fn bind(addr: impl ToSocketAddrs) -> io::Result<Self> {
-        TcpIncoming::new(addr)
-    }
-
     /// Get the local address bound to this listener.
     pub fn local_addr(&self) -> SocketAddr {
         self.addr
     }
 
     /// Set the value of `TCP_NODELAY` option for accepted connections.
-    #[cfg_attr(tarpaulin, skip)]
     pub fn set_nodelay(&mut self, enabled: bool) -> &mut Self {
         self.tcp_nodelay = enabled;
         self
@@ -78,7 +73,6 @@ impl TcpIncoming {
     /// this option to `false` will allow that.
     ///
     /// Default is `true`.
-    #[cfg_attr(tarpaulin, skip)]
     pub fn set_sleep_on_errors(&mut self, val: bool) {
         self.sleep_on_errors = val;
     }
@@ -161,7 +155,6 @@ impl Accept for TcpIncoming {
 /// All other errors will incur a timeout before next `accept()` is performed.
 /// The timeout is useful to handle resource exhaustion errors like ENFILE
 /// and EMFILE. Otherwise, could enter into tight loop.
-#[cfg_attr(tarpaulin, skip)]
 fn is_connection_error(e: &io::Error) -> bool {
     match e.kind() {
         io::ErrorKind::ConnectionRefused
@@ -171,7 +164,6 @@ fn is_connection_error(e: &io::Error) -> bool {
     }
 }
 
-#[cfg_attr(tarpaulin, skip)]
 impl fmt::Debug for TcpIncoming {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TcpIncoming")

@@ -1,7 +1,5 @@
 use crate::TcpIncoming;
-use hyper::rt;
-use hyper::Server;
-use roa_core::{App, State};
+use roa_core::{App, Server, State};
 use std::future::Future;
 use std::net::{SocketAddr, ToSocketAddrs};
 
@@ -9,7 +7,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 #[derive(Copy, Clone)]
 pub struct Executor;
 
-impl<F> rt::Executor<F> for Executor
+impl<F> roa_core::Executor<F> for Executor
 where
     F: 'static + Send + Future,
     F::Output: 'static + Send,
@@ -40,8 +38,9 @@ pub trait TcpServer {
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, StatusCode};
+    /// use roa_core::App;
     /// use roa_tcp::TcpServer;
+    /// use roa_core::http::StatusCode;
     /// use async_std::task::spawn;
     /// use std::time::Instant;
     ///

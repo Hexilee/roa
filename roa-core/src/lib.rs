@@ -150,6 +150,6 @@ pub use response::Response;
 
 pub use http;
 
-pub use hyper::{rt::Executor, Server};
+pub use hyper::{rt::Executor, server::accept::Accept, Server};
 
 pub use async_trait::async_trait;
