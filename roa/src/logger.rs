@@ -5,8 +5,9 @@
 //!
 //! ```rust
 //! use roa::logger::logger;
-//! use roa::body::PowerBody;
-//! use roa::core::{App, StatusCode};
+//! use roa::preload::*;
+//! use roa::App;
+//! use roa::http::StatusCode;
 //! use async_std::task::spawn;
 //!
 //! #[tokio::main]
@@ -25,7 +26,7 @@
 //! }
 //! ```
 
-use crate::core::{Context, Next, Result, State};
+use crate::{Context, Next, Result, State};
 use async_std::task::spawn;
 use bytes::Bytes;
 use bytesize::ByteSize;
@@ -142,9 +143,10 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
 #[cfg(test)]
 mod tests {
     use super::logger;
-    use crate::core::{throw, App};
+    use crate::http::StatusCode;
+    use crate::preload::*;
+    use crate::{throw, App};
     use async_std::task::spawn;
-    use http::StatusCode;
     use lazy_static::lazy_static;
     use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
     use std::sync::RwLock;

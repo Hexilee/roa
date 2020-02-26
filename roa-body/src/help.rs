@@ -1,4 +1,5 @@
-use roa_core::{Error, StatusCode};
+use roa_core::http::StatusCode;
+use roa_core::Error;
 
 const BUG_HELP: &str =
     r"This is a bug, please report it to https://github.com/Hexilee/roa.";

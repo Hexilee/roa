@@ -5,10 +5,11 @@
 //!
 //! You can straightly use raw `http::header::HeaderMap` in roa,
 //! but you have to transfer value type between HeaderValue and string then
-//! deal with other errors(not `roa::core::Error`) by yourself.
+//! deal with other errors(not `roa::Error`) by yourself.
 //! ```rust
-//! use roa::core::{Context, Result, Error, StatusCode};
-//! use roa::core::header::{ORIGIN, CONTENT_TYPE};
+//! use roa::{Context, Result, Error};
+//! use roa::http::header::{ORIGIN, CONTENT_TYPE};
+//! use roa::http::StatusCode;
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
 //!     if let Some(value) = ctx.req().headers.get(ORIGIN) {
@@ -32,8 +33,9 @@
 //! If you are finding some simpler methods to deal with header value, `FriendlyHeaders` is suit for you.
 //!
 //! ```rust
-//! use roa::core::{Context, Result, StatusCode};
-//! use roa::core::header::{ORIGIN, CONTENT_TYPE};
+//! use roa::{Context, Result};
+//! use roa::http::header::{ORIGIN, CONTENT_TYPE};
+//! use roa::http::StatusCode;
 //! use roa::header::FriendlyHeaders;
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
@@ -43,10 +45,11 @@
 //!     Ok(())
 //! }
 //! ```
-use crate::core::header::{
+use crate::http::header::{
     AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, InvalidHeaderValue, ToStrError,
 };
-use crate::core::{Error, Request, Response, Result, StatusCode};
+use crate::http::StatusCode;
+use crate::{Error, Request, Response, Result};
 
 fn handle_invalid_header_value(err: InvalidHeaderValue, value: &str) -> Error {
     Error::new(
@@ -100,8 +103,9 @@ pub trait FriendlyHeaders {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::core::{Context, Result, StatusCode};
-    /// use roa::core::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::{Context, Result};
+    /// use roa::http::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::http::StatusCode;
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
@@ -127,8 +131,9 @@ pub trait FriendlyHeaders {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::core::{Context, Result, StatusCode};
-    /// use roa::core::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::{Context, Result};
+    /// use roa::http::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::http::StatusCode;
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
@@ -152,8 +157,9 @@ pub trait FriendlyHeaders {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::core::{Context, Result, StatusCode};
-    /// use roa::core::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::{Context, Result};
+    /// use roa::http::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::http::StatusCode;
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
@@ -186,8 +192,9 @@ pub trait FriendlyHeaders {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::core::{Context, Result, StatusCode};
-    /// use roa::core::header::CONTENT_TYPE;
+    /// use roa::{Context, Result};
+    /// use roa::http::header::{ORIGIN, CONTENT_TYPE};
+    /// use roa::http::StatusCode;
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(mut ctx: Context<()>) -> Result {
@@ -225,8 +232,9 @@ pub trait FriendlyHeaders {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::core::{Context, Result, StatusCode};
-    /// use roa::core::header::SET_COOKIE;
+    /// use roa::{Context, Result};
+    /// use roa::http::header::SET_COOKIE;
+    /// use roa::http::StatusCode;
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(mut ctx: Context<()>) -> Result {
@@ -274,10 +282,10 @@ impl FriendlyHeaders for Response {
 
 #[cfg(test)]
 mod tests {
-    use super::FriendlyHeaders;
-    use crate::core::Request;
-    use http::header::CONTENT_TYPE;
-    use http::{HeaderValue, StatusCode};
+    use crate::http::header::CONTENT_TYPE;
+    use crate::http::{HeaderValue, StatusCode};
+    use crate::preload::*;
+    use crate::{App, Request};
     use mime::TEXT_HTML;
 
     #[test]

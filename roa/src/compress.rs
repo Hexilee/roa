@@ -5,8 +5,10 @@
 //!
 //! ```rust
 //! use roa::compress::{Compress, Level};
-//! use roa::body::{PowerBody, DispositionType::*};
-//! use roa::core::{App, StatusCode, header::ACCEPT_ENCODING, Middleware, Context, Next};
+//! use roa::body::DispositionType::*;
+//! use roa::{App, Middleware, Context, Next};
+//! use roa::http::{StatusCode, header::ACCEPT_ENCODING};
+//! use roa::preload::*;
 //! use async_std::task::spawn;
 //! use futures::Stream;
 //! use std::io;
@@ -80,10 +82,8 @@
 //! ```
 pub use async_compression::Level;
 
-use crate::core::header::CONTENT_ENCODING;
-use crate::core::{
-    async_trait, Context, Error, Middleware, Next, Result, State, StatusCode,
-};
+use crate::http::{header::CONTENT_ENCODING, StatusCode};
+use crate::{async_trait, Context, Error, Middleware, Next, Result, State};
 use accept_encoding::{parse, Encoding};
 use async_compression::stream::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 use std::sync::Arc;

@@ -33,12 +33,12 @@ mod path;
 use err::{Conflict, RouterError};
 use path::{join_path, standardize_path, Path, RegexPath};
 
-use http::Method;
 use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
+use roa_core::http::{Method, StatusCode};
 use roa_core::{
     async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State,
-    StatusCode, Variable,
+    Variable,
 };
 use std::collections::HashMap;
 use std::convert::AsRef;

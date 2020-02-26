@@ -5,7 +5,9 @@
 //!
 //! ```rust
 //! use roa::cors::Cors;
-//! use roa::core::{App, StatusCode, header::{ORIGIN, ACCESS_CONTROL_ALLOW_ORIGIN}};
+//! use roa::App;
+//! use roa::preload::*;
+//! use roa::http::{StatusCode, header::{ORIGIN, ACCESS_CONTROL_ALLOW_ORIGIN}};
 //! use async_std::task::spawn;
 //!
 //! #[tokio::main]
@@ -33,16 +35,16 @@
 //! }
 //! ```
 
-use crate::core::header::{
+use crate::http::header::{
     HeaderName, HeaderValue, ACCESS_CONTROL_ALLOW_CREDENTIALS,
     ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
     ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_MAX_AGE,
     ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, ORIGIN, VARY,
 };
-use crate::core::{async_trait, Context, Middleware, Next, Result, State, StatusCode};
+use crate::http::{Method, StatusCode};
 use crate::preload::*;
+use crate::{async_trait, Context, Middleware, Next, Result, State};
 use async_std::sync::Arc;
-use http::Method;
 use typed_builder::TypedBuilder;
 
 /// A middleware to deal with Cross-Origin Resource Sharing (CORS).
@@ -71,8 +73,8 @@ use typed_builder::TypedBuilder;
 ///
 /// ```rust
 /// use roa::cors::Cors;
-/// use roa::core::header::{CONTENT_DISPOSITION, AUTHORIZATION};
-/// use http::Method;
+/// use roa::http::header::{CONTENT_DISPOSITION, AUTHORIZATION};
+/// use roa::http::Method;
 ///
 /// let configured_cors = Cors::builder()
 ///     .allow_origin(Some("github.com".to_owned()))
@@ -218,16 +220,17 @@ impl<S: State> Middleware<S> for Cors {
 #[cfg(test)]
 mod tests {
     use super::Cors;
-    use crate::core::App;
-    use async_std::task::spawn;
-    use http::header::{
+    use crate::http::header::{
         ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
         ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
         ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_MAX_AGE,
         ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, CONTENT_TYPE,
         ORIGIN, VARY,
     };
-    use http::{HeaderValue, StatusCode};
+    use crate::http::{HeaderValue, Method, StatusCode};
+    use crate::preload::*;
+    use crate::App;
+    use async_std::task::spawn;
 
     #[tokio::test]
     async fn default_cors() -> Result<(), Box<dyn std::error::Error>> {
@@ -278,7 +281,7 @@ mod tests {
 
         // options, no Access-Control-Request-Method
         let resp = client
-            .request(http::Method::OPTIONS, &format!("http://{}", addr))
+            .request(Method::OPTIONS, &format!("http://{}", addr))
             .header(ORIGIN, "github.com")
             .send()
             .await?;
@@ -292,7 +295,7 @@ mod tests {
 
         // options, contains Access-Control-Request-Method
         let resp = client
-            .request(http::Method::OPTIONS, &format!("http://{}", addr))
+            .request(Method::OPTIONS, &format!("http://{}", addr))
             .header(ORIGIN, "github.com")
             .header(ACCESS_CONTROL_REQUEST_METHOD, "GET, POST")
             .header(

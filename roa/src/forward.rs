@@ -2,9 +2,9 @@
 //! This module provides a context extension `Forward`,
 //! which is used to parse `X-Forwarded-*` request headers.
 
-use crate::core::header::HOST;
-use crate::core::{throw, Context, Result, State, StatusCode};
+use crate::http::{header::HOST, StatusCode};
 use crate::preload::*;
+use crate::{throw, Context, Result, State};
 use std::net::IpAddr;
 
 /// A context extension `Forward` used to parse `X-Forwarded-*` request headers.
@@ -16,7 +16,7 @@ pub trait Forward {
     ///
     /// ### Example
     /// ```rust
-    /// use roa::core::{Context, Result};
+    /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
@@ -32,7 +32,7 @@ pub trait Forward {
     ///
     /// ### Example
     /// ```rust
-    /// use roa::core::{Context, Result};
+    /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
@@ -48,7 +48,7 @@ pub trait Forward {
     ///
     /// ### Example
     /// ```rust
-    /// use roa::core::{Context, Result};
+    /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
@@ -64,7 +64,7 @@ pub trait Forward {
     ///
     /// ### Example
     /// ```rust
-    /// use roa::core::{Context, Result};
+    /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
@@ -122,10 +122,11 @@ impl<S: State> Forward for Context<S> {
 #[cfg(test)]
 mod tests {
     use super::Forward;
-    use crate::core::App;
+    use crate::http::header::HOST;
+    use crate::http::{HeaderValue, StatusCode};
+    use crate::preload::*;
+    use crate::App;
     use async_std::task::spawn;
-    use http::header::HOST;
-    use http::{HeaderValue, StatusCode};
 
     #[tokio::test]
     async fn host() -> Result<(), Box<dyn std::error::Error>> {

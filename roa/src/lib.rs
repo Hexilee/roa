@@ -18,7 +18,7 @@
 //! The obligatory hello world application:
 //!
 //! ```rust,no_run
-//! use roa::core::App;
+//! use roa::App;
 //! use roa::preload::*;
 //! use log::info;
 //! use std::error::Error as StdError;
@@ -49,7 +49,7 @@
 //! the stack will unwind and each middleware is resumed to perform its upstream behaviour.
 //!
 //! ```rust,no_run
-//! use roa::core::App;
+//! use roa::App;
 //! use roa::preload::*;
 //! use log::info;
 //! use std::error::Error as StdError;
@@ -93,7 +93,9 @@
 //! You can catch or straightly throw an error returned by next.
 //!
 //! ```rust,no_run
-//! use roa::core::{App, throw, StatusCode};
+//! use roa::{App, throw};
+//! use roa::preload::*;
+//! use roa::http::StatusCode;
 //! use async_std::task::spawn;
 //! use log::info;
 //!
@@ -156,7 +158,7 @@
 //! ```rust,no_run
 //! use roa::preload::*;
 //! use roa::router::Router;
-//! use roa::core::App;
+//! use roa::App;
 //! use async_std::task::spawn;
 //! use log::info;
 //!
@@ -189,7 +191,7 @@
 //! ```rust,no_run
 //! use roa::preload::*;
 //! use roa::query::query_parser;
-//! use roa::core::App;
+//! use roa::App;
 //! use async_std::task::spawn;
 //! use log::info;
 //!
@@ -222,12 +224,13 @@
 
 #![warn(missing_docs)]
 
+pub use roa_core::*;
+
 #[cfg(feature = "tcp")]
 pub use roa_tcp as tcp;
 
 #[cfg(feature = "body")]
 pub use roa_body as body;
-pub use roa_core as core;
 #[cfg(feature = "router")]
 pub use roa_router as router;
 

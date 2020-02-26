@@ -5,9 +5,11 @@
 //! ### Example
 //!
 //! ```rust
-//! use roa::jwt::{guard, JwtVerifier};
-//! use roa::core::{App, StatusCode};
-//! use roa::core::header::AUTHORIZATION;
+//! use roa::jwt::guard;
+//! use roa::App;
+//! use roa::http::header::AUTHORIZATION;
+//! use roa::http::StatusCode;
+//! use roa::preload::*;
 //! use async_std::task::spawn;
 //! use jsonwebtoken::{encode, Header};
 //! use serde::{Deserialize, Serialize};
@@ -66,10 +68,9 @@
 
 pub use jsonwebtoken::Validation;
 
-use crate::core::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
-use crate::core::{
-    async_trait, join, Context, Error, Middleware, Next, Result, State, StatusCode,
-};
+use crate::http::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
+use crate::http::StatusCode;
+use crate::{async_trait, join, Context, Error, Middleware, Next, Result, State};
 use jsonwebtoken::{dangerous_unsafe_decode, decode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -86,7 +87,7 @@ struct JwtScope;
 /// ### Example
 ///
 /// ```rust
-/// use roa::core::{Context, Result};
+/// use roa::{Context, Result};
 /// use roa::jwt::JwtVerifier;
 /// use serde_json::Value;
 ///
@@ -222,11 +223,12 @@ impl<S: State> Middleware<S> for JwtGuard {
 
 #[cfg(test)]
 mod tests {
-    use super::{guard, JwtVerifier, INVALID_TOKEN};
-    use crate::core::{App, Error};
+    use super::{guard, INVALID_TOKEN};
+    use crate::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
+    use crate::http::StatusCode;
+    use crate::preload::*;
+    use crate::{App, Error};
     use async_std::task::spawn;
-    use http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
-    use http::StatusCode;
     use jsonwebtoken::{encode, Header};
     use serde::{Deserialize, Serialize};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};

@@ -82,7 +82,7 @@ mod help;
 use content_type::{Content, ContentType};
 use futures::{AsyncRead, AsyncReadExt};
 use help::bug_report;
-use roa_core::{async_trait, Context, Result, State};
+use roa_core::{async_trait, http, Context, Result, State};
 
 #[cfg(feature = "json")]
 mod decode;

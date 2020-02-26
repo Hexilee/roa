@@ -4,10 +4,9 @@ use headers::{
     Upgrade,
 };
 use hyper::upgrade::Upgraded;
-use roa_core::header::UPGRADE;
-use roa_core::{
-    async_trait, throw, Context, Error, Middleware, Next, State, StatusCode,
-};
+use roa_core::http::header::UPGRADE;
+use roa_core::http::StatusCode;
+use roa_core::{async_trait, throw, Context, Error, Middleware, Next, State};
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;

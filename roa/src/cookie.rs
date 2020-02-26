@@ -4,9 +4,10 @@
 //! ### Example
 //!
 //! ```rust
-//! use roa::cookie::{cookie_parser, Cookier};
-//! use roa::core::{App, StatusCode};
-//! use roa::core::header::COOKIE;
+//! use roa::cookie::cookie_parser;
+//! use roa::preload::*;
+//! use roa::App;
+//! use roa::http::{StatusCode, header::COOKIE};
 //! use async_std::task::spawn;
 //!
 //! #[tokio::main]
@@ -30,8 +31,9 @@
 //! }
 //! ```
 
-use crate::core::{header, throw, Context, Next, Result, State, StatusCode};
 use crate::header::FriendlyHeaders;
+use crate::http::{header, StatusCode};
+use crate::{throw, Context, Next, Result, State};
 pub use cookie::Cookie;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::sync::Arc;
@@ -52,9 +54,10 @@ struct CookieScope;
 /// ### Example
 ///
 /// ```rust
-/// use roa::cookie::{cookie_parser, Cookier};
-/// use roa::core::{App, StatusCode};
-/// use roa::core::header::COOKIE;
+/// use roa::cookie::cookie_parser;
+/// use roa::App;
+/// use roa::preload::*;
+/// use roa::http::{StatusCode, header::COOKIE};
 /// use async_std::task::spawn;
 ///
 /// #[tokio::main]
@@ -98,8 +101,10 @@ pub trait Cookier {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::cookie::{cookie_parser, Cookier};
-    /// use roa::core::{App, StatusCode};
+    /// use roa::cookie::cookie_parser;
+    /// use roa::App;
+    /// use roa::preload::*;
+    /// use roa::http::{StatusCode, header::COOKIE};
     /// use async_std::task::spawn;
     ///
     /// #[tokio::main]
@@ -124,8 +129,10 @@ pub trait Cookier {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::cookie::{cookie_parser, Cookier};
-    /// use roa::core::{App, StatusCode};
+    /// use roa::cookie::cookie_parser;
+    /// use roa::App;
+    /// use roa::preload::*;
+    /// use roa::http::{StatusCode, header::COOKIE};
     /// use async_std::task::spawn;
     ///
     /// #[tokio::main]
@@ -150,8 +157,10 @@ pub trait Cookier {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::cookie::{Cookier, Cookie};
-    /// use roa::core::{App, StatusCode};
+    /// use roa::cookie::Cookie;
+    /// use roa::App;
+    /// use roa::preload::*;
+    /// use roa::http::{StatusCode, header::COOKIE};
     /// use async_std::task::spawn;
     ///
     /// #[tokio::main]
@@ -220,10 +229,11 @@ impl<S: State> Cookier for Context<S> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cookie_parser, Cookie, Cookier};
-    use crate::core::App;
+    use crate::cookie::{cookie_parser, Cookie};
+    use crate::http::{header, StatusCode};
+    use crate::preload::*;
+    use crate::App;
     use async_std::task::spawn;
-    use http::{header, StatusCode};
 
     #[tokio::test]
     async fn cookie() -> Result<(), Box<dyn std::error::Error>> {

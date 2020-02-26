@@ -4,8 +4,10 @@
 //! ### Example
 //!
 //! ```rust
-//! use roa::query::{query_parser, Query};
-//! use roa::core::{App, StatusCode};
+//! use roa::query::query_parser;
+//! use roa::App;
+//! use roa::http::StatusCode;
+//! use roa::preload::*;
 //! use async_std::task::spawn;
 //!
 //! #[tokio::main]
@@ -24,7 +26,8 @@
 //! }
 //! ```
 
-use crate::core::{Context, Error, Next, Result, State, StatusCode, Variable};
+use crate::http::StatusCode;
+use crate::{Context, Error, Next, Result, State, Variable};
 use url::form_urlencoded::parse;
 
 /// A scope to store and load variables in Context::storage.
@@ -37,8 +40,10 @@ struct QueryScope;
 /// ### Example
 ///
 /// ```rust
-/// use roa::query::{query_parser, Query};
-/// use roa::core::{App, StatusCode};
+/// use roa::query::query_parser;
+/// use roa::App;
+/// use roa::http::StatusCode;
+/// use roa::preload::*;
 /// use async_std::task::spawn;
 ///
 /// #[tokio::main]
@@ -73,8 +78,10 @@ pub trait Query {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::query::{query_parser, Query};
-    /// use roa::core::{App, StatusCode};
+    /// use roa::query::query_parser;
+    /// use roa::App;
+    /// use roa::http::StatusCode;
+    /// use roa::preload::*;
     /// use async_std::task::spawn;
     ///
     /// #[tokio::main]
@@ -99,8 +106,10 @@ pub trait Query {
     /// ### Example
     ///
     /// ```rust
-    /// use roa::query::{query_parser, Query};
-    /// use roa::core::{App, StatusCode};
+    /// use roa::query::query_parser;
+    /// use roa::App;
+    /// use roa::http::StatusCode;
+    /// use roa::preload::*;
     /// use async_std::task::spawn;
     ///
     /// #[tokio::main]
@@ -149,10 +158,11 @@ impl<S: State> Query for Context<S> {
 
 #[cfg(test)]
 mod tests {
-    use super::{query_parser, Query};
-    use crate::core::App;
+    use crate::http::StatusCode;
+    use crate::preload::*;
+    use crate::query::query_parser;
+    use crate::App;
     use async_std::task::spawn;
-    use http::StatusCode;
 
     #[tokio::test]
     async fn query() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,5 +1,6 @@
 use encoding::label::encoding_from_whatwg_label;
-use roa_core::{throw, Error, Result, StatusCode};
+use roa_core::http::StatusCode;
+use roa_core::{throw, Error, Result};
 
 pub fn decode(raw_data: &[u8], encoding: &str) -> Result<String> {
     match encoding_from_whatwg_label(encoding) {

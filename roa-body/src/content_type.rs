@@ -1,7 +1,8 @@
 use crate::help::bug_report;
 use mime::{Mime, Name};
-use roa_core::header::{HeaderValue, CONTENT_TYPE};
-use roa_core::{throw, Context, Error, Result, State, StatusCode};
+use roa_core::http::header::{HeaderValue, CONTENT_TYPE};
+use roa_core::http::StatusCode;
+use roa_core::{throw, Context, Error, Result, State};
 use std::str::FromStr;
 
 fn handle_content_type_error(err: impl ToString) -> Error {

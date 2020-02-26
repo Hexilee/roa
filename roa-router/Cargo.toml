@@ -11,7 +11,6 @@ roa-core = { path = "../roa-core", version = "0.5.0-alpha" }
 radix_trie = "0.1.6"
 regex = "1.3"
 percent-encoding = "2.1"
-http = "0.2"
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["full"] }

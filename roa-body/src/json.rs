@@ -1,4 +1,5 @@
-use roa_core::{Error, Result, StatusCode};
+use roa_core::http::StatusCode;
+use roa_core::{Error, Result};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
