@@ -219,6 +219,14 @@ impl<S: State> App<S> {
     {
         self.gate(endpoint)
     }
+
+    #[cfg(test)]
+    pub fn fake_service(&self) -> HttpService<S> {
+        let middleware = self.middleware.clone();
+        let addr = ([127, 0, 0, 1], 0);
+        let state = self.state.clone();
+        HttpService::new(middleware, addr.into(), state)
+    }
 }
 
 macro_rules! impl_poll_ready {
@@ -322,22 +330,22 @@ impl<S: State> Clone for HttpService<S> {
 #[cfg(test)]
 mod tests {
     use crate::App;
-    use async_std::task::spawn;
-    use http::StatusCode;
+    use http::{Request, StatusCode};
+    use hyper::service::Service;
+    use hyper::Body;
     use std::time::Instant;
 
-    #[tokio::test]
+    #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
+        let mut service = App::new(())
             .gate_fn(|_ctx, next| async move {
                 let inbound = Instant::now();
                 next.await?;
                 println!("time elapsed: {} ms", inbound.elapsed().as_millis());
                 Ok(())
             })
-            .run_local()?;
-        spawn(server);
-        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+            .fake_service();
+        let resp = service.call(Request::new(Body::empty())).await?;
         assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }

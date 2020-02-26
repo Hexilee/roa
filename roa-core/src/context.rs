@@ -741,20 +741,20 @@ impl<S> DerefMut for Context<S> {
 mod tests {
     use super::{Bucket, Variable};
     use crate::{App, Context};
-    use async_std::task::spawn;
-    use http::{StatusCode, Version};
+    use http::{Request, StatusCode, Version};
+    use hyper::service::Service;
+    use hyper::Body;
 
-    #[tokio::test]
+    #[async_std::test]
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
+        let mut service = App::new(())
             .end(|ctx| async move {
                 assert_eq!(Version::HTTP_11, ctx.version());
                 assert_eq!(StatusCode::OK, ctx.status());
                 Ok(())
             })
-            .run_local()?;
-        spawn(server);
-        reqwest::get(&format!("http://{}", addr)).await?;
+            .fake_service();
+        service.call(Request::new(Body::empty())).await?;
         Ok(())
     }
     #[derive(Clone)]
@@ -762,9 +762,9 @@ mod tests {
         data: usize,
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(State { data: 1 })
+        let mut service = App::new(State { data: 1 })
             .gate_fn(|mut ctx, next| async move {
                 ctx.data = 1;
                 next.await
@@ -773,9 +773,8 @@ mod tests {
                 assert_eq!(1, ctx.state().data);
                 Ok(())
             })
-            .run_local()?;
-        spawn(server);
-        reqwest::get(&format!("http://{}", addr)).await?;
+            .fake_service();
+        service.call(Request::new(Body::empty())).await?;
         Ok(())
     }
 

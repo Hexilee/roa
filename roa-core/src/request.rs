@@ -61,11 +61,12 @@ impl Default for Request {
 #[cfg(test)]
 mod tests {
     use crate::App;
-    use async_std::task::spawn;
     use futures::AsyncReadExt;
-    use http::StatusCode;
+    use http::{Request, StatusCode};
+    use hyper::service::Service;
+    use hyper::Body;
 
-    #[tokio::test]
+    #[async_std::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         app.gate_fn(|mut ctx, _next| async move {
@@ -74,13 +75,9 @@ mod tests {
             assert_eq!("Hello, World!", data);
             Ok(())
         });
-        let (addr, server) = app.run_local()?;
-        spawn(server);
-        let client = reqwest::Client::new();
-        let resp = client
-            .post(&format!("http://{}", addr))
-            .body("Hello, World!")
-            .send()
+        let mut service = app.fake_service();
+        let resp = service
+            .call(Request::new(Body::from("Hello, World!")))
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
         Ok(())

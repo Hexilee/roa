@@ -89,12 +89,13 @@ pub fn join_all<S: State>(
 #[cfg(test)]
 mod tests {
     use crate::{join_all, App, Middleware, Next};
-    use async_std::task::spawn;
     use futures::lock::Mutex;
-    use http::StatusCode;
+    use http::{Request, StatusCode};
+    use hyper::service::Service;
+    use hyper::Body;
     use std::sync::Arc;
 
-    #[tokio::test]
+    #[async_std::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
         let mut middlewares = Vec::<Arc<dyn Middleware<()>>>::new();
@@ -110,9 +111,8 @@ mod tests {
                 }
             }));
         }
-        let (addr, server) = App::new(()).gate(join_all(middlewares)).run_local()?;
-        spawn(server);
-        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        let mut service = App::new(()).gate(join_all(middlewares)).fake_service();
+        let resp = service.call(Request::new(Body::empty())).await?;
         assert_eq!(StatusCode::OK, resp.status());
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
