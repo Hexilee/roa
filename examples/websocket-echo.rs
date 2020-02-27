@@ -1,11 +1,12 @@
 use futures::StreamExt;
 use http::Method;
 use log::{error, info};
-use roa::core::App;
 use roa::cors::Cors;
 use roa::logger::logger;
+use roa::preload::*;
 use roa::router::Router;
 use roa::websocket::Websocket;
+use roa::App;
 use std::error::Error as StdError;
 
 #[async_std::main]

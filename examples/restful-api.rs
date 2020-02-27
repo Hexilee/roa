@@ -1,7 +1,8 @@
 use async_std::sync::{Arc, RwLock};
-use roa::core::{throw, App, Context, Result, StatusCode};
+use roa::http::StatusCode;
 use roa::preload::*;
 use roa::router::Router;
+use roa::{throw, App, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use slab::Slab;

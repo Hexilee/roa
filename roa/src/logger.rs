@@ -70,24 +70,25 @@ where
                 exec,
                 counter,
                 task,
-            } => match Pin::new(stream).poll_next(cx) {
-                Poll::Ready(Some(Ok(bytes))) => {
+            } => match futures::ready!(Pin::new(stream).poll_next(cx)) {
+                Some(Ok(bytes)) => {
                     *counter += bytes.len() as u64;
                     Poll::Ready(Some(Ok(bytes)))
                 }
-                Poll::Ready(None) => {
+                None => {
                     let counter = *counter;
                     let task = task.clone();
                     let handler = exec.spawn_blocking(move || task(counter));
                     *self = Logger::Logging(handler);
                     self.poll_next(cx)
                 }
-                poll => poll,
+                err => Poll::Ready(err),
             },
 
             Logger::Logging(handler) => {
                 futures::ready!(Pin::new(handler).poll(cx));
                 *self = Logger::Complete;
+                println!("logger complete");
                 self.poll_next(cx)
             }
 
@@ -203,6 +204,7 @@ mod tests {
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
+        assert_eq!("Hello, World.", resp.text().await?);
         let records = LOGGER.records.read().unwrap().clone();
         assert_eq!(2, records.len());
         assert_eq!("INFO", records[0].0);
@@ -222,8 +224,9 @@ mod tests {
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+        assert_eq!("Hello, World!", resp.text().await?);
         let records = LOGGER.records.read().unwrap().clone();
-        //        assert_eq!(4, records.len());
+        assert_eq!(4, records.len());
         assert_eq!("INFO", records[2].0);
         assert_eq!("--> GET /", records[2].1);
         assert_eq!("ERROR", records[3].0);
