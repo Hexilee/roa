@@ -3,11 +3,11 @@ use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use http::Method;
 use log::{error, info};
-use roa::core::App;
 use roa::logger::logger;
 use roa::preload::*;
 use roa::router::Router;
 use roa::websocket::{tungstenite::Error as WsError, Message, SocketStream, Websocket};
+use roa::App;
 use slab::Slab;
 use std::error::Error as StdError;
 

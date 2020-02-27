@@ -5,8 +5,8 @@ use actix_multipart::Multipart as ActixMultipart;
 use actix_multipart::MultipartError;
 use bytes::Bytes;
 use futures::{Stream, TryStreamExt};
-use roa_core::header::CONTENT_TYPE;
-use roa_core::{Context, Error, State, StatusCode};
+use roa_core::http::{header::CONTENT_TYPE, StatusCode};
+use roa_core::{Context, Error, State};
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::ops::Deref;
@@ -21,8 +21,8 @@ pub struct WrapError(MultipartError);
 impl Multipart {
     pub fn new<S: State>(ctx: &mut Context<S>) -> Self {
         let mut map = HeaderMap::new();
-        if let Some(value) = ctx.header_value(CONTENT_TYPE) {
-            map.insert(CONTENT_TYPE, value)
+        if let Some(value) = ctx.req().headers.get(CONTENT_TYPE) {
+            map.insert(CONTENT_TYPE, value.clone())
         }
         Multipart(ActixMultipart::new(
             &map,
