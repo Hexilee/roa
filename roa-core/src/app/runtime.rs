@@ -4,13 +4,13 @@ use crate::{App, Spawn, State};
 impl<S: State> App<S> {
     /// Construct app with default runtime.
     pub fn new(state: S) -> Self {
-        Self::with_exec(state, Executor)
+        Self::with_exec(state, Exec)
     }
 }
 
-struct Executor;
+pub struct Exec;
 
-impl Spawn for Executor {
+impl Spawn for Exec {
     fn spawn(&self, fut: FutureObj) {
         async_std::task::spawn(fut);
     }

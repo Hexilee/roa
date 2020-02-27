@@ -75,3 +75,22 @@ where
         self.spawn(fut);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Executor;
+    use crate::app::runtime::Exec;
+    use async_std::sync::Arc;
+
+    #[async_std::test]
+    async fn spawn() {
+        let exec = Executor(Arc::new(Exec));
+        assert_eq!(1, exec.spawn(async { 1 }).await);
+    }
+
+    #[async_std::test]
+    async fn spawn_blocking() {
+        let exec = Executor(Arc::new(Exec));
+        assert_eq!(1, exec.spawn_blocking(|| 1).await);
+    }
+}
