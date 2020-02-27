@@ -7,6 +7,7 @@
 //! use roa_router::{Router, RouterParam};
 //! use roa_core::App;
 //! use roa_core::http::StatusCode;
+//! use roa_tcp::Listener;
 //! use async_std::task::spawn;
 //!
 //! #[tokio::test]
@@ -69,8 +70,10 @@ struct RouterScope;
 /// ### Example
 ///
 /// ```rust
-/// use roa_router::{RouterParam, Router};
-/// use roa_core::{App, StatusCode};
+/// use roa_router::{Router, RouterParam};
+/// use roa_core::App;
+/// use roa_core::http::StatusCode;
+/// use roa_tcp::Listener;
 /// use async_std::task::spawn;
 ///
 /// #[tokio::main]
@@ -100,8 +103,10 @@ pub trait RouterParam {
     /// ### Example
     ///
     /// ```rust
-    /// use roa_router::{RouterParam, Router};
-    /// use roa_core::{App, StatusCode};
+    /// use roa_router::{Router, RouterParam};
+    /// use roa_core::App;
+    /// use roa_core::http::StatusCode;
+    /// use roa_tcp::Listener;
     /// use async_std::task::spawn;
     ///
     /// #[tokio::main]
@@ -228,7 +233,7 @@ impl<S: State> Router<S> {
     /// use roa_core::{Context, Result, State, Middleware};
     /// use roa_router::Router;
     /// use std::future::Future;
-    /// use http::Method;
+    /// use roa_core::http::Method;
     ///
     /// async fn endpoint(ctx: Context<()>) -> Result {
     ///     Ok(())
@@ -247,7 +252,7 @@ impl<S: State> Router<S> {
     ///
     /// ```rust
     /// use roa_router::Router;
-    /// use http::Method;
+    /// use roa_core::http::Method;
     ///
     /// Router::<()>::new().end_fn([Method::GET].as_ref(), "/", |_ctx| async { Ok(()) });
     /// ```
@@ -471,9 +476,10 @@ mod tests {
     use super::Router;
     use async_std::task::spawn;
     use encoding::EncoderTrap;
-    use http::StatusCode;
     use percent_encoding::NON_ALPHANUMERIC;
+    use roa_core::http::StatusCode;
     use roa_core::App;
+    use roa_tcp::Listener;
 
     #[tokio::test]
     async fn gate() -> Result<(), Box<dyn std::error::Error>> {

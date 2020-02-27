@@ -58,6 +58,7 @@ impl std::error::Error for RouterError {}
 #[cfg(test)]
 mod tests {
     use super::{Conflict, RouterError};
+    use roa_core::http;
 
     #[test]
     fn conflict_to_string() {
