@@ -26,36 +26,31 @@
 //! }
 //! ```
 
-use crate::{Context, Executor, Next, Result, State};
+use crate::{Context, Executor, JoinHandle, Next, Result, State};
 use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};
-use futures::Stream;
+use futures::{Future, Stream};
 use log::{error, info};
 use std::io;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Instant;
 
-struct Logger<S, F>
+enum Logger<S, F>
 where
     F: FnOnce(u64),
 {
-    counter: u64,
-    stream: S,
-    exec: Executor,
-    task: Arc<F>,
-}
+    Polling {
+        counter: u64,
+        stream: S,
+        exec: Executor,
+        task: Arc<F>,
+    },
 
-impl<S, F> Logger<S, F>
-where
-    F: 'static + Send + Sync + Fn(u64),
-{
-    fn log(&self) {
-        let counter = self.counter;
-        let task = self.task.clone();
-        self.exec.spawn_blocking(move || task(counter));
-    }
+    Logging(JoinHandle<()>),
+
+    Complete,
 }
 
 impl<S, F> Stream for Logger<S, F>
@@ -69,16 +64,34 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match Pin::new(&mut self.stream).poll_next(cx) {
-            Poll::Ready(Some(Ok(bytes))) => {
-                self.counter += bytes.len() as u64;
-                Poll::Ready(Some(Ok(bytes)))
+        match &mut *self {
+            Logger::Polling {
+                stream,
+                exec,
+                counter,
+                task,
+            } => match Pin::new(stream).poll_next(cx) {
+                Poll::Ready(Some(Ok(bytes))) => {
+                    *counter += bytes.len() as u64;
+                    Poll::Ready(Some(Ok(bytes)))
+                }
+                Poll::Ready(None) => {
+                    let counter = *counter;
+                    let task = task.clone();
+                    let handler = exec.spawn_blocking(move || task(counter));
+                    *self = Logger::Logging(handler);
+                    self.poll_next(cx)
+                }
+                poll => poll,
+            },
+
+            Logger::Logging(handler) => {
+                futures::ready!(Pin::new(handler).poll(cx));
+                *self = Logger::Complete;
+                self.poll_next(cx)
             }
-            Poll::Ready(None) => {
-                self.log();
-                Poll::Ready(None)
-            }
-            poll => poll,
+
+            Logger::Complete => Poll::Ready(None),
         }
     }
 }
@@ -99,7 +112,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     match result {
         Ok(()) => {
             let status_code = ctx.status();
-            ctx.resp_mut().map_body(move |stream| Logger {
+            ctx.resp_mut().map_body(move |stream| Logger::Polling {
                 counter,
                 stream,
                 exec,
@@ -118,7 +131,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
         Err(ref err) => {
             let message = err.message.clone();
             let status_code = err.status_code;
-            ctx.resp_mut().map_body(move |stream| Logger {
+            ctx.resp_mut().map_body(move |stream| Logger::Polling {
                 counter,
                 stream,
                 exec,
@@ -144,11 +157,10 @@ mod tests {
     use crate::http::StatusCode;
     use crate::preload::*;
     use crate::{throw, App};
-    use async_std::task::{sleep, spawn};
+    use async_std::task::spawn;
     use lazy_static::lazy_static;
     use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
     use std::sync::RwLock;
-    use std::time::Duration;
 
     struct TestLogger {
         records: RwLock<Vec<(String, String)>>,
@@ -191,7 +203,6 @@ mod tests {
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
-        sleep(Duration::from_secs(1)).await;
         let records = LOGGER.records.read().unwrap().clone();
         assert_eq!(2, records.len());
         assert_eq!("INFO", records[0].0);
@@ -211,7 +222,6 @@ mod tests {
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
-        sleep(Duration::from_secs(1)).await;
         let records = LOGGER.records.read().unwrap().clone();
         //        assert_eq!(4, records.len());
         assert_eq!("INFO", records[2].0);
