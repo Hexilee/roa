@@ -1,4 +1,3 @@
-use async_std::task::spawn;
 use headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion,
     Upgrade,
@@ -91,7 +90,7 @@ where
                 let state = ctx.state().clone();
                 let task = self.task.clone();
                 let config = self.config.clone();
-                spawn(async move {
+                ctx.exec().spawn(async move {
                     match body.on_upgrade().await {
                         Err(err) => log::error!("websocket upgrade error: {}", err),
                         Ok(upgraded) => {
