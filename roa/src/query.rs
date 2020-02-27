@@ -134,7 +134,7 @@ pub trait Query {
 /// A middleware to parse query.
 pub async fn query_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let uri = ctx.uri();
-    let query_string = uri.query().unwrap_or("");
+    let query_string = uri.query().unwrap_or("").to_string();
     for (key, value) in parse(query_string.as_bytes()) {
         ctx.store_scoped(QueryScope, &key, value.to_string());
     }

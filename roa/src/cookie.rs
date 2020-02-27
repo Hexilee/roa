@@ -191,9 +191,12 @@ pub fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Next {
             .map(|cookie| cookie.trim())
             .map(Cookie::parse_encoded)
             .filter_map(|cookie| cookie.ok())
+            .map(|cookie| cookie.into_owned())
+            .collect::<Vec<Cookie<'static>>>()
+            .into_iter()
         {
             let name = cookie.name().to_string();
-            ctx.store_scoped(CookieScope, &name, cookie.into_owned());
+            ctx.store_scoped(CookieScope, &name, cookie);
         }
     }
     next

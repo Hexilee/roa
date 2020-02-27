@@ -44,7 +44,7 @@ use crate::http::header::{
 use crate::http::{Method, StatusCode};
 use crate::preload::*;
 use crate::{async_trait, Context, Middleware, Next, Result, State};
-use async_std::sync::Arc;
+use std::sync::Arc;
 use typed_builder::TypedBuilder;
 
 /// A middleware to deal with Cross-Origin Resource Sharing (CORS).
@@ -199,8 +199,10 @@ impl<S: State> Middleware<S> for Cors {
             // If allow_headers is None, try to assign `Access-Control-Request-Headers` to `Access-Control-Allow-Headers`.
             let mut allow_headers = self.join_allow_headers();
             if allow_headers.is_empty() {
-                if let Some(value) = ctx.header_value(ACCESS_CONTROL_REQUEST_HEADERS) {
-                    allow_headers = value
+                if let Some(value) =
+                    ctx.req().headers.get(ACCESS_CONTROL_REQUEST_HEADERS)
+                {
+                    allow_headers = value.clone()
                 }
             }
 

@@ -26,7 +26,7 @@
 //! }
 //! ```
 
-use crate::{Context, Next, Result, State};
+use crate::{Context, Executor, Next, Result, State};
 use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};
@@ -36,33 +36,34 @@ use std::io;
 use std::pin::Pin;
 use std::time::Instant;
 
-#[derive(Debug)]
 struct Logger<S, F>
 where
     F: FnOnce(u64),
 {
     counter: u64,
     stream: S,
-    task_ready: Option<F>,
+    exec: Executor,
+    task: Option<F>,
 }
 
 impl<S, F> Logger<S, F>
 where
-    F: FnOnce(u64),
+    F: 'static + Send + FnOnce(u64),
 {
     fn log(&mut self) {
-        let task_ready = self.task_ready.take().expect(
+        let counter = self.counter;
+        let task = self.task.take().expect(
             r"
             task_ready is None, this is a bug, please report it to https://github.com/Hexilee/roa.
         ",
         );
-        task_ready(self.counter)
+        self.exec.spawn_blocking(move || task(counter))
     }
 }
 
 impl<S, F> Stream for Logger<S, F>
 where
-    F: Unpin + FnOnce(u64),
+    F: 'static + Send + Unpin + FnOnce(u64),
     S: 'static + Send + Send + Unpin + Stream<Item = io::Result<Bytes>>,
 {
     type Item = io::Result<Bytes>;
@@ -90,31 +91,30 @@ where
 /// Based on crate `log`, the log level must be greater than `INFO` to log all information,
 /// and should be greater than `ERROR` when you need error information only.
 pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
+    info!("--> {} {}", ctx.method(), ctx.uri().path());
     let start = Instant::now();
-    let method = ctx.method();
-    let uri = ctx.uri();
-    info!("--> {} {}", method, uri.path());
-    let path = uri.path().to_string();
     let result = next.await;
-    let counter = 0;
 
+    let method = ctx.method().clone();
+    let path = ctx.uri().path().to_string();
+    let counter = 0;
+    let exec = ctx.exec().clone();
     match result {
         Ok(()) => {
             let status_code = ctx.status();
             ctx.resp_mut().map_body(move |stream| Logger {
                 counter,
                 stream,
-                task_ready: Some(move |counter| {
-                    ctx.spawn_blocking(move || {
-                        info!(
-                            "<-- {} {} {}ms {} {}",
-                            method,
-                            path,
-                            start.elapsed().as_millis(),
-                            ByteSize(counter),
-                            status_code,
-                        );
-                    })
+                exec,
+                task: Some(move |counter| {
+                    info!(
+                        "<-- {} {} {}ms {} {}",
+                        method,
+                        path,
+                        start.elapsed().as_millis(),
+                        ByteSize(counter),
+                        status_code,
+                    );
                 }),
             });
         }
@@ -124,17 +124,16 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
             ctx.resp_mut().map_body(move |stream| Logger {
                 counter,
                 stream,
-                task_ready: Some(move |_counter| {
-                    ctx.spawn_blocking(move || {
-                        error!(
-                            "<-- {} {} {}ms {}\n{}",
-                            method,
-                            path,
-                            start.elapsed().as_millis(),
-                            status_code,
-                            message,
-                        );
-                    })
+                exec,
+                task: Some(move |_counter| {
+                    error!(
+                        "<-- {} {} {}ms {}\n{}",
+                        method,
+                        path,
+                        start.elapsed().as_millis(),
+                        status_code,
+                        message,
+                    );
                 }),
             });
         }
