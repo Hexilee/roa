@@ -2,14 +2,12 @@ use crate::data_object::PostData;
 use crate::models::*;
 use crate::schema::posts::dsl::{self, posts};
 use crate::State;
-use async_std::task::spawn;
 use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
 use roa::http::StatusCode;
 use roa::preload::*;
 use roa::router::Router;
 use roa::{throw, Context, Result};
-use roa_diesel::{AsyncPool, Result as WrapResult, SqlQuery, WrapConnection, WrapError};
+use roa_diesel::{AsyncPool, Result as WrapResult, SqlQuery, WrapError};
 
 pub fn post_router() -> Router<State> {
     let mut router = Router::new();

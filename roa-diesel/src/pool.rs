@@ -9,28 +9,18 @@ pub type Pool<Conn> = r2d2::Pool<ConnectionManager<Conn>>;
 
 pub type WrapConnection<Conn> = PooledConnection<ConnectionManager<Conn>>;
 
-pub trait MakePool<Conn>
+pub fn make_pool<Conn>(url: impl Into<String>) -> Result<Pool<Conn>, PoolError>
 where
     Conn: Connection + 'static,
 {
-    fn make(url: impl Into<String>) -> Result<Pool<Conn>, PoolError> {
-        r2d2::Pool::new(ConnectionManager::<Conn>::new(url))
-    }
-
-    fn builder() -> Builder<ConnectionManager<Conn>> {
-        r2d2::Pool::builder()
-    }
-
-    fn pool(&self) -> &Pool<Conn>;
+    r2d2::Pool::new(ConnectionManager::<Conn>::new(url))
 }
 
-impl<Conn> MakePool<Conn> for Pool<Conn>
+pub fn builder<Conn>() -> Builder<ConnectionManager<Conn>>
 where
     Conn: Connection + 'static,
 {
-    fn pool(&self) -> &Pool<Conn> {
-        self
-    }
+    r2d2::Pool::builder()
 }
 
 #[async_trait(?Send)]
@@ -51,11 +41,11 @@ where
 #[async_trait(?Send)]
 impl<S, Conn> AsyncPool<Conn> for Context<S>
 where
-    S: State + MakePool<Conn>,
+    S: State + AsRef<Pool<Conn>>,
     Conn: Connection + 'static,
 {
     async fn get_conn(&self) -> Result<WrapConnection<Conn>, WrapError> {
-        let pool = self.pool().clone();
+        let pool = self.as_ref().clone();
         Ok(self.exec().spawn_blocking(move || pool.get()).await?)
     }
 
@@ -63,7 +53,7 @@ where
         &self,
         timeout: Duration,
     ) -> Result<WrapConnection<Conn>, WrapError> {
-        let pool = self.pool().clone();
+        let pool = self.as_ref().clone();
         Ok(self
             .exec()
             .spawn_blocking(move || pool.get_timeout(timeout))
@@ -71,7 +61,7 @@ where
     }
 
     async fn pool_state(&self) -> r2d2::State {
-        let pool = self.pool().clone();
+        let pool = self.as_ref().clone();
         self.exec().spawn_blocking(move || pool.state()).await
     }
 }

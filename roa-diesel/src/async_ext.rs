@@ -1,5 +1,4 @@
-use crate::Result;
-use crate::{AsyncPool, MakePool};
+use crate::{AsyncPool, Pool, Result};
 use diesel::connection::Connection;
 use diesel::helper_types::Limit;
 use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, LoadQuery};
@@ -86,8 +85,8 @@ pub trait SqlQuery<Conn: 'static + Connection> {
 #[async_trait(?Send)]
 impl<S, Conn> SqlQuery<Conn> for Context<S>
 where
-    S: State + MakePool<Conn>,
-    Conn: 'static + Sync + Connection,
+    S: State + AsRef<Pool<Conn>>,
+    Conn: 'static + Connection,
 {
     async fn execute<E>(&self, exec: E) -> Result<usize>
     where

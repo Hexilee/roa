@@ -8,14 +8,21 @@ mod schema;
 
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use roa_diesel::{MakePool, Pool};
+use roa_diesel::{make_pool, Pool};
 
-pub type State = Pool<SqliteConnection>;
+#[derive(Clone)]
+pub struct State(pub Pool<SqliteConnection>);
+
+impl AsRef<Pool<SqliteConnection>> for State {
+    fn as_ref(&self) -> &Pool<SqliteConnection> {
+        &self.0
+    }
+}
 
 pub use std::error::Error as StdError;
 
 pub fn create_pool() -> Result<State, Box<dyn StdError>> {
-    let pool = MakePool::make(":memory:")?;
+    let pool = make_pool(":memory:")?;
     diesel::sql_query(
         r"
         CREATE TABLE posts (
@@ -27,8 +34,7 @@ pub fn create_pool() -> Result<State, Box<dyn StdError>> {
     ",
     )
     .execute(&*pool.get()?)?;
-    Ok(pool)
+    Ok(State(pool))
 }
 
-use diesel::r2d2::ConnectionManager;
 pub use endpoints::post_router;

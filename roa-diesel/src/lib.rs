@@ -5,4 +5,4 @@ mod pool;
 pub use err::{Result, WrapError};
 
 pub use async_ext::SqlQuery;
-pub use pool::{AsyncPool, MakePool, Pool, WrapConnection};
+pub use pool::{builder, make_pool, AsyncPool, Pool, WrapConnection};
