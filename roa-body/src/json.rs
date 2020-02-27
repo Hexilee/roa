@@ -36,7 +36,7 @@ pub fn to_bytes<B: Serialize>(object: &B) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use http::StatusCode;
+    use roa_core::http::StatusCode;
 
     #[test]
     fn from_str_fails() {

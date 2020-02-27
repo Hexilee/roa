@@ -1,4 +1,5 @@
-use roa_core::{Error, Result, StatusCode};
+use roa_core::http::StatusCode;
+use roa_core::{Error, Result};
 use serde::de::DeserializeOwned;
 
 pub fn from_bytes<B: DeserializeOwned>(data: &[u8]) -> Result<B> {
@@ -14,7 +15,7 @@ pub fn from_bytes<B: DeserializeOwned>(data: &[u8]) -> Result<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use http::StatusCode;
+    use roa_core::http::StatusCode;
 
     #[test]
     fn from_bytes_fails() {

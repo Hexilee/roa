@@ -232,7 +232,9 @@ mod tests {
     use futures::io::BufReader;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
+    use roa_core::http;
     use roa_core::App;
+    use roa_tcp::Listener;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone, Template)]

@@ -23,7 +23,7 @@ pub fn decode(raw_data: &[u8], encoding: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::decode;
-    use http::StatusCode;
+    use roa_core::http::StatusCode;
 
     #[test]
     fn decode_fails() {
