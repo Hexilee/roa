@@ -3,7 +3,7 @@ use futures::future::FutureObj;
 use futures::task::{Spawn, SpawnError};
 
 impl<S: State> App<S> {
-    /// Construct app with default runtime
+    /// Construct app with default runtime.
     pub fn new(state: S) -> Self {
         Self::with_exec(state, Executor)
     }

@@ -12,6 +12,8 @@ use futures::task::Spawn;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
+use hyper::Server;
+use std::error::Error as StdError;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -19,6 +21,7 @@ use std::result::Result as StdResult;
 use std::sync::Arc;
 use std::task::Poll;
 
+use crate::Accept;
 pub use executor::Executor;
 pub use stream::AddrStream;
 
@@ -93,7 +96,7 @@ pub struct HttpService<S> {
 }
 
 impl<S: State> App<S> {
-    /// Construct an application from a model.
+    /// Construct an application with custom runtime.
     pub fn with_exec(state: S, exec: impl 'static + Send + Sync + Spawn) -> Self {
         Self {
             middleware: Arc::new(join_all(Vec::new())),
@@ -183,6 +186,17 @@ impl<S: State> App<S> {
         F: 'static + Future<Output = Result>,
     {
         self.gate(endpoint)
+    }
+
+    /// Construct a hyper server by an incoming.
+    pub fn accept<I>(&self, incoming: I) -> Server<I, Self, Executor>
+    where
+        I: Accept<Conn = AddrStream>,
+        I::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
+        Server::builder(incoming)
+            .executor(self.exec.clone())
+            .serve(self.clone())
     }
 
     /// Make a fake http service for test.
