@@ -1,15 +1,14 @@
 use crate::Result;
-use crate::WrapConnection;
-use async_std::task::spawn;
+use crate::{AsyncPool, MakePool};
 use diesel::connection::Connection;
 use diesel::helper_types::Limit;
 use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, LoadQuery};
 use diesel::query_dsl::RunQueryDsl;
 use diesel::result::{Error as DieselError, OptionalExtension};
-use roa_core::async_trait;
+use roa_core::{async_trait, Context, State};
 
-#[async_trait]
-pub trait AsyncQuery<Conn: 'static + Connection> {
+#[async_trait(?Send)]
+pub trait SqlQuery<Conn: 'static + Connection> {
     /// Executes the given command, returning the number of rows affected.
     ///
     /// `execute` is usually used in conjunction with [`insert_into`](../fn.insert_into.html),
@@ -18,9 +17,9 @@ pub trait AsyncQuery<Conn: 'static + Connection> {
     ///
     /// When asking the database to return data from a query, [`load`](#method.load) should
     /// probably be used instead.
-    async fn execute_async(self, conn: WrapConnection<Conn>) -> Result<usize>
+    async fn execute<E>(&self, exec: E) -> Result<usize>
     where
-        Self: ExecuteDsl<Conn>;
+        E: 'static + Send + ExecuteDsl<Conn>;
     /// Executes the given query, returning a `Vec` with the returned rows.
     ///
     /// When using the query builder,
@@ -39,10 +38,10 @@ pub trait AsyncQuery<Conn: 'static + Connection> {
     /// [`execute`]: fn.execute.html
     /// [`sql_query`]: ../fn.sql_query.html
     ///
-    async fn load_async<U>(self, conn: WrapConnection<Conn>) -> Result<Vec<U>>
+    async fn load_data<U, Q>(&self, query: Q) -> Result<Vec<U>>
     where
         U: 'static + Send,
-        Self: LoadQuery<Conn, U>;
+        Q: 'static + Send + LoadQuery<Conn, U>;
 
     /// Runs the command, and returns the affected row.
     ///
@@ -53,10 +52,10 @@ pub trait AsyncQuery<Conn: 'static + Connection> {
     /// When this method is called on an insert, update, or delete statement,
     /// it will implicitly add a `RETURNING *` to the query,
     /// unless a returning clause was already specified.
-    async fn get_result_async<U>(self, conn: WrapConnection<Conn>) -> Result<Option<U>>
+    async fn get_result<U, Q>(&self, query: Q) -> Result<Option<U>>
     where
         U: 'static + Send,
-        Self: LoadQuery<Conn, U>;
+        Q: 'static + Send + LoadQuery<Conn, U>;
 
     /// Runs the command, returning an `Vec` with the affected rows.
     ///
@@ -64,10 +63,10 @@ pub trait AsyncQuery<Conn: 'static + Connection> {
     /// sense for insert, update, and delete statements.
     ///
     /// [`load`]: #method.load
-    async fn get_results_async<U>(self, conn: WrapConnection<Conn>) -> Result<Vec<U>>
+    async fn get_results<U, Q>(&self, query: Q) -> Result<Vec<U>>
     where
         U: 'static + Send,
-        Self: LoadQuery<Conn, U>;
+        Q: 'static + Send + LoadQuery<Conn, U>;
 
     /// Attempts to load a single record.
     ///
@@ -77,24 +76,28 @@ pub trait AsyncQuery<Conn: 'static + Connection> {
     /// returned. If the query truly is optional, you can call `.optional()` on
     /// the result of this to get a `Result<Option<U>>`.
     ///
-    async fn first_async<U>(self, conn: WrapConnection<Conn>) -> Result<Option<U>>
+    async fn first<U, Q>(&self, query: Q) -> Result<Option<U>>
     where
         U: 'static + Send,
-        Self: LimitDsl,
-        Limit<Self>: LoadQuery<Conn, U>;
+        Q: 'static + Send + LimitDsl,
+        Limit<Q>: LoadQuery<Conn, U>;
 }
 
-#[async_trait]
-impl<T, Conn> AsyncQuery<Conn> for T
+#[async_trait(?Send)]
+impl<S, Conn> SqlQuery<Conn> for Context<S>
 where
-    T: 'static + Send + RunQueryDsl<Conn>,
-    Conn: 'static + Connection,
+    S: State + MakePool<Conn>,
+    Conn: 'static + Sync + Connection,
 {
-    async fn execute_async(self, conn: WrapConnection<Conn>) -> Result<usize>
+    async fn execute<E>(&self, exec: E) -> Result<usize>
     where
-        Self: ExecuteDsl<Conn>,
+        E: 'static + Send + ExecuteDsl<Conn>,
     {
-        Ok(spawn(async move { self.execute(&*conn) }).await?)
+        let conn = self.get_conn().await?;
+        Ok(self
+            .exec()
+            .spawn_blocking(move || ExecuteDsl::<Conn>::execute(exec, &*conn))
+            .await?)
     }
 
     /// Executes the given query, returning a `Vec` with the returned rows.
@@ -115,12 +118,13 @@ where
     /// [`execute`]: fn.execute.html
     /// [`sql_query`]: ../fn.sql_query.html
     ///
-    async fn load_async<U>(self, conn: WrapConnection<Conn>) -> Result<Vec<U>>
+    async fn load_data<U, Q>(&self, query: Q) -> Result<Vec<U>>
     where
         U: 'static + Send,
-        Self: LoadQuery<Conn, U>,
+        Q: 'static + Send + LoadQuery<Conn, U>,
     {
-        match spawn(async move { self.load(&*conn) }).await {
+        let conn = self.get_conn().await?;
+        match self.exec().spawn_blocking(move || query.load(&*conn)).await {
             Ok(data) => Ok(data),
             Err(DieselError::NotFound) => Ok(Vec::new()),
             Err(err) => Err(err.into()),
@@ -136,12 +140,15 @@ where
     /// When this method is called on an insert, update, or delete statement,
     /// it will implicitly add a `RETURNING *` to the query,
     /// unless a returning clause was already specified.
-    async fn get_result_async<U>(self, conn: WrapConnection<Conn>) -> Result<Option<U>>
+    async fn get_result<U, Q>(&self, query: Q) -> Result<Option<U>>
     where
         U: 'static + Send,
-        Self: LoadQuery<Conn, U>,
+        Q: 'static + Send + LoadQuery<Conn, U>,
     {
-        Ok(spawn(async move { self.get_result(&*conn) })
+        let conn = self.get_conn().await?;
+        Ok(self
+            .exec()
+            .spawn_blocking(move || query.get_result(&*conn))
             .await
             .optional()?)
     }
@@ -152,12 +159,12 @@ where
     /// sense for insert, update, and delete statements.
     ///
     /// [`load`]: #method.load
-    async fn get_results_async<U>(self, conn: WrapConnection<Conn>) -> Result<Vec<U>>
+    async fn get_results<U, Q>(&self, query: Q) -> Result<Vec<U>>
     where
         U: 'static + Send,
-        Self: LoadQuery<Conn, U>,
+        Q: 'static + Send + LoadQuery<Conn, U>,
     {
-        self.load_async(conn).await
+        self.load_data(query).await
     }
 
     /// Attempts to load a single record.
@@ -168,12 +175,17 @@ where
     /// returned. If the query truly is optional, you can call `.optional()` on
     /// the result of this to get a `Result<Option<U>>`.
     ///
-    async fn first_async<U>(self, conn: WrapConnection<Conn>) -> Result<Option<U>>
+    async fn first<U, Q>(&self, query: Q) -> Result<Option<U>>
     where
         U: 'static + Send,
-        Self: LimitDsl,
-        Limit<Self>: LoadQuery<Conn, U>,
+        Q: 'static + Send + LimitDsl,
+        Limit<Q>: LoadQuery<Conn, U>,
     {
-        Ok(spawn(async move { self.first(&*conn) }).await.optional()?)
+        let conn = self.get_conn().await?;
+        Ok(self
+            .exec()
+            .spawn_blocking(move || query.limit(1).get_result(&*conn))
+            .await
+            .optional()?)
     }
 }

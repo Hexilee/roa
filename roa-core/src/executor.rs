@@ -22,7 +22,7 @@ pub trait Spawn {
 
 /// A type implementing hyper::rt::Executor
 #[derive(Clone)]
-pub struct Executor(pub Arc<dyn 'static + Send + Sync + Spawn>);
+pub struct Executor(pub(crate) Arc<dyn 'static + Send + Sync + Spawn>);
 
 /// A handle that awaits the result of a task.
 pub struct JoinHandle<T>(Receiver<T>);

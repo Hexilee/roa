@@ -7,7 +7,7 @@ mod models;
 mod schema;
 
 use diesel::sqlite::SqliteConnection;
-use roa_diesel::{AsyncQuery, BuilderExt, Pool};
+use roa_diesel::{BuilderExt, Pool, SqlQuery};
 
 pub type State = Pool<SqliteConnection>;
 pub use std::error::Error as StdError;

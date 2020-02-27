@@ -8,7 +8,7 @@ use diesel::sqlite::SqliteConnection;
 use roa::core::{throw, Context, Result, StatusCode};
 use roa::preload::*;
 use roa::router::Router;
-use roa_diesel::{AsyncQuery, Result as WrapResult, WrapConnection, WrapError};
+use roa_diesel::{Result as WrapResult, SqlQuery, WrapConnection, WrapError};
 
 pub fn post_router() -> Router<State> {
     let mut router = Router::new();

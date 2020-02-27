@@ -1,90 +1,68 @@
-use async_std::task::spawn;
+use crate::WrapError;
 use diesel::r2d2::{ConnectionManager, PoolError};
 use diesel::Connection;
 use r2d2::{Builder, PooledConnection};
-use roa_core::{Error, StatusCode};
+use roa_core::{async_trait, Context, State};
 use std::time::Duration;
 
-pub trait BuilderExt<Conn>
-where
-    Conn: Connection + Send + 'static,
-{
-    fn build_on<S: Into<String>>(self, url: S) -> Result<Pool<Conn>, PoolError>;
-}
-
-impl<Conn> BuilderExt<Conn> for Builder<ConnectionManager<Conn>>
-where
-    Conn: Connection + Send + 'static,
-{
-    fn build_on<S: Into<String>>(self, url: S) -> Result<Pool<Conn>, PoolError> {
-        self.build(ConnectionManager::<Conn>::new(url))
-            .map(Into::into)
-    }
-}
+type Pool<Conn> = r2d2::Pool<ConnectionManager<Conn>>;
 
 pub type WrapConnection<Conn> = PooledConnection<ConnectionManager<Conn>>;
 
-fn handle_pool_error(err: PoolError) -> Error {
-    Error::new(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        format!("Database connection pool error: {}", err),
-        false,
-    )
-}
-
-pub struct Pool<Conn>(r2d2::Pool<ConnectionManager<Conn>>)
+pub trait MakePool<Conn>
 where
-    Conn: Connection + Send + 'static;
-
-impl<Conn> Pool<Conn>
-where
-    Conn: Connection + Send + 'static,
+    Conn: Connection + 'static,
 {
-    pub fn new(url: impl Into<String>) -> Result<Pool<Conn>, PoolError> {
-        r2d2::Pool::new(ConnectionManager::<Conn>::new(url)).map(Into::into)
+    fn make(url: impl Into<String>) -> Result<Pool<Conn>, PoolError> {
+        r2d2::Pool::new(ConnectionManager::<Conn>::new(url))
     }
 
-    pub fn builder() -> Builder<ConnectionManager<Conn>> {
+    fn builder() -> Builder<ConnectionManager<Conn>> {
         r2d2::Pool::builder()
     }
 
-    pub async fn get(&self) -> Result<WrapConnection<Conn>, Error> {
-        let pool = self.0.clone();
-        spawn(async move { pool.get() })
-            .await
-            .map_err(handle_pool_error)
-    }
+    fn pool(&self) -> &Pool<Conn>;
+}
 
-    pub async fn get_timeout(
+#[async_trait(?Send)]
+pub trait AsyncPool<Conn>
+where
+    Conn: Connection + 'static,
+{
+    async fn get_conn(&self) -> Result<WrapConnection<Conn>, WrapError>;
+
+    async fn get_timeout(
         &self,
         timeout: Duration,
-    ) -> Result<WrapConnection<Conn>, Error> {
-        let pool = self.0.clone();
-        spawn(async move { pool.get_timeout(timeout) })
-            .await
-            .map_err(handle_pool_error)
-    }
+    ) -> Result<WrapConnection<Conn>, WrapError>;
 
-    pub async fn state(&self) -> r2d2::State {
-        let pool = self.0.clone();
-        spawn(async move { pool.state() }).await
-    }
+    async fn pool_state(&self) -> r2d2::State;
 }
 
-impl<Conn> Clone for Pool<Conn>
+#[async_trait(?Send)]
+impl<S, Conn> AsyncPool<Conn> for Context<S>
 where
-    Conn: Connection + Send + 'static,
+    S: State + MakePool<Conn>,
+    Conn: Connection + 'static,
 {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
+    async fn get_conn(&self) -> Result<WrapConnection<Conn>, WrapError> {
+        let pool = self.pool().clone();
+        Ok(self.exec().spawn_blocking(move || pool.get()).await?)
     }
-}
 
-impl<Conn> From<r2d2::Pool<ConnectionManager<Conn>>> for Pool<Conn>
-where
-    Conn: Connection + Send + 'static,
-{
-    fn from(pool: r2d2::Pool<ConnectionManager<Conn>>) -> Self {
-        Self(pool)
+    async fn get_timeout(
+        &self,
+        timeout: Duration,
+    ) -> Result<WrapConnection<Conn>, WrapError> {
+        let pool = self.pool().clone();
+        Ok(self
+            .exec()
+            .spawn_blocking(move || pool.get_timeout(timeout))
+            .await?)
+    }
+
+    async fn pool_state(&self) -> r2d2::State {
+        let pool = self.pool().clone();
+        self.exec().spawn_blocking(move || pool.state()).await
     }
 }
