@@ -7,7 +7,6 @@ use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
@@ -529,16 +528,9 @@ impl<S> Context<S> {
         self.inner().remote_addr
     }
 
-    /// Spawn a future by app runtime
-    pub fn spawn(&self, fut: impl 'static + Send + Future) {
-        self.inner().exec.0.spawn(Box::pin(async move {
-            fut.await;
-        }))
-    }
-
-    /// Spawn a blocking task by app runtime
-    pub fn spawn_blocking(&self, task: impl 'static + Send + FnOnce()) {
-        self.inner().exec.0.spawn_blocking(Box::new(task))
+    /// Get immutable reference of executor
+    pub fn exec(&self) -> &Executor {
+        &self.inner().exec
     }
 }
 

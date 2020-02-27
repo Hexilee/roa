@@ -22,14 +22,26 @@ pub trait Spawn {
 #[derive(Clone)]
 pub struct Executor(pub Arc<dyn 'static + Send + Sync + Spawn>);
 
+impl Executor {
+    /// Spawn a future by app runtime
+    pub fn spawn(&self, fut: impl 'static + Send + Future) {
+        self.0.spawn(Box::pin(async move {
+            fut.await;
+        }))
+    }
+
+    /// Spawn a blocking task by app runtime
+    pub fn spawn_blocking(&self, task: impl 'static + Send + FnOnce()) {
+        self.0.spawn_blocking(Box::new(task))
+    }
+}
+
 impl<F> rt::Executor<F> for Executor
 where
     F: 'static + Send + Future,
     F::Output: 'static + Send,
 {
     fn execute(&self, fut: F) {
-        self.0.spawn(Box::pin(async move {
-            fut.await;
-        }))
+        self.spawn(fut)
     }
 }

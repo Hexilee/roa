@@ -30,7 +30,7 @@ use crate::{Context, Next, Result, State};
 use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};
-use futures::{Future, Stream};
+use futures::Stream;
 use log::{error, info};
 use std::io;
 use std::pin::Pin;
@@ -50,7 +50,7 @@ impl<S, F> Logger<S, F>
 where
     F: FnOnce(u64),
 {
-    fn log(&mut self) -> Fut {
+    fn log(&mut self) {
         let task_ready = self.task_ready.take().expect(
             r"
             task_ready is None, this is a bug, please report it to https://github.com/Hexilee/roa.
@@ -97,6 +97,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let path = uri.path().to_string();
     let result = next.await;
     let counter = 0;
+
     match result {
         Ok(()) => {
             let status_code = ctx.status();
@@ -104,7 +105,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                 counter,
                 stream,
                 task_ready: Some(move |counter| {
-                    ctx.spawn(async move {
+                    ctx.spawn_blocking(move || {
                         info!(
                             "<-- {} {} {}ms {} {}",
                             method,
@@ -124,7 +125,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                 counter,
                 stream,
                 task_ready: Some(move |_counter| {
-                    ctx.spawn(async move {
+                    ctx.spawn_blocking(move || {
                         error!(
                             "<-- {} {} {}ms {}\n{}",
                             method,
