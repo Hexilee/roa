@@ -259,7 +259,7 @@ pub mod preload {
     pub use crate::query::Query;
 
     #[cfg(feature = "tcp")]
-    pub use crate::tcp::TcpServer;
+    pub use crate::tcp::Listener;
 
     #[cfg(feature = "body")]
     pub use crate::body::PowerBody;

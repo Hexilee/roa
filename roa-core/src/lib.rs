@@ -123,7 +123,7 @@ mod response;
 mod state;
 
 #[doc(inline)]
-pub use app::{AddrStream, App};
+pub use app::{AddrStream, App, Executor};
 
 #[doc(inline)]
 pub use context::{Context, Variable};
@@ -150,6 +150,6 @@ pub use response::Response;
 
 pub use http;
 
-pub use hyper::server::accept::Accept;
+pub use hyper::server::{accept::Accept, Server};
 
 pub use async_trait::async_trait;

@@ -1,24 +1,8 @@
 use crate::TcpIncoming;
-use roa_core::{App, Server, State};
-use std::future::Future;
+use roa_core::{App, Executor, Server, State};
 use std::net::{SocketAddr, ToSocketAddrs};
 
-/// An implementation of hyper::rt::Executor based on async-std
-#[derive(Copy, Clone)]
-pub struct Executor;
-
-impl<F> roa_core::Executor<F> for Executor
-where
-    F: 'static + Send + Future,
-    F::Output: 'static + Send,
-{
-    #[inline]
-    fn execute(&self, fut: F) {
-        async_std::task::spawn(fut);
-    }
-}
-
-pub trait TcpServer {
+pub trait Listener {
     /// tcp server
     type Server;
 
@@ -39,7 +23,7 @@ pub trait TcpServer {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use roa_tcp::TcpServer;
+    /// use roa_tcp::Listener;
     /// use roa_core::http::StatusCode;
     /// use async_std::task::spawn;
     /// use std::time::Instant;
@@ -63,7 +47,7 @@ pub trait TcpServer {
     fn run_local(&self) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
-impl<S: State> TcpServer for App<S> {
+impl<S: State> Listener for App<S> {
     type Server = Server<TcpIncoming, Self, Executor>;
     fn listen_on(
         &self,
@@ -71,10 +55,7 @@ impl<S: State> TcpServer for App<S> {
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
         let incoming = TcpIncoming::bind(addr)?;
         let local_addr = incoming.local_addr();
-        let server = Server::builder(incoming)
-            .executor(Executor)
-            .serve(self.clone());
-        Ok((local_addr, server))
+        Ok((local_addr, self.accept(incoming)))
     }
 
     fn listen(

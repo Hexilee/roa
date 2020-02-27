@@ -4,6 +4,7 @@ use log::error;
 use std::future::Future;
 use std::sync::Arc;
 
+/// A type implementing hyper::rt::Executor
 #[derive(Clone)]
 pub struct Executor(pub Arc<dyn 'static + Send + Sync + Spawn>);
 

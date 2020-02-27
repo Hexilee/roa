@@ -13,9 +13,6 @@ async-std = "1.5.0"
 futures = "0.3"
 log = "0.4"
 
-[features]
-runtime = []
-
 [dev-dependencies]
 reqwest = "0.10"
 async-std = "1.5.0"
