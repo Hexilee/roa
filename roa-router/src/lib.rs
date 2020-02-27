@@ -5,7 +5,8 @@
 //!
 //! ```rust
 //! use roa_router::{Router, RouterParam};
-//! use roa_core::{App, StatusCode};
+//! use roa_core::App;
+//! use roa_core::http::StatusCode;
 //! use async_std::task::spawn;
 //!
 //! #[tokio::test]
