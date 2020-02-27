@@ -153,6 +153,7 @@ macro_rules! internal_server_error {
 
 internal_server_error!(std::io::Error);
 internal_server_error!(http::Error);
+internal_server_error!(futures::task::SpawnError);
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> StdResult<(), std::fmt::Error> {

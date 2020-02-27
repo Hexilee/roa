@@ -14,7 +14,7 @@ impl<S> Join<S> {
 impl<S: State> Middleware<S> for Join<S> {
     async fn handle(self: Arc<Self>, ctx: Context<S>, mut next: Next) -> Result {
         for middleware in self.0.iter().rev() {
-            let ctx = unsafe { ctx.clone() };
+            let ctx = unsafe { ctx.unsafe_clone() };
             let middleware = middleware.clone();
             next = middleware.handle(ctx, next)
         }
@@ -50,7 +50,7 @@ pub fn join_all<S: State>(
     Join::new(middlewares)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "runtime"))]
 mod tests {
     use crate::{join_all, App, Middleware, Next, Request};
     use futures::lock::Mutex;

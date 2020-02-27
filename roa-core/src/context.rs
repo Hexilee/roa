@@ -1,4 +1,5 @@
-use crate::{Error, Request, Response};
+use crate::{app::Executor, Error, Request, Response};
+use futures::task::SpawnExt;
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
 use http::{Method, Uri, Version};
@@ -7,6 +8,7 @@ use std::any::TypeId;
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
@@ -42,6 +44,7 @@ struct Inner<S> {
     request: Request,
     response: Response,
     state: S,
+    exec: Executor,
     storage: HashMap<TypeId, Bucket>,
     remote_addr: SocketAddr,
 }
@@ -151,11 +154,17 @@ impl Default for Bucket {
 
 impl<S> Context<S> {
     /// Construct a context from a request, an app and a addr_stream.  
-    pub(crate) fn new(request: Request, state: S, remote_addr: SocketAddr) -> Self {
+    pub(crate) fn new(
+        request: Request,
+        state: S,
+        exec: Executor,
+        remote_addr: SocketAddr,
+    ) -> Self {
         let inner = Inner {
             request,
             response: Response::new(),
             state,
+            exec,
             storage: HashMap::new(),
             remote_addr,
         };
@@ -163,7 +172,7 @@ impl<S> Context<S> {
     }
 
     // clone context is unsafe
-    pub(crate) unsafe fn clone(&self) -> Self {
+    pub(crate) unsafe fn unsafe_clone(&self) -> Self {
         Self(self.0.clone())
     }
 
@@ -520,6 +529,13 @@ impl<S> Context<S> {
     pub fn remote_addr(&self) -> SocketAddr {
         self.inner().remote_addr
     }
+
+    /// Spawn a task by app runtime
+    pub fn spawn(&self, fut: impl 'static + Send + Future) -> Result<(), Error> {
+        Ok(self.inner().exec.0.spawn(async move {
+            fut.await;
+        })?)
+    }
 }
 
 impl<S> Deref for Context<S> {
@@ -536,9 +552,8 @@ impl<S> DerefMut for Context<S> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{Bucket, Variable};
+#[cfg(all(test, feature = "runtime"))]
+mod tests_with_runtime {
     use crate::{App, Context, Request};
     use http::{StatusCode, Version};
 
@@ -554,6 +569,7 @@ mod tests {
         service.serve(Request::default()).await?;
         Ok(())
     }
+
     #[derive(Clone)]
     struct State {
         data: usize,
@@ -574,6 +590,13 @@ mod tests {
         service.serve(Request::default()).await?;
         Ok(())
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Bucket, Variable};
+    use http::StatusCode;
+    use std::sync::Arc;
 
     #[test]
     fn bucket() {
@@ -594,7 +617,6 @@ mod tests {
 
     #[test]
     fn variable() {
-        use std::sync::Arc;
         assert_eq!(
             1,
             Variable::new("id", Arc::new("1".to_string()))

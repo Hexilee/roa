@@ -64,7 +64,7 @@ impl Default for Request {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "runtime"))]
 mod tests {
     use crate::{App, Request};
     use futures::AsyncReadExt;

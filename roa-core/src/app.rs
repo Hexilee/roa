@@ -1,9 +1,14 @@
+#[cfg(feature = "runtime")]
+mod runtime;
+
+mod executor;
 mod future;
 mod stream;
 use crate::{
     join, join_all, Context, Error, Middleware, Next, Request, Response, Result, State,
 };
 use future::SendFuture;
+use futures::task::Spawn;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
@@ -14,6 +19,7 @@ use std::result::Result as StdResult;
 use std::sync::Arc;
 use std::task::Poll;
 
+pub use executor::Executor;
 pub use stream::AddrStream;
 
 /// The Application of roa.
@@ -38,7 +44,7 @@ pub use stream::AddrStream;
 /// The `State` is designed to share data or handler between middlewares.
 /// The only one type implemented `State` by this crate is `()`, you can implement your custom state if neccassary.
 ///
-/// ```rust,no_run
+/// ```rust
 /// use roa_core::App;
 /// use log::info;
 /// use futures::lock::Mutex;
@@ -74,6 +80,7 @@ pub use stream::AddrStream;
 ///
 pub struct App<S> {
     middleware: Arc<dyn Middleware<S>>,
+    exec: Executor,
     pub(crate) state: S,
 }
 
@@ -81,14 +88,16 @@ pub struct App<S> {
 pub struct HttpService<S> {
     middleware: Arc<dyn Middleware<S>>,
     remote_addr: SocketAddr,
+    exec: Executor,
     pub(crate) state: S,
 }
 
 impl<S: State> App<S> {
     /// Construct an application from a model.
-    pub fn new(state: S) -> Self {
+    pub fn with_exec(state: S, exec: impl 'static + Send + Sync + Spawn) -> Self {
         Self {
             middleware: Arc::new(join_all(Vec::new())),
+            exec: Executor(Arc::new(exec)),
             state,
         }
     }
@@ -182,7 +191,8 @@ impl<S: State> App<S> {
         let middleware = self.middleware.clone();
         let addr = ([127, 0, 0, 1], 0);
         let state = self.state.clone();
-        HttpService::new(middleware, addr.into(), state)
+        let exec = self.exec.clone();
+        HttpService::new(middleware, addr.into(), exec, state)
     }
 }
 
@@ -209,7 +219,8 @@ impl<S: State> Service<&AddrStream> for App<S> {
         let middleware = self.middleware.clone();
         let addr = stream.remote_addr();
         let state = self.state.clone();
-        Box::pin(async move { Ok(HttpService::new(middleware, addr, state)) })
+        let exec = self.exec.clone();
+        Box::pin(async move { Ok(HttpService::new(middleware, addr, exec, state)) })
     }
 }
 
@@ -236,11 +247,13 @@ impl<S: State> HttpService<S> {
     pub fn new(
         middleware: Arc<dyn Middleware<S>>,
         remote_addr: SocketAddr,
+        exec: Executor,
         state: S,
     ) -> Self {
         Self {
             middleware,
             remote_addr,
+            exec,
             state,
         }
     }
@@ -251,10 +264,11 @@ impl<S: State> HttpService<S> {
         let Self {
             middleware,
             remote_addr,
+            exec,
             state,
         } = self;
-        let mut context = Context::new(req, state, remote_addr);
-        if let Err(err) = middleware.end(unsafe { context.clone() }).await {
+        let mut context = Context::new(req, state, exec, remote_addr);
+        if let Err(err) = middleware.end(unsafe { context.unsafe_clone() }).await {
             context.resp_mut().status = err.status_code;
             if err.expose {
                 context.resp_mut().write_str(&err.message);
@@ -271,6 +285,7 @@ impl<S: State> Clone for App<S> {
     fn clone(&self) -> Self {
         Self {
             middleware: self.middleware.clone(),
+            exec: self.exec.clone(),
             state: self.state.clone(),
         }
     }
@@ -281,12 +296,13 @@ impl<S: State> Clone for HttpService<S> {
         Self {
             middleware: self.middleware.clone(),
             state: self.state.clone(),
+            exec: self.exec.clone(),
             remote_addr: self.remote_addr,
         }
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "runtime"))]
 mod tests {
     use crate::{App, Request};
     use http::StatusCode;
