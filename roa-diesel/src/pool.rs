@@ -5,7 +5,7 @@ use r2d2::{Builder, PooledConnection};
 use roa_core::{async_trait, Context, State};
 use std::time::Duration;
 
-type Pool<Conn> = r2d2::Pool<ConnectionManager<Conn>>;
+pub type Pool<Conn> = r2d2::Pool<ConnectionManager<Conn>>;
 
 pub type WrapConnection<Conn> = PooledConnection<ConnectionManager<Conn>>;
 
@@ -22,6 +22,15 @@ where
     }
 
     fn pool(&self) -> &Pool<Conn>;
+}
+
+impl<Conn> MakePool<Conn> for Pool<Conn>
+where
+    Conn: Connection + 'static,
+{
+    fn pool(&self) -> &Pool<Conn> {
+        self
+    }
 }
 
 #[async_trait(?Send)]
