@@ -1,5 +1,4 @@
 use crate::{app::Executor, Error, Request, Response};
-use futures::task::SpawnExt;
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
 use http::{Method, Uri, Version};
@@ -530,11 +529,16 @@ impl<S> Context<S> {
         self.inner().remote_addr
     }
 
-    /// Spawn a task by app runtime
-    pub fn spawn(&self, fut: impl 'static + Send + Future) -> Result<(), Error> {
-        Ok(self.inner().exec.0.spawn(async move {
+    /// Spawn a future by app runtime
+    pub fn spawn(&self, fut: impl 'static + Send + Future) {
+        self.inner().exec.0.spawn(Box::pin(async move {
             fut.await;
-        })?)
+        }))
+    }
+
+    /// Spawn a blocking task by app runtime
+    pub fn spawn_blocking(&self, task: impl 'static + Send + FnOnce()) {
+        self.inner().exec.0.spawn_blocking(Box::new(task))
     }
 }
 

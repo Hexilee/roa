@@ -1,8 +1,22 @@
-use futures::task::{Spawn, SpawnExt};
 use hyper::rt;
-use log::error;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
+
+/// Future Object
+pub type FutureObj = Pin<Box<dyn 'static + Send + Future<Output = ()>>>;
+
+/// Blocking task Object
+pub type BlockingObj = Box<dyn 'static + Send + FnOnce()>;
+
+/// Executor constraint.
+pub trait Spawn {
+    /// Spawn a future object
+    fn spawn(&self, fut: FutureObj);
+
+    /// Spawn a blocking task object
+    fn spawn_blocking(&self, task: BlockingObj);
+}
 
 /// A type implementing hyper::rt::Executor
 #[derive(Clone)]
@@ -14,10 +28,8 @@ where
     F::Output: 'static + Send,
 {
     fn execute(&self, fut: F) {
-        if let Err(err) = self.0.spawn(async move {
+        self.0.spawn(Box::pin(async move {
             fut.await;
-        }) {
-            error!("runtime error: {}", err)
-        }
+        }))
     }
 }

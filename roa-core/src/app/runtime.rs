@@ -1,6 +1,5 @@
-use crate::{App, State};
-use futures::future::FutureObj;
-use futures::task::{Spawn, SpawnError};
+use super::FutureObj;
+use crate::{App, Spawn, State};
 
 impl<S: State> App<S> {
     /// Construct app with default runtime.
@@ -12,8 +11,11 @@ impl<S: State> App<S> {
 struct Executor;
 
 impl Spawn for Executor {
-    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-        async_std::task::spawn(future);
-        Ok(())
+    fn spawn(&self, fut: FutureObj) {
+        async_std::task::spawn(fut);
+    }
+
+    fn spawn_blocking(&self, task: Box<dyn 'static + Send + FnOnce()>) {
+        async_std::task::spawn_blocking(task);
     }
 }

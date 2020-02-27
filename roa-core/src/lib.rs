@@ -123,7 +123,7 @@ mod response;
 mod state;
 
 #[doc(inline)]
-pub use app::{AddrStream, App, Executor};
+pub use app::{AddrStream, App, BlockingObj, Executor, FutureObj, Spawn};
 
 #[doc(inline)]
 pub use context::{Context, Variable};

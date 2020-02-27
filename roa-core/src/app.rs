@@ -8,7 +8,6 @@ use crate::{
     join, join_all, Context, Error, Middleware, Next, Request, Response, Result, State,
 };
 use future::SendFuture;
-use futures::task::Spawn;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
@@ -22,7 +21,7 @@ use std::sync::Arc;
 use std::task::Poll;
 
 use crate::Accept;
-pub use executor::Executor;
+pub use executor::{BlockingObj, Executor, FutureObj, Spawn};
 pub use stream::AddrStream;
 
 /// The Application of roa.
