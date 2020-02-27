@@ -27,7 +27,6 @@
 //! ```
 
 use crate::{Context, Next, Result, State};
-use async_std::task::spawn;
 use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};
@@ -38,18 +37,18 @@ use std::pin::Pin;
 use std::time::Instant;
 
 #[derive(Debug)]
-struct Logger<S, F, Fut>
+struct Logger<S, F>
 where
-    F: FnOnce(u64) -> Fut,
+    F: FnOnce(u64),
 {
     counter: u64,
     stream: S,
     task_ready: Option<F>,
 }
 
-impl<S, F, Fut> Logger<S, F, Fut>
+impl<S, F> Logger<S, F>
 where
-    F: FnOnce(u64) -> Fut,
+    F: FnOnce(u64),
 {
     fn log(&mut self) -> Fut {
         let task_ready = self.task_ready.take().expect(
@@ -61,11 +60,9 @@ where
     }
 }
 
-impl<S, F, Fut> Stream for Logger<S, F, Fut>
+impl<S, F> Stream for Logger<S, F>
 where
-    F: Unpin + FnOnce(u64) -> Fut,
-    Fut: 'static + Send + Future,
-    Fut::Output: 'static + Send,
+    F: Unpin + FnOnce(u64),
     S: 'static + Send + Send + Unpin + Stream<Item = io::Result<Bytes>>,
 {
     type Item = io::Result<Bytes>;
@@ -80,7 +77,7 @@ where
                 Poll::Ready(Some(Ok(bytes)))
             }
             Poll::Ready(None) => {
-                spawn(self.log());
+                self.log();
                 Poll::Ready(None)
             }
             poll => poll,
@@ -106,15 +103,17 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
             ctx.resp_mut().map_body(move |stream| Logger {
                 counter,
                 stream,
-                task_ready: Some(move |counter| async move {
-                    info!(
-                        "<-- {} {} {}ms {} {}",
-                        method,
-                        path,
-                        start.elapsed().as_millis(),
-                        ByteSize(counter),
-                        status_code,
-                    );
+                task_ready: Some(move |counter| {
+                    ctx.spawn(async move {
+                        info!(
+                            "<-- {} {} {}ms {} {}",
+                            method,
+                            path,
+                            start.elapsed().as_millis(),
+                            ByteSize(counter),
+                            status_code,
+                        );
+                    })
                 }),
             });
         }
@@ -124,15 +123,17 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
             ctx.resp_mut().map_body(move |stream| Logger {
                 counter,
                 stream,
-                task_ready: Some(move |_counter| async move {
-                    error!(
-                        "<-- {} {} {}ms {}\n{}",
-                        method,
-                        path,
-                        start.elapsed().as_millis(),
-                        status_code,
-                        message,
-                    );
+                task_ready: Some(move |_counter| {
+                    ctx.spawn(async move {
+                        error!(
+                            "<-- {} {} {}ms {}\n{}",
+                            method,
+                            path,
+                            start.elapsed().as_millis(),
+                            status_code,
+                            message,
+                        );
+                    })
                 }),
             });
         }
