@@ -1,5 +1,4 @@
-use super::FutureObj;
-use crate::{App, Spawn, State};
+use crate::{App, BlockingObj, FutureObj, Spawn, State};
 
 impl<S: State> App<S> {
     /// Construct app with default runtime.
@@ -15,7 +14,7 @@ impl Spawn for Exec {
         async_std::task::spawn(fut);
     }
 
-    fn spawn_blocking(&self, task: Box<dyn 'static + Send + FnOnce()>) {
+    fn spawn_blocking(&self, task: BlockingObj) {
         async_std::task::spawn_blocking(task);
     }
 }

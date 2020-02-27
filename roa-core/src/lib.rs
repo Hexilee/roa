@@ -115,6 +115,7 @@
 mod app;
 mod context;
 mod err;
+mod executor;
 mod group;
 mod middleware;
 mod next;
@@ -123,7 +124,10 @@ mod response;
 mod state;
 
 #[doc(inline)]
-pub use app::{AddrStream, App, BlockingObj, Executor, FutureObj, Spawn};
+pub use app::{AddrStream, App};
+
+#[doc(inline)]
+pub use executor::{BlockingObj, Executor, FutureObj, JoinHandle, Spawn};
 
 #[doc(inline)]
 pub use context::{Context, Variable};

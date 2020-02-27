@@ -54,7 +54,7 @@ where
     fn log(&self) {
         let counter = self.counter;
         let task = self.task.clone();
-        self.exec.spawn_blocking(move || task(counter))
+        self.exec.spawn_blocking(move || task(counter));
     }
 }
 

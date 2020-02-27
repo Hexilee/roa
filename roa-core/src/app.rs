@@ -1,7 +1,6 @@
 #[cfg(feature = "runtime")]
 mod runtime;
 
-mod executor;
 mod future;
 mod stream;
 use crate::{
@@ -21,7 +20,7 @@ use std::sync::Arc;
 use std::task::Poll;
 
 use crate::Accept;
-pub use executor::{BlockingObj, Executor, FutureObj, Spawn};
+use crate::{Executor, Spawn};
 pub use stream::AddrStream;
 
 /// The Application of roa.

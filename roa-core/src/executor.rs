@@ -24,6 +24,7 @@ pub trait Spawn {
 #[derive(Clone)]
 pub struct Executor(pub Arc<dyn 'static + Send + Sync + Spawn>);
 
+/// A handle that awaits the result of a task.
 pub struct JoinHandle<T>(Receiver<T>);
 
 impl Executor {
@@ -78,9 +79,20 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::Executor;
-    use crate::app::runtime::Exec;
+    use super::{BlockingObj, Executor, FutureObj, Spawn};
     use async_std::sync::Arc;
+
+    pub struct Exec;
+
+    impl Spawn for Exec {
+        fn spawn(&self, fut: FutureObj) {
+            async_std::task::spawn(fut);
+        }
+
+        fn spawn_blocking(&self, task: BlockingObj) {
+            async_std::task::spawn_blocking(task);
+        }
+    }
 
     #[async_std::test]
     async fn spawn() {

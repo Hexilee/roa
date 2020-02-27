@@ -1,4 +1,4 @@
-use crate::{app::Executor, Error, Request, Response};
+use crate::{Error, Executor, Request, Response};
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
 use http::{Method, Uri, Version};
