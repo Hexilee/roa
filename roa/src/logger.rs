@@ -34,6 +34,7 @@ use futures::Stream;
 use log::{error, info};
 use std::io;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::time::Instant;
 
 struct Logger<S, F>
@@ -43,27 +44,23 @@ where
     counter: u64,
     stream: S,
     exec: Executor,
-    task: Option<F>,
+    task: Arc<F>,
 }
 
 impl<S, F> Logger<S, F>
 where
-    F: 'static + Send + FnOnce(u64),
+    F: 'static + Send + Sync + Fn(u64),
 {
-    fn log(&mut self) {
+    fn log(&self) {
         let counter = self.counter;
-        let task = self.task.take().expect(
-            r"
-            task_ready is None, this is a bug, please report it to https://github.com/Hexilee/roa.
-        ",
-        );
+        let task = self.task.clone();
         self.exec.spawn_blocking(move || task(counter))
     }
 }
 
 impl<S, F> Stream for Logger<S, F>
 where
-    F: 'static + Send + Unpin + FnOnce(u64),
+    F: 'static + Send + Sync + Unpin + Fn(u64),
     S: 'static + Send + Send + Unpin + Stream<Item = io::Result<Bytes>>,
 {
     type Item = io::Result<Bytes>;
@@ -106,7 +103,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                 counter,
                 stream,
                 exec,
-                task: Some(move |counter| {
+                task: Arc::new(move |counter| {
                     info!(
                         "<-- {} {} {}ms {} {}",
                         method,
@@ -125,7 +122,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                 counter,
                 stream,
                 exec,
-                task: Some(move |_counter| {
+                task: Arc::new(move |_counter| {
                     error!(
                         "<-- {} {} {}ms {}\n{}",
                         method,

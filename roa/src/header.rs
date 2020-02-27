@@ -285,7 +285,7 @@ mod tests {
     use crate::http::header::CONTENT_TYPE;
     use crate::http::{HeaderValue, StatusCode};
     use crate::preload::*;
-    use crate::{App, Request};
+    use crate::Request;
     use mime::TEXT_HTML;
 
     #[test]
