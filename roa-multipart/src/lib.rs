@@ -4,7 +4,8 @@ use actix_multipart::Field as ActixField;
 use actix_multipart::Multipart as ActixMultipart;
 use actix_multipart::MultipartError;
 use bytes::Bytes;
-use futures::{Stream, TryStreamExt};
+use futures::Stream;
+use hyper::Body;
 use roa_core::http::{header::CONTENT_TYPE, StatusCode};
 use roa_core::{Context, Error, State};
 use std::fmt::{self, Display, Formatter};
@@ -17,6 +18,7 @@ pub struct Multipart(ActixMultipart);
 pub struct Field(ActixField);
 #[derive(Debug)]
 pub struct WrapError(MultipartError);
+pub struct WrapStream(Option<Body>);
 
 impl Multipart {
     pub fn new<S: State>(ctx: &mut Context<S>) -> Self {
@@ -26,17 +28,37 @@ impl Multipart {
         }
         Multipart(ActixMultipart::new(
             &map,
-            ctx.req_mut().body_stream().map_err(|err: hyper::Error| {
-                if err.is_incomplete_message() {
-                    PayloadError::Incomplete(Some(io::Error::new(
-                        io::ErrorKind::UnexpectedEof,
-                        err,
-                    )))
-                } else {
-                    PayloadError::Io(io::Error::new(io::ErrorKind::Other, err))
-                }
-            }),
+            WrapStream(Some(ctx.req_mut().body_stream())),
         ))
+    }
+}
+
+impl Stream for WrapStream {
+    type Item = Result<Bytes, PayloadError>;
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        match &mut self.0 {
+            None => Poll::Ready(None),
+            Some(body) => match futures::ready!(Pin::new(body).poll_next(cx)) {
+                None => {
+                    self.0 = None;
+                    self.poll_next(cx)
+                }
+                Some(item) => Poll::Ready(Some(match item {
+                    Ok(data) => Ok(data),
+                    Err(err) => Err(if err.is_incomplete_message() {
+                        PayloadError::Incomplete(Some(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            err,
+                        )))
+                    } else {
+                        PayloadError::Io(io::Error::new(io::ErrorKind::Other, err))
+                    }),
+                })),
+            },
+        }
     }
 }
 
@@ -48,13 +70,12 @@ impl Stream for Multipart {
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match Pin::new(&mut self.0).poll_next(cx) {
-            Poll::Ready(Some(item)) => Poll::Ready(Some(match item {
+        match futures::ready!(Pin::new(&mut self.0).poll_next(cx)) {
+            None => Poll::Ready(None),
+            Some(item) => Poll::Ready(Some(match item {
                 Ok(field) => Ok(Field(field)),
                 Err(err) => Err(WrapError(err)),
             })),
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
         }
     }
 }
@@ -66,8 +87,9 @@ impl Stream for Field {
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match Pin::new(&mut self.0).poll_next(cx) {
-            Poll::Ready(Some(item)) => Poll::Ready(Some(match item {
+        match futures::ready!(Pin::new(&mut self.0).poll_next(cx)) {
+            None => Poll::Ready(None),
+            Some(item) => Poll::Ready(Some(match item {
                 Ok(bytes) => Ok(bytes),
                 Err(err) => Err(match err {
                     MultipartError::Payload(PayloadError::Io(err)) => err,
@@ -81,8 +103,6 @@ impl Stream for Field {
                     ),
                 }),
             })),
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
         }
     }
 }

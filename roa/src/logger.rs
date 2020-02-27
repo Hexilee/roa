@@ -88,7 +88,6 @@ where
             Logger::Logging(handler) => {
                 futures::ready!(Pin::new(handler).poll(cx));
                 *self = Logger::Complete;
-                println!("logger complete");
                 self.poll_next(cx)
             }
 
