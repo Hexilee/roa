@@ -12,6 +12,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{self, Poll};
 
+pub use rustls;
+
 pub struct TlsIncoming {
     incoming: TcpIncoming,
     acceptor: TlsAcceptor,
@@ -105,13 +107,24 @@ pub trait TlsListener {
     /// ### Example
     /// ```rust
     /// use roa_core::App;
-    /// use roa_tcp::Listener;
+    /// use roa_tls::TlsListener;
+    /// use roa_tls::rustls::{ServerConfig, NoClientAuth};
+    /// use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
     /// use roa_core::http::StatusCode;
     /// use async_std::task::spawn;
     /// use std::time::Instant;
+    /// use std::fs::File;
+    /// use std::io::BufReader;
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let mut config = ServerConfig::new(NoClientAuth::new());
+    ///     let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+    ///     let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+    ///     let cert_chain = certs(&mut cert_file).unwrap();
+    ///     let mut keys = rsa_private_keys(&mut key_file).unwrap();
+    ///     config.set_single_cert(cert_chain, keys.remove(0))?;
+    ///
     ///     let (addr, server) = App::new(())
     ///         .gate_fn(|_ctx, next| async move {
     ///             let inbound = Instant::now();
@@ -119,9 +132,9 @@ pub trait TlsListener {
     ///             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
     ///             Ok(())
     ///         })
-    ///         .run_local()?;
+    ///         .run_tls(config)?;
     ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
+    ///     let resp = reqwest::get(&format!("https://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
     ///     Ok(())
     /// }
@@ -160,5 +173,40 @@ impl<S: State> TlsListener for App<S> {
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
         self.listen_tls_on("127.0.0.1:0", config)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::TlsListener;
+    use async_std::task::spawn;
+    use roa_core::http::StatusCode;
+    use roa_core::App;
+    use rustls::internal::pemfile::{certs, rsa_private_keys};
+    use rustls::{NoClientAuth, ServerConfig};
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::time::Instant;
+
+    #[tokio::test]
+    async fn run_tls() -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = ServerConfig::new(NoClientAuth::new());
+        let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+        let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+        let cert_chain = certs(&mut cert_file).unwrap();
+        let mut keys = rsa_private_keys(&mut key_file).unwrap();
+        config.set_single_cert(cert_chain, keys.remove(0))?;
+        let (addr, server) = App::new(())
+            .gate_fn(|_ctx, next| async move {
+                let inbound = Instant::now();
+                next.await?;
+                println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+                Ok(())
+            })
+            .run_tls(config)?;
+        spawn(server);
+        let resp = reqwest::get(&format!("https://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
     }
 }

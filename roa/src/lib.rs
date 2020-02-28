@@ -226,13 +226,14 @@
 
 pub use roa_core::*;
 
-#[cfg(feature = "tcp")]
-pub use roa_tcp as tcp;
-
 #[cfg(feature = "body")]
 pub use roa_body as body;
 #[cfg(feature = "router")]
 pub use roa_router as router;
+#[cfg(feature = "tcp")]
+pub use roa_tcp as tcp;
+#[cfg(feature = "tls")]
+pub use roa_tls as tls;
 
 #[cfg(feature = "websocket")]
 pub use roa_websocket as websocket;
@@ -260,6 +261,9 @@ pub mod preload {
 
     #[cfg(feature = "tcp")]
     pub use crate::tcp::Listener;
+
+    #[cfg(feature = "tls")]
+    pub use crate::tls::TlsListener;
 
     #[cfg(feature = "body")]
     pub use crate::body::PowerBody;
