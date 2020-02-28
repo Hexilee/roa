@@ -1,7 +1,9 @@
 use async_std::net::TcpStream;
 use async_tls::server::TlsStream;
 use async_tls::TlsAcceptor;
-use futures::Future;
+use futures::io::Error;
+use futures::task::Context;
+use futures::{AsyncRead, AsyncWrite, Future};
 use roa_core::{Accept, AddrStream, App, Executor, Server, State};
 use roa_tcp::TcpIncoming;
 use rustls::ServerConfig;
@@ -17,16 +19,88 @@ pub use rustls;
 pub struct TlsIncoming {
     incoming: TcpIncoming,
     acceptor: TlsAcceptor,
-    accept_future: Option<(
-        SocketAddr,
-        Box<
-            dyn 'static
-                + Sync
-                + Send
-                + Unpin
-                + Future<Output = io::Result<TlsStream<TcpStream>>>,
-        >,
-    )>,
+}
+
+type AcceptFuture = dyn 'static
+    + Sync
+    + Send
+    + Unpin
+    + Future<Output = io::Result<TlsStream<TcpStream>>>;
+
+enum WrapStream {
+    Handshaking(Box<AcceptFuture>),
+    Streaming(TlsStream<TcpStream>),
+}
+
+use WrapStream::*;
+
+impl WrapStream {
+    #[inline]
+    fn poll_handshake(
+        handshake: &mut AcceptFuture,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<Self>> {
+        let stream = futures::ready!(Pin::new(handshake).poll(cx))?;
+        Poll::Ready(Ok(Streaming(stream)))
+    }
+}
+
+impl AsyncRead for WrapStream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        match &mut *self {
+            Streaming(stream) => Pin::new(stream).poll_read(cx, buf),
+            Handshaking(handshake) => {
+                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                self.poll_read(cx, buf)
+            }
+        }
+    }
+}
+
+impl AsyncWrite for WrapStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match &mut *self {
+            Streaming(stream) => Pin::new(stream).poll_write(cx, buf),
+            Handshaking(handshake) => {
+                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                self.poll_write(cx, buf)
+            }
+        }
+    }
+
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Error>> {
+        match &mut *self {
+            Streaming(stream) => Pin::new(stream).poll_flush(cx),
+            Handshaking(handshake) => {
+                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                self.poll_flush(cx)
+            }
+        }
+    }
+
+    fn poll_close(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Error>> {
+        match &mut *self {
+            Streaming(stream) => Pin::new(stream).poll_close(cx),
+            Handshaking(handshake) => {
+                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                self.poll_close(cx)
+            }
+        }
+    }
 }
 
 impl TlsIncoming {
@@ -34,7 +108,6 @@ impl TlsIncoming {
         Self {
             incoming,
             acceptor: Arc::new(config).into(),
-            accept_future: None,
         }
     }
 
@@ -65,22 +138,13 @@ impl Accept for TlsIncoming {
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        Poll::Ready(match self.accept_future.as_mut() {
-            None => {
-                let stream =
-                    futures::ready!(Pin::new(&mut self.incoming).poll_stream(cx))?;
-                let addr = stream.peer_addr()?;
-                self.accept_future =
-                    Some((addr, Box::new(self.acceptor.accept(stream))));
-                return self.poll_accept(cx);
-            }
-            Some((addr, fut)) => {
-                let stream = futures::ready!(Pin::new(fut).poll(cx))?;
-                let addr_stream = AddrStream::new(*addr, stream);
-                self.accept_future = None;
-                Some(Ok(addr_stream))
-            }
-        })
+        let stream = futures::ready!(Pin::new(&mut self.incoming).poll_stream(cx))?;
+        let addr = stream.peer_addr()?;
+        let accept_future = self.acceptor.accept(stream);
+        Poll::Ready(Some(Ok(AddrStream::new(
+            addr,
+            Handshaking(Box::new(accept_future)),
+        ))))
     }
 }
 
