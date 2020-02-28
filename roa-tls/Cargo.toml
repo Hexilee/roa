@@ -15,7 +15,7 @@ async-tls = "0.6.0"
 async-std = "1.5.0"
 
 [dev-dependencies]
-async-std = "1.5.0"
+async-std = { version = "1.5.0", features = ["attributes"] }
 tokio = { version = "0.2", features = ["full"] }
 roa-core = { path = "../roa-core", version = "0.5.0-alpha", features = ["runtime"] }
 tokio-tls = "0.3.0"

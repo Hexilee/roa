@@ -240,56 +240,54 @@ impl<S: State> TlsListener for App<S> {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use crate::TlsListener;
-//    use async_std::task::spawn;
-//    use hyper::client::{Client, HttpConnector};
-//    use hyper::Body;
-//    use hyper_tls::native_tls::{self, Certificate};
-//    use hyper_tls::HttpsConnector;
-//    use roa_core::http::StatusCode;
-//    use roa_core::App;
-//    use rustls::internal::pemfile::{certs, rsa_private_keys};
-//    use rustls::{NoClientAuth, ServerConfig};
-//    use std::fs::File;
-//    use std::io::{BufReader, Read};
-//    use std::time::Instant;
-//    use tokio_tls::TlsConnector;
-//
-//    #[tokio::test]
-//    async fn run_tls() -> Result<(), Box<dyn std::error::Error>> {
-//        let mut config = ServerConfig::new(NoClientAuth::new());
-//        let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
-//        let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-//        let cert_chain = certs(&mut cert_file).unwrap();
-//        let mut keys = rsa_private_keys(&mut key_file).unwrap();
-//        config.set_single_cert(cert_chain, keys.remove(0))?;
-//        let (addr, server) = App::new(())
-//            .gate_fn(|_ctx, next| async move {
-//                let inbound = Instant::now();
-//                next.await?;
-//                println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-//                Ok(())
-//            })
-//            .run_tls(config)?;
-//        spawn(server);
-//
-//        let mut cert_data = Vec::new();
-//        File::open("../assets/cert.pem")?.read_to_end(&mut cert_data)?;
-//        let native_tls_connector = native_tls::TlsConnector::builder()
-//            .danger_accept_invalid_hostnames(true)
-//            .add_root_certificate(Certificate::from_pem(&cert_data)?)
-//            .build()?;
-//        let tls_connector = TlsConnector::from(native_tls_connector);
-//        let http_connector = HttpConnector::new();
-//        let mut https_connector = HttpsConnector::from((http_connector, tls_connector));
-//        https_connector.https_only(true);
-//        let client = Client::builder().build::<_, Body>(https_connector);
-//        let resp = client
-//            .get(format!("https://localhost:{}", addr.port()).parse()?)
-//            .await?;
-//        assert_eq!(StatusCode::OK, resp.status());
-//        Ok(())
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use crate::TlsListener;
+    use async_std::task::spawn;
+    use hyper::client::{Client, HttpConnector};
+    use hyper::Body;
+    use hyper_tls::native_tls;
+    use hyper_tls::HttpsConnector;
+    use roa_core::http::StatusCode;
+    use roa_core::App;
+    use rustls::internal::pemfile::{certs, rsa_private_keys};
+    use rustls::{NoClientAuth, ServerConfig};
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::time::Instant;
+    use tokio_tls::TlsConnector;
+
+    #[tokio::test]
+    async fn run_tls() -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = ServerConfig::new(NoClientAuth::new());
+        let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+        let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+        let cert_chain = certs(&mut cert_file).unwrap();
+        let mut keys = rsa_private_keys(&mut key_file).unwrap();
+        config.set_single_cert(cert_chain, keys.remove(0))?;
+        let (addr, server) = App::new(())
+            .gate_fn(|_ctx, next| async move {
+                let inbound = Instant::now();
+                next.await?;
+                println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+                Ok(())
+            })
+            .run_tls(config)?;
+        spawn(server);
+
+        let native_tls_connector = native_tls::TlsConnector::builder()
+            .danger_accept_invalid_hostnames(true)
+            .danger_accept_invalid_certs(true)
+            .build()?;
+        let tls_connector = TlsConnector::from(native_tls_connector);
+        let mut http_connector = HttpConnector::new();
+        http_connector.enforce_http(false);
+        let https_connector = HttpsConnector::from((http_connector, tls_connector));
+        let client = Client::builder().build::<_, Body>(https_connector);
+        let resp = client
+            .get(format!("https://localhost:{}", addr.port()).parse()?)
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+}
