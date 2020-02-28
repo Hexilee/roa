@@ -45,13 +45,14 @@
 #### Next step
 
 - [ ] Juniper integration.
-- [x] Better context storage.
+- [x] Generic context storage.
+- [x] Lockless context.
 - [ ] Database integration.
   - [x] diesel
   - [ ] sled
 - [x] Streaming multipart form support.
 - [x] Websocket support.
-- [ ] HTTPS support.
+- [x] HTTPS support.
 
 #### Get start
 

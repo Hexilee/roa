@@ -1,5 +1,6 @@
 use log::info;
 use roa::body::DispositionType;
+use roa::logger::logger;
 use roa::preload::*;
 use roa::tls::rustls::internal::pemfile::{certs, rsa_private_keys};
 use roa::tls::rustls::{NoClientAuth, ServerConfig};
@@ -20,6 +21,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     config.set_single_cert(cert_chain, keys.remove(0))?;
 
     let mut app = App::new(());
+    app.gate(logger);
     app.end(|mut ctx| async move {
         ctx.write_file("assets/welcome.html", DispositionType::Inline)
             .await
