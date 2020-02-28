@@ -11,7 +11,7 @@
 //! use roa::http::StatusCode;
 //! use roa::preload::*;
 //! use async_std::task::spawn;
-//! use jsonwebtoken::{encode, Header};
+//! use jsonwebtoken::{encode, Header, EncodingKey};
 //! use serde::{Deserialize, Serialize};
 //! use std::time::{Duration, SystemTime, UNIX_EPOCH};
 //!
@@ -56,7 +56,11 @@
 //!             AUTHORIZATION,
 //!             format!(
 //!                 "Bearer {}",
-//!                 encode(&Header::default(), &user, SECRET.as_bytes())?
+//!                 encode(
+//!                     &Header::default(),
+//!                     &user,
+//!                     &EncodingKey::from_secret(SECRET.as_bytes())
+//!                 )?
 //!             ),
 //!         )
 //!         .send()
@@ -66,12 +70,14 @@
 //! }
 //! ```
 
+// Currently this mod support HMAC only, TODO: support more algorithms.
+
 pub use jsonwebtoken::Validation;
 
 use crate::http::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
 use crate::http::StatusCode;
 use crate::{async_trait, join, Context, Error, Middleware, Next, Result, State};
-use jsonwebtoken::{dangerous_unsafe_decode, decode};
+use jsonwebtoken::{dangerous_unsafe_decode, decode, DecodingKey};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::sync::Arc;
@@ -109,7 +115,7 @@ where
 }
 
 /// Guard by default validation.
-pub fn guard<S: State>(secret: impl ToString) -> impl Middleware<S> {
+pub fn guard<S: State>(secret: impl Into<Vec<u8>>) -> impl Middleware<S> {
     guard_by(secret, Validation::default())
 }
 
@@ -122,13 +128,13 @@ pub fn guard<S: State>(secret: impl ToString) -> impl Middleware<S> {
 ///
 /// `WWW-Authenticate: Bearer realm="<jwt>", error="invalid_token"`.
 pub fn guard_by<S: State>(
-    secret: impl ToString,
+    secret: impl Into<Vec<u8>>,
     validation: Validation,
 ) -> impl Middleware<S> {
     join(
         Arc::new(catch_www_authenticate),
         JwtGuard {
-            secret: Arc::new(secret.to_string()),
+            secret: Arc::new(secret.into()),
             validation,
         },
     )
@@ -147,7 +153,7 @@ async fn catch_www_authenticate<S: State>(mut ctx: Context<S>, next: Next) -> Re
 }
 
 struct JwtGuard {
-    secret: Arc<String>,
+    secret: Arc<Vec<u8>>,
     validation: Validation,
 }
 
@@ -198,12 +204,14 @@ where
     }
 
     fn verify(&self, validation: &Validation) -> Result<C> {
-        let secret = self.load_scoped::<JwtScope, Arc<String>>("secret");
+        let secret = self.load_scoped::<JwtScope, Arc<Vec<u8>>>("secret");
         let token = self.load_scoped::<JwtScope, String>("token");
         match (secret, token) {
-            (Some(secret), Some(token)) => decode(&token, secret.as_bytes(), validation)
-                .map(|data| data.claims)
-                .map_err(unauthorized),
+            (Some(secret), Some(token)) => {
+                decode(&token, &DecodingKey::from_secret(&*secret), validation)
+                    .map(|data| data.claims)
+                    .map_err(unauthorized)
+            }
             _ => Err(guard_not_set()),
         }
     }
@@ -213,8 +221,12 @@ where
 impl<S: State> Middleware<S> for JwtGuard {
     async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
         let token = try_get_token(&ctx)?;
-        decode::<Value>(&token, self.secret.as_bytes(), &self.validation)
-            .map_err(unauthorized)?;
+        decode::<Value>(
+            &token,
+            &DecodingKey::from_secret(&self.secret),
+            &self.validation,
+        )
+        .map_err(unauthorized)?;
         ctx.store_scoped(JwtScope, "secret", self.secret.clone());
         ctx.store_scoped(JwtScope, "token", token);
         next.await
@@ -229,7 +241,7 @@ mod tests {
     use crate::preload::*;
     use crate::{App, Error};
     use async_std::task::spawn;
-    use jsonwebtoken::{encode, Header};
+    use jsonwebtoken::{encode, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -305,7 +317,11 @@ mod tests {
                 AUTHORIZATION,
                 format!(
                     "Bearer {}",
-                    encode(&Header::default(), &user, SECRET.as_bytes())?
+                    encode(
+                        &Header::default(),
+                        &user,
+                        &EncodingKey::from_secret(SECRET.as_bytes())
+                    )?
                 ),
             )
             .send()
@@ -322,7 +338,11 @@ mod tests {
                 AUTHORIZATION,
                 format!(
                     "Bearer {}",
-                    encode(&Header::default(), &user, SECRET.as_bytes())?
+                    encode(
+                        &Header::default(),
+                        &user,
+                        &EncodingKey::from_secret(SECRET.as_bytes())
+                    )?
                 ),
             )
             .send()
