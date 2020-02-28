@@ -2,12 +2,10 @@ language: rust
 
 rust:
   - stable
-  - beta
   - nightly
 
 matrix:
   allow_failures:
-    - rust: beta
     - rust: nightly
 
 before_install:
