@@ -5,24 +5,24 @@ use std::pin::Pin;
 use std::task::{self, Poll};
 use tokio::io::{AsyncRead as TokioRead, AsyncWrite as TokioWrite};
 
-trait InnerStream: 'static + Send + Sync + AsyncRead + AsyncWrite {}
-impl<T> InnerStream for T where T: 'static + Send + Sync + AsyncRead + AsyncWrite {}
+trait InnerStream: 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite {}
+impl<T> InnerStream for T where T: 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite {}
 
 /// A transport returned yieled by `AddrIncoming`.
 pub struct AddrStream {
     remote_addr: SocketAddr,
-    stream: Pin<Box<dyn InnerStream>>,
+    stream: Box<dyn InnerStream>,
 }
 
 impl AddrStream {
     /// Construct an AddrStream from an addr and a AsyncReadWriter.
     pub fn new(
         remote_addr: SocketAddr,
-        stream: impl 'static + Send + Sync + AsyncRead + AsyncWrite,
+        stream: impl 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite,
     ) -> AddrStream {
         AddrStream {
             remote_addr,
-            stream: Box::pin(stream),
+            stream: Box::new(stream),
         }
     }
 
@@ -40,7 +40,7 @@ impl TokioRead for AddrStream {
         cx: &mut task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        self.stream.as_mut().poll_read(cx, buf)
+        Pin::new(&mut *self.stream).poll_read(cx, buf)
     }
 }
 
@@ -51,7 +51,7 @@ impl TokioWrite for AddrStream {
         cx: &mut task::Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        self.stream.as_mut().poll_write(cx, buf)
+        Pin::new(&mut *self.stream).poll_write(cx, buf)
     }
 
     #[inline]
@@ -68,6 +68,6 @@ impl TokioWrite for AddrStream {
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<io::Result<()>> {
-        self.stream.as_mut().poll_close(cx)
+        Pin::new(&mut *self.stream).poll_close(cx)
     }
 }

@@ -9,11 +9,10 @@ edition = "2018"
 [dependencies]
 roa-core = { path = "../roa-core", version = "0.5.0-alpha" }
 roa-tcp = { path = "../roa-tcp", version = "0.5.0-alpha" }
-futures-timer = "3.0"
 futures = "0.3"
-log = "0.4"
-rustls = "0.17.0"
+rustls = "0.16.0"
 async-tls = "0.6.0"
+async-std = "1.5.0"
 
 [dev-dependencies]
 reqwest = "0.10"

@@ -1,4 +1,4 @@
-use async_std::net::{SocketAddr, TcpListener};
+use async_std::net::{SocketAddr, TcpListener, TcpStream};
 use futures::FutureExt as _;
 use futures_timer::Delay;
 use log::{debug, error, trace};
@@ -71,10 +71,11 @@ impl TcpIncoming {
         self.sleep_on_errors = val;
     }
 
-    fn poll_next_(
+    /// Poll TcpStream.
+    pub fn poll_stream(
         &mut self,
         cx: &mut task::Context<'_>,
-    ) -> Poll<io::Result<AddrStream>> {
+    ) -> Poll<io::Result<TcpStream>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
             match Pin::new(to).poll(cx) {
@@ -89,11 +90,11 @@ impl TcpIncoming {
 
         loop {
             match accept.poll_unpin(cx) {
-                Poll::Ready(Ok((socket, addr))) => {
-                    if let Err(e) = socket.set_nodelay(self.tcp_nodelay) {
+                Poll::Ready(Ok((stream, _))) => {
+                    if let Err(e) = stream.set_nodelay(self.tcp_nodelay) {
                         trace!("error trying to set TCP nodelay: {}", e);
                     }
-                    return Poll::Ready(Ok(AddrStream::new(addr, socket)));
+                    return Poll::Ready(Ok(stream));
                 }
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(e)) => {
@@ -137,8 +138,9 @@ impl Accept for TcpIncoming {
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let result = futures::ready!(self.poll_next_(cx));
-        Poll::Ready(Some(result))
+        let stream = futures::ready!(self.poll_stream(cx))?;
+        let addr = stream.peer_addr()?;
+        Poll::Ready(Some(Ok(AddrStream::new(addr, stream))))
     }
 }
 
