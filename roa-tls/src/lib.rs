@@ -60,6 +60,7 @@ impl Accept for TlsIncoming {
             }
             Some((addr, fut)) => {
                 let stream = futures::ready!(Pin::new(fut).poll(cx))?;
+                self.accept_future = None;
                 Some(Ok(AddrStream::new(*addr, stream)))
             }
         })
