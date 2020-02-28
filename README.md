@@ -47,9 +47,7 @@
 - [ ] Juniper integration.
 - [x] Generic context storage.
 - [x] Lockless context.
-- [ ] Database integration.
-  - [x] diesel
-  - [ ] sled
+- [x] ORM integration.
 - [x] Streaming multipart form support.
 - [x] Websocket support.
 - [x] HTTPS support.
