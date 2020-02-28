@@ -1,4 +1,5 @@
 use log::info;
+use roa::body::DispositionType;
 use roa::preload::*;
 use roa::tls::rustls::internal::pemfile::{certs, rsa_private_keys};
 use roa::tls::rustls::{NoClientAuth, ServerConfig};
@@ -19,10 +20,13 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     config.set_single_cert(cert_chain, keys.remove(0))?;
 
     let mut app = App::new(());
-    app.end(|mut ctx| async move { ctx.write_text("Hello, World") })
-        .listen_tls("127.0.0.1:8000", config, |addr| {
-            info!("Server is listening on https://{}", addr)
-        })?
-        .await?;
+    app.end(|mut ctx| async move {
+        ctx.write_file("assets/welcome.html", DispositionType::Inline)
+            .await
+    })
+    .listen_tls("127.0.0.1:8000", config, |addr| {
+        info!("Server is listening on https://localhost:{}", addr.port())
+    })?
+    .await?;
     Ok(())
 }

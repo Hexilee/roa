@@ -1,4 +1,4 @@
-use async_std::net::{SocketAddr, TcpStream};
+use async_std::net::TcpStream;
 use async_tls::server::TlsStream;
 use async_tls::TlsAcceptor;
 use futures::Future;
@@ -6,7 +6,7 @@ use roa_core::{Accept, AddrStream, App, Executor, Server, State};
 use roa_tcp::TcpIncoming;
 use rustls::ServerConfig;
 use std::io;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -205,7 +205,11 @@ mod tests {
             })
             .run_tls(config)?;
         spawn(server);
-        let resp = reqwest::get(&format!("https://{}", addr)).await?;
+        let client = reqwest::ClientBuilder::new().use_rustls_tls().build()?;
+        let resp = client
+            .get(&format!("https://localhost:{}", addr.port()))
+            .send()
+            .await?;
         assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
