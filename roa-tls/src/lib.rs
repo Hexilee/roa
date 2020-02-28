@@ -244,13 +244,18 @@ impl<S: State> TlsListener for App<S> {
 //mod tests {
 //    use crate::TlsListener;
 //    use async_std::task::spawn;
+//    use hyper::client::{Client, HttpConnector};
+//    use hyper::Body;
+//    use hyper_tls::native_tls::{self, Certificate};
+//    use hyper_tls::HttpsConnector;
 //    use roa_core::http::StatusCode;
 //    use roa_core::App;
 //    use rustls::internal::pemfile::{certs, rsa_private_keys};
 //    use rustls::{NoClientAuth, ServerConfig};
 //    use std::fs::File;
-//    use std::io::BufReader;
+//    use std::io::{BufReader, Read};
 //    use std::time::Instant;
+//    use tokio_tls::TlsConnector;
 //
 //    #[tokio::test]
 //    async fn run_tls() -> Result<(), Box<dyn std::error::Error>> {
@@ -269,13 +274,20 @@ impl<S: State> TlsListener for App<S> {
 //            })
 //            .run_tls(config)?;
 //        spawn(server);
-//        let client = reqwest::ClientBuilder::new()
+//
+//        let mut cert_data = Vec::new();
+//        File::open("../assets/cert.pem")?.read_to_end(&mut cert_data)?;
+//        let native_tls_connector = native_tls::TlsConnector::builder()
 //            .danger_accept_invalid_hostnames(true)
-//            .danger_accept_invalid_certs(true)
+//            .add_root_certificate(Certificate::from_pem(&cert_data)?)
 //            .build()?;
+//        let tls_connector = TlsConnector::from(native_tls_connector);
+//        let http_connector = HttpConnector::new();
+//        let mut https_connector = HttpsConnector::from((http_connector, tls_connector));
+//        https_connector.https_only(true);
+//        let client = Client::builder().build::<_, Body>(https_connector);
 //        let resp = client
-//            .get(&format!("https://localhost:8000"))
-//            .send()
+//            .get(format!("https://localhost:{}", addr.port()).parse()?)
 //            .await?;
 //        assert_eq!(StatusCode::OK, resp.status());
 //        Ok(())
