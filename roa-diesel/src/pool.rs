@@ -2,7 +2,7 @@ use crate::WrapError;
 use diesel::r2d2::{ConnectionManager, PoolError};
 use diesel::Connection;
 use r2d2::{Builder, PooledConnection};
-use roa_core::{async_trait, State, SyncContext};
+use roa_core::{async_trait, Error, State, SyncContext};
 use std::time::Duration;
 
 pub type Pool<Conn> = r2d2::Pool<ConnectionManager<Conn>>;
@@ -28,12 +28,12 @@ pub trait AsyncPool<Conn>
 where
     Conn: Connection + 'static,
 {
-    async fn get_conn(&self) -> Result<WrapConnection<Conn>, WrapError>;
+    async fn get_conn(&self) -> Result<WrapConnection<Conn>, Error>;
 
     async fn get_timeout(
         &self,
         timeout: Duration,
-    ) -> Result<WrapConnection<Conn>, WrapError>;
+    ) -> Result<WrapConnection<Conn>, Error>;
 
     async fn pool_state(&self) -> r2d2::State;
 }
@@ -44,20 +44,23 @@ where
     S: State + AsRef<Pool<Conn>>,
     Conn: Connection + 'static,
 {
-    async fn get_conn(&self) -> Result<WrapConnection<Conn>, WrapError> {
+    async fn get_conn(&self) -> Result<WrapConnection<Conn>, Error> {
         let pool = self.as_ref().clone();
-        Ok(self.exec.spawn_blocking(move || pool.get()).await?)
+        self.exec
+            .spawn_blocking(move || pool.get())
+            .await
+            .map_err(|err| WrapError::from(err).into())
     }
 
     async fn get_timeout(
         &self,
         timeout: Duration,
-    ) -> Result<WrapConnection<Conn>, WrapError> {
+    ) -> Result<WrapConnection<Conn>, Error> {
         let pool = self.as_ref().clone();
-        Ok(self
-            .exec
+        self.exec
             .spawn_blocking(move || pool.get_timeout(timeout))
-            .await?)
+            .await
+            .map_err(|err| WrapError::from(err).into())
     }
 
     async fn pool_state(&self) -> r2d2::State {

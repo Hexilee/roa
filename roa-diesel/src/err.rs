@@ -4,8 +4,6 @@ use roa_core::http::StatusCode;
 use roa_core::Error;
 use std::fmt::{self, Display, Formatter};
 
-pub type Result<T> = std::result::Result<T, WrapError>;
-
 #[derive(Debug)]
 pub enum WrapError {
     Diesel(DieselError),
