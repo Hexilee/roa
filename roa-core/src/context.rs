@@ -38,8 +38,12 @@ struct PublicScope;
 /// ```
 pub struct Context<S>(Rc<UnsafeCell<Inner<S>>>);
 
+/// Sync parts of Context.
 pub struct SyncContext<S> {
+    /// Application level runtime.
     pub exec: Executor,
+
+    /// Socket addr of last client or proxy.
     pub remote_addr: SocketAddr,
     state: S,
     storage: HashMap<TypeId, Bucket>,

@@ -153,6 +153,7 @@ pub trait CookieGetter {
     fn cookie(&self, name: &str) -> Option<Arc<Cookie<'static>>>;
 }
 
+/// An extension to set cookie.
 pub trait CookieSetter {
     /// Set a cookie in pecent encoding, should not return Err.
     /// ### Example
