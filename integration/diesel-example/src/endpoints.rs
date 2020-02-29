@@ -27,7 +27,7 @@ async fn create_post(mut ctx: Context<State>) -> Result {
     let data: PostData = ctx.read_json().await?;
     let conn = ctx.get_conn().await?;
     let post = ctx
-        .exec()
+        .exec
         .spawn_blocking(move || {
             conn.transaction::<Post, WrapError, _>(|| {
                 diesel::insert_into(crate::schema::posts::table)

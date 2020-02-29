@@ -7,7 +7,7 @@ use roa::logger::logger;
 use roa::preload::*;
 use roa::router::Router;
 use roa::websocket::{tungstenite::Error as WsError, Message, SocketStream, Websocket};
-use roa::App;
+use roa::{App, SyncContext};
 use slab::Slab;
 use std::error::Error as StdError;
 
@@ -39,10 +39,10 @@ impl SyncChannel {
 }
 
 async fn handle_message(
-    state: &SyncChannel,
+    ctx: &SyncContext<SyncChannel>,
     message: Result<Message, WsError>,
 ) -> Result<(), WsError> {
-    state.broadcast(message?).await
+    ctx.broadcast(message?).await
 }
 
 #[async_std::main]
@@ -53,15 +53,15 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     router.end(
         [Method::GET].as_ref(),
         "/chat",
-        Websocket::new(|state: SyncChannel, stream| async move {
+        Websocket::new(|ctx: SyncContext<SyncChannel>, stream| async move {
             let (sender, mut receiver) = stream.split();
-            let index = state.register(sender).await;
+            let index = ctx.register(sender).await;
             while let Some(message) = receiver.next().await {
-                if let Err(err) = handle_message(&state, message).await {
+                if let Err(err) = handle_message(&ctx, message).await {
                     error!("websocket error: {}", err);
                 }
             }
-            let mut sender = state.deregister(index).await;
+            let mut sender = ctx.deregister(index).await;
             sender.send(Message::Close(None)).await.unwrap();
         }),
     );

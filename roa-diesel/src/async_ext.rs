@@ -4,7 +4,7 @@ use diesel::helper_types::Limit;
 use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, LoadQuery};
 use diesel::query_dsl::RunQueryDsl;
 use diesel::result::{Error as DieselError, OptionalExtension};
-use roa_core::{async_trait, Context, State};
+use roa_core::{async_trait, State, SyncContext};
 
 #[async_trait(?Send)]
 pub trait SqlQuery<Conn: 'static + Connection> {
@@ -83,7 +83,7 @@ pub trait SqlQuery<Conn: 'static + Connection> {
 }
 
 #[async_trait(?Send)]
-impl<S, Conn> SqlQuery<Conn> for Context<S>
+impl<S, Conn> SqlQuery<Conn> for SyncContext<S>
 where
     S: State + AsRef<Pool<Conn>>,
     Conn: 'static + Connection,
@@ -94,7 +94,7 @@ where
     {
         let conn = self.get_conn().await?;
         Ok(self
-            .exec()
+            .exec
             .spawn_blocking(move || ExecuteDsl::<Conn>::execute(exec, &*conn))
             .await?)
     }
@@ -123,7 +123,7 @@ where
         Q: 'static + Send + LoadQuery<Conn, U>,
     {
         let conn = self.get_conn().await?;
-        match self.exec().spawn_blocking(move || query.load(&*conn)).await {
+        match self.exec.spawn_blocking(move || query.load(&*conn)).await {
             Ok(data) => Ok(data),
             Err(DieselError::NotFound) => Ok(Vec::new()),
             Err(err) => Err(err.into()),
@@ -146,7 +146,7 @@ where
     {
         let conn = self.get_conn().await?;
         Ok(self
-            .exec()
+            .exec
             .spawn_blocking(move || query.get_result(&*conn))
             .await
             .optional()?)
@@ -182,7 +182,7 @@ where
     {
         let conn = self.get_conn().await?;
         Ok(self
-            .exec()
+            .exec
             .spawn_blocking(move || query.limit(1).get_result(&*conn))
             .await
             .optional()?)
