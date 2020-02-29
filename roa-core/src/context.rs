@@ -38,13 +38,17 @@ struct PublicScope;
 /// ```
 pub struct Context<S>(Rc<UnsafeCell<Inner<S>>>);
 
+pub struct SyncContext<S> {
+    pub exec: Executor,
+    pub remote_addr: SocketAddr,
+    state: S,
+    storage: HashMap<TypeId, Bucket>,
+}
+
 struct Inner<S> {
     request: Request,
     response: Response,
-    state: S,
-    exec: Executor,
-    storage: HashMap<TypeId, Bucket>,
-    remote_addr: SocketAddr,
+    ctx: SyncContext<S>,
 }
 
 /// A wrapper of `HashMap<String, Arc<dyn Any + Send + Sync>>`, method `get` return a `Variable`.
@@ -161,10 +165,12 @@ impl<S> Context<S> {
         let inner = Inner {
             request,
             response: Response::new(),
-            state,
-            exec,
-            storage: HashMap::new(),
-            remote_addr,
+            ctx: SyncContext {
+                state,
+                exec,
+                storage: HashMap::new(),
+                remote_addr,
+            },
         };
         Self(Rc::new(UnsafeCell::new(inner)))
     }
@@ -218,34 +224,6 @@ impl<S> Context<S> {
         &self.inner().response
     }
 
-    /// Get an immutable reference of state.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::App;
-    ///
-    /// #[derive(Clone)]
-    /// struct State {
-    ///     id: u64,
-    /// }
-    ///
-    /// let mut app = App::new(State { id: 0 });
-    /// app.end(|ctx| async move {
-    ///     assert_eq!(0, ctx.state().id);
-    ///     Ok(())
-    /// });
-    /// ```
-    #[inline]
-    pub fn state(&self) -> &S {
-        &self.inner().state
-    }
-
-    /// Get an immutable reference of storage.
-    #[inline]
-    fn storage(&self) -> &HashMap<TypeId, Bucket> {
-        &self.inner().storage
-    }
-
     /// Get a mutable reference of request.
     ///
     /// ### Example
@@ -283,38 +261,6 @@ impl<S> Context<S> {
     #[inline]
     pub fn resp_mut(&mut self) -> &mut Response {
         &mut self.inner_mut().response
-    }
-
-    /// Get a mutable reference of state.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::App;
-    ///
-    /// #[derive(Clone)]
-    /// struct State {
-    ///     id: u64,
-    /// }
-    ///
-    /// let mut app = App::new(State { id: 0 });
-    /// app.gate_fn(|mut ctx, next| async move {
-    ///     ctx.state_mut().id = 1;
-    ///     next.await
-    /// });
-    /// app.end(|ctx| async move {
-    ///     assert_eq!(1, ctx.state().id);
-    ///     Ok(())
-    /// });
-    /// ```
-    #[inline]
-    pub fn state_mut(&mut self) -> &mut S {
-        &mut self.inner_mut().state
-    }
-
-    /// Get a mutable reference of storage.
-    #[inline]
-    fn storage_mut(&mut self) -> &mut HashMap<TypeId, Bucket> {
-        &mut self.inner_mut().storage
     }
 
     /// Clone URI.
@@ -402,7 +348,9 @@ impl<S> Context<S> {
     pub fn version(&self) -> Version {
         self.req().version
     }
+}
 
+impl<S> SyncContext<S> {
     /// Store key-value pair in specific scope.
     ///
     /// ### Example
@@ -434,14 +382,13 @@ impl<S> Context<S> {
         SC: Any,
         T: Any + Send + Sync,
     {
-        let storage = self.storage_mut();
         let id = TypeId::of::<SC>();
-        match storage.get_mut(&id) {
+        match self.storage.get_mut(&id) {
             Some(bucket) => bucket.insert(name, value),
             None => {
                 let mut bucket = Bucket::default();
                 bucket.insert(name, value);
-                storage.insert(id, bucket);
+                self.storage.insert(id, bucket);
                 None
             }
         }
@@ -495,9 +442,8 @@ impl<S> Context<S> {
         SC: Any,
         T: Any + Send + Sync,
     {
-        let storage = self.storage();
         let id = TypeId::of::<SC>();
-        storage.get(&id).and_then(|bucket| bucket.get(name))
+        self.storage.get(&id).and_then(|bucket| bucket.get(name))
     }
 
     /// Search for value by key in public scope.
@@ -522,29 +468,42 @@ impl<S> Context<S> {
     {
         self.load_scoped::<PublicScope, T>(name)
     }
+}
 
-    /// Get remote socket addr.
-    pub fn remote_addr(&self) -> SocketAddr {
-        self.inner().remote_addr
+impl<S> Deref for SyncContext<S> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &self.state
     }
+}
 
-    /// Get immutable reference of executor
-    pub fn exec(&self) -> &Executor {
-        &self.inner().exec
+impl<S> DerefMut for SyncContext<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.state
+    }
+}
+
+impl<S: Clone> Clone for SyncContext<S> {
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            exec: self.exec.clone(),
+            storage: self.storage.clone(),
+            remote_addr: self.remote_addr,
+        }
     }
 }
 
 impl<S> Deref for Context<S> {
-    type Target = S;
-
+    type Target = SyncContext<S>;
     fn deref(&self) -> &Self::Target {
-        self.state()
+        &self.inner().ctx
     }
 }
 
 impl<S> DerefMut for Context<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.state_mut()
+        &mut self.inner_mut().ctx
     }
 }
 
@@ -579,7 +538,7 @@ mod tests_with_runtime {
                 next.await
             })
             .end(|ctx: Context<State>| async move {
-                assert_eq!(1, ctx.state().data);
+                assert_eq!(1, ctx.data);
                 Ok(())
             })
             .fake_service();
