@@ -23,7 +23,7 @@ where
     r2d2::Pool::builder()
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait AsyncPool<Conn>
 where
     Conn: Connection + 'static,
@@ -38,7 +38,7 @@ where
     async fn pool_state(&self) -> r2d2::State;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl<S, Conn> AsyncPool<Conn> for SyncContext<S>
 where
     S: State + AsRef<Pool<Conn>>,

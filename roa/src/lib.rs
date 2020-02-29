@@ -229,7 +229,7 @@ pub use roa_core::*;
 #[cfg(feature = "body")]
 pub use roa_body as body;
 
-#[cfg(feature = "websocket")]
+#[cfg(feature = "juniper")]
 pub use roa_juniper as juniper;
 
 #[cfg(feature = "router")]

@@ -6,7 +6,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::result::{Error as DieselError, OptionalExtension};
 use roa_core::{async_trait, State, SyncContext};
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait SqlQuery<Conn: 'static + Connection> {
     /// Executes the given command, returning the number of rows affected.
     ///
@@ -82,7 +82,7 @@ pub trait SqlQuery<Conn: 'static + Connection> {
         Limit<Q>: LoadQuery<Conn, U>;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl<S, Conn> SqlQuery<Conn> for SyncContext<S>
 where
     S: State + AsRef<Pool<Conn>>,

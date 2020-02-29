@@ -1,10 +1,6 @@
 use juniper::{http::GraphQLRequest, GraphQLTypeAsync, RootNode, ScalarValue};
 use roa_body::PowerBody;
-
-use roa_core::http::StatusCode;
-use roa_core::{
-    async_trait, Context, Error, Middleware, Next, Result, State, SyncContext,
-};
+use roa_core::{async_trait, Context, Middleware, Next, Result, State, SyncContext};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
@@ -22,7 +18,9 @@ impl<S> DerefMut for JuniperContext<S> {
     }
 }
 
-pub struct GraphQL<QueryT, MutationT, Sca>(RootNode<'static, QueryT, MutationT, Sca>)
+pub struct GraphQL<QueryT, MutationT, Sca>(
+    pub RootNode<'static, QueryT, MutationT, Sca>,
+)
 where
     Sca: 'static + ScalarValue + Send + Sync,
     QueryT: GraphQLTypeAsync<Sca> + Send + Sync + 'static,
@@ -47,11 +45,6 @@ where
         let request: GraphQLRequest<Sca> = ctx.read_json().await?;
         let juniper_ctx = JuniperContext(ctx.clone());
         let resp = request.execute_async(&self.0, &juniper_ctx).await;
-        ctx.write_json(&resp)?;
-        if !resp.is_ok() {
-            Err(Error::new(StatusCode::BAD_REQUEST, "", false))
-        } else {
-            Ok(())
-        }
+        ctx.write_json(&resp)
     }
 }

@@ -7,7 +7,7 @@ use roa::http::StatusCode;
 use roa::preload::*;
 use roa::router::Router;
 use roa::{throw, Context, Result};
-use roa_diesel::{AsyncPool, Result as WrapResult, SqlQuery, WrapError};
+use roa_diesel::{AsyncPool, SqlQuery, WrapError};
 
 pub fn post_router() -> Router<State> {
     let mut router = Router::new();
@@ -16,11 +16,6 @@ pub fn post_router() -> Router<State> {
     router.put("/:id", update_post);
     router.delete("/:id", delete_post);
     router
-}
-
-async fn find_post(ctx: &Context<State>, id: i32) -> WrapResult<Option<Post>> {
-    ctx.first(posts.find(id).filter(dsl::published.eq(true)))
-        .await
 }
 
 async fn create_post(mut ctx: Context<State>) -> Result {
@@ -43,7 +38,10 @@ async fn create_post(mut ctx: Context<State>) -> Result {
 
 async fn get_post(mut ctx: Context<State>) -> Result {
     let id: i32 = ctx.must_param("id")?.parse()?;
-    match find_post(&ctx, id).await? {
+    match ctx
+        .first::<Post, _>(posts.find(id).filter(dsl::published.eq(true)))
+        .await?
+    {
         None => throw!(StatusCode::NOT_FOUND, &format!("post({}) not found", id)),
         Some(post) => {
             let data: PostData = post.into();
@@ -60,7 +58,7 @@ async fn update_post(mut ctx: Context<State>) -> Result {
         published,
     } = ctx.read_json().await?;
 
-    match find_post(&ctx, id).await? {
+    match ctx.first::<Post, _>(posts.find(id)).await? {
         None => throw!(StatusCode::NOT_FOUND, &format!("post({}) not found", id)),
         Some(post) => {
             let old_data: PostData = post.into();
@@ -77,7 +75,7 @@ async fn update_post(mut ctx: Context<State>) -> Result {
 
 async fn delete_post(mut ctx: Context<State>) -> Result {
     let id: i32 = ctx.must_param("id")?.parse()?;
-    match find_post(&ctx, id).await? {
+    match ctx.first::<Post, _>(posts.find(id)).await? {
         None => throw!(StatusCode::NOT_FOUND, &format!("post({}) not found", id)),
         Some(post) => {
             let old_data: PostData = post.into();

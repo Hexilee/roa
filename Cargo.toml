@@ -21,7 +21,8 @@ members = [
     "roa-juniper",
     "integration/diesel-example",
     "integration/multipart-example",
-    "integration/websocket-example"
+    "integration/websocket-example",
+    "integration/juniper-example"
 ]
 
 [dev-dependencies]

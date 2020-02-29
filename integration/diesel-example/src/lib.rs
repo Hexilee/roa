@@ -3,8 +3,8 @@ extern crate diesel;
 
 mod data_object;
 mod endpoints;
-mod models;
-mod schema;
+pub mod models;
+pub mod schema;
 
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;

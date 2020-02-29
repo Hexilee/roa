@@ -1,0 +1,23 @@
+[package]
+name = "juniper-example"
+version = "0.1.0"
+authors = ["Hexilee <hexileee@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+diesel = "1.4.3"
+roa = { path = "../../roa", version = "0.5.0-alpha", features = ["router", "body", "juniper"] }
+roa-diesel = { path = "../../roa-diesel", version = "0.5.0-alpha" }
+diesel-example = { path = "../diesel-example" }
+async-std = { version = "1.4", features = ["attributes"] }
+log = "0.4"
+serde = { version = "1.0.104", features = ["derive"] }
+futures = "0.3"
+pretty_env_logger = "0.4.0"
+
+[dependencies.juniper]
+git = "https://github.com/graphql-rust/juniper.git"
+version = "0.14.2"
+features = ["async"]
