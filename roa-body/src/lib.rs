@@ -81,7 +81,6 @@ mod content_type;
 mod help;
 use content_type::{Content, ContentType};
 use futures::{AsyncRead, AsyncReadExt};
-use help::bug_report;
 use roa_core::{async_trait, http, Context, Result, State};
 
 #[cfg(feature = "json")]
@@ -183,7 +182,7 @@ impl<S: State> PowerBody for Context<S> {
     #[cfg(feature = "template")]
     fn render<B: Template + Sync>(&mut self, data: &B) -> Result {
         self.resp_mut()
-            .write_str(data.render().map_err(bug_report)?);
+            .write_str(data.render().map_err(help::bug_report)?);
         let content_type: ContentType = "text/html; charset=utf-8".parse()?;
         self.resp_mut()
             .headers
