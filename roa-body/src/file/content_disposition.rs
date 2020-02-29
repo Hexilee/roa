@@ -1,4 +1,4 @@
-use crate::bug_report;
+use crate::help::bug_report;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use roa_core::http::header::HeaderValue;
 use roa_core::Result;
