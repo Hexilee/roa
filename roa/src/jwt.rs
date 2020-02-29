@@ -76,7 +76,9 @@ pub use jsonwebtoken::Validation;
 
 use crate::http::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
 use crate::http::StatusCode;
-use crate::{async_trait, join, Context, Error, Middleware, Next, Result, State};
+use crate::{
+    async_trait, join, Context, Error, Middleware, Next, Result, State, SyncContext,
+};
 use jsonwebtoken::{dangerous_unsafe_decode, decode, DecodingKey};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -179,7 +181,7 @@ fn try_get_token<S: State>(ctx: &Context<S>) -> Result<String> {
     }
 }
 
-impl<S, C> JwtVerifier<S, C> for Context<S>
+impl<S, C> JwtVerifier<S, C> for SyncContext<S>
 where
     S: State,
     C: 'static + DeserializeOwned + Send,

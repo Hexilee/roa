@@ -108,7 +108,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let method = ctx.method().clone();
     let path = ctx.uri().path().to_string();
     let counter = 0;
-    let exec = ctx.exec().clone();
+    let exec = ctx.exec.clone();
     match result {
         Ok(()) => {
             let status_code = ctx.status();

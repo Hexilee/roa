@@ -5,7 +5,9 @@ use headers::{
 use hyper::upgrade::Upgraded;
 use roa_core::http::header::UPGRADE;
 use roa_core::http::StatusCode;
-use roa_core::{async_trait, throw, Context, Error, Middleware, Next, State};
+use roa_core::{
+    async_trait, throw, Context, Error, Middleware, Next, State, SyncContext,
+};
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -19,7 +21,7 @@ pub type SocketStream = WebSocketStream<Upgraded>;
 
 pub struct Websocket<F, S, Fut>
 where
-    F: Fn(S, SocketStream) -> Fut,
+    F: Fn(SyncContext<S>, SocketStream) -> Fut,
 {
     task: Arc<F>,
     config: Option<WebSocketConfig>,
@@ -28,17 +30,17 @@ where
 }
 
 unsafe impl<F, S, Fut> Send for Websocket<F, S, Fut> where
-    F: Sync + Fn(S, SocketStream) -> Fut
+    F: Sync + Fn(SyncContext<S>, SocketStream) -> Fut
 {
 }
 unsafe impl<F, S, Fut> Sync for Websocket<F, S, Fut> where
-    F: Sync + Fn(S, SocketStream) -> Fut
+    F: Sync + Fn(SyncContext<S>, SocketStream) -> Fut
 {
 }
 
 impl<F, S, Fut> Websocket<F, S, Fut>
 where
-    F: Fn(S, SocketStream) -> Fut,
+    F: Fn(SyncContext<S>, SocketStream) -> Fut,
 {
     pub fn new(task: F) -> Self {
         Self::with_config(None, task)
@@ -58,7 +60,7 @@ where
 impl<F, S, Fut> Middleware<S> for Websocket<F, S, Fut>
 where
     S: State,
-    F: 'static + Sync + Send + Fn(S, SocketStream) -> Fut,
+    F: 'static + Sync + Send + Fn(SyncContext<S>, SocketStream) -> Fut,
     Fut: 'static + Send + Future<Output = ()>,
 {
     async fn handle(
@@ -87,10 +89,10 @@ where
                 // is returned below, so it's better to spawn this future instead
                 // waiting for it to complete to then return a response.
                 let body = ctx.req_mut().body_stream();
-                let state = ctx.state().clone();
+                let sync_context = ctx.clone();
                 let task = self.task.clone();
                 let config = self.config.clone();
-                ctx.exec().spawn(async move {
+                ctx.exec.spawn(async move {
                     match body.on_upgrade().await {
                         Err(err) => log::error!("websocket upgrade error: {}", err),
                         Ok(upgraded) => {
@@ -100,7 +102,7 @@ where
                                 config,
                             )
                             .await;
-                            task(state, websocket).await
+                            task(sync_context, websocket).await
                         }
                     }
                 });

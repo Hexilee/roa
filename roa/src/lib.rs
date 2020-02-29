@@ -269,7 +269,7 @@ pub mod preload {
     pub use crate::body::PowerBody;
 
     #[cfg(feature = "cookies")]
-    pub use crate::cookie::Cookier;
+    pub use crate::cookie::{CookieGetter, CookieSetter};
 
     #[cfg(feature = "jwt")]
     pub use crate::jwt::JwtVerifier;

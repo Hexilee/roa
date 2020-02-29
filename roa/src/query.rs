@@ -27,7 +27,7 @@
 //! ```
 
 use crate::http::StatusCode;
-use crate::{Context, Error, Next, Result, State, Variable};
+use crate::{Context, Error, Next, Result, State, SyncContext, Variable};
 use url::form_urlencoded::parse;
 
 /// A scope to store and load variables in Context::storage.
@@ -141,7 +141,7 @@ pub async fn query_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     next.await
 }
 
-impl<S: State> Query for Context<S> {
+impl<S: State> Query for SyncContext<S> {
     fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.query(name).ok_or_else(|| {
             Error::new(

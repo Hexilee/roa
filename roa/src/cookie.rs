@@ -33,7 +33,7 @@
 
 use crate::header::FriendlyHeaders;
 use crate::http::{header, StatusCode};
-use crate::{throw, Context, Next, Result, State};
+use crate::{throw, Context, Next, Result, State, SyncContext};
 pub use cookie::Cookie;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::sync::Arc;
@@ -47,8 +47,7 @@ Please report it to https://github.com/Hexilee/roa.
 struct CookieScope;
 
 /// A context extension.
-/// The `cookie` and `must_cookie` method of this extension
-/// must be used in downstream of middleware `cookier_parser`,
+/// This extension must be used in downstream of middleware `cookier_parser`,
 /// otherwise you cannot get expected cookie.
 ///
 /// ### Example
@@ -96,7 +95,7 @@ struct CookieScope;
 ///     Ok(())
 /// }
 /// ```
-pub trait Cookier {
+pub trait CookieGetter {
     /// Must get a cookie, throw 401 UNAUTHORIZED if it not exists.
     /// ### Example
     ///
@@ -152,7 +151,9 @@ pub trait Cookier {
     /// }
     /// ```
     fn cookie(&self, name: &str) -> Option<Arc<Cookie<'static>>>;
+}
 
+pub trait CookieSetter {
     /// Set a cookie in pecent encoding, should not return Err.
     /// ### Example
     ///
@@ -184,7 +185,7 @@ pub trait Cookier {
 }
 
 /// A middleware to parse cookie.
-pub fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Next {
+pub async fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     if let Some(Ok(cookies)) = ctx.header(header::COOKIE) {
         for cookie in cookies
             .split(';')
@@ -199,30 +200,40 @@ pub fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Next {
             ctx.store_scoped(CookieScope, &name, cookie);
         }
     }
-    next
+    let result = next.await;
+    if let Err(ref err) = result {
+        if err.status_code == StatusCode::UNAUTHORIZED
+            && !ctx.resp().headers.contains_key(header::WWW_AUTHENTICATE)
+        {
+            ctx.resp_mut().headers.insert(
+                header::WWW_AUTHENTICATE,
+                err.message.parse().expect(WWW_AUTHENTICATE_BUG_HELP),
+            );
+        }
+    }
+    result
 }
 
-impl<S: State> Cookier for Context<S> {
+impl<S> CookieGetter for SyncContext<S> {
     fn must_cookie(&mut self, name: &str) -> Result<Arc<Cookie<'static>>> {
         match self.cookie(name) {
             Some(value) => Ok(value),
-            None => {
-                let www_authenticate = format!(
+            None => throw!(
+                StatusCode::UNAUTHORIZED,
+                format!(
                     r#"Cookie name="{}""#,
                     utf8_percent_encode(name, NON_ALPHANUMERIC).to_string()
-                );
-                self.resp_mut().headers.insert(
-                    header::WWW_AUTHENTICATE,
-                    www_authenticate.parse().expect(WWW_AUTHENTICATE_BUG_HELP),
-                );
-                throw!(StatusCode::UNAUTHORIZED)
-            }
+                )
+            ),
         }
     }
 
     fn cookie(&self, name: &str) -> Option<Arc<Cookie<'static>>> {
         Some(self.load_scoped::<CookieScope, Cookie>(name)?.value())
     }
+}
+
+impl<S: State> CookieSetter for Context<S> {
     fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result {
         let cookie_value = cookie.encoded().to_string();
         self.resp_mut().append(header::SET_COOKIE, cookie_value)?;

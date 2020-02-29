@@ -94,7 +94,7 @@ impl<S: State> Forward for Context<S> {
     fn client_ip(&self) -> IpAddr {
         let addrs = self.forwarded_ips();
         if addrs.is_empty() {
-            self.remote_addr().ip()
+            self.remote_addr.ip()
         } else {
             addrs[0]
         }
@@ -178,7 +178,7 @@ mod tests {
     async fn client_ip() -> Result<(), Box<dyn std::error::Error>> {
         let (addr, server) = App::new(())
             .gate_fn(move |ctx, _next| async move {
-                assert_eq!(ctx.remote_addr().ip(), ctx.client_ip());
+                assert_eq!(ctx.remote_addr.ip(), ctx.client_ip());
                 Ok(())
             })
             .run_local()?;
