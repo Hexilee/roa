@@ -1,13 +1,26 @@
-use juniper::{
-    http::GraphQLRequest, serde::Deserialize, Context as JuniperContext,
-    DefaultScalarValue, GraphQLTypeAsync, InputValue, RootNode, ScalarValue,
-};
+use juniper::{http::GraphQLRequest, GraphQLTypeAsync, RootNode, ScalarValue};
 use roa_body::PowerBody;
 
-use futures::Future;
-use roa_core::{async_trait, Context, Error, Middleware, Next, Request, Result, State};
-use std::pin::Pin;
+use roa_core::http::StatusCode;
+use roa_core::{
+    async_trait, Context, Error, Middleware, Next, Result, State, SyncContext,
+};
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+
+pub struct JuniperContext<S>(SyncContext<S>);
+impl<S: State> juniper::Context for JuniperContext<S> {}
+impl<S> Deref for JuniperContext<S> {
+    type Target = SyncContext<S>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<S> DerefMut for JuniperContext<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 pub struct GraphQL<QueryT, MutationT, Sca>(RootNode<'static, QueryT, MutationT, Sca>)
 where
@@ -20,18 +33,25 @@ where
     MutationT::TypeInfo: Send + Sync;
 
 #[async_trait(?Send)]
-impl<S, QueryT, MutationT, Ctx, Sca> Middleware<S> for GraphQL<QueryT, MutationT, Sca>
+impl<S, QueryT, MutationT, Sca> Middleware<S> for GraphQL<QueryT, MutationT, Sca>
 where
     S: State,
     Sca: 'static + ScalarValue + Send + Sync,
-    Ctx: Send + Sync + 'static,
-    QueryT: GraphQLTypeAsync<Sca, Context = Ctx> + Send + Sync + 'static,
-    MutationT: GraphQLTypeAsync<Sca, Context = Ctx> + Send + Sync + 'static,
+    QueryT: GraphQLTypeAsync<Sca, Context = JuniperContext<S>> + Send + Sync + 'static,
+    MutationT:
+        GraphQLTypeAsync<Sca, Context = JuniperContext<S>> + Send + Sync + 'static,
     QueryT::TypeInfo: Send + Sync,
     MutationT::TypeInfo: Send + Sync,
 {
-    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
+    async fn handle(self: Arc<Self>, mut ctx: Context<S>, _next: Next) -> Result {
         let request: GraphQLRequest<Sca> = ctx.read_json().await?;
-        Ok(())
+        let juniper_ctx = JuniperContext(ctx.clone());
+        let resp = request.execute_async(&self.0, &juniper_ctx).await;
+        ctx.write_json(&resp)?;
+        if !resp.is_ok() {
+            Err(Error::new(StatusCode::BAD_REQUEST, "", false))
+        } else {
+            Ok(())
+        }
     }
 }

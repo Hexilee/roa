@@ -44,7 +44,7 @@
 
 #### Next step
 
-- [ ] Juniper integration.
+- [x] Juniper integration.
 - [x] Generic context storage.
 - [x] Lockless context.
 - [x] ORM integration.

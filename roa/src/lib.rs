@@ -228,10 +228,16 @@ pub use roa_core::*;
 
 #[cfg(feature = "body")]
 pub use roa_body as body;
+
+#[cfg(feature = "websocket")]
+pub use roa_juniper as juniper;
+
 #[cfg(feature = "router")]
 pub use roa_router as router;
+
 #[cfg(feature = "tcp")]
 pub use roa_tcp as tcp;
+
 #[cfg(feature = "tls")]
 pub use roa_tls as tls;
 
