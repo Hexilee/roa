@@ -38,6 +38,8 @@ jobs:
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
       - id: coverage
         uses: actions-rs/grcov@v0.1
+        with:
+          config: ./grcov.yml
       - name: Coveralls upload
         uses: coverallsapp/github-action@master
         with:
