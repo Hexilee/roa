@@ -1,7 +1,5 @@
 on: [push, pull_request]
-
 name: Stable Test
-
 jobs:
   test:
     runs-on: ubuntu-latest

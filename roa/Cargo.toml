@@ -22,7 +22,8 @@ features = ["full"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [badges]
-travis-ci = { repository = "Hexilee/roa" }
+github = { repository = "Hexilee/roa" }
+codecov = { repository = "Hexilee/roa" }
 
 [dependencies]
 log = "0.4"

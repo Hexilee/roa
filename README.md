@@ -3,7 +3,7 @@
   <p><strong>Roa is an async web framework inspired by koajs, lightweight but powerful. </strong> </p>
   <p>
 
-[![Build status](https://img.shields.io/travis/Hexilee/roa/master.svg)](https://travis-ci.org/Hexilee/roa)
+[![Stable Test](https://github.com/Hexilee/roa/workflows/Stable%20Test/badge.svg)](https://github.com/Hexilee/roa/actions)
 [![codecov](https://codecov.io/gh/Hexilee/roa/branch/master/graph/badge.svg)](https://codecov.io/gh/Hexilee/roa) 
 [![wiki](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/Hexilee/roa/wiki)
 [![Rust Docs](https://docs.rs/roa/badge.svg)](https://docs.rs/roa)
