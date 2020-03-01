@@ -4,7 +4,7 @@
   <p>
 
 [![Stable Test](https://github.com/Hexilee/roa/workflows/Stable%20Test/badge.svg)](https://github.com/Hexilee/roa/actions)
-[![codecov](https://codecov.io/gh/Hexilee/roa/branch/master/graph/badge.svg)](https://codecov.io/gh/Hexilee/roa) 
+[![Coverage Status](https://coveralls.io/repos/github/Hexilee/roa/badge.svg?branch=master)](https://coveralls.io/github/Hexilee/roa?branch=master) 
 [![wiki](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/Hexilee/roa/wiki)
 [![Rust Docs](https://docs.rs/roa/badge.svg)](https://docs.rs/roa)
 [![Crate version](https://img.shields.io/crates/v/roa.svg)](https://crates.io/crates/roa)

@@ -4,7 +4,20 @@ on:
     branches:
     - master
 jobs:
-  lint:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Check all
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all --all-features
+  cover:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -25,8 +38,8 @@ jobs:
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
       - id: coverage
         uses: actions-rs/grcov@v0.1
-      - name: Codecov upload
-        uses: codecov/codecov-action@v1
+      - name: Coveralls upload
+        uses: coverallsapp/github-action@master
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ steps.coverage.outputs.report }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ${{ steps.coverage.outputs.report }}
