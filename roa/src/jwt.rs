@@ -104,16 +104,17 @@ struct JwtScope;
 ///     Ok(())
 /// }
 /// ```
-pub trait JwtVerifier<S, C>
-where
-    C: 'static + DeserializeOwned,
-{
+pub trait JwtVerifier<S> {
     /// Deserialize claims from token.
-    fn claims(&self) -> Result<C>;
+    fn claims<C>(&self) -> Result<C>
+    where
+        C: 'static + DeserializeOwned;
 
     /// Verify token and deserialize claims with a validation.
     /// Use this method if this validation is different from that one of guard or guard_by.
-    fn verify(&self, validation: &Validation) -> Result<C>;
+    fn verify<C>(&self, validation: &Validation) -> Result<C>
+    where
+        C: 'static + DeserializeOwned;
 }
 
 /// Guard by default validation.
@@ -181,12 +182,14 @@ fn try_get_token<S: State>(ctx: &Context<S>) -> Result<String> {
     }
 }
 
-impl<S, C> JwtVerifier<S, C> for SyncContext<S>
+impl<S> JwtVerifier<S> for SyncContext<S>
 where
     S: State,
-    C: 'static + DeserializeOwned + Send,
 {
-    fn claims(&self) -> Result<C> {
+    fn claims<C>(&self) -> Result<C>
+    where
+        C: 'static + DeserializeOwned,
+    {
         let token = self.load_scoped::<JwtScope, String>("token");
         match token {
             Some(token) => dangerous_unsafe_decode(&*token)
@@ -205,7 +208,10 @@ where
         }
     }
 
-    fn verify(&self, validation: &Validation) -> Result<C> {
+    fn verify<C>(&self, validation: &Validation) -> Result<C>
+    where
+        C: 'static + DeserializeOwned,
+    {
         let secret = self.load_scoped::<JwtScope, Arc<Vec<u8>>>("secret");
         let token = self.load_scoped::<JwtScope, String>("token");
         match (secret, token) {
