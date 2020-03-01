@@ -34,11 +34,10 @@ jobs:
         with:
           version: '0.9.0'
           args: --out Xml --all --all-features
-
       - name: Upload to codecov.io
-          uses: codecov/codecov-action@v1.0.2
-          with:
-            token: ${{secrets.CODECOV_TOKEN}}
+        uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
       - name: Archive code coverage results
         uses: actions/upload-artifact@v1
         with:
