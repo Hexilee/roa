@@ -29,7 +29,7 @@ type AcceptFuture = dyn 'static
 
 enum WrapStream {
     Handshaking(Box<AcceptFuture>),
-    Streaming(TlsStream<TcpStream>),
+    Streaming(Box<TlsStream<TcpStream>>),
 }
 
 use WrapStream::*;
@@ -41,7 +41,7 @@ impl WrapStream {
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<Self>> {
         let stream = futures::ready!(Pin::new(handshake).poll(cx))?;
-        Poll::Ready(Ok(Streaming(stream)))
+        Poll::Ready(Ok(Streaming(Box::new(stream))))
     }
 }
 
@@ -248,13 +248,15 @@ mod tests {
     use hyper::Body;
     use hyper_tls::native_tls;
     use hyper_tls::HttpsConnector;
+    use roa_body::PowerBody;
     use roa_core::http::StatusCode;
     use roa_core::App;
+
+    use futures::{AsyncReadExt, TryStreamExt};
     use rustls::internal::pemfile::{certs, rsa_private_keys};
     use rustls::{NoClientAuth, ServerConfig};
     use std::fs::File;
-    use std::io::BufReader;
-    use std::time::Instant;
+    use std::io::{self, BufReader};
     use tokio_tls::TlsConnector;
 
     #[tokio::test]
@@ -266,12 +268,7 @@ mod tests {
         let mut keys = rsa_private_keys(&mut key_file).unwrap();
         config.set_single_cert(cert_chain, keys.remove(0))?;
         let (addr, server) = App::new(())
-            .gate_fn(|_ctx, next| async move {
-                let inbound = Instant::now();
-                next.await?;
-                println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-                Ok(())
-            })
+            .end(|mut ctx| async move { ctx.write_text("Hello, World!") })
             .run_tls(config)?;
         spawn(server);
 
@@ -288,6 +285,13 @@ mod tests {
             .get(format!("https://localhost:{}", addr.port()).parse()?)
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
+        let mut text = String::new();
+        resp.into_body()
+            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
+            .into_async_read()
+            .read_to_string(&mut text)
+            .await?;
+        assert_eq!("Hello, World!", text);
         Ok(())
     }
 }

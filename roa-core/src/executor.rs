@@ -36,7 +36,7 @@ impl Executor {
     {
         let (sender, recv) = channel();
         self.0.spawn(Box::pin(async move {
-            if let Err(_) = sender.send(fut.await) {
+            if sender.send(fut.await).is_err() {
                 // handler is dropped, do nothing.
             };
         }));
@@ -51,7 +51,7 @@ impl Executor {
     {
         let (sender, recv) = channel();
         self.0.spawn_blocking(Box::new(|| {
-            if let Err(_) = sender.send(task()) {
+            if sender.send(task()).is_err() {
                 // handler is dropped, do nothing.
             };
         }));

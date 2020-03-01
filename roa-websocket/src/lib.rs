@@ -91,7 +91,7 @@ where
                 let body = ctx.req_mut().body_stream();
                 let sync_context = ctx.clone();
                 let task = self.task.clone();
-                let config = self.config.clone();
+                let config = self.config;
                 ctx.exec.spawn(async move {
                     match body.on_upgrade().await {
                         Err(err) => log::error!("websocket upgrade error: {}", err),
