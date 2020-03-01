@@ -5,7 +5,7 @@
 
 [![Stable Test](https://github.com/Hexilee/roa/workflows/Stable%20Test/badge.svg)](https://github.com/Hexilee/roa/actions)
 [![codecov](https://codecov.io/gh/Hexilee/roa/branch/master/graph/badge.svg)](https://codecov.io/gh/Hexilee/roa) 
-[![wiki](https://img.shields.io/badge/documentation-wiki-purple.svg)](https://github.com/Hexilee/roa/wiki)
+[![wiki](https://img.shields.io/badge/roa-wiki-purple.svg)](https://github.com/Hexilee/roa/wiki)
 [![Rust Docs](https://docs.rs/roa/badge.svg)](https://docs.rs/roa)
 [![Crate version](https://img.shields.io/crates/v/roa.svg)](https://crates.io/crates/roa)
 [![Download](https://img.shields.io/crates/d/roa.svg)](https://crates.io/crates/roa)
