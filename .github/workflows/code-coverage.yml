@@ -1,8 +1,8 @@
+name: Code Coverage
 on:
   push:
     branches:
     - master
-name: Code Coverage
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -13,9 +13,9 @@ jobs:
           toolchain: nightly
           override: true
       - name: Install libsqlite3-dev
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y libsqlite3-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
       - uses: actions-rs/cargo@v1
         with:
           command: test
