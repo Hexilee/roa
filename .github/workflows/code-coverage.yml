@@ -1,0 +1,32 @@
+on:
+  push:
+    branches:
+    - master
+name: Code Coverage
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Install libsqlite3-dev
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y libsqlite3-dev
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all --all-features --no-fail-fast
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads'
+      - id: coverage
+        uses: actions-rs/grcov@v0.1
+      - name: Codecov upload
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ steps.coverage.outputs.report }}
