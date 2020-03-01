@@ -1,8 +1,32 @@
 on: [push, pull_request]
 name: Stable Test
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - 1.39.0
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - name: Check all
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all --all-features
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - 1.39.0
     steps:
       - name: Install libsqlite3-dev
         run: |
@@ -11,7 +35,8 @@ jobs:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
           override: true
       - name: Run all tests
         uses: actions-rs/cargo@v1
