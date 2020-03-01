@@ -3,15 +3,20 @@ on: [push, pull_request]
 name: Stable Test
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
     steps:
+      - name: Install libsqlite3-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install libsqlite3-dev
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
-      - uses: actions-rs/cargo@v1
+      - name: Run all tests
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all --all-features --no-fail-fast
