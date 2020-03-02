@@ -1,10 +1,11 @@
-use async_std::fs::read_to_string;
+use async_std::fs::{read, read_to_string};
 use futures::stream::TryStreamExt;
 use futures::{AsyncReadExt, StreamExt};
-use hyper::client::Request;
-use hyper::method::Method;
-use multipart::client;
-use roa::http::StatusCode;
+use reqwest::{
+    multipart::{Form, Part},
+    Client,
+};
+use roa::http::{header::CONTENT_TYPE, StatusCode};
 use roa::preload::*;
 use roa::router::Router;
 use roa::{throw, App};
@@ -15,8 +16,8 @@ const FILE_PATH: &str = "../../assets/author.txt";
 const FILE_NAME: &str = "author.txt";
 const FIELD_NAME: &str = "file";
 
-#[test]
-fn upload() -> Result<(), Box<dyn StdError>> {
+#[tokio::test]
+async fn upload() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
     let mut router = Router::<()>::new();
     router.post("/file", |mut ctx| async move {
@@ -46,16 +47,22 @@ fn upload() -> Result<(), Box<dyn StdError>> {
     async_std::task::spawn(server);
 
     // client
-    let url = format!("http://{}/file", addr).parse()?;
-    let request = Request::new(Method::Post, url)?;
-    let mut multipart = client::Multipart::from_request(request)?;
-    multipart.write_stream(
+    let url = format!("http://{}/file", addr);
+    let client = Client::new();
+    let form = Form::new().part(
         FIELD_NAME,
-        &mut std::fs::File::open(FILE_PATH)?,
-        Some(FILE_NAME),
-        None,
-    )?;
-    let resp = multipart.send()?;
-    assert!(resp.status.is_success());
+        Part::bytes(read(FILE_PATH).await?).file_name(FILE_NAME),
+    );
+    let boundary = form.boundary().to_string();
+    let resp = client
+        .post(&url)
+        .body(form.stream())
+        .header(
+            CONTENT_TYPE,
+            format!(r#"multipart/form-data; boundary="{}""#, boundary),
+        )
+        .send()
+        .await?;
+    assert_eq!(StatusCode::OK, resp.status());
     Ok(())
 }
