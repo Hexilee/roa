@@ -121,6 +121,7 @@ mod tests {
         async_std::task::spawn(server);
         let (ws_stream, _) = connect_async(format!("ws://{}/chat", addr)).await?;
         let (mut sender, mut recv) = ws_stream.split();
+        async_std::task::sleep(Duration::from_secs(1)).await;
         assert_eq!(1, channel.0.read().await.len());
 
         // ping
