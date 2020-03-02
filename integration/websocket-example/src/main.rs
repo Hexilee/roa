@@ -93,3 +93,36 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         .await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{route, App, Message, SinkExt, StdError, StreamExt, SyncChannel};
+    use async_tungstenite::async_std::connect_async;
+    use roa::preload::*;
+    use std::time::Duration;
+
+    #[async_std::test]
+    async fn echo() -> Result<(), Box<dyn StdError>> {
+        let channel = SyncChannel::new();
+        let mut app = App::new(channel.clone());
+        let (addr, server) = app.gate(route("/")?).run_local()?;
+        async_std::task::spawn(server);
+        let (ws_stream, _) = connect_async(format!("ws://{}/chat", addr)).await?;
+        let (mut sender, mut recv) = ws_stream.split();
+        assert_eq!(1, channel.0.read().await.len());
+
+        // ping
+        sender
+            .send(Message::Ping(b"Hello, World!".to_vec()))
+            .await?;
+        let msg = recv.next().await.unwrap()?;
+        assert!(msg.is_pong());
+        assert_eq!(b"Hello, World!".as_ref(), msg.into_data().as_slice());
+
+        // close
+        sender.send(Message::Close(None)).await?;
+        async_std::task::sleep(Duration::from_secs(1)).await;
+        assert_eq!(0, channel.0.read().await.len());
+        Ok(())
+    }
+}
