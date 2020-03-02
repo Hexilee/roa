@@ -1,28 +1,11 @@
-use crate::models::Post;
 use crate::schema::posts;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 // for both transfer and access
-#[derive(Debug, Insertable, Serialize, Deserialize)]
+#[derive(Debug, Insertable, Deserialize)]
 #[table_name = "posts"]
-pub struct PostData {
+pub struct NewPost {
     pub title: String,
     pub body: String,
     pub published: bool,
-}
-
-impl From<Post> for PostData {
-    fn from(post: Post) -> Self {
-        let Post {
-            title,
-            body,
-            published,
-            ..
-        } = post;
-        Self {
-            title,
-            body,
-            published,
-        }
-    }
 }

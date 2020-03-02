@@ -1,4 +1,4 @@
-use crate::data_object::PostData;
+use crate::data_object::NewPost;
 use crate::models::*;
 use crate::schema::posts::dsl::{self, posts};
 use crate::State;
@@ -19,7 +19,7 @@ pub fn post_router() -> Router<State> {
 }
 
 async fn create_post(mut ctx: Context<State>) -> Result {
-    let data: PostData = ctx.read_json().await?;
+    let data: NewPost = ctx.read_json().await?;
     let conn = ctx.get_conn().await?;
     let post = ctx
         .exec
@@ -43,16 +43,13 @@ async fn get_post(mut ctx: Context<State>) -> Result {
         .await?
     {
         None => throw!(StatusCode::NOT_FOUND, &format!("post({}) not found", id)),
-        Some(post) => {
-            let data: PostData = post.into();
-            ctx.write_json(&data)
-        }
+        Some(post) => ctx.write_json(&post),
     }
 }
 
 async fn update_post(mut ctx: Context<State>) -> Result {
     let id: i32 = ctx.must_param("id")?.parse()?;
-    let PostData {
+    let NewPost {
         title,
         body,
         published,
@@ -61,14 +58,13 @@ async fn update_post(mut ctx: Context<State>) -> Result {
     match ctx.first::<Post, _>(posts.find(id)).await? {
         None => throw!(StatusCode::NOT_FOUND, &format!("post({}) not found", id)),
         Some(post) => {
-            let old_data: PostData = post.into();
             ctx.execute(diesel::update(posts.find(id)).set((
                 dsl::title.eq(title),
                 dsl::body.eq(body),
                 dsl::published.eq(published),
             )))
             .await?;
-            ctx.write_json(&old_data)
+            ctx.write_json(&post)
         }
     }
 }
@@ -78,9 +74,8 @@ async fn delete_post(mut ctx: Context<State>) -> Result {
     match ctx.first::<Post, _>(posts.find(id)).await? {
         None => throw!(StatusCode::NOT_FOUND, &format!("post({}) not found", id)),
         Some(post) => {
-            let old_data: PostData = post.into();
             ctx.execute(diesel::delete(posts.find(id))).await?;
-            ctx.write_json(&old_data)
+            ctx.write_json(&post)
         }
     }
 }

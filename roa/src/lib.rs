@@ -229,9 +229,6 @@ pub use roa_core::*;
 #[cfg(feature = "body")]
 pub use roa_body as body;
 
-#[cfg(feature = "juniper")]
-pub use roa_juniper as juniper;
-
 #[cfg(feature = "router")]
 pub use roa_router as router;
 

@@ -8,12 +8,12 @@ use diesel_example::{create_pool, State};
 use juniper::{graphql_value, FieldError, FieldResult, GraphQLInputObject, RootNode};
 use log::info;
 use roa::http::{header, Method};
-use roa::juniper::{GraphQL, JuniperContext};
 use roa::logger::logger;
 use roa::preload::*;
 use roa::router::Router;
 use roa::App;
 use roa_diesel::{AsyncPool, SqlQuery, WrapError};
+use roa_juniper::{GraphQL, JuniperContext};
 use serde::Serialize;
 use std::error::Error as StdError;
 
