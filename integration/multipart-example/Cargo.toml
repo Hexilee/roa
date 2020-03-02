@@ -13,3 +13,7 @@ async-std = { version = "1.4", features = ["attributes"] }
 log = "0.4"
 pretty_env_logger = "0.3"
 futures = "0.3"
+
+[dev-dependencies]
+hyper = ">=0.9, <0.11"
+multipart = "0.16"
