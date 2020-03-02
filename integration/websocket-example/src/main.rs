@@ -2,13 +2,15 @@ use async_std::sync::{Arc, Mutex, RwLock};
 use futures::stream::SplitSink;
 use futures::{stream::SplitStream, SinkExt, StreamExt};
 use http::Method;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{RouteEndpoint, Router, RouterError};
+use roa::websocket::tungstenite::protocol::frame::{coding::CloseCode, CloseFrame};
 use roa::websocket::{tungstenite::Error as WsError, Message, SocketStream, Websocket};
 use roa::{App, SyncContext};
 use slab::Slab;
+use std::borrow::Cow;
 use std::error::Error as StdError;
 
 type Sender = SplitSink<SocketStream, Message>;
@@ -21,12 +23,13 @@ impl SyncChannel {
         Self(Arc::new(RwLock::new(Slab::new())))
     }
 
-    async fn broadcast(&self, message: Message) -> Result<(), WsError> {
+    async fn broadcast(&self, message: Message) {
         let channel = self.0.read().await;
         for (_, sender) in channel.iter() {
-            sender.lock().await.send(message.clone()).await?;
+            if let Err(err) = sender.lock().await.send(message.clone()).await {
+                error!("broadcast error: {}", err);
+            }
         }
-        Ok(())
     }
 
     async fn send(&self, index: usize, message: Message) {
@@ -53,12 +56,12 @@ async fn handle_message(
         let message = message?;
         match message {
             Message::Close(frame) => {
-                info!("websocket connection close: {:?}", frame);
+                debug!("websocket connection close: {:?}", frame);
                 break;
             }
             Message::Ping(data) => ctx.send(index, Message::Pong(data)).await,
             Message::Pong(data) => warn!("ignored pong: {:?}", data),
-            msg => ctx.broadcast(msg).await?,
+            msg => ctx.broadcast(msg).await,
         }
     }
     Ok(())
@@ -72,10 +75,19 @@ fn route(prefix: &'static str) -> Result<RouteEndpoint<SyncChannel>, RouterError
         Websocket::new(|ctx: SyncContext<SyncChannel>, stream| async move {
             let (sender, receiver) = stream.split();
             let index = ctx.register(sender).await;
-            if let Err(err) = handle_message(&ctx, index, receiver).await {
-                error!("websocket error: {}", err);
+            let result = handle_message(&ctx, index, receiver).await;
+            let mut sender = ctx.deregister(index).await;
+            if let Err(err) = result {
+                let result = sender
+                    .send(Message::Close(Some(CloseFrame {
+                        code: CloseCode::Invalid,
+                        reason: Cow::Owned(err.to_string()),
+                    })))
+                    .await;
+                if let Err(err) = result {
+                    error!("send close message error: {}", err)
+                }
             }
-            let _ = ctx.deregister(index).await;
         }),
     );
     router.routes(prefix)
@@ -123,6 +135,56 @@ mod tests {
         sender.send(Message::Close(None)).await?;
         async_std::task::sleep(Duration::from_secs(1)).await;
         assert_eq!(0, channel.0.read().await.len());
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn broadcast() -> Result<(), Box<dyn StdError>> {
+        let channel = SyncChannel::new();
+        let mut app = App::new(channel.clone());
+        let (addr, server) = app.gate(route("/")?).run_local()?;
+        async_std::task::spawn(server);
+        let url = format!("ws://{}/chat", addr);
+        for _ in 0..100 {
+            let url = url.clone();
+            async_std::task::spawn(async move {
+                if let Ok((ws_stream, _)) = connect_async(url).await {
+                    let (mut sender, mut recv) = ws_stream.split();
+                    if let Some(Ok(message)) = recv.next().await {
+                        assert!(sender.send(message).await.is_ok());
+                    }
+                    assert!(sender.send(Message::Close(None)).await.is_ok());
+                }
+            });
+        }
+        async_std::task::sleep(Duration::from_secs(1)).await;
+        assert_eq!(100, channel.0.read().await.len());
+
+        let (ws_stream, _) = connect_async(url).await?;
+        let (mut sender, mut recv) = ws_stream.split();
+        async_std::task::spawn(async move {
+            async_std::task::sleep(Duration::from_secs(1)).await;
+            assert!(sender
+                .send(Message::Text("Hello, World!".to_string()))
+                .await
+                .is_ok());
+            async_std::task::sleep(Duration::from_secs(1)).await;
+            assert_eq!(1, channel.0.read().await.len());
+        });
+
+        let mut counter = 0i32;
+        while let Some(item) = recv.next().await {
+            log::debug!("main task receive item");
+            if let Ok(Message::Text(message)) = item {
+                assert_eq!("Hello, World!", message);
+                println!("main task receive message: {}", message);
+            }
+            counter += 1;
+            println!("main task counter: {}", counter);
+            if counter == 101 {
+                break;
+            }
+        }
         Ok(())
     }
 }
