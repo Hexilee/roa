@@ -5,7 +5,7 @@
 //! ### Example
 //!
 //! ```rust
-//! use roa::jwt::guard;
+//! use roa::jwt::{guard, DecodingKey};
 //! use roa::App;
 //! use roa::http::header::AUTHORIZATION;
 //! use roa::http::StatusCode;
@@ -24,13 +24,13 @@
 //!     name: String,
 //! }
 //!
-//! const SECRET: &str = "123456";
+//! const SECRET: &[u8] = b"123456";
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut app = App::new(());
 //!     let (addr, server) = app
-//!         .gate(guard(SECRET))
+//!         .gate(guard(DecodingKey::from_secret(SECRET)))
 //!         .end(move |ctx| async move {
 //!             let user: User = ctx.claims()?;
 //!             assert_eq!(0, user.id);
@@ -59,7 +59,7 @@
 //!                 encode(
 //!                     &Header::default(),
 //!                     &user,
-//!                     &EncodingKey::from_secret(SECRET.as_bytes())
+//!                     &EncodingKey::from_secret(SECRET)
 //!                 )?
 //!             ),
 //!         )
@@ -72,14 +72,14 @@
 
 // Currently this mod support HMAC only, TODO: support more algorithms.
 
-pub use jsonwebtoken::Validation;
+pub use jsonwebtoken::{DecodingKey, Validation};
 
 use crate::http::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
 use crate::http::StatusCode;
 use crate::{
     async_trait, join, Context, Error, Middleware, Next, Result, State, SyncContext,
 };
-use jsonwebtoken::{dangerous_unsafe_decode, decode, DecodingKey};
+use jsonwebtoken::{dangerous_unsafe_decode, decode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::sync::Arc;
@@ -118,7 +118,7 @@ pub trait JwtVerifier<S> {
 }
 
 /// Guard by default validation.
-pub fn guard<S: State>(secret: impl Into<Vec<u8>>) -> impl Middleware<S> {
+pub fn guard<S: State>(secret: DecodingKey) -> impl Middleware<S> {
     guard_by(secret, Validation::default())
 }
 
@@ -131,13 +131,13 @@ pub fn guard<S: State>(secret: impl Into<Vec<u8>>) -> impl Middleware<S> {
 ///
 /// `WWW-Authenticate: Bearer realm="<jwt>", error="invalid_token"`.
 pub fn guard_by<S: State>(
-    secret: impl Into<Vec<u8>>,
+    secret: DecodingKey,
     validation: Validation,
 ) -> impl Middleware<S> {
     join(
         Arc::new(catch_www_authenticate),
         JwtGuard {
-            secret: Arc::new(secret.into()),
+            secret: secret.into_static(),
             validation,
         },
     )
@@ -156,7 +156,7 @@ async fn catch_www_authenticate<S: State>(mut ctx: Context<S>, next: Next) -> Re
 }
 
 struct JwtGuard {
-    secret: Arc<Vec<u8>>,
+    secret: DecodingKey<'static>,
     validation: Validation,
 }
 
@@ -212,14 +212,12 @@ where
     where
         C: 'static + DeserializeOwned,
     {
-        let secret = self.load_scoped::<JwtScope, Arc<Vec<u8>>>("secret");
+        let secret = self.load_scoped::<JwtScope, DecodingKey<'static>>("secret");
         let token = self.load_scoped::<JwtScope, String>("token");
         match (secret, token) {
-            (Some(secret), Some(token)) => {
-                decode(&token, &DecodingKey::from_secret(&*secret), validation)
-                    .map(|data| data.claims)
-                    .map_err(unauthorized)
-            }
+            (Some(secret), Some(token)) => decode(&token, &*secret, validation)
+                .map(|data| data.claims)
+                .map_err(unauthorized),
             _ => Err(guard_not_set()),
         }
     }
@@ -229,12 +227,7 @@ where
 impl<S: State> Middleware<S> for JwtGuard {
     async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
         let token = try_get_token(&ctx)?;
-        decode::<Value>(
-            &token,
-            &DecodingKey::from_secret(&self.secret),
-            &self.validation,
-        )
-        .map_err(unauthorized)?;
+        decode::<Value>(&token, &self.secret, &self.validation).map_err(unauthorized)?;
         ctx.store_scoped(JwtScope, "secret", self.secret.clone());
         ctx.store_scoped(JwtScope, "token", token);
         next.await
@@ -243,7 +236,7 @@ impl<S: State> Middleware<S> for JwtGuard {
 
 #[cfg(test)]
 mod tests {
-    use super::{guard, INVALID_TOKEN};
+    use super::{guard, DecodingKey, INVALID_TOKEN};
     use crate::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use crate::http::StatusCode;
     use crate::preload::*;
@@ -262,13 +255,13 @@ mod tests {
         name: String,
     }
 
-    const SECRET: &str = "123456";
+    const SECRET: &[u8] = b"123456";
 
     #[tokio::test]
     async fn claims() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         let (addr, server) = app
-            .gate(guard(SECRET))
+            .gate(guard(DecodingKey::from_secret(SECRET)))
             .end(move |ctx| async move {
                 let user: User = ctx.claims()?;
                 assert_eq!(0, user.id);
@@ -328,7 +321,7 @@ mod tests {
                     encode(
                         &Header::default(),
                         &user,
-                        &EncodingKey::from_secret(SECRET.as_bytes())
+                        &EncodingKey::from_secret(SECRET)
                     )?
                 ),
             )
@@ -349,7 +342,7 @@ mod tests {
                     encode(
                         &Header::default(),
                         &user,
-                        &EncodingKey::from_secret(SECRET.as_bytes())
+                        &EncodingKey::from_secret(SECRET)
                     )?
                 ),
             )
