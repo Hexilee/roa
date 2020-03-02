@@ -1,11 +1,11 @@
 use async_std::sync::{Arc, Mutex, RwLock};
 use futures::stream::SplitSink;
-use futures::{SinkExt, StreamExt};
+use futures::{stream::SplitStream, SinkExt, StreamExt};
 use http::Method;
-use log::{error, info};
+use log::{error, info, warn};
 use roa::logger::logger;
 use roa::preload::*;
-use roa::router::Router;
+use roa::router::{RouteEndpoint, Router, RouterError};
 use roa::websocket::{tungstenite::Error as WsError, Message, SocketStream, Websocket};
 use roa::{App, SyncContext};
 use slab::Slab;
@@ -29,6 +29,12 @@ impl SyncChannel {
         Ok(())
     }
 
+    async fn send(&self, index: usize, message: Message) {
+        if let Err(err) = self.0.read().await[index].lock().await.send(message).await {
+            error!("message send error: {}", err)
+        }
+    }
+
     async fn register(&self, sender: Sender) -> usize {
         self.0.write().await.insert(Mutex::new(sender))
     }
@@ -40,33 +46,47 @@ impl SyncChannel {
 
 async fn handle_message(
     ctx: &SyncContext<SyncChannel>,
-    message: Result<Message, WsError>,
+    index: usize,
+    mut receiver: SplitStream<SocketStream>,
 ) -> Result<(), WsError> {
-    ctx.broadcast(message?).await
+    while let Some(message) = receiver.next().await {
+        let message = message?;
+        match message {
+            Message::Close(frame) => {
+                info!("websocket connection close: {:?}", frame);
+                break;
+            }
+            Message::Ping(data) => ctx.send(index, Message::Pong(data)).await,
+            Message::Pong(data) => warn!("ignored pong: {:?}", data),
+            msg => ctx.broadcast(msg).await?,
+        }
+    }
+    Ok(())
+}
+
+fn route(prefix: &'static str) -> Result<RouteEndpoint<SyncChannel>, RouterError> {
+    let mut router = Router::new();
+    router.end(
+        [Method::GET].as_ref(),
+        "/chat",
+        Websocket::new(|ctx: SyncContext<SyncChannel>, stream| async move {
+            let (sender, receiver) = stream.split();
+            let index = ctx.register(sender).await;
+            if let Err(err) = handle_message(&ctx, index, receiver).await {
+                error!("websocket error: {}", err);
+            }
+            let _ = ctx.deregister(index).await;
+        }),
+    );
+    router.routes(prefix)
 }
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let mut app = App::new(SyncChannel::new());
-    let mut router = Router::new();
-    router.end(
-        [Method::GET].as_ref(),
-        "/chat",
-        Websocket::new(|ctx: SyncContext<SyncChannel>, stream| async move {
-            let (sender, mut receiver) = stream.split();
-            let index = ctx.register(sender).await;
-            while let Some(message) = receiver.next().await {
-                if let Err(err) = handle_message(&ctx, message).await {
-                    error!("websocket error: {}", err);
-                }
-            }
-            let mut sender = ctx.deregister(index).await;
-            sender.send(Message::Close(None)).await.unwrap();
-        }),
-    );
     app.gate(logger)
-        .gate(router.routes("/")?)
+        .gate(route("/")?)
         .listen("127.0.0.1:8000", |addr| {
             info!("Server is listening on {}", addr)
         })?

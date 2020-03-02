@@ -32,7 +32,9 @@
 mod err;
 mod path;
 
-use err::{Conflict, RouterError};
+pub use err::RouterError;
+
+use err::Conflict;
 use path::{join_path, standardize_path, Path, RegexPath};
 
 use percent_encoding::percent_decode_str;
