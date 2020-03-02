@@ -153,6 +153,7 @@ mod tests {
                     if let Some(Ok(message)) = recv.next().await {
                         assert!(sender.send(message).await.is_ok());
                     }
+                    async_std::task::sleep(Duration::from_secs(1)).await;
                     assert!(sender.send(Message::Close(None)).await.is_ok());
                 }
             });
@@ -162,25 +163,19 @@ mod tests {
 
         let (ws_stream, _) = connect_async(url).await?;
         let (mut sender, mut recv) = ws_stream.split();
-        async_std::task::spawn(async move {
-            async_std::task::sleep(Duration::from_secs(1)).await;
-            assert!(sender
-                .send(Message::Text("Hello, World!".to_string()))
-                .await
-                .is_ok());
-            async_std::task::sleep(Duration::from_secs(1)).await;
-            assert_eq!(1, channel.0.read().await.len());
-        });
+        assert!(sender
+            .send(Message::Text("Hello, World!".to_string()))
+            .await
+            .is_ok());
+        async_std::task::sleep(Duration::from_secs(2)).await;
+        assert_eq!(1, channel.0.read().await.len());
 
         let mut counter = 0i32;
         while let Some(item) = recv.next().await {
-            log::debug!("main task receive item");
             if let Ok(Message::Text(message)) = item {
                 assert_eq!("Hello, World!", message);
-                println!("main task receive message: {}", message);
             }
             counter += 1;
-            println!("main task counter: {}", counter);
             if counter == 101 {
                 break;
             }
