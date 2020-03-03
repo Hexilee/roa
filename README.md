@@ -38,19 +38,13 @@
     - Named uri parameters(query and router parameter).
     - Cookie and jwt support.
     - Integration with [serde](https://github.com/serde-rs/serde) and [askama](https://github.com/djc/askama). JSON, urlencoded form, html template support.
+    - ORM integration (with [diesel](https://github.com/diesel-rs/diesel)).
+    - HTTPS support.
+    - WebSocket support.
+    - GraphQL support(based on [juniper](https://github.com/graphql-rust/juniper)).
+    - Asynchronous multipart form support.
     - Other middlewares(logger, CORS .etc).
 - Works on stable Rust.
-
-
-#### Next step
-
-- [x] Juniper integration.
-- [x] Generic context storage.
-- [x] Lockless context.
-- [x] ORM integration.
-- [x] Streaming multipart form support.
-- [x] Websocket support.
-- [x] HTTPS support.
 
 #### Get start
 
@@ -58,14 +52,12 @@
 # Cargo.toml
 
 [dependencies]
-roa = "0.4"
-async-std = { version = "1.4", features = ["attributes"] }
+roa = "0.5.0-alpha"
+async-std = { version = "1.5", features = ["attributes"] }
 ```
 
 ```rust
-lib
-
-use roa::core::App;
+use roa::App;
 use roa::preload::*;
 use std::error::Error as StdError;
 
@@ -73,7 +65,8 @@ use std::error::Error as StdError;
 async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
     app.end(|mut ctx| async move {
-        ctx.write_text("Hello, World").await
+        ctx.resp_mut().write_str("Hello, World");
+        Ok(())
     });
     app.listen("127.0.0.1:8000", |addr| {
         println!("Server is listening on {}", addr)
