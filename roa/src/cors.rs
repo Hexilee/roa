@@ -290,21 +290,20 @@ impl<S: State> Middleware<S> for Cors {
         let origin = match ctx.req().headers.get(ORIGIN) {
             // If there is no Origin header, skip this middleware.
             None => return next.await,
-            Some(origin) => origin,
+            Some(origin) => AccessControlAllowOrigin::decode(
+                &mut Some(origin).into_iter(),
+            )
+            .map_err(|err| {
+                Error::new(
+                    StatusCode::BAD_REQUEST,
+                    format!("invalid origin: {}", err),
+                    true,
+                )
+            })?,
         };
 
         // If Options::allow_origin is None, `Access-Control-Allow-Origin` will be set to `Origin`.
-        let allow_origin = match self.allow_origin {
-            Some(ref origin) => origin.clone(),
-            None => AccessControlAllowOrigin::decode(&mut Some(origin).into_iter())
-                .map_err(|err| {
-                    Error::new(
-                        StatusCode::BAD_REQUEST,
-                        format!("invalid origin: {}", err),
-                        true,
-                    )
-                })?,
-        };
+        let allow_origin = self.allow_origin.clone().unwrap_or(origin);
 
         let credentials = self.credentials.clone();
         let insert_origin_and_credentials = move |ctx: &mut Context<S>| {
@@ -379,7 +378,8 @@ mod tests {
         ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
         ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
         ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_REQUEST_HEADERS,
-        ACCESS_CONTROL_REQUEST_METHOD, CONTENT_TYPE, ORIGIN, VARY,
+        ACCESS_CONTROL_REQUEST_METHOD, AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_TYPE,
+        ORIGIN, VARY, WWW_AUTHENTICATE,
     };
     use crate::http::{HeaderValue, Method, StatusCode};
     use crate::preload::*;
@@ -387,7 +387,7 @@ mod tests {
     use async_std::task::spawn;
     use headers::{
         AccessControlAllowCredentials, AccessControlAllowOrigin,
-        AccessControlExposeHeaders, HeaderMapExt,
+        AccessControlExposeHeaders, HeaderMapExt, HeaderName,
     };
 
     #[tokio::test]
@@ -504,6 +504,147 @@ mod tests {
             HeaderValue::from_name(CONTENT_TYPE),
             resp.headers().get(ACCESS_CONTROL_ALLOW_HEADERS).unwrap()
         );
+        assert_eq!("", resp.text().await?);
+        //
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn configured_cors() -> Result<(), Box<dyn std::error::Error>> {
+        let mut app = App::new(());
+        let configured_cors = Cors::builder()
+            .allow_credentials(true)
+            .max_age(86400)
+            .allow_origin("https://github.com")
+            .allow_methods(vec![Method::GET, Method::POST])
+            .allow_method(Method::PUT)
+            .expose_headers(vec![CONTENT_DISPOSITION])
+            .expose_header(WWW_AUTHENTICATE)
+            .allow_headers(vec![AUTHORIZATION])
+            .allow_header(CONTENT_TYPE)
+            .build();
+        let (addr, server) = app
+            .gate(configured_cors)
+            .end(|mut ctx| async move {
+                ctx.resp_mut().write_str("Hello, World");
+                Ok(())
+            })
+            .run()?;
+        spawn(server);
+        let client = reqwest::Client::new();
+
+        // No origin
+        let resp = client.get(&format!("http://{}", addr)).send().await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert!(resp
+            .headers()
+            .typed_get::<AccessControlAllowOrigin>()
+            .is_none());
+        assert_eq!(
+            HeaderValue::from_name(ORIGIN),
+            resp.headers().get(VARY).unwrap()
+        );
+        assert_eq!("Hello, World", resp.text().await?);
+
+        // invalid origin
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(ORIGIN, "github.com")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+
+        // simple request
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(ORIGIN, "http://github.io")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+
+        let allow_origin = resp
+            .headers()
+            .typed_get::<AccessControlAllowOrigin>()
+            .unwrap();
+        let origin = allow_origin.origin().unwrap();
+        assert_eq!("https", origin.scheme());
+        assert_eq!("github.com", origin.hostname());
+        assert!(origin.port().is_none());
+        assert!(resp
+            .headers()
+            .typed_get::<AccessControlAllowCredentials>()
+            .is_some());
+
+        let expose_headers = resp
+            .headers()
+            .typed_get::<AccessControlExposeHeaders>()
+            .unwrap();
+
+        let headers = expose_headers.iter().collect::<Vec<HeaderName>>();
+        assert!(headers.contains(&CONTENT_DISPOSITION));
+        assert!(headers.contains(&WWW_AUTHENTICATE));
+
+        assert_eq!("Hello, World", resp.text().await?);
+
+        // options, no Access-Control-Request-Method
+        let resp = client
+            .request(Method::OPTIONS, &format!("http://{}", addr))
+            .header(ORIGIN, "http://github.com")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert!(resp.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+        assert_eq!(
+            HeaderValue::from_name(ORIGIN),
+            resp.headers().get(VARY).unwrap()
+        );
+        assert_eq!("Hello, World", resp.text().await?);
+
+        // options, contains Access-Control-Request-Method
+        let resp = client
+            .request(Method::OPTIONS, &format!("http://{}", addr))
+            .header(ORIGIN, "http://github.io")
+            .header(ACCESS_CONTROL_REQUEST_METHOD, "POST")
+            .header(
+                ACCESS_CONTROL_REQUEST_HEADERS,
+                HeaderValue::from_name(CONTENT_TYPE),
+            )
+            .send()
+            .await?;
+        assert_eq!(StatusCode::NO_CONTENT, resp.status());
+        assert_eq!(
+            "https://github.com",
+            resp.headers()
+                .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .unwrap()
+                .to_str()?
+        );
+        assert_eq!(
+            "true",
+            resp.headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .unwrap()
+                .to_str()?
+        );
+
+        assert_eq!("86400", resp.headers().get(ACCESS_CONTROL_MAX_AGE).unwrap());
+
+        let allow_methods = resp
+            .headers()
+            .get(ACCESS_CONTROL_ALLOW_METHODS)
+            .unwrap()
+            .to_str()?;
+        assert!(allow_methods.contains("POST"));
+        assert!(allow_methods.contains("GET"));
+        assert!(allow_methods.contains("PUT"));
+
+        let allow_headers = resp
+            .headers()
+            .get(ACCESS_CONTROL_ALLOW_HEADERS)
+            .unwrap()
+            .to_str()?;
+        assert!(allow_headers.contains(CONTENT_TYPE.as_str()));
+        assert!(allow_headers.contains(AUTHORIZATION.as_str()));
         assert_eq!("", resp.text().await?);
         //
         Ok(())
