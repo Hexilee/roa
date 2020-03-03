@@ -221,7 +221,7 @@ impl<S: State> Middleware<S> for JwtGuard {
             .req()
             .headers
             .typed_get::<Authorization<Bearer>>()
-            .ok_or(unauthorized(""))?
+            .ok_or_else(|| unauthorized(""))?
             .0;
         decode::<Value>(bearer.token(), &self.secret, &self.validation)
             .map_err(unauthorized)?;
