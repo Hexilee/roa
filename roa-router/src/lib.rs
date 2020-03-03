@@ -198,12 +198,12 @@ impl<S: State> Router<S> {
     /// Register a new endpoint.
     pub fn end(
         &mut self,
-        methods: &[Method],
+        methods: impl AsRef<[Method]>,
         path: &'static str,
         endpoint: impl Middleware<S>,
     ) -> &mut Self {
         let endpoint_ptr = Arc::new(endpoint);
-        for method in methods {
+        for method in methods.as_ref() {
             self.endpoints.push((
                 method.clone(),
                 path.to_string(),
@@ -260,7 +260,7 @@ impl<S: State> Router<S> {
     /// ```
     pub fn end_fn<F>(
         &mut self,
-        methods: &[Method],
+        methods: impl AsRef<[Method]>,
         path: &'static str,
         endpoint: fn(Context<S>) -> F,
     ) -> &mut Self
@@ -329,7 +329,7 @@ macro_rules! impl_http_method {
         where
             F: 'static + Future<Output = Result>,
         {
-            self.end([$($method, )*].as_ref(), path, endpoint)
+            self.end([$($method, )*], path, endpoint)
         }
     };
 }

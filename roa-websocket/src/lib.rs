@@ -17,8 +17,36 @@ pub use tokio_tungstenite::tungstenite::{
 };
 use tokio_tungstenite::WebSocketStream;
 
+/// An alias for WebSocketStream<Upgraded>.
 pub type SocketStream = WebSocketStream<Upgraded>;
 
+/// The Websocket middleware.
+///
+/// ### Example
+/// ```
+/// use futures::StreamExt;
+/// use roa_router::{Router, RouterError};
+/// use roa_websocket::Websocket;
+/// use roa_core::{App, SyncContext};
+/// use roa_core::http::Method;
+///
+/// # fn main() -> Result<(), RouterError> {
+/// let mut app = App::new(());
+/// let mut router = Router::new();
+/// router.end(
+///     [Method::GET].as_ref(),
+///     "/chat",
+///     Websocket::new(|_ctx: SyncContext<()>, stream| async move {
+///         let (write, read) = stream.split();
+///         if let Err(err) = read.forward(write).await {
+///             println!("forward err: {}", err);
+///         }
+///     }),
+/// );
+/// app.gate(router.routes("/")?);
+/// # Ok(())
+/// # }
+/// ```
 pub struct Websocket<F, S, Fut>
 where
     F: Fn(SyncContext<S>, SocketStream) -> Fut,
