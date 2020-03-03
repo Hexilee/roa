@@ -149,6 +149,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
+        assert_eq!(236, resp.text().await?.len());
         Ok(())
     }
 }
