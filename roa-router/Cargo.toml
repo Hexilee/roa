@@ -19,6 +19,5 @@ tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
 async-std = { version = "1.5.0", features = ["attributes"] }
 pretty_env_logger = "0.3"
-serde = { version = "1", features = ["derive"] }
 test-case = "1.0.0"
 encoding = "0.2.33"

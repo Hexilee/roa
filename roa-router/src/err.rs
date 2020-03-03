@@ -1,9 +1,13 @@
 use roa_core::http;
 use std::fmt::{self, Display, Formatter};
 
+/// Error occurring in building route endpoint.
 #[derive(Debug)]
 pub enum RouterError {
+    /// Dynamic paths miss variable.
     MissingVariable(String),
+
+    /// Variables, methods or paths conflict.
     Conflict(Conflict),
 }
 

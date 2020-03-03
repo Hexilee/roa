@@ -28,6 +28,9 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+
+#![warn(missing_docs)]
 
 mod err;
 mod path;
