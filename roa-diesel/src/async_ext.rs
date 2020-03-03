@@ -6,6 +6,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::result::{Error as DieselError, OptionalExtension};
 use roa_core::{async_trait, Error, Result, State, SyncContext};
 
+/// A context extension to execute diesel dsl asynchronously.
 #[async_trait]
 pub trait SqlQuery<Conn: 'static + Connection> {
     /// Executes the given command, returning the number of rows affected.

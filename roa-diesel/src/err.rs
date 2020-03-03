@@ -4,9 +4,13 @@ use roa_core::http::StatusCode;
 use roa_core::Error;
 use std::fmt::{self, Display, Formatter};
 
+/// A wrapper for diesel error and r2d2 error.
 #[derive(Debug)]
 pub enum WrapError {
+    /// Diesel error.
     Diesel(DieselError),
+
+    /// R2D2 error.
     Pool(PoolError),
 }
 
