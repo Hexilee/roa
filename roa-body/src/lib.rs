@@ -19,7 +19,7 @@
 //!
 //!     ctx.resp_mut()
 //!        // write object implementing futures::AsyncRead
-//!        .write(File::open("assets/author.txt").await?)
+//!        .write_reader(File::open("assets/author.txt").await?)
 //!        // write `impl ToString`
 //!        .write_str("I am Roa.")
 //!        // write `impl Into<Vec<u8>>`
@@ -171,7 +171,7 @@ impl<S: State> PowerBody for Context<S> {
 
     #[cfg(feature = "json")]
     fn write_json<B: Serialize + Sync>(&mut self, data: &B) -> Result {
-        self.resp_mut().write_bytes(json::to_bytes(data)?);
+        self.resp_mut().write(json::to_bytes(data)?);
         let content_type: ContentType = "application/json; charset=utf-8".parse()?;
         self.resp_mut()
             .headers
@@ -203,7 +203,7 @@ impl<S: State> PowerBody for Context<S> {
         &mut self,
         reader: B,
     ) -> Result {
-        self.resp_mut().write(reader);
+        self.resp_mut().write_reader(reader);
         let content_type: ContentType = "application/octet-stream".parse()?;
         self.resp_mut()
             .headers

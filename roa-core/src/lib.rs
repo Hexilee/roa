@@ -23,7 +23,7 @@
 //!
 //! let mut app = App::new(());
 //! app.end(|mut ctx| async move {
-//!     ctx.resp_mut().write_str("Hello, World");
+//!     ctx.resp_mut().write("Hello, World");
 //!     Ok(())
 //! });
 //! ```
@@ -51,7 +51,7 @@
 //! });
 //!
 //! app.end(|mut ctx| async move {
-//!     ctx.resp_mut().write_str("Hello, World");
+//!     ctx.resp_mut().write("Hello, World");
 //!     Ok(())
 //! });
 //! ```
@@ -93,7 +93,7 @@
 //! pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
 //!     context.resp_mut().status = err.status_code;
 //!     if err.expose {
-//!         context.resp_mut().write_str(&err.message);
+//!         context.resp_mut().write(err.message.clone());
 //!     }
 //!     if err.kind == ErrorKind::ServerError {
 //!         Err(err)
@@ -150,7 +150,7 @@ pub use next::{last, Next};
 pub use request::Request;
 
 #[doc(inline)]
-pub use response::Response;
+pub use response::{Body, Response};
 
 pub use http;
 

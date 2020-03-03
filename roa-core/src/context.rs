@@ -32,7 +32,7 @@ struct PublicScope;
 ///     next.await
 /// });
 /// app.end(|mut ctx| async move {
-///     ctx.resp_mut().write(File::open("assets/welcome.html").await?);
+///     ctx.resp_mut().write_reader(File::open("assets/welcome.html").await?);
 ///     Ok(())
 /// });
 /// ```
@@ -258,7 +258,7 @@ impl<S> Context<S> {
     ///
     /// let mut app = App::new(());
     /// app.end(|mut ctx| async move {
-    ///     ctx.resp_mut().write(b"Hello, World!".as_ref());
+    ///     ctx.resp_mut().write("Hello, World!");
     ///     Ok(())
     /// });
     /// ```

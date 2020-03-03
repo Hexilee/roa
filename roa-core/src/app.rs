@@ -36,7 +36,7 @@ pub use stream::AddrStream;
 ///     next.await
 /// });
 /// app.end(|mut ctx| async move {
-///     ctx.resp_mut().write(File::open("assets/welcome.html").await?);
+///     ctx.resp_mut().write_reader(File::open("assets/welcome.html").await?);
 ///     Ok(())
 /// });
 /// ```
@@ -282,10 +282,12 @@ impl<S: State> HttpService<S> {
         let mut context = Context::new(req, state, exec, remote_addr);
         if let Err(err) = middleware.end(unsafe { context.unsafe_clone() }).await {
             context.resp_mut().status = err.status_code;
-            if err.expose {
-                context.resp_mut().write_str(&err.message);
-            }
-            if err.need_throw() {
+            if err.expose && !err.need_throw() {
+                context.resp_mut().write(err.message);
+            } else if err.expose && err.need_throw() {
+                context.resp_mut().write(err.message.clone());
+                return Err(err);
+            } else if err.need_throw() {
                 return Err(err);
             }
         }

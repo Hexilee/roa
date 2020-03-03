@@ -12,7 +12,7 @@ pub async fn write_file<S: State, P: AsRef<Path> + Send>(
     typ: DispositionType,
 ) -> Result {
     let path = path.as_ref();
-    ctx.resp_mut().write(File::open(path).await?);
+    ctx.resp_mut().write_reader(File::open(path).await?);
 
     if let Some(filename) = path.file_name() {
         ctx.resp_mut().headers.insert(
