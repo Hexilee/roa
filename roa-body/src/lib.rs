@@ -17,9 +17,11 @@
 //!     ctx.req_mut().body().read_to_string(&mut data).await?;
 //!     println!("data: {}", data);
 //!
+//!     // although body is empty now...
+//!     let stream = ctx.req_mut().stream();
 //!     ctx.resp_mut()
 //!         // echo
-//!        .write_stream(ctx.req_mut().body_stream())
+//!        .write_stream(stream)
 //!        // write object implementing futures::AsyncRead
 //!        .write_reader(File::open("assets/author.txt").await?)
 //!        // write `Bytes`
@@ -80,8 +82,9 @@
 
 mod content_type;
 mod help;
+use bytes::{Bytes, BytesMut};
 use content_type::{Content, ContentType};
-use futures::{AsyncRead, AsyncReadExt};
+use futures::{AsyncRead, StreamExt};
 use roa_core::{async_trait, http, Context, Result, State};
 
 #[cfg(feature = "json")]
@@ -108,7 +111,7 @@ use serde::Serialize;
 #[async_trait(?Send)]
 pub trait PowerBody: Content {
     /// read request body as Vec<u8>.
-    async fn body_buf(&mut self) -> Result<Vec<u8>>;
+    async fn body_bytes(&mut self) -> Result<Bytes>;
 
     /// read request body as "application/json".
     #[cfg(feature = "json")]
@@ -120,14 +123,14 @@ pub trait PowerBody: Content {
 
     /// write object to response body as "application/json; charset=utf-8"
     #[cfg(feature = "json")]
-    fn write_json<B: Serialize + Sync>(&mut self, data: &B) -> Result;
+    fn write_json<B: Serialize>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/html; charset=utf-8"
     #[cfg(feature = "template")]
-    fn render<B: Template + Sync>(&mut self, data: &B) -> Result;
+    fn render<B: Template>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/plain; charset=utf-8"
-    fn write_text<S: ToString + Send>(&mut self, string: S) -> Result;
+    fn write_text<S: ToString>(&mut self, string: S) -> Result;
 
     /// write object to response body as "application/octet-stream"
     fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(
@@ -137,7 +140,7 @@ pub trait PowerBody: Content {
 
     /// write object to response body as extension name of file
     #[cfg(feature = "file")]
-    async fn write_file<P: 'static + AsRef<Path> + Send>(
+    async fn write_file<P: 'static + AsRef<Path>>(
         &mut self,
         path: P,
         typ: DispositionType,
@@ -146,17 +149,19 @@ pub trait PowerBody: Content {
 
 #[async_trait(?Send)]
 impl<S: State> PowerBody for Context<S> {
-    async fn body_buf(&mut self) -> Result<Vec<u8>> {
-        let body = self.req_mut().body_stream();
-        .body().read_to_end(&mut data).await?;
-        Ok(data)
+    async fn body_bytes(&mut self) -> Result<Bytes> {
+        let mut bytes = BytesMut::new();
+        while let Some(item) = self.req_mut().next().await {
+            bytes.extend(item?)
+        }
+        Ok(bytes.freeze())
     }
 
     #[cfg(feature = "json")]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B> {
         let content_type = self.content_type()?;
         content_type.expect(mime::APPLICATION_JSON)?;
-        let data = self.body_buf().await?;
+        let data = self.body_bytes().await?;
         match content_type.charset() {
             None | Some(mime::UTF_8) => json::from_bytes(&data),
             Some(charset) => json::from_str(&decode::decode(&data, charset.as_str())?),
@@ -167,11 +172,11 @@ impl<S: State> PowerBody for Context<S> {
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B> {
         self.content_type()?
             .expect(mime::APPLICATION_WWW_FORM_URLENCODED)?;
-        urlencoded::from_bytes(&self.body_buf().await?)
+        urlencoded::from_bytes(&self.body_bytes().await?)
     }
 
     #[cfg(feature = "json")]
-    fn write_json<B: Serialize + Sync>(&mut self, data: &B) -> Result {
+    fn write_json<B: Serialize>(&mut self, data: &B) -> Result {
         self.resp_mut().write(json::to_bytes(data)?);
         let content_type: ContentType = "application/json; charset=utf-8".parse()?;
         self.resp_mut()
@@ -181,9 +186,9 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "template")]
-    fn render<B: Template + Sync>(&mut self, data: &B) -> Result {
+    fn render<B: Template>(&mut self, data: &B) -> Result {
         self.resp_mut()
-            .write_str(data.render().map_err(help::bug_report)?);
+            .write(data.render().map_err(help::bug_report)?);
         let content_type: ContentType = "text/html; charset=utf-8".parse()?;
         self.resp_mut()
             .headers
@@ -191,8 +196,8 @@ impl<S: State> PowerBody for Context<S> {
         Ok(())
     }
 
-    fn write_text<Str: ToString + Send>(&mut self, string: Str) -> Result {
-        self.resp_mut().write_str(string.to_string());
+    fn write_text<Str: ToString>(&mut self, string: Str) -> Result {
+        self.resp_mut().write(string.to_string());
         let content_type: ContentType = "text/plain; charset=utf-8".parse()?;
         self.resp_mut()
             .headers
@@ -213,7 +218,7 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "file")]
-    async fn write_file<P: 'static + AsRef<Path> + Send>(
+    async fn write_file<P: 'static + AsRef<Path>>(
         &mut self,
         path: P,
         typ: DispositionType,

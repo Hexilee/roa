@@ -6,7 +6,7 @@ use content_disposition::ContentDisposition;
 pub use content_disposition::DispositionType;
 use roa_core::{http, Context, Result, State};
 
-pub async fn write_file<S: State, P: AsRef<Path> + Send>(
+pub async fn write_file<S: State, P: AsRef<Path>>(
     ctx: &mut Context<S>,
     path: P,
     typ: DispositionType,

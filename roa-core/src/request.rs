@@ -23,11 +23,18 @@ pub struct Request {
 }
 
 impl Request {
-    /// Get inner as AsyncRead.
+    /// Get body.
+    /// This method will consume inner body.
+    #[inline]
+    pub fn stream(&mut self) -> Body {
+        std::mem::take(&mut self.body)
+    }
+
+    /// Get body as AsyncRead.
     /// This method will consume inner body.
     #[inline]
     pub fn body(&mut self) -> impl AsyncRead + Sync + Send + Unpin + 'static {
-        std::mem::take(&mut self.body).into_async_read()
+        self.stream().into_async_read()
     }
 }
 
