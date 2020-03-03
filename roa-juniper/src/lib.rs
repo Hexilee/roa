@@ -1,11 +1,23 @@
+//! This crate provides a juniper context and a graphql endpoint.
+//!
+//! ### Example
+//!
+//! Refer to [integration-example](https://github.com/Hexilee/roa/tree/master/integration/juniper-example)
+
+#![warn(missing_docs)]
+
 use juniper::{http::GraphQLRequest, GraphQLTypeAsync, RootNode, ScalarValue};
 use roa_body::PowerBody;
 use roa_core::{async_trait, Context, Middleware, Next, Result, State, SyncContext};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
+/// A wrapper for `roa_core::SyncContext`.
+/// As an implementation of `juniper::Context`.
 pub struct JuniperContext<S>(SyncContext<S>);
+
 impl<S: State> juniper::Context for JuniperContext<S> {}
+
 impl<S> Deref for JuniperContext<S> {
     type Target = SyncContext<S>;
     fn deref(&self) -> &Self::Target {
@@ -18,6 +30,7 @@ impl<S> DerefMut for JuniperContext<S> {
     }
 }
 
+/// An endpoint.
 pub struct GraphQL<QueryT, MutationT, Sca>(
     pub RootNode<'static, QueryT, MutationT, Sca>,
 )
