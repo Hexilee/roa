@@ -305,7 +305,6 @@ mod tests {
     use hyper::Body;
     use hyper_tls::native_tls;
     use hyper_tls::HttpsConnector;
-    use roa_body::PowerBody;
     use roa_core::http::StatusCode;
     use roa_core::App;
 
@@ -325,7 +324,10 @@ mod tests {
         let mut keys = rsa_private_keys(&mut key_file).unwrap();
         config.set_single_cert(cert_chain, keys.remove(0))?;
         let (addr, server) = App::new(())
-            .end(|mut ctx| async move { ctx.write_text("Hello, World!") })
+            .end(|mut ctx| async move {
+                ctx.resp_mut().write_str("Hello, World!");
+                Ok(())
+            })
             .run_tls(config)?;
         spawn(server);
 
