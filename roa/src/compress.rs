@@ -68,7 +68,7 @@
 //!         .end(|mut ctx| async move {
 //!             ctx.write_file("../assets/welcome.html", Inline).await
 //!         })
-//!         .run_local()?;
+//!         .run()?;
 //!     spawn(server);
 //!     let client = reqwest::Client::builder().gzip(true).build()?;
 //!     let resp = client

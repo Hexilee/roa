@@ -18,7 +18,7 @@
 //!         .get("/", |_ctx| async move {
 //!             Ok(())
 //!         });
-//!     let (addr, server) = App::new(()).gate(router.routes("/route")?).run_local()?;
+//!     let (addr, server) = App::new(()).gate(router.routes("/route")?).run()?;
 //!     spawn(server);
 //!     let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
 //!     assert_eq!(StatusCode::OK, resp.status());
@@ -88,7 +88,7 @@ struct RouterScope;
 ///     });
 ///     let (addr, server) = App::new(())
 ///         .gate(router.routes("/user")?)
-///         .run_local()?;
+///         .run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
 ///     assert_eq!(StatusCode::OK, resp.status());
@@ -120,7 +120,7 @@ pub trait RouterParam {
     ///     });
     ///     let (addr, server) = App::new(())
     ///         .gate(router.routes("/user")?)
-    ///         .run_local()?;
+    ///         .run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
@@ -496,7 +496,7 @@ mod tests {
                 assert_eq!(0, id);
                 Ok(())
             });
-        let (addr, server) = App::new(()).gate(router.routes("/route")?).run_local()?;
+        let (addr, server) = App::new(()).gate(router.routes("/route")?).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -518,7 +518,7 @@ mod tests {
         });
         router.include("/user", user_router);
 
-        let (addr, server) = App::new(()).gate(router.routes("/route")?).run_local()?;
+        let (addr, server) = App::new(()).gate(router.routes("/route")?).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route/user", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -539,9 +539,7 @@ mod tests {
 
     #[tokio::test]
     async fn route_not_found() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .gate(Router::default().routes("/")?)
-            .run_local()?;
+        let (addr, server) = App::new(()).gate(Router::default().routes("/")?).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::NOT_FOUND, resp.status());
@@ -550,8 +548,7 @@ mod tests {
 
     #[tokio::test]
     async fn non_utf8_uri() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) =
-            App::new(()).gate(Router::new().routes("/")?).run_local()?;
+        let (addr, server) = App::new(()).gate(Router::new().routes("/")?).run()?;
         spawn(server);
         let gbk_path = encoding::label::encoding_from_whatwg_label("gbk")
             .unwrap()

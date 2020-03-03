@@ -135,7 +135,7 @@ mod tests {
                 assert_eq!("github.com", ctx.host()?);
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -163,7 +163,7 @@ mod tests {
                 assert_eq!("", ctx.host()?);
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
@@ -181,7 +181,7 @@ mod tests {
                 assert_eq!(ctx.remote_addr.ip(), ctx.client_ip());
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
 
@@ -190,7 +190,7 @@ mod tests {
                 assert_eq!("192.168.0.1", ctx.client_ip().to_string());
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
         client
@@ -209,7 +209,7 @@ mod tests {
                 assert_eq!("https", ctx.forwarded_proto().unwrap()?);
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
         client

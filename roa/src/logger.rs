@@ -18,7 +18,7 @@
 //!         .end(|mut ctx| async move {
 //!             ctx.write_text("Hello, World!")
 //!         })
-//!         .run_local()?;
+//!         .run()?;
 //!     spawn(server);
 //!     let resp = reqwest::get(&format!("http://{}", addr)).await?;
 //!     assert_eq!(StatusCode::OK, resp.status());
@@ -199,7 +199,7 @@ mod tests {
                 ctx.resp_mut().write_str("Hello, World.");
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -219,7 +219,7 @@ mod tests {
             .gate_fn(move |_ctx, _next| async move {
                 throw!(StatusCode::BAD_REQUEST, "Hello, World!")
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());

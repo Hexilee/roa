@@ -134,6 +134,7 @@ impl Accept for TcpIncoming {
     type Conn = AddrStream;
     type Error = io::Error;
 
+    #[inline]
     fn poll_accept(
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,

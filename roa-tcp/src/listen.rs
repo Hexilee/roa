@@ -2,6 +2,7 @@ use crate::TcpIncoming;
 use roa_core::{App, Executor, Server, State};
 use std::net::{SocketAddr, ToSocketAddrs};
 
+/// An app extension.
 pub trait Listener {
     /// tcp server
     type Server;
@@ -37,14 +38,14 @@ pub trait Listener {
     ///             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
     ///             Ok(())
     ///         })
-    ///         .run_local()?;
+    ///         .run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
     ///     Ok(())
     /// }
     /// ```
-    fn run_local(&self) -> std::io::Result<(SocketAddr, Self::Server)>;
+    fn run(&self) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
 impl<S: State> Listener for App<S> {
@@ -68,7 +69,7 @@ impl<S: State> Listener for App<S> {
         Ok(server)
     }
 
-    fn run_local(&self) -> std::io::Result<(SocketAddr, Self::Server)> {
+    fn run(&self) -> std::io::Result<(SocketAddr, Self::Server)> {
         self.listen_on("127.0.0.1:0")
     }
 }

@@ -23,7 +23,7 @@ impl PartialEq<Post> for NewPost<'_> {
 #[tokio::test]
 async fn test() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(create_pool()?);
-    let (addr, server) = app.gate(post_router().routes("/post")?).run_local()?;
+    let (addr, server) = app.gate(post_router().routes("/post")?).run()?;
     async_std::task::spawn(server);
     let base_url = format!("http://{}/post", addr);
     let client = reqwest::Client::new();

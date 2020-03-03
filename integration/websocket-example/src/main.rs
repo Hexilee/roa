@@ -117,7 +117,7 @@ mod tests {
     async fn echo() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
         let mut app = App::new(channel.clone());
-        let (addr, server) = app.gate(route("/")?).run_local()?;
+        let (addr, server) = app.gate(route("/")?).run()?;
         async_std::task::spawn(server);
         let (ws_stream, _) = connect_async(format!("ws://{}/chat", addr)).await?;
         let (mut sender, mut recv) = ws_stream.split();
@@ -143,7 +143,7 @@ mod tests {
     async fn broadcast() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
         let mut app = App::new(channel.clone());
-        let (addr, server) = app.gate(route("/")?).run_local()?;
+        let (addr, server) = app.gate(route("/")?).run()?;
         async_std::task::spawn(server);
         let url = format!("ws://{}/chat", addr);
         for _ in 0..100 {

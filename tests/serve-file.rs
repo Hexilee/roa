@@ -14,7 +14,7 @@ async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
             ctx.write_file("assets/author.txt", DispositionType::Inline)
                 .await
         })
-        .run_local()?;
+        .run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
@@ -29,7 +29,7 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
         ctx.write_file(format!("assets/{}", &*filename), DispositionType::Inline)
             .await
     });
-    let (addr, server) = App::new(()).gate(router.routes("/")?).run_local()?;
+    let (addr, server) = App::new(()).gate(router.routes("/")?).run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/author.txt", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
@@ -44,7 +44,7 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
         ctx.write_file(format!("./{}", &*path), DispositionType::Inline)
             .await
     });
-    let (addr, server) = App::new(()).gate(router.routes("/")?).run_local()?;
+    let (addr, server) = App::new(()).gate(router.routes("/")?).run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/assets/author.txt", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
@@ -59,7 +59,7 @@ async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
             ctx.write_file("assets/welcome.html", DispositionType::Inline)
                 .await
         })
-        .run_local()?;
+        .run()?;
     spawn(server);
     let client = reqwest::Client::builder().gzip(true).build()?;
     let resp = client

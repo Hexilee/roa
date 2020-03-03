@@ -43,7 +43,7 @@ async fn upload() -> Result<(), Box<dyn StdError>> {
         }
         Ok(())
     });
-    let (addr, server) = app.gate(router.routes("/")?).run_local()?;
+    let (addr, server) = app.gate(router.routes("/")?).run()?;
     async_std::task::spawn(server);
 
     // client

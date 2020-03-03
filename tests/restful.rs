@@ -141,7 +141,7 @@ fn crud_router() -> Result<Router<State>, Box<dyn std::error::Error>> {
 async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(Arc::new(RwLock::new(DB::new())))
         .gate(crud_router()?.routes("/user")?)
-        .run_local()?;
+        .run()?;
     spawn(server);
     // first get, 404 Not Found
     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
@@ -256,7 +256,7 @@ async fn batch() -> Result<(), Box<dyn std::error::Error>> {
     let (addr, server) = App::new(Arc::new(RwLock::new(DB::new())))
         .gate(query_parser)
         .gate(batch_router()?.routes("/")?)
-        .run_local()?;
+        .run()?;
     spawn(server);
     // first get, list empty
     let resp = reqwest::get(&format!("http://{}/user", addr)).await?;

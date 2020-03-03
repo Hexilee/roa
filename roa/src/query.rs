@@ -18,7 +18,7 @@
 //!             assert_eq!("Hexilee", &*ctx.must_query("name")?);
 //!             Ok(())
 //!         })
-//!         .run_local()?;
+//!         .run()?;
 //!     spawn(server);
 //!     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
 //!     assert_eq!(StatusCode::OK, resp.status());
@@ -55,7 +55,7 @@ struct QueryScope;
 ///             assert_eq!("Hexilee", &*ctx.must_query("name")?);
 ///             Ok(())
 ///         })
-///         .run_local()?;
+///         .run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
 ///     assert_eq!(StatusCode::OK, resp.status());
@@ -66,7 +66,7 @@ struct QueryScope;
 ///             assert!(ctx.query("name").is_none());
 ///             Ok(())
 ///         })
-///         .run_local()?;
+///         .run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
 ///     assert_eq!(StatusCode::OK, resp.status());
@@ -93,7 +93,7 @@ pub trait Query {
     ///             assert_eq!("Hexilee", &*ctx.must_query("name")?);
     ///             Ok(())
     ///         })
-    ///         .run_local()?;
+    ///         .run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::BAD_REQUEST, resp.status());
@@ -121,7 +121,7 @@ pub trait Query {
     ///             assert!(ctx.query("name").is_none());
     ///             Ok(())
     ///         })
-    ///         .run_local()?;
+    ///         .run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
@@ -173,7 +173,7 @@ mod tests {
                 assert!(ctx.query("name").is_none());
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         reqwest::get(&format!("http://{}/", addr)).await?;
 
@@ -184,7 +184,7 @@ mod tests {
                 assert_eq!("Hexilee", &*ctx.must_query("name")?);
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -200,7 +200,7 @@ mod tests {
                 assert!(ctx.must_query("age")?.parse::<u64>().is_err());
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}?age=Hexilee", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -211,7 +211,7 @@ mod tests {
                 assert_eq!(120, ctx.must_query("age")?.parse::<u64>()?);
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}?age=120", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -227,7 +227,7 @@ mod tests {
                 assert_eq!("rust", &*ctx.must_query("lang")?);
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp =
             reqwest::get(&format!("http://{}?name=Hexilee&lang=rust", addr)).await?;

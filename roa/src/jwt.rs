@@ -37,7 +37,7 @@
 //!             assert_eq!("Hexilee", &user.name);
 //!             Ok(())
 //!         })
-//!         .run_local()?;
+//!         .run()?;
 //!     spawn(server);
 //!     let mut user = User {
 //!         sub: "user".to_string(),
@@ -268,7 +268,7 @@ mod tests {
                 assert_eq!("Hexilee", &user.name);
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
@@ -364,7 +364,7 @@ mod tests {
                 assert_eq!("middleware `JwtGuard` is not set correctly", status.message);
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
         Ok(())

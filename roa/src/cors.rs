@@ -18,7 +18,7 @@
 //!         .end(|ctx| async move {
 //!             Ok(())
 //!         })
-//!         .run_local()?;
+//!         .run()?;
 //!     spawn(server);
 //!     let client = reqwest::Client::new();
 //!     let resp = client
@@ -243,7 +243,7 @@ mod tests {
                 ctx.resp_mut().write_str("Hello, World");
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
 

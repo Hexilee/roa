@@ -18,7 +18,7 @@
 //!             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
 //!             Ok(())
 //!         })
-//!         .run_local()?;
+//!         .run()?;
 //!     spawn(server);
 //!     let client = reqwest::Client::new();
 //!     let resp = client
@@ -68,7 +68,7 @@ struct CookieScope;
 ///             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
 ///             Ok(())
 ///         })
-///         .run_local()?;
+///         .run()?;
 ///     spawn(server);
 ///     let client = reqwest::Client::new();
 ///     let resp = client
@@ -84,7 +84,7 @@ struct CookieScope;
 ///             assert!(ctx.cookie("name").is_none());
 ///             Ok(())
 ///         })
-///         .run_local()?;
+///         .run()?;
 ///     spawn(server);
 ///     let resp = client
 ///         .get(&format!("http://{}", addr))
@@ -115,7 +115,7 @@ pub trait CookieGetter {
     ///             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
     ///             Ok(())
     ///         })
-    ///         .run_local()?;
+    ///         .run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
@@ -143,7 +143,7 @@ pub trait CookieGetter {
     ///             assert!(ctx.cookie("name").is_none());
     ///             Ok(())
     ///         })
-    ///         .run_local()?;
+    ///         .run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
@@ -172,7 +172,7 @@ pub trait CookieSetter {
     ///             ctx.set_cookie(Cookie::new("name", "Hexi Lee"))?;
     ///             Ok(())
     ///         })
-    ///         .run_local()?;
+    ///         .run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
@@ -259,7 +259,7 @@ mod tests {
                 assert!(ctx.cookie("name").is_none());
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
 
@@ -269,7 +269,7 @@ mod tests {
                 ctx.must_cookie("nick name")?;
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
@@ -288,7 +288,7 @@ mod tests {
                 assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -308,7 +308,7 @@ mod tests {
                 assert_eq!("bar baz", ctx.must_cookie("bar baz")?.value());
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -329,7 +329,7 @@ mod tests {
                 assert_eq!("bar foo", ctx.must_cookie("foo baz")?.value());
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -349,7 +349,7 @@ mod tests {
                 ctx.set_cookie(Cookie::new("bar foo", "foo baz"))?;
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

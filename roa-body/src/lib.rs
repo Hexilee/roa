@@ -258,7 +258,7 @@ mod tests {
                 );
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
 
@@ -330,7 +330,7 @@ mod tests {
                 );
                 Ok(())
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let client = reqwest::Client::new();
 
@@ -385,7 +385,7 @@ mod tests {
                 };
                 ctx.render(&user)
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -398,7 +398,7 @@ mod tests {
         // miss key
         let (addr, server) = App::new(())
             .end(move |mut ctx| async move { ctx.write_text("Hello, World!") })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -416,7 +416,7 @@ mod tests {
                     File::open("../assets/author.txt").await?,
                 ))
             })
-            .run_local()?;
+            .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
