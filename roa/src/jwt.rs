@@ -74,11 +74,12 @@
 
 pub use jsonwebtoken::{DecodingKey, Validation};
 
-use crate::http::header::{HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
+use crate::http::header::{HeaderValue, WWW_AUTHENTICATE};
 use crate::http::StatusCode;
 use crate::{
     async_trait, join, Context, Error, Middleware, Next, Result, State, SyncContext,
 };
+use headers::{authorization::Bearer, Authorization, HeaderMapExt};
 use jsonwebtoken::{dangerous_unsafe_decode, decode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -172,16 +173,6 @@ fn guard_not_set() -> Error {
     )
 }
 
-fn try_get_token<S: State>(ctx: &Context<S>) -> Result<String> {
-    match ctx.header(AUTHORIZATION) {
-        None | Some(Err(_)) => Err(unauthorized("")),
-        Some(Ok(value)) => match value.find("Bearer") {
-            None => Err(unauthorized("")),
-            Some(n) => Ok(value[n + 6..].trim().to_string()),
-        },
-    }
-}
-
 impl<S> JwtVerifier<S> for SyncContext<S>
 where
     S: State,
@@ -190,9 +181,9 @@ where
     where
         C: 'static + DeserializeOwned,
     {
-        let token = self.load_scoped::<JwtScope, String>("token");
+        let token = self.load_scoped::<JwtScope, Bearer>("token");
         match token {
-            Some(token) => dangerous_unsafe_decode(&*token)
+            Some(token) => dangerous_unsafe_decode(token.token())
                 .map(|data| data.claims)
                 .map_err(|err| {
                     Error::new(
@@ -213,9 +204,9 @@ where
         C: 'static + DeserializeOwned,
     {
         let secret = self.load_scoped::<JwtScope, DecodingKey<'static>>("secret");
-        let token = self.load_scoped::<JwtScope, String>("token");
+        let token = self.load_scoped::<JwtScope, Bearer>("token");
         match (secret, token) {
-            (Some(secret), Some(token)) => decode(&token, &*secret, validation)
+            (Some(secret), Some(token)) => decode(token.token(), &*secret, validation)
                 .map(|data| data.claims)
                 .map_err(unauthorized),
             _ => Err(guard_not_set()),
@@ -226,10 +217,16 @@ where
 #[async_trait(?Send)]
 impl<S: State> Middleware<S> for JwtGuard {
     async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
-        let token = try_get_token(&ctx)?;
-        decode::<Value>(&token, &self.secret, &self.validation).map_err(unauthorized)?;
+        let bearer = ctx
+            .req()
+            .headers
+            .typed_get::<Authorization<Bearer>>()
+            .ok_or(unauthorized(""))?
+            .0;
+        decode::<Value>(bearer.token(), &self.secret, &self.validation)
+            .map_err(unauthorized)?;
         ctx.store_scoped(JwtScope, "secret", self.secret.clone());
-        ctx.store_scoped(JwtScope, "token", token);
+        ctx.store_scoped(JwtScope, "token", bearer);
         next.await
     }
 }
