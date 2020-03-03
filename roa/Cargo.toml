@@ -33,7 +33,6 @@ bytesize = "1.0"
 async-trait = "0.1.22"
 url = "2.1.1"
 percent-encoding = "2.1"
-typed-builder = "0.5.1"
 bytes = "0.5"
 
 roa-core = { path = "../roa-core", version = "0.5.0-alpha", features = ["runtime"] }
