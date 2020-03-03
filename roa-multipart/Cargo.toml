@@ -13,3 +13,9 @@ bytes = "0.5"
 actix-http = "1.0"
 actix-multipart = "0.2"
 futures = "0.3"
+
+[dev-dependencies]
+roa = { path = "../roa", version = "0.5.0-alpha", features = ["router", "body"] }
+tokio = { version = "0.2", features = ["full"] }
+reqwest = { git = "https://github.com/Hexilee/reqwest.git", version = "0.10" }
+async-std = "1.5"
