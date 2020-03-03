@@ -24,7 +24,8 @@ actix-multipart = "0.2"
 futures = "0.3"
 
 [dev-dependencies]
-roa = { path = "../roa", version = "0.5.0-alpha", features = ["router", "body"] }
+roa-tcp = { path = "../roa-tcp", version = "0.5.0-alpha" }
+roa-router = { path = "../roa-router", version = "0.5.0-alpha" }
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { git = "https://github.com/Hexilee/reqwest.git", version = "0.10" }
 async-std = "1.5"

@@ -19,21 +19,21 @@ jobs:
             registryName: roa-core
             path: roa-core
             publishPath: /target/package
-          - name: roa-body
-            registryName: roa-body
-            path: roa-body
-            publishPath: /target/package
           - name: roa-tcp
             registryName: roa-tcp
             path: roa-tcp
             publishPath: /target/package
-          - name: roa-tls
-            registryName: roa-tls
-            path: roa-tls
-            publishPath: /target/package
           - name: roa-router
             registryName: roa-router
             path: roa-router
+            publishPath: /target/package
+          - name: roa-body
+            registryName: roa-body
+            path: roa-body
+            publishPath: /target/package
+          - name: roa-tls
+            registryName: roa-tls
+            path: roa-tls
             publishPath: /target/package
           - name: roa-diesel
             registryName: roa-diesel

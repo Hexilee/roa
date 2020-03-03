@@ -10,10 +10,10 @@
 //! use async_std::path::Path;
 //! use futures::stream::TryStreamExt;
 //! use futures::StreamExt;
-//! use roa::http::StatusCode;
-//! use roa::preload::*;
-//! use roa::router::Router;
-//! use roa::{throw, App};
+//! use roa_core::http::StatusCode;
+//! use roa_tcp::Listener;
+//! use roa_router::Router;
+//! use roa_core::{throw, App};
 //! use roa_multipart::Multipart;
 //! use std::error::Error as StdError;
 //!
@@ -195,10 +195,10 @@ mod tests {
         multipart::{Form, Part},
         Client,
     };
-    use roa::http::{header::CONTENT_TYPE, StatusCode};
-    use roa::preload::*;
-    use roa::router::Router;
-    use roa::{throw, App};
+    use roa_core::http::{header::CONTENT_TYPE, StatusCode};
+    use roa_core::{throw, App};
+    use roa_router::Router;
+    use roa_tcp::Listener;
     use std::error::Error as StdError;
 
     const FILE_PATH: &str = "../assets/author.txt";
