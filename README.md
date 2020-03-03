@@ -65,7 +65,7 @@ use std::error::Error as StdError;
 async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
     app.end(|mut ctx| async move {
-        ctx.resp_mut().write_str("Hello, World");
+        ctx.resp_mut().write("Hello, World");
         Ok(())
     });
     app.listen("127.0.0.1:8000", |addr| {

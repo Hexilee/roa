@@ -1,9 +1,8 @@
 //! A module for Response and its body
-mod body;
 use http::{HeaderMap, HeaderValue, StatusCode, Version};
 use std::ops::{Deref, DerefMut};
 
-pub use body::Body;
+pub use crate::Body;
 
 /// Http response type of roa.
 pub struct Response {

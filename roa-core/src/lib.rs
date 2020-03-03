@@ -113,6 +113,7 @@
 #![warn(missing_docs)]
 
 mod app;
+mod body;
 mod context;
 mod err;
 mod executor;
@@ -150,7 +151,10 @@ pub use next::{last, Next};
 pub use request::Request;
 
 #[doc(inline)]
-pub use response::{Body, Response};
+pub use response::Response;
+
+#[doc(inline)]
+pub use body::Body;
 
 pub use http;
 

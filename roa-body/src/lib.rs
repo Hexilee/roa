@@ -12,18 +12,19 @@
 //! use async_std::fs::File;
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
-//!     // roa_core::Body implements futures::AsyncRead.
 //!     let mut data = String::new();
+//!     // implements futures::AsyncRead.
 //!     ctx.req_mut().body().read_to_string(&mut data).await?;
 //!     println!("data: {}", data);
 //!
 //!     ctx.resp_mut()
+//!         // echo
+//!        .write_stream(ctx.req_mut().body_stream())
 //!        // write object implementing futures::AsyncRead
 //!        .write_reader(File::open("assets/author.txt").await?)
-//!        // write `impl ToString`
-//!        .write_str("I am Roa.")
-//!        // write `impl Into<Vec<u8>>`
-//!        .write_bytes(b"Hey Roa.".as_ref());
+//!        // write `Bytes`
+//!        .write("I am Roa.")
+//!        .write("Hey Roa.");
 //!     Ok(())
 //! }
 //! ```
@@ -146,8 +147,8 @@ pub trait PowerBody: Content {
 #[async_trait(?Send)]
 impl<S: State> PowerBody for Context<S> {
     async fn body_buf(&mut self) -> Result<Vec<u8>> {
-        let mut data = Vec::new();
-        self.req_mut().body().read_to_end(&mut data).await?;
+        let body = self.req_mut().body_stream();
+        .body().read_to_end(&mut data).await?;
         Ok(data)
     }
 
