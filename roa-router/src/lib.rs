@@ -290,6 +290,7 @@ impl<S: State> Router<S> {
         self
     }
 
+    /// Return endpoints with prefix.
     fn on(
         &self,
         prefix: &'static str,
@@ -369,6 +370,7 @@ impl<S: State> Default for RouteEndpoint<S> {
 }
 
 impl<S: State> RouteEndpoint<S> {
+    /// Insert endpoint to route table by method.
     fn insert(
         &mut self,
         method: Method,
@@ -393,6 +395,7 @@ impl<S: State> RouteTable<S> {
         }
     }
 
+    /// Insert endpoint to table.
     fn insert(
         &mut self,
         raw_path: impl AsRef<str>,
@@ -413,8 +416,10 @@ impl<S: State> RouteTable<S> {
         Ok(())
     }
 
+    /// Handle request.
     async fn end(&self, mut ctx: Context<S>) -> Result {
         let uri = ctx.uri();
+        // standardize path
         let path =
             standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
                 |err| {
@@ -429,10 +434,13 @@ impl<S: State> RouteTable<S> {
                     )
                 },
             )?);
+
+        // search static routes
         if let Some(handler) = self.static_route.get(&path) {
             return handler.clone().end(ctx).await;
         }
 
+        // search dynamic routes
         for (regexp_path, handler) in self.dynamic_route.iter() {
             if let Some(cap) = regexp_path.re.captures(&path) {
                 for var in regexp_path.vars.iter() {
@@ -441,6 +449,8 @@ impl<S: State> RouteTable<S> {
                 return handler.clone().end(ctx).await;
             }
         }
+
+        // 404 NOT FOUND
         throw!(StatusCode::NOT_FOUND)
     }
 }

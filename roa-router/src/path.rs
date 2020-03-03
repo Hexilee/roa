@@ -4,12 +4,18 @@ use std::collections::HashSet;
 use std::convert::AsRef;
 use std::str::FromStr;
 
+/// Match pattern *{variable}
 const WILDCARD: &str = r"\*\{(?P<var>\w*)\}";
+
+/// Match pattern /:variable/
 const VARIABLE: &str = r"/:(?P<var>\w*)/";
 
+/// {/path path/ /path/} => /path/
 pub fn standardize_path(raw_path: &str) -> String {
     format!("/{}/", raw_path.trim_matches('/'))
 }
+
+/// Join multiple segments.
 pub fn join_path<'a>(paths: impl 'a + AsRef<[&'a str]>) -> String {
     paths
         .as_ref()
@@ -20,23 +26,26 @@ pub fn join_path<'a>(paths: impl 'a + AsRef<[&'a str]>) -> String {
         .join("/")
 }
 
+/// Build pattern.
 fn must_build(pattern: &str) -> Regex {
     Regex::new(pattern).unwrap_or_else(|err| {
-        panic!(format!(
+        panic!(
             r#"{}
                 regex pattern {} is invalid, this is a bug of roa-router::path.
                 please report it to https://github.com/Hexilee/roa"#,
             err, pattern
-        ))
+        )
     })
 }
 
+/// Parsed path.
 #[derive(Clone)]
 pub enum Path {
     Static(String),
     Dynamic(RegexPath),
 }
 
+/// Dynamic path.
 #[derive(Clone)]
 pub struct RegexPath {
     pub raw: String,
@@ -71,6 +80,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
     if wildcards.is_empty() && variables.is_empty() {
         Ok(None)
     } else {
+        // detect variable conflicts.
         let try_add_variable = |set: &mut HashSet<String>, variable: String| {
             if set.insert(variable.clone()) {
                 Ok(())
@@ -81,6 +91,8 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
                 })
             }
         };
+
+        // match wildcard patterns
         for cap in wildcards {
             let variable = &cap["var"];
             if variable == r"" {
@@ -93,6 +105,8 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
             );
             try_add_variable(&mut vars, var)?;
         }
+
+        // match segment variable patterns
         for cap in variables {
             let variable = &cap["var"];
             if variable == "" {
