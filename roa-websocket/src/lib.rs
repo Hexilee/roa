@@ -1,3 +1,33 @@
+//! This crate provides a websocket middleware.
+//!
+//! ### Example
+//! ```
+//! use futures::StreamExt;
+//! use roa_router::{Router, RouterError};
+//! use roa_websocket::Websocket;
+//! use roa_core::{App, SyncContext};
+//! use roa_core::http::Method;
+//!
+//! # fn main() -> Result<(), RouterError> {
+//! let mut app = App::new(());
+//! let mut router = Router::new();
+//! router.end(
+//!     "/chat",
+//!     [Method::GET],
+//!     Websocket::new(|_ctx: SyncContext<()>, stream| async move {
+//!         let (write, read) = stream.split();
+//!         // echo
+//!         if let Err(err) = read.forward(write).await {
+//!             println!("forward err: {}", err);
+//!         }
+//!     }),
+//! );
+//! app.gate(router.routes("/")?);
+//! # Ok(())
+//! # }
+//! ```
+#![warn(missing_docs)]
+
 use headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion,
     Upgrade,
@@ -59,11 +89,11 @@ where
 }
 
 unsafe impl<F, S, Fut> Send for Websocket<F, S, Fut> where
-    F: Sync + Fn(SyncContext<S>, SocketStream) -> Fut
+    F: Sync + Send + Fn(SyncContext<S>, SocketStream) -> Fut
 {
 }
 unsafe impl<F, S, Fut> Sync for Websocket<F, S, Fut> where
-    F: Sync + Fn(SyncContext<S>, SocketStream) -> Fut
+    F: Sync + Send + Fn(SyncContext<S>, SocketStream) -> Fut
 {
 }
 
@@ -71,17 +101,52 @@ impl<F, S, Fut> Websocket<F, S, Fut>
 where
     F: Fn(SyncContext<S>, SocketStream) -> Fut,
 {
-    pub fn new(task: F) -> Self {
-        Self::with_config(None, task)
-    }
-
-    pub fn with_config(config: Option<WebSocketConfig>, task: F) -> Self {
+    fn config(config: Option<WebSocketConfig>, task: F) -> Self {
         Self {
             task: Arc::new(task),
             config,
             _s: PhantomData::default(),
             _fut: PhantomData::default(),
         }
+    }
+
+    /// Construct a websocket middleware by task closure.
+    pub fn new(task: F) -> Self {
+        Self::config(None, task)
+    }
+
+    /// Construct a websocket middleware with config.
+    /// ### Example
+    /// ```
+    /// use futures::StreamExt;
+    /// use roa_router::{Router, RouterError};
+    /// use roa_websocket::{Websocket, WebSocketConfig};
+    /// use roa_core::{App, SyncContext};
+    /// use roa_core::http::Method;
+    ///
+    /// # fn main() -> Result<(), RouterError> {
+    /// let mut app = App::new(());
+    /// let mut router = Router::new();
+    /// router.end(
+    ///     "/chat",
+    ///     [Method::GET],
+    ///     Websocket::with_config(
+    ///         WebSocketConfig::default(),
+    ///         |_ctx: SyncContext<()>, stream| async move {
+    ///             let (write, read) = stream.split();
+    ///             // echo
+    ///             if let Err(err) = read.forward(write).await {
+    ///                 println!("forward err: {}", err);
+    ///             }
+    ///         }
+    ///     ),
+    /// );
+    /// app.gate(router.routes("/")?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_config(config: WebSocketConfig, task: F) -> Self {
+        Self::config(Some(config), task)
     }
 }
 
@@ -110,6 +175,10 @@ where
         match key {
             None => throw!(StatusCode::BAD_REQUEST, "invalid websocket upgrade request"),
             Some(key) => {
+                let body = ctx.req_mut().body_stream();
+                let sync_context = ctx.clone();
+                let task = self.task.clone();
+                let config = self.config;
                 // Setup a future that will eventually receive the upgraded
                 // connection and talk a new protocol, and spawn the future
                 // into the runtime.
@@ -117,10 +186,6 @@ where
                 // Note: This can't possibly be fulfilled until the 101 response
                 // is returned below, so it's better to spawn this future instead
                 // waiting for it to complete to then return a response.
-                let body = ctx.req_mut().body_stream();
-                let sync_context = ctx.clone();
-                let task = self.task.clone();
-                let config = self.config;
                 ctx.exec.spawn(async move {
                     match body.on_upgrade().await {
                         Err(err) => log::error!("websocket upgrade error: {}", err),
