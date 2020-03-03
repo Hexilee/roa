@@ -15,8 +15,8 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
     let mut router = Router::new();
     router.end(
-        [Method::GET].as_ref(),
         "/chat",
+        [Method::GET],
         Websocket::new(|_ctx: SyncContext<()>, stream| async move {
             let (write, read) = stream.split();
             if let Err(err) = read.forward(write).await {

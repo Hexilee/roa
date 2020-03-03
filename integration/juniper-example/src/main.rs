@@ -142,8 +142,8 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         Ok(())
     });
     router.end(
-        [Method::GET, Method::POST].as_ref(),
         "/api",
+        [Method::GET, Method::POST],
         GraphQL(RootNode::new(Query, Mutation)),
     );
     app.gate(logger)

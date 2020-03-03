@@ -198,8 +198,8 @@ impl<S: State> Router<S> {
     /// Register a new endpoint.
     pub fn end(
         &mut self,
-        methods: impl AsRef<[Method]>,
         path: &'static str,
+        methods: impl AsRef<[Method]>,
         endpoint: impl Middleware<S>,
     ) -> &mut Self {
         let endpoint_ptr = Arc::new(endpoint);
@@ -247,7 +247,7 @@ impl<S: State> Router<S> {
     ///     endpoint
     /// }
     ///
-    /// Router::<()>::new().end([Method::GET].as_ref(), "/", transfer(endpoint));
+    /// Router::<()>::new().end("/", [Method::GET], transfer(endpoint));
     /// ```
     ///
     /// And `Router::end_fn` is a wrapper of `Router::end` with this transfer function.
@@ -256,31 +256,31 @@ impl<S: State> Router<S> {
     /// use roa_router::Router;
     /// use roa_core::http::Method;
     ///
-    /// Router::<()>::new().end_fn([Method::GET].as_ref(), "/", |_ctx| async { Ok(()) });
+    /// Router::<()>::new().end_fn("/", [Method::GET], |_ctx| async { Ok(()) });
     /// ```
     pub fn end_fn<F>(
         &mut self,
-        methods: impl AsRef<[Method]>,
         path: &'static str,
+        methods: impl AsRef<[Method]>,
         endpoint: fn(Context<S>) -> F,
     ) -> &mut Self
     where
         F: 'static + Future<Output = Result>,
     {
-        self.end(methods, path, endpoint)
+        self.end(path, methods, endpoint)
     }
 
     /// Include another router with prefix, allowing all methods.
     pub fn include(&mut self, prefix: &'static str, router: Router<S>) -> &mut Self {
-        self.include_methods(prefix, router, ALL_METHODS)
+        self.include_methods(prefix, ALL_METHODS, router)
     }
 
     /// Include another router with prefix, only allowing method in parameter methods.
     pub fn include_methods(
         &mut self,
         prefix: &'static str,
-        router: Router<S>,
         methods: impl AsRef<[Method]>,
+        router: Router<S>,
     ) -> &mut Self {
         for (method, path, endpoint) in router.on(prefix) {
             if methods.as_ref().contains(&method) {
@@ -329,7 +329,7 @@ macro_rules! impl_http_method {
         where
             F: 'static + Future<Output = Result>,
         {
-            self.end([$($method, )*], path, endpoint)
+            self.end(path, [$($method, )*], endpoint)
         }
     };
 }

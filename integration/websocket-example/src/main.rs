@@ -70,8 +70,8 @@ async fn handle_message(
 fn route(prefix: &'static str) -> Result<RouteEndpoint<SyncChannel>, RouterError> {
     let mut router = Router::new();
     router.end(
-        [Method::GET].as_ref(),
         "/chat",
+        [Method::GET],
         Websocket::new(|ctx: SyncContext<SyncChannel>, stream| async move {
             let (sender, receiver) = stream.split();
             let index = ctx.register(sender).await;
