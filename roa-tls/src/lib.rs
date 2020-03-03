@@ -1,3 +1,56 @@
+//! This crate provides an incoming implementing `roa_core::Accept` and a app extension.
+//!
+//! ### TlsIncoming
+//!
+//! ```rust
+//! use roa_core::App;
+//! use roa_tls::TlsIncoming;
+//! use roa_tls::rustls::{ServerConfig, NoClientAuth};
+//! use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
+//! use std::fs::File;
+//! use std::io::BufReader;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut config = ServerConfig::new(NoClientAuth::new());
+//! let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+//! let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+//! let cert_chain = certs(&mut cert_file).unwrap();
+//! let mut keys = rsa_private_keys(&mut key_file).unwrap();
+//! config.set_single_cert(cert_chain, keys.remove(0))?;
+//!
+//! let incoming = TlsIncoming::bind("127.0.0.1:0", config)?;
+//! let server = App::new(()).accept(incoming);
+//! // server.await
+//! Ok(())
+//! # }
+//! ```
+//!
+//! ### TlsListener
+//!
+//! ```rust
+//! use roa_core::App;
+//! use roa_tls::TlsListener;
+//! use roa_tls::rustls::{ServerConfig, NoClientAuth};
+//! use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
+//! use std::fs::File;
+//! use std::io::BufReader;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut config = ServerConfig::new(NoClientAuth::new());
+//! let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+//! let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+//! let cert_chain = certs(&mut cert_file).unwrap();
+//! let mut keys = rsa_private_keys(&mut key_file).unwrap();
+//! config.set_single_cert(cert_chain, keys.remove(0))?;
+//!
+//! let (addr, server) = App::new(()).listen_tls_on("127.0.0.1:0", config)?;
+//! // server.await
+//! Ok(())
+//! # }
+//! ```
+
+#![warn(missing_docs)]
+
 use async_std::net::TcpStream;
 use async_tls::server::TlsStream;
 use async_tls::TlsAcceptor;
@@ -16,6 +69,8 @@ use std::task::{self, Poll};
 
 pub use rustls;
 
+/// A stream of connections from a TcpIncoming.
+/// As an implementation of roa_core::Accept.
 pub struct TlsIncoming {
     incoming: TcpIncoming,
     acceptor: TlsAcceptor,
@@ -104,6 +159,7 @@ impl AsyncWrite for WrapStream {
 }
 
 impl TlsIncoming {
+    /// Construct from roa_tcp::TcpIncoming.
     pub fn new(incoming: TcpIncoming, config: ServerConfig) -> Self {
         Self {
             incoming,
@@ -111,6 +167,7 @@ impl TlsIncoming {
         }
     }
 
+    /// Construct from a socket addr.
     pub fn bind(addr: impl ToSocketAddrs, config: ServerConfig) -> io::Result<Self> {
         let incoming = TcpIncoming::bind(addr)?;
         Ok(Self::new(incoming, config))
@@ -134,6 +191,7 @@ impl Accept for TlsIncoming {
     type Conn = AddrStream;
     type Error = io::Error;
 
+    #[inline]
     fn poll_accept(
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
@@ -148,8 +206,9 @@ impl Accept for TlsIncoming {
     }
 }
 
+/// An app extension.
 pub trait TlsListener {
-    /// tcp server
+    /// http server
     type Server;
 
     /// Listen on a socket addr, return a server and the real addr it binds.
@@ -169,7 +228,7 @@ pub trait TlsListener {
 
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
-    /// ```rust,no_run
+    /// ```rust
     /// use roa_core::App;
     /// use roa_tls::TlsListener;
     /// use roa_tls::rustls::{ServerConfig, NoClientAuth};
@@ -180,28 +239,26 @@ pub trait TlsListener {
     /// use std::fs::File;
     /// use std::io::BufReader;
     ///
-    /// #[async_std::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let mut config = ServerConfig::new(NoClientAuth::new());
-    ///     let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
-    ///     let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-    ///     let cert_chain = certs(&mut cert_file).unwrap();
-    ///     let mut keys = rsa_private_keys(&mut key_file).unwrap();
-    ///     config.set_single_cert(cert_chain, keys.remove(0))?;
-    ///
-    ///     let server = App::new(())
-    ///         .gate_fn(|_ctx, next| async move {
-    ///             let inbound = Instant::now();
-    ///             next.await?;
-    ///             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-    ///             Ok(())
-    ///         })
-    ///         .listen_tls("127.0.0.1:8000", config, |addr| {
-    ///             println!("Server is listening on https://localhost:{}", addr.port());
-    ///         })?;
-    ///     server.await?;
-    ///     Ok(())
-    /// }
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut config = ServerConfig::new(NoClientAuth::new());
+    /// let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+    /// let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+    /// let cert_chain = certs(&mut cert_file).unwrap();
+    /// let mut keys = rsa_private_keys(&mut key_file).unwrap();
+    /// config.set_single_cert(cert_chain, keys.remove(0))?;
+    /// let server = App::new(())
+    ///     .gate_fn(|_ctx, next| async move {
+    ///         let inbound = Instant::now();
+    ///         next.await?;
+    ///         println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+    ///         Ok(())
+    ///     })
+    ///     .listen_tls("127.0.0.1:8000", config, |addr| {
+    ///         println!("Server is listening on https://localhost:{}", addr.port());
+    ///     })?;
+    /// // server.await
+    /// Ok(())
+    /// # }
     /// ```
     fn run_tls(
         &self,

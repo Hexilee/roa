@@ -4,7 +4,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 
 /// An app extension.
 pub trait Listener {
-    /// tcp server
+    /// http server
     type Server;
 
     /// Listen on a socket addr, return a server and the real addr it binds.
