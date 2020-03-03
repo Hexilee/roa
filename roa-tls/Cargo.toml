@@ -1,8 +1,18 @@
 [package]
 name = "roa-tls"
 version = "0.5.0-alpha"
-authors = ["Hexilee <hexileee@gmail.com>"]
+authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
+license = "MIT"
+readme = "./README.md"
+repository = "https://github.com/Hexilee/roa"
+documentation = "https://docs.rs/roa-tls"
+homepage = "https://github.com/Hexilee/roa/wiki"
+description = "tls based acceptor for roa"
+keywords = ["http", "web", "framework", "async"]
+categories = ["network-programming", "asynchronous",
+              "web-programming::http-server"]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

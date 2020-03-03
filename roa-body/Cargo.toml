@@ -1,10 +1,24 @@
 [package]
 name = "roa-body"
 version = "0.5.0-alpha"
-authors = ["Hexilee <hexileee@gmail.com>"]
+authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
+readme = "./README.md"
+repository = "https://github.com/Hexilee/roa"
+documentation = "https://docs.rs/roa-body"
+homepage = "https://github.com/Hexilee/roa/wiki"
+description = "An extension crate for roa."
+keywords = ["http", "web", "framework", "async"]
+categories = ["network-programming", "asynchronous",
+              "web-programming::http-server"]
+exclude = ["templates/"]
 
+[package.metadata.docs.rs]
+features = ["full"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[badges]
+codecov = { repository = "Hexilee/roa" }
 
 [dependencies]
 log = "0.4"

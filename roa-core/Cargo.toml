@@ -1,13 +1,13 @@
 [package]
 name = "roa-core"
 version = "0.5.0-alpha"
-authors = ["Hexilee <hexileee@gmail.com>"]
+authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
 readme = "./README.md"
 repository = "https://github.com/Hexilee/roa"
 documentation = "https://docs.rs/roa-core"
-homepage = "https://github.com/Hexilee/roa"
+homepage = "https://github.com/Hexilee/roa/wiki"
 description = "core components of roa web framework"
 keywords = ["http", "web", "framework", "async"]
 categories = ["network-programming", "asynchronous",
@@ -17,10 +17,9 @@ categories = ["network-programming", "asynchronous",
 [package.metadata.docs.rs]
 features = ["runtime"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [badges]
-github = { repository = "Hexilee/roa" }
+codecov = { repository = "Hexilee/roa" }
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 futures = "0.3"

@@ -1,4 +1,4 @@
-//! This crate provides a websocket middleware.
+//! This crate provides a websocket endpoint.
 //!
 //! ### Example
 //! ```
@@ -23,7 +23,7 @@
 //!     }),
 //! );
 //! app.gate(router.routes("/")?);
-//! # Ok(())
+//! Ok(())
 //! # }
 //! ```
 #![warn(missing_docs)]

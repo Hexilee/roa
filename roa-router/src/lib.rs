@@ -1,5 +1,5 @@
 //! The router module of roa.
-//! This module provides a middleware `RouteEndpoint` and a context extension `RouterParam`.
+//! This module provides an endpoint `RouteEndpoint` and a context extension `RouterParam`.
 //!
 //! ### Example
 //!

@@ -1,4 +1,4 @@
-//! This crate provides an incoming implementing `roa_core::Accept` and a app extension.
+//! This crate provides an acceptor implementing `roa_core::Accept` and an app extension.
 //!
 //! ### TcpIncoming
 //!

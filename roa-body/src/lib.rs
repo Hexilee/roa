@@ -1,7 +1,7 @@
-//! The body crate of roa.
+//! An extension crate for roa.
 //! This module provides a context extension `PowerBody`.
 //!
-//! ### Read/write body in a simpler way.
+//! ### Read/write body in a easier way.
 //!
 //! The `roa_core` provides several methods to read/write body.
 //!
