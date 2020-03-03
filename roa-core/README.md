@@ -8,65 +8,52 @@
 
 ### Introduction
 
-Roa is an async web framework inspired by koajs, lightweight but powerful.
+Core components of Roa framework.
+
+If you are new to roa, please go to the documentation of roa framework.
 
 ### Application
 
 A Roa application is a structure containing a middleware group which composes and executes middleware functions in a stack-like manner.
+
 The obligatory hello world application:
 
 ```rust
 use roa_core::App;
-use log::info;
-use std::error::Error as StdError;
-#[async_std::main]
-async fn main() -> Result<(), Box<dyn StdError>> {
-    let mut app = App::new(());
-    app.end(|mut ctx| async move {
-        ctx.resp_mut().await.write_str("Hello, World");
-        Ok(())
-    });
-    app.listen("127.0.0.1:8000", |addr| {
-        info!("Server is listening on {}", addr)
-    })?
-    .await?;
+
+let mut app = App::new(());
+app.end(|mut ctx| async move {
+    ctx.resp_mut().write_str("Hello, World");
     Ok(())
-}
+});
 ```
 
 #### Cascading
 
 The following example responds with "Hello World", however, the request flows through
 the `logging` middleware to mark when the request started, then continue
-to yield control through the response middleware. When a middleware invokes `next().await`
+to yield control through the response middleware. When a middleware invokes `next.await`
 the function suspends and passes control to the next middleware defined. After there are no more
 middleware to execute downstream, the stack will unwind and each middleware is resumed to perform
 its upstream behaviour.
 
 ```rust
 use roa_core::App;
-use log::info;
-use std::error::Error as StdError;
 use std::time::Instant;
-#[async_std::main]
-async fn main() -> Result<(), Box<dyn StdError>> {
-    let mut app = App::new(());
-    app.gate_fn(|_ctx, next| async move {
-        let inbound = Instant::now();
-        next().await?;
-        info!("time elapsed: {} ms", inbound.elapsed().as_millis());
-        Ok(())
-    });
-    app.end(|mut ctx| async move {
-        ctx.resp_mut().await.write_str("Hello, World");
-        Ok(())
-    });
-    app.listen("127.0.0.1:8000", |addr| {
-        info!("Server is listening on {}", addr)
-    })?
-    .await?;
+use log::info;
+
+let mut app = App::new(());
+app.gate_fn(|_ctx, next| async move {
+    let inbound = Instant::now();
+    next.await?;
+    info!("time elapsed: {} ms", inbound.elapsed().as_millis());
     Ok(())
-}
+});
+
+app.end(|mut ctx| async move {
+    ctx.resp_mut().write_str("Hello, World");
+    Ok(())
+});
 ```
 
 ### Error Handling
@@ -75,47 +62,38 @@ You can catch or straightly throw an Error returned by next.
 
 ```rust
 use roa_core::{App, throw};
-use async_std::task::spawn;
-use http::StatusCode;
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (addr, server) = App::new(())
-        .gate_fn(|ctx, next| async move {
-            // catch
-            if let Err(err) = next().await {
-                // teapot is ok
-                if err.status_code != StatusCode::IM_A_TEAPOT {
-                    return Err(err)
-                }
-            }
-            Ok(())
-        })
-        .gate_fn(|ctx, next| async move {
-            next().await?; // just throw
-            unreachable!()
-        })
-        .end(|_ctx| async move {
-            throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
-        })
-        .run_local()?;
-    spawn(server);
-    let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    assert_eq!(StatusCode::OK, resp.status());
+use roa_core::http::StatusCode;
+        
+let mut app = App::new(());
+app.gate_fn(|ctx, next| async move {
+    // catch
+    if let Err(err) = next.await {
+        // teapot is ok
+        if err.status_code != StatusCode::IM_A_TEAPOT {
+            return Err(err)
+        }
+    }
     Ok(())
-}
+});
+app.gate_fn(|ctx, next| async move {
+    next.await?; // just throw
+    unreachable!()
+});
+app.end(|_ctx| async move {
+    throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+});
 ```
 
 #### error_handler
-
 App has an error_handler to handle `Error` thrown by the top middleware.
 This is the error_handler:
 
 ```rust
-use roa_core::{Context, Error, Result, State, ErrorKind};
+use roa_core::{Context, Error, Result, ErrorKind, State};
 pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
-    context.resp_mut().await.status = err.status_code;
+    context.resp_mut().status = err.status_code;
     if err.expose {
-        context.resp_mut().await.write_str(&err.message);
+        context.resp_mut().write_str(&err.message);
     }
     if err.kind == ErrorKind::ServerError {
         Err(err)
@@ -127,35 +105,7 @@ pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Res
 
 The Error thrown by this error_handler will be handled by hyper.
 
-### Use custom runtime.
+### HTTP Server.
 
-Use `hyper::Server::builder` to construct a hyper server with your custom runtime.
-
-#### Example
-```rust
-use roa_core::{App, Server, AddrIncoming, Executor};
-use std::future::Future;
-/// An implementation of hyper::rt::Executor based on tokio
-#[derive(Copy, Clone)]
-pub struct Exec;
-impl<F> Executor<F> for Exec
-where
-    F: 'static + Send + Future,
-    F::Output: 'static + Send,
-{
-    #[inline]
-    fn execute(&self, fut: F) {
-        tokio::task::spawn(fut);
-    }
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let app = App::new(());
-    let server = Server::builder(AddrIncoming::bind("127.0.0.1:8080")?)
-        .executor(Exec)
-        .serve(app);
-    server.await?;
-    Ok(())
-}
-```
+Use `roa_core::accept` to construct a http server.
+Please refer to crate [![Crate version](https://img.shields.io/crates/v/roa-tcp.svg)](https://crates.io/crates/roa-tcp) for more information.
