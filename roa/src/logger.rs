@@ -37,6 +37,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Instant;
 
+/// A finite-state machine to log information in each response.
 enum Logger<S, F>
 where
     F: FnOnce(u64),

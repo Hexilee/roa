@@ -6,80 +6,22 @@
 //! ```rust
 //! use roa::compress::{Compress, Level};
 //! use roa::body::DispositionType::*;
-//! use roa::{App, Middleware, Context, Next};
-//! use roa::http::{StatusCode, header::ACCEPT_ENCODING};
+//! use roa::App;
 //! use roa::preload::*;
-//! use async_std::task::spawn;
-//! use futures::Stream;
-//! use std::io;
-//! use bytes::Bytes;
-//! use std::pin::Pin;
-//! use std::task::{self, Poll};
 //!
-//! struct Consumer<S> {
-//!     counter: usize,
-//!     stream: S,
-//!     assert_counter: usize,
-//! }
 //!
-//! impl<S> Stream for Consumer<S>
-//! where
-//!     S: 'static + Send + Send + Unpin + Stream<Item = io::Result<Bytes>>,
-//! {
-//!     type Item = io::Result<Bytes>;
-//!
-//!     fn poll_next(
-//!         mut self: Pin<&mut Self>,
-//!         cx: &mut task::Context<'_>,
-//!     ) -> Poll<Option<Self::Item>> {
-//!         match Pin::new(&mut self.stream).poll_next(cx) {
-//!             Poll::Ready(Some(Ok(bytes))) => {
-//!                 self.counter += bytes.len();
-//!                 Poll::Ready(Some(Ok(bytes)))
-//!             }
-//!             Poll::Ready(None) => {
-//!                 assert_eq!(self.assert_counter, self.counter);
-//!                 Poll::Ready(None)
-//!             }
-//!             poll => poll,
-//!         }
-//!     }
-//! }
-//!
-//! fn assert_consumed(assert_counter: usize) -> impl Middleware<()> {
-//!     move |mut ctx: Context<()>, next: Next| async move {
-//!         next.await?;
-//!         ctx.resp_mut().map_body(move |stream| Consumer{
-//!             counter: 0,
-//!             stream,
-//!             assert_counter
-//!         });
-//!         Ok(())
-//!     }
-//! }
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     pretty_env_logger::init();
-//!     let (addr, server) = App::new(())
-//!         .gate(assert_consumed(202)) // compressed
-//!         .gate(Compress(Level::Fastest))
-//!         .gate(assert_consumed(236)) // the size of assets/welcome.html is 236 bytes.
-//!         .end(|mut ctx| async move {
-//!             ctx.write_file("../assets/welcome.html", Inline).await
-//!         })
-//!         .run()?;
-//!     spawn(server);
-//!     let client = reqwest::Client::builder().gzip(true).build()?;
-//!     let resp = client
-//!         .get(&format!("http://{}", addr))
-//!         .header(ACCEPT_ENCODING, "gzip")
-//!         .send()
-//!         .await?;
-//!     assert_eq!(StatusCode::OK, resp.status());
-//!     Ok(())
-//! }
+//! # fn main() -> std::io::Result<()> {
+//! let (addr, server) = App::new(())
+//!     .gate(Compress(Level::Fastest))
+//!     .end(|mut ctx| async move {
+//!         ctx.write_file("../assets/welcome.html", Inline).await
+//!     })
+//!     .run()?;
+//! // server.await
+//! Ok(())
+//! # }
 //! ```
+
 pub use async_compression::Level;
 
 use crate::http::{header::CONTENT_ENCODING, StatusCode};
@@ -132,6 +74,81 @@ impl<S: State> Middleware<S> for Compress {
         ctx.resp_mut()
             .headers
             .append(CONTENT_ENCODING, content_encoding);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::body::DispositionType::*;
+    use crate::compress::{Compress, Level};
+    use crate::http::{header::ACCEPT_ENCODING, StatusCode};
+    use crate::preload::*;
+    use crate::{App, Context, Middleware, Next};
+    use async_std::task::spawn;
+    use bytes::Bytes;
+    use futures::Stream;
+    use std::io;
+    use std::pin::Pin;
+    use std::task::{self, Poll};
+
+    struct Consumer<S> {
+        counter: usize,
+        stream: S,
+        assert_counter: usize,
+    }
+    impl<S> Stream for Consumer<S>
+    where
+        S: 'static + Send + Send + Unpin + Stream<Item = io::Result<Bytes>>,
+    {
+        type Item = io::Result<Bytes>;
+        fn poll_next(
+            mut self: Pin<&mut Self>,
+            cx: &mut task::Context<'_>,
+        ) -> Poll<Option<Self::Item>> {
+            match Pin::new(&mut self.stream).poll_next(cx) {
+                Poll::Ready(Some(Ok(bytes))) => {
+                    self.counter += bytes.len();
+                    Poll::Ready(Some(Ok(bytes)))
+                }
+                Poll::Ready(None) => {
+                    assert_eq!(self.assert_counter, self.counter);
+                    Poll::Ready(None)
+                }
+                poll => poll,
+            }
+        }
+    }
+    fn assert_consumed(assert_counter: usize) -> impl Middleware<()> {
+        move |mut ctx: Context<()>, next: Next| async move {
+            next.await?;
+            ctx.resp_mut().map_body(move |stream| Consumer {
+                counter: 0,
+                stream,
+                assert_counter,
+            });
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn compress() -> Result<(), Box<dyn std::error::Error>> {
+        let (addr, server) = App::new(())
+            .gate(assert_consumed(202)) // compressed
+            .gate(Compress(Level::Fastest))
+            .gate(assert_consumed(236)) // the size of assets/welcome.html is 236 bytes.
+            .end(|mut ctx| async move {
+                ctx.write_file("../assets/welcome.html", Inline).await
+            })
+            .run()?;
+        spawn(server);
+        let client = reqwest::Client::builder().gzip(true).build()?;
+        let resp = client
+            .get(&format!("http://{}", addr))
+            .header(ACCEPT_ENCODING, "gzip")
+            .send()
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 }
