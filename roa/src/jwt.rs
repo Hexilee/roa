@@ -161,10 +161,12 @@ struct JwtGuard {
     validation: Validation,
 }
 
+#[inline]
 fn unauthorized(_err: impl ToString) -> Error {
     Error::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
 }
 
+#[inline]
 fn guard_not_set() -> Error {
     Error::new(
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -177,6 +179,7 @@ impl<S> JwtVerifier<S> for SyncContext<S>
 where
     S: State,
 {
+    #[inline]
     fn claims<C>(&self) -> Result<C>
     where
         C: 'static + DeserializeOwned,
@@ -199,6 +202,7 @@ where
         }
     }
 
+    #[inline]
     fn verify<C>(&self, validation: &Validation) -> Result<C>
     where
         C: 'static + DeserializeOwned,
@@ -216,6 +220,7 @@ where
 
 #[async_trait(?Send)]
 impl<S: State> Middleware<S> for JwtGuard {
+    #[inline]
     async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
         let bearer = ctx
             .req()

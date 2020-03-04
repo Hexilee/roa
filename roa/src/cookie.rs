@@ -216,6 +216,7 @@ pub async fn cookie_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result 
 }
 
 impl<S> CookieGetter for SyncContext<S> {
+    #[inline]
     fn must_cookie(&mut self, name: &str) -> Result<Arc<Cookie<'static>>> {
         match self.cookie(name) {
             Some(value) => Ok(value),
@@ -229,12 +230,14 @@ impl<S> CookieGetter for SyncContext<S> {
         }
     }
 
+    #[inline]
     fn cookie(&self, name: &str) -> Option<Arc<Cookie<'static>>> {
         Some(self.load_scoped::<CookieScope, Cookie>(name)?.value())
     }
 }
 
 impl<S: State> CookieSetter for Context<S> {
+    #[inline]
     fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result {
         let cookie_value = cookie.encoded().to_string();
         self.resp_mut().append(header::SET_COOKIE, cookie_value)?;

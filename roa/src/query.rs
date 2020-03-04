@@ -142,6 +142,7 @@ pub async fn query_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
 }
 
 impl<S: State> Query for SyncContext<S> {
+    #[inline]
     fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.query(name).ok_or_else(|| {
             Error::new(
@@ -151,6 +152,7 @@ impl<S: State> Query for SyncContext<S> {
             )
         })
     }
+    #[inline]
     fn query<'a>(&self, name: &'a str) -> Option<Variable<'a, String>> {
         self.load_scoped::<QueryScope, String>(name)
     }

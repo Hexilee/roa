@@ -76,6 +76,7 @@ pub trait FriendlyHeaders {
     /// Deal with `ToStrError`, usually invoked when a header value is gotten,
     /// then fails to be transferred to string.
     /// Throw `Self::GENERAL_ERROR_CODE`.
+    #[inline]
     fn handle_to_str_error(err: ToStrError, value: &HeaderValue) -> Error {
         Error::new(
             Self::GENERAL_ERROR_CODE,
@@ -86,6 +87,7 @@ pub trait FriendlyHeaders {
 
     /// Deal with None, usually invoked when a header value is not gotten.
     /// Throw `Self::GENERAL_ERROR_CODE`.
+    #[inline]
     fn handle_none<K>(key: K) -> Error
     where
         K: AsHeaderName + AsRef<str>,
@@ -115,6 +117,7 @@ pub trait FriendlyHeaders {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     fn get<K>(&self, key: K) -> Option<Result<&str>>
     where
         K: AsHeaderName + AsRef<str>,
@@ -141,6 +144,7 @@ pub trait FriendlyHeaders {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     fn must_get<K>(&self, key: K) -> Result<&str>
     where
         K: AsHeaderName + AsRef<str>,
@@ -169,6 +173,7 @@ pub trait FriendlyHeaders {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     fn get_all<K>(&self, key: K) -> Result<Vec<&str>>
     where
         K: AsHeaderName,
@@ -202,6 +207,7 @@ pub trait FriendlyHeaders {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     fn insert<K, V>(&mut self, key: K, val: V) -> Result<Option<String>>
     where
         K: IntoHeaderName,
@@ -242,6 +248,7 @@ pub trait FriendlyHeaders {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     fn append<K, V>(&mut self, key: K, val: V) -> Result<bool>
     where
         K: IntoHeaderName,
@@ -259,10 +266,12 @@ pub trait FriendlyHeaders {
 impl FriendlyHeaders for Request {
     const GENERAL_ERROR_CODE: StatusCode = StatusCode::BAD_REQUEST;
 
+    #[inline]
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue> {
         &self.headers
     }
 
+    #[inline]
     fn raw_mut_header_map(&mut self) -> &mut HeaderMap<HeaderValue> {
         &mut self.headers
     }
@@ -271,10 +280,12 @@ impl FriendlyHeaders for Request {
 impl FriendlyHeaders for Response {
     const GENERAL_ERROR_CODE: StatusCode = StatusCode::INTERNAL_SERVER_ERROR;
 
+    #[inline]
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue> {
         &self.headers
     }
 
+    #[inline]
     fn raw_mut_header_map(&mut self) -> &mut HeaderMap<HeaderValue> {
         &mut self.headers
     }
