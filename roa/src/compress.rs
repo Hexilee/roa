@@ -51,22 +51,22 @@ impl<S: State> Middleware<S> for Compress {
         let content_encoding = match best_encoding {
             None | Some(Encoding::Gzip) => {
                 ctx.resp_mut()
-                    .map_body(move |body| GzipEncoder::with_quality(body, level));
+                    .wrapped(move |body| GzipEncoder::with_quality(body, level));
                 Encoding::Gzip.to_header_value()
             }
             Some(Encoding::Deflate) => {
                 ctx.resp_mut()
-                    .map_body(move |body| ZlibEncoder::with_quality(body, level));
+                    .wrapped(move |body| ZlibEncoder::with_quality(body, level));
                 Encoding::Deflate.to_header_value()
             }
             Some(Encoding::Brotli) => {
                 ctx.resp_mut()
-                    .map_body(move |body| BrotliEncoder::with_quality(body, level));
+                    .wrapped(move |body| BrotliEncoder::with_quality(body, level));
                 Encoding::Brotli.to_header_value()
             }
             Some(Encoding::Zstd) => {
                 ctx.resp_mut()
-                    .map_body(move |body| ZstdEncoder::with_quality(body, level));
+                    .wrapped(move |body| ZstdEncoder::with_quality(body, level));
                 Encoding::Zstd.to_header_value()
             }
             Some(Encoding::Identity) => Encoding::Identity.to_header_value(),
@@ -122,7 +122,7 @@ mod tests {
     fn assert_consumed(assert_counter: usize) -> impl Middleware<()> {
         move |mut ctx: Context<()>, next: Next| async move {
             next.await?;
-            ctx.resp_mut().map_body(move |stream| Consumer {
+            ctx.resp_mut().wrapped(move |stream| Consumer {
                 counter: 0,
                 stream,
                 assert_counter,

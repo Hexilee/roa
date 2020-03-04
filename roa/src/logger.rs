@@ -113,7 +113,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     match result {
         Ok(()) => {
             let status_code = ctx.status();
-            ctx.resp_mut().map_body(move |stream| Logger::Polling {
+            ctx.resp_mut().wrapped(move |stream| Logger::Polling {
                 counter,
                 stream,
                 exec,
@@ -132,7 +132,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
         Err(ref err) => {
             let message = err.message.clone();
             let status_code = err.status_code;
-            ctx.resp_mut().map_body(move |stream| Logger::Polling {
+            ctx.resp_mut().wrapped(move |stream| Logger::Polling {
                 counter,
                 stream,
                 exec,
@@ -197,7 +197,7 @@ mod tests {
         let (addr, server) = App::new(())
             .gate_fn(logger)
             .end(move |mut ctx| async move {
-                ctx.resp_mut().write_str("Hello, World.");
+                ctx.resp_mut().write("Hello, World.");
                 Ok(())
             })
             .run()?;
