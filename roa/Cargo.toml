@@ -1,6 +1,6 @@
 [package]
 name = "roa"
-version = "0.5.0-alpha"
+version = "0.5.0-beta"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -34,12 +34,12 @@ percent-encoding = "2.1"
 bytes = "0.5"
 headers = "0.3.1"
 
-roa-core = { path = "../roa-core", version = "0.5.0-alpha", features = ["runtime"] }
-roa-tcp = { path = "../roa-tcp", version = "0.5.0-alpha", optional = true }
-roa-tls = { path = "../roa-tls", version = "0.5.0-alpha", optional = true }
-roa-body = { path = "../roa-body", version = "0.5.0-alpha", features = ["full"], optional = true }
-roa-router = { path = "../roa-router", version = "0.5.0-alpha", optional = true }
-roa-websocket = { path = "../roa-websocket", version = "0.5.0-alpha", optional = true }
+roa-core = { path = "../roa-core", version = "0.5.0-beta", features = ["runtime"] }
+roa-tcp = { path = "../roa-tcp", version = "0.5.0-beta", optional = true }
+roa-tls = { path = "../roa-tls", version = "0.5.0-beta", optional = true }
+roa-body = { path = "../roa-body", version = "0.5.0-beta", features = ["full"], optional = true }
+roa-router = { path = "../roa-router", version = "0.5.0-beta", optional = true }
+roa-websocket = { path = "../roa-websocket", version = "0.5.0-beta", optional = true }
 cookie = { version = "0.12", features = ["percent-encode"], optional = true }
 jsonwebtoken = { version = "7.1", optional = true }
 serde = { version = "1", optional = true }

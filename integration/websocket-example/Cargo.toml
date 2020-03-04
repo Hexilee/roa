@@ -7,9 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-roa = { path = "../../roa", version = "0.5.0-alpha", features = ["router", "body", "websocket"] }
-roa-websocket = { path = "../../roa-websocket", version = "0.5.0-alpha" }
-async-std = { version = "1.4", features = ["attributes"] }
+roa = { path = "../../roa", features = ["router", "body", "websocket"] }
+roa-websocket = { path = "../../roa-websocket" }
+async-std = { version = "1.5", features = ["attributes"] }
 log = "0.4"
 pretty_env_logger = "0.3"
 futures = "0.3"

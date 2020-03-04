@@ -31,7 +31,7 @@
     - Supports HTTP/1.x and HTTP/2.0 protocols.
     - Full streaming.
     - Highly extensible middleware system.
-    - Based on [`hyper`](https://github.com/hyperium/hyper) and [`async-std`](https://github.com/async-rs/async-std), runtime-independent, you can chose any async runtime you like.
+    - Based on [`hyper`](https://github.com/hyperium/hyper), runtime-independent, you can chose async runtime as you like.
 - Many useful extensions and middlewares.
     - Transparent content compression (br, gzip, deflate, zstd).
     - Configurable and nestable router.
@@ -52,7 +52,7 @@
 # Cargo.toml
 
 [dependencies]
-roa = "0.5.0-alpha"
+roa = "0.5.0-beta"
 async-std = { version = "1.5", features = ["attributes"] }
 ```
 

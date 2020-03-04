@@ -8,8 +8,8 @@ edition = "2018"
 
 [dependencies]
 diesel = { version = "1.4", features = ["extras", "sqlite"] }
-roa = { path = "../../roa", version = "0.5.0-alpha", features = ["router", "body"] }
-roa-diesel = { path = "../../roa-diesel", version = "0.5.0-alpha" }
+roa = { path = "../../roa", features = ["router", "body"] }
+roa-diesel = { path = "../../roa-diesel" }
 async-std = { version = "1.4", features = ["attributes"] }
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
