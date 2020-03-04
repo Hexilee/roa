@@ -20,11 +20,13 @@ impl<S: State> juniper::Context for JuniperContext<S> {}
 
 impl<S> Deref for JuniperContext<S> {
     type Target = SyncContext<S>;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 impl<S> DerefMut for JuniperContext<S> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -54,6 +56,7 @@ where
     QueryT::TypeInfo: Send + Sync,
     MutationT::TypeInfo: Send + Sync,
 {
+    #[inline]
     async fn handle(self: Arc<Self>, mut ctx: Context<S>, _next: Next) -> Result {
         let request: GraphQLRequest<Sca> = ctx.read_json().await?;
         let juniper_ctx = JuniperContext(ctx.clone());

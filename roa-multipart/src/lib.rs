@@ -77,6 +77,7 @@ struct WrapStream(Option<Body>);
 
 impl Multipart {
     /// Construct multipart from Context.
+    #[inline]
     pub fn new<S: State>(ctx: &mut Context<S>) -> Self {
         let mut map = HeaderMap::new();
         if let Some(value) = ctx.req().headers.get(CONTENT_TYPE) {
@@ -166,18 +167,21 @@ impl Stream for Field {
 
 impl Deref for Field {
     type Target = ActixField;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl From<WrapError> for Error {
+    #[inline]
     fn from(err: WrapError) -> Self {
         Error::new(StatusCode::BAD_REQUEST, err, true)
     }
 }
 
 impl Display for WrapError {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{}\nmultipart form read error.", self.0))
     }

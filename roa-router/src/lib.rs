@@ -420,6 +420,7 @@ impl<S: State> RouteTable<S> {
     }
 
     /// Handle request.
+    #[inline]
     async fn end(&self, mut ctx: Context<S>) -> Result {
         let uri = ctx.uri();
         // standardize path
@@ -460,6 +461,7 @@ impl<S: State> RouteTable<S> {
 
 #[async_trait(?Send)]
 impl<S: State> Middleware<S> for RouteEndpoint<S> {
+    #[inline]
     async fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Result {
         match self.0.get(&ctx.method()) {
             None => throw!(
@@ -472,6 +474,7 @@ impl<S: State> Middleware<S> for RouteEndpoint<S> {
 }
 
 impl<S: State> RouterParam for Context<S> {
+    #[inline]
     fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.param(name).ok_or_else(|| {
             Error::new(
@@ -481,6 +484,7 @@ impl<S: State> RouterParam for Context<S> {
             )
         })
     }
+    #[inline]
     fn param<'a>(&self, name: &'a str) -> Option<Variable<'a, String>> {
         self.load_scoped::<RouterScope, String>(name)
     }
