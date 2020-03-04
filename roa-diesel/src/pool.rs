@@ -92,6 +92,7 @@ where
     S: State + AsRef<Pool<Conn>>,
     Conn: Connection + 'static,
 {
+    #[inline]
     async fn get_conn(&self) -> Result<WrapConnection<Conn>, Error> {
         let pool = self.as_ref().clone();
         self.exec
@@ -100,6 +101,7 @@ where
             .map_err(|err| WrapError::from(err).into())
     }
 
+    #[inline]
     async fn get_timeout(
         &self,
         timeout: Duration,
@@ -111,6 +113,7 @@ where
             .map_err(|err| WrapError::from(err).into())
     }
 
+    #[inline]
     async fn pool_state(&self) -> r2d2::State {
         let pool = self.as_ref().clone();
         self.exec.spawn_blocking(move || pool.state()).await

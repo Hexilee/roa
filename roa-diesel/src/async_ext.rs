@@ -83,6 +83,7 @@ pub trait SqlQuery<Conn: 'static + Connection> {
         Limit<Q>: LoadQuery<Conn, U>;
 }
 
+#[inline]
 fn map_diesel_error(err: DieselError) -> Error {
     WrapError::from(err).into()
 }
@@ -93,6 +94,7 @@ where
     S: State + AsRef<Pool<Conn>>,
     Conn: 'static + Connection,
 {
+    #[inline]
     async fn execute<E>(&self, exec: E) -> Result<usize>
     where
         E: 'static + Send + ExecuteDsl<Conn>,
@@ -122,6 +124,7 @@ where
     /// [`execute`]: fn.execute.html
     /// [`sql_query`]: ../fn.sql_query.html
     ///
+    #[inline]
     async fn load_data<U, Q>(&self, query: Q) -> Result<Vec<U>>
     where
         U: 'static + Send,
@@ -144,6 +147,7 @@ where
     /// When this method is called on an insert, update, or delete statement,
     /// it will implicitly add a `RETURNING *` to the query,
     /// unless a returning clause was already specified.
+    #[inline]
     async fn get_result<U, Q>(&self, query: Q) -> Result<Option<U>>
     where
         U: 'static + Send,
@@ -163,6 +167,7 @@ where
     /// sense for insert, update, and delete statements.
     ///
     /// [`load`]: #method.load
+    #[inline]
     async fn get_results<U, Q>(&self, query: Q) -> Result<Vec<U>>
     where
         U: 'static + Send,
@@ -179,6 +184,7 @@ where
     /// returned. If the query truly is optional, you can call `.optional()` on
     /// the result of this to get a `Result<Option<U>>`.
     ///
+    #[inline]
     async fn first<U, Q>(&self, query: Q) -> Result<Option<U>>
     where
         U: 'static + Send,

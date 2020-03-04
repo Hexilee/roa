@@ -15,6 +15,7 @@ pub enum WrapError {
 }
 
 impl Display for WrapError {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use WrapError::*;
         match self {
@@ -25,18 +26,21 @@ impl Display for WrapError {
 }
 
 impl From<DieselError> for WrapError {
+    #[inline]
     fn from(err: DieselError) -> Self {
         WrapError::Diesel(err)
     }
 }
 
 impl From<PoolError> for WrapError {
+    #[inline]
     fn from(err: PoolError) -> Self {
         WrapError::Pool(err)
     }
 }
 
 impl From<WrapError> for Error {
+    #[inline]
     fn from(err: WrapError) -> Self {
         Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
     }
