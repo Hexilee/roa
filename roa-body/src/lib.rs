@@ -151,7 +151,7 @@ pub trait PowerBody: Content {
 impl<S: State> PowerBody for Context<S> {
     async fn body_bytes(&mut self) -> Result<Bytes> {
         let mut bytes = BytesMut::new();
-        let stream = self.req_mut().stream();
+        let mut stream = self.req_mut().stream();
         while let Some(item) = stream.next().await {
             bytes.extend(item?)
         }
