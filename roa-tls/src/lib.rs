@@ -325,7 +325,7 @@ mod tests {
         config.set_single_cert(cert_chain, keys.remove(0))?;
         let (addr, server) = App::new(())
             .end(|mut ctx| async move {
-                ctx.resp_mut().write_str("Hello, World!");
+                ctx.resp_mut().write("Hello, World!");
                 Ok(())
             })
             .run_tls(config)?;

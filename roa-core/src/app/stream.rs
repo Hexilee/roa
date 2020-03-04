@@ -16,6 +16,7 @@ pub struct AddrStream {
 
 impl AddrStream {
     /// Construct an AddrStream from an addr and a AsyncReadWriter.
+    #[inline]
     pub fn new(
         remote_addr: SocketAddr,
         stream: impl 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite,

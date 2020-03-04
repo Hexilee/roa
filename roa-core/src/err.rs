@@ -108,6 +108,7 @@ pub enum ErrorKind {
 }
 
 impl ErrorKind {
+    #[inline]
     fn infer(status_code: StatusCode) -> Self {
         use ErrorKind::*;
         match status_code.as_u16() / 100 {
@@ -127,6 +128,7 @@ impl ErrorKind {
 
 impl Error {
     /// Construct an error.
+    #[inline]
     pub fn new(status_code: StatusCode, message: impl ToString, expose: bool) -> Self {
         Self {
             status_code,
@@ -136,6 +138,7 @@ impl Error {
         }
     }
 
+    #[inline]
     pub(crate) fn need_throw(&self) -> bool {
         self.kind == ErrorKind::ServerError
     }
@@ -144,6 +147,7 @@ impl Error {
 macro_rules! internal_server_error {
     ($error:ty) => {
         impl From<$error> for Error {
+            #[inline]
             fn from(err: $error) -> Self {
                 Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
             }
@@ -155,6 +159,7 @@ internal_server_error!(std::io::Error);
 internal_server_error!(http::Error);
 
 impl Display for Error {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> StdResult<(), std::fmt::Error> {
         f.write_str(&format!("{}: {}", self.status_code, self.message))
     }

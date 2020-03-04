@@ -113,6 +113,7 @@ pub trait Middleware<S: State>: 'static + Sync + Send {
     async fn handle(self: Arc<Self>, ctx: Context<S>, next: Next) -> Result;
 
     /// Handle context as an endpoint.
+    #[inline]
     async fn end(self: Arc<Self>, ctx: Context<S>) -> Result {
         self.handle(ctx, last()).await
     }

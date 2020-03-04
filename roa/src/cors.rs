@@ -58,12 +58,11 @@ use std::time::Duration;
 /// ### Default
 ///
 /// The default Cors middleware works well,
-/// it will use "origin" in request as value of response header "access-control-allow-origin",
-/// and set "access-control-allow-credentials" to "true".
+/// it will use "origin" as value of response header "access-control-allow-origin",
 ///
 /// And in preflight request,
-/// it will set "GET,HEAD,PUT,POST,DELETE,PATCH" as value of "access-control-allow-methods",
-/// and set "access-control-max-age" to "86400".
+/// it will use "access-control-request-method" as value of "access-control-allow-methods"
+/// and use "access-control-request-headers" as value of "access-control-allow-headers".
 ///
 /// Build a default Cors middleware:
 ///
@@ -396,7 +395,7 @@ mod tests {
         let (addr, server) = app
             .gate(Cors::new())
             .end(|mut ctx| async move {
-                ctx.resp_mut().write_str("Hello, World");
+                ctx.resp_mut().write("Hello, World");
                 Ok(())
             })
             .run()?;
@@ -526,7 +525,7 @@ mod tests {
         let (addr, server) = app
             .gate(configured_cors)
             .end(|mut ctx| async move {
-                ctx.resp_mut().write_str("Hello, World");
+                ctx.resp_mut().write("Hello, World");
                 Ok(())
             })
             .run()?;

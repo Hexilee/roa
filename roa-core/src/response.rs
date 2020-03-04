@@ -19,6 +19,7 @@ pub struct Response {
 }
 
 impl Response {
+    #[inline]
     pub(crate) fn new() -> Self {
         Self {
             status: StatusCode::default(),
@@ -28,6 +29,7 @@ impl Response {
         }
     }
 
+    #[inline]
     fn into_resp(self) -> http::Response<hyper::Body> {
         let (mut parts, _) = http::Response::new(()).into_parts();
         let Response {
@@ -59,12 +61,14 @@ impl DerefMut for Response {
 }
 
 impl From<Response> for http::Response<hyper::Body> {
+    #[inline]
     fn from(value: Response) -> Self {
         value.into_resp()
     }
 }
 
 impl Default for Response {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }

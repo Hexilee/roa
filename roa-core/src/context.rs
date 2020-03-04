@@ -91,6 +91,7 @@ impl<'a, T> Variable<'a, T> {
 
 impl Variable<'_, String> {
     /// A wrapper of `str::parse`. Converts `T::FromStr::Err` to `Status` automatically.
+    #[inline]
     pub fn parse<T>(&self) -> Result<T, Error>
     where
         T: FromStr,
@@ -113,6 +114,7 @@ impl Variable<'_, String> {
 
 impl Bucket {
     /// Construct an empty Bucket.
+    #[inline]
     pub fn new() -> Self {
         Self(HashMap::new())
     }
@@ -153,13 +155,15 @@ impl Bucket {
 }
 
 impl Default for Bucket {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<S> Context<S> {
-    /// Construct a context from a request, an app and a addr_stream.  
+    /// Construct a context from a request, an app and a addr_stream.
+    #[inline]
     pub(crate) fn new(
         request: Request,
         state: S,
@@ -180,14 +184,17 @@ impl<S> Context<S> {
     }
 
     // clone context is unsafe
+    #[inline]
     pub(crate) unsafe fn unsafe_clone(&self) -> Self {
         Self(self.0.clone())
     }
 
+    #[inline]
     fn inner(&self) -> &Inner<S> {
         unsafe { &*self.0.get() }
     }
 
+    #[inline]
     fn inner_mut(&mut self) -> &mut Inner<S> {
         unsafe { &mut *self.0.get() }
     }
@@ -279,6 +286,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn uri(&self) -> &Uri {
         &self.req().uri
     }
@@ -296,6 +304,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn method(&self) -> &Method {
         &self.req().method
     }
@@ -316,6 +325,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn header(&self, name: impl AsHeaderName) -> Option<Result<&str, ToStrError>> {
         self.req().headers.get(name).map(|value| value.to_str())
     }
@@ -332,6 +342,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn status(&self) -> StatusCode {
         self.resp().status
     }
@@ -349,6 +360,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn version(&self) -> Version {
         self.req().version
     }
@@ -376,6 +388,7 @@ impl<S> SyncContext<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn store_scoped<'a, SC, T>(
         &mut self,
         _scope: SC,
@@ -415,6 +428,7 @@ impl<S> SyncContext<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn store<'a, T>(&mut self, name: &'a str, value: T) -> Option<Variable<'a, T>>
     where
         T: Any + Send + Sync,
@@ -441,6 +455,7 @@ impl<S> SyncContext<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn load_scoped<'a, SC, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
     where
         SC: Any,
@@ -466,6 +481,7 @@ impl<S> SyncContext<S> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     pub fn load<'a, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
     where
         T: Any + Send + Sync,
@@ -476,18 +492,21 @@ impl<S> SyncContext<S> {
 
 impl<S> Deref for SyncContext<S> {
     type Target = S;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.state
     }
 }
 
 impl<S> DerefMut for SyncContext<S> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.state
     }
 }
 
 impl<S: Clone> Clone for SyncContext<S> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             state: self.state.clone(),
@@ -500,12 +519,14 @@ impl<S: Clone> Clone for SyncContext<S> {
 
 impl<S> Deref for Context<S> {
     type Target = SyncContext<S>;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.inner().ctx
     }
 }
 
 impl<S> DerefMut for Context<S> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner_mut().ctx
     }

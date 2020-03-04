@@ -29,6 +29,7 @@ pub struct JoinHandle<T>(Receiver<T>);
 
 impl Executor {
     /// Spawn a future by app runtime
+    #[inline]
     pub fn spawn<Fut>(&self, fut: Fut) -> JoinHandle<Fut::Output>
     where
         Fut: 'static + Send + Future,
@@ -44,6 +45,7 @@ impl Executor {
     }
 
     /// Spawn a blocking task by app runtime
+    #[inline]
     pub fn spawn_blocking<T, R>(&self, task: T) -> JoinHandle<R>
     where
         T: 'static + Send + FnOnce() -> R,
@@ -61,6 +63,7 @@ impl Executor {
 
 impl<T> Future for JoinHandle<T> {
     type Output = T;
+    #[inline]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let ready = futures::ready!(Pin::new(&mut self.0).poll(cx));
         Poll::Ready(ready.expect("receiver in JoinHandle shouldn't be canceled"))
@@ -72,6 +75,7 @@ where
     F: 'static + Send + Future,
     F::Output: 'static + Send,
 {
+    #[inline]
     fn execute(&self, fut: F) {
         self.spawn(fut);
     }

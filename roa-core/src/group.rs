@@ -5,6 +5,7 @@ use std::sync::Arc;
 struct Join<S>(Vec<Arc<dyn Middleware<S>>>);
 
 impl<S> Join<S> {
+    #[inline]
     fn new(middlewares: Vec<Arc<dyn Middleware<S>>>) -> Self {
         Self(middlewares)
     }
@@ -12,6 +13,7 @@ impl<S> Join<S> {
 
 #[async_trait(?Send)]
 impl<S: State> Middleware<S> for Join<S> {
+    #[inline]
     async fn handle(self: Arc<Self>, ctx: Context<S>, mut next: Next) -> Result {
         for middleware in self.0.iter().rev() {
             let ctx = unsafe { ctx.unsafe_clone() };
@@ -34,6 +36,7 @@ impl<S: State> Middleware<S> for Join<S> {
 ///
 /// middleware = Arc::new(join(middleware, |_ctx: Context<()>, next: Next| next));
 /// ```
+#[inline]
 pub fn join<S: State>(
     current: Arc<dyn Middleware<S>>,
     next: impl Middleware<S>,
@@ -44,6 +47,7 @@ pub fn join<S: State>(
 /// Join all middlewares in a vector.
 ///
 /// All middlewares would be composed and executed in a stack-like manner.
+#[inline]
 pub fn join_all<S: State>(
     middlewares: Vec<Arc<dyn Middleware<S>>>,
 ) -> impl Middleware<S> {

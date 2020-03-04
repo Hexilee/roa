@@ -138,7 +138,7 @@
 //!     context.resp_mut().status = err.status_code;
 //!     if err.expose {
 //!         // write err.message to response body if err.expose.
-//!         context.resp_mut().write_str(&err.message);
+//!         context.resp_mut().write(err.message.clone());
 //!     }
 //!     if err.kind == ErrorKind::ServerError {
 //!         // thrown to hyper

@@ -9,6 +9,7 @@ where
     F: 'static + Future + Unpin,
 {
     type Output = F::Output;
+    #[inline]
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.0).poll(cx)
     }

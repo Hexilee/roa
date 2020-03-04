@@ -84,7 +84,7 @@ impl Multipart {
         }
         Multipart(ActixMultipart::new(
             &map,
-            WrapStream(Some(ctx.req_mut().body_stream())),
+            WrapStream(Some(ctx.req_mut().raw_body())),
         ))
     }
 }

@@ -175,7 +175,7 @@ where
         match key {
             None => throw!(StatusCode::BAD_REQUEST, "invalid websocket upgrade request"),
             Some(key) => {
-                let body = ctx.req_mut().stream();
+                let body = ctx.req_mut().raw_body();
                 let sync_context = ctx.clone();
                 let task = self.task.clone();
                 let config = self.config;

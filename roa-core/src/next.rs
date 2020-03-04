@@ -68,6 +68,7 @@ use crate::ResultFuture;
 pub type Next = ResultFuture<'static, ()>;
 
 /// The last.
+#[inline]
 pub fn last() -> Next {
     Box::pin(async move { Ok(()) })
 }
