@@ -14,7 +14,7 @@
 //! async fn get(mut ctx: Context<()>) -> Result {
 //!     let mut data = String::new();
 //!     // implements futures::AsyncRead.
-//!     ctx.req_mut().body().read_to_string(&mut data).await?;
+//!     ctx.req_mut().reader().read_to_string(&mut data).await?;
 //!     println!("data: {}", data);
 //!
 //!     // although body is empty now...
@@ -151,7 +151,8 @@ pub trait PowerBody: Content {
 impl<S: State> PowerBody for Context<S> {
     async fn body_bytes(&mut self) -> Result<Bytes> {
         let mut bytes = BytesMut::new();
-        while let Some(item) = self.req_mut().next().await {
+        let stream = self.req_mut().stream();
+        while let Some(item) = stream.next().await {
             bytes.extend(item?)
         }
         Ok(bytes.freeze())

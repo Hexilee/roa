@@ -1,9 +1,9 @@
-use crate::Body;
+use bytes::Bytes;
 use futures::stream::TryStreamExt;
-use futures::AsyncRead;
+use futures::{AsyncRead, Stream};
 use http::{HeaderMap, HeaderValue, Method, Uri, Version};
+use hyper::Body;
 use std::io;
-use std::ops::{Deref, DerefMut};
 
 /// Http request type of roa.
 pub struct Request {
@@ -23,44 +23,33 @@ pub struct Request {
 }
 
 impl Request {
-    /// Get body.
+    /// Get raw hyper body.
+    #[inline]
+    pub fn raw_body(&mut self) -> Body {
+        std::mem::take(&mut self.body)
+    }
+    /// Get body as Stream.
     /// This method will consume inner body.
     #[inline]
-    pub fn stream(&mut self) -> Body {
-        std::mem::take(&mut self.body)
+    pub fn stream(
+        &mut self,
+    ) -> impl Stream<Item = io::Result<Bytes>> + Sync + Send + Unpin + 'static {
+        self.raw_body()
+            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
     }
 
     /// Get body as AsyncRead.
     /// This method will consume inner body.
     #[inline]
-    pub fn body(&mut self) -> impl AsyncRead + Sync + Send + Unpin + 'static {
+    pub fn reader(&mut self) -> impl AsyncRead + Sync + Send + Unpin + 'static {
         self.stream().into_async_read()
     }
 }
 
-impl Deref for Request {
-    type Target = Body;
+impl From<http::Request<Body>> for Request {
     #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.body
-    }
-}
-
-impl DerefMut for Request {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.body
-    }
-}
-
-impl From<http::Request<hyper::Body>> for Request {
-    #[inline]
-    fn from(req: http::Request<hyper::Body>) -> Self {
-        let (parts, hyper_body) = req.into_parts();
-        let mut body = Body::default();
-        body.write_stream(
-            hyper_body.map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
-        );
+    fn from(req: http::Request<Body>) -> Self {
+        let (parts, body) = req.into_parts();
         Self {
             method: parts.method,
             uri: parts.uri,
@@ -74,7 +63,7 @@ impl From<http::Request<hyper::Body>> for Request {
 impl Default for Request {
     #[inline]
     fn default() -> Self {
-        http::Request::new(hyper::Body::empty()).into()
+        http::Request::new(Body::empty()).into()
     }
 }
 
@@ -83,19 +72,19 @@ mod tests {
     use crate::{App, Request};
     use futures::AsyncReadExt;
     use http::StatusCode;
+    use hyper::Body;
 
     #[async_std::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         app.gate_fn(|mut ctx, _next| async move {
             let mut data = String::new();
-            ctx.req_mut().body().read_to_string(&mut data).await?;
+            ctx.req_mut().reader().read_to_string(&mut data).await?;
             assert_eq!("Hello, World!", data);
             Ok(())
         });
         let service = app.fake_service();
-        let mut req = Request::default();
-        req.write("Hello, World!");
+        let req = Request::from(http::Request::new(Body::from("Hello, World!")));
         let resp = service.serve(req).await?;
         assert_eq!(StatusCode::OK, resp.status);
         Ok(())
