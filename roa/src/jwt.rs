@@ -144,6 +144,7 @@ pub fn guard_by<S: State>(
     )
 }
 
+#[inline]
 async fn catch_www_authenticate<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let result = next.await;
     if let Err(ref err) = result {

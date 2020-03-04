@@ -132,6 +132,7 @@ pub trait Query {
 }
 
 /// A middleware to parse query.
+#[inline]
 pub async fn query_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let uri = ctx.uri();
     let query_string = uri.query().unwrap_or("").to_string();

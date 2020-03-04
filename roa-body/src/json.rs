@@ -23,8 +23,8 @@ pub fn from_str<B: DeserializeOwned>(data: &str) -> Result<B> {
     })
 }
 
-pub fn to_bytes<B: Serialize>(object: &B) -> Result<Vec<u8>> {
-    serde_json::to_vec(object).map_err(|err| {
+pub fn to_string<B: Serialize>(object: &B) -> Result<String> {
+    serde_json::to_string(object).map_err(|err| {
         Error::new(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("{}\nobject cannot be serialized to json", err),

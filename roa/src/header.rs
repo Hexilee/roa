@@ -46,26 +46,35 @@
 //! }
 //! ```
 use crate::http::header::{
-    AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, InvalidHeaderValue, ToStrError,
+    AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, ToStrError,
 };
 use crate::http::StatusCode;
 use crate::{Error, Request, Response, Result};
+use std::convert::TryInto;
+use std::fmt::Display;
 
-fn handle_invalid_header_value(err: InvalidHeaderValue, value: &str) -> Error {
+/// Handle errors occur in converting from other value to header value.
+fn handle_invalid_header_value(err: impl Display) -> Error {
     Error::new(
         StatusCode::INTERNAL_SERVER_ERROR,
-        format!("{}\n{} is not a valid header value", err, value),
+        format!("{}\nInvalid header value", err),
         false,
     )
 }
 
 /// A Request/Response extension.
 pub trait FriendlyHeaders {
-    /// General error code should be returned when some errors occur.
+    /// StatusCode of general error.
     ///
     /// 400 BAD REQUEST for Request,
     /// 500 INTERNAL SERVER ERROR for Response.
     const GENERAL_ERROR_CODE: StatusCode;
+
+    /// If general errors should be exposed.
+    ///
+    /// true for Request,
+    /// false for Response.
+    const GENERAL_ERROR_EXPOSE: bool;
 
     /// Get immutable reference of raw header map.
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue>;
@@ -81,7 +90,7 @@ pub trait FriendlyHeaders {
         Error::new(
             Self::GENERAL_ERROR_CODE,
             format!("{}\n{:?} is not a valid string", err, value),
-            true,
+            Self::GENERAL_ERROR_EXPOSE,
         )
     }
 
@@ -90,12 +99,12 @@ pub trait FriendlyHeaders {
     #[inline]
     fn handle_none<K>(key: K) -> Error
     where
-        K: AsHeaderName + AsRef<str>,
+        K: Display,
     {
         Error::new(
             Self::GENERAL_ERROR_CODE,
-            format!("header `{}` is required", key.as_ref()),
-            true,
+            format!("header `{}` is required", key),
+            Self::GENERAL_ERROR_EXPOSE,
         )
     }
 
@@ -120,7 +129,7 @@ pub trait FriendlyHeaders {
     #[inline]
     fn get<K>(&self, key: K) -> Option<Result<&str>>
     where
-        K: AsHeaderName + AsRef<str>,
+        K: AsHeaderName,
     {
         self.raw_header_map().get(key).map(|value| {
             value
@@ -147,11 +156,11 @@ pub trait FriendlyHeaders {
     #[inline]
     fn must_get<K>(&self, key: K) -> Result<&str>
     where
-        K: AsHeaderName + AsRef<str>,
+        K: AsRef<str>,
     {
         match self.get(key.as_ref()) {
             Some(result) => result,
-            None => Err(Self::handle_none(key)),
+            None => Err(Self::handle_none(key.as_ref())),
         }
     }
 
@@ -211,14 +220,12 @@ pub trait FriendlyHeaders {
     fn insert<K, V>(&mut self, key: K, val: V) -> Result<Option<String>>
     where
         K: IntoHeaderName,
-        V: AsRef<str>,
+        V: TryInto<HeaderValue>,
+        V::Error: Display,
     {
-        let old_value = self.raw_mut_header_map().insert(
-            key,
-            val.as_ref()
-                .parse()
-                .map_err(|err| handle_invalid_header_value(err, val.as_ref()))?,
-        );
+        let old_value = self
+            .raw_mut_header_map()
+            .insert(key, val.try_into().map_err(handle_invalid_header_value)?);
         Ok(match old_value {
             Some(value) => Some(
                 value
@@ -252,19 +259,18 @@ pub trait FriendlyHeaders {
     fn append<K, V>(&mut self, key: K, val: V) -> Result<bool>
     where
         K: IntoHeaderName,
-        V: AsRef<str>,
+        V: TryInto<HeaderValue>,
+        V::Error: Display,
     {
-        Ok(self.raw_mut_header_map().append(
-            key,
-            val.as_ref()
-                .parse()
-                .map_err(|err| handle_invalid_header_value(err, val.as_ref()))?,
-        ))
+        Ok(self
+            .raw_mut_header_map()
+            .append(key, val.try_into().map_err(handle_invalid_header_value)?))
     }
 }
 
 impl FriendlyHeaders for Request {
     const GENERAL_ERROR_CODE: StatusCode = StatusCode::BAD_REQUEST;
+    const GENERAL_ERROR_EXPOSE: bool = true;
 
     #[inline]
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue> {
@@ -279,6 +285,7 @@ impl FriendlyHeaders for Request {
 
 impl FriendlyHeaders for Response {
     const GENERAL_ERROR_CODE: StatusCode = StatusCode::INTERNAL_SERVER_ERROR;
+    const GENERAL_ERROR_EXPOSE: bool = false;
 
     #[inline]
     fn raw_header_map(&self) -> &HeaderMap<HeaderValue> {
@@ -376,7 +383,7 @@ mod tests {
         assert!(ret.is_err());
         let status = ret.unwrap_err();
         assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
-        assert!(status.message.ends_with("\r\n is not a valid header value"));
+        assert!(status.message.ends_with("Invalid header value"));
         Ok(())
     }
 
@@ -387,7 +394,7 @@ mod tests {
         assert!(ret.is_err());
         let status = ret.unwrap_err();
         assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
-        assert!(status.message.ends_with("\r\n is not a valid header value"));
+        assert!(status.message.ends_with("Invalid header value"));
         Ok(())
     }
 }

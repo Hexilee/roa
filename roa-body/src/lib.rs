@@ -83,9 +83,9 @@
 mod content_type;
 mod help;
 use bytes::{Bytes, BytesMut};
-use content_type::{Content, ContentType};
+use content_type::Content;
 use futures::{AsyncRead, StreamExt};
-use roa_core::{async_trait, http, Context, Result, State};
+use roa_core::{async_trait, http, Context, Error, Result, State};
 
 #[cfg(feature = "json")]
 mod decode;
@@ -104,6 +104,7 @@ use file::{write_file, Path};
 #[cfg(any(feature = "json", feature = "urlencoded"))]
 use serde::de::DeserializeOwned;
 
+use http::StatusCode;
 #[cfg(feature = "json")]
 use serde::Serialize;
 
@@ -130,7 +131,7 @@ pub trait PowerBody: Content {
     fn render<B: Template>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/plain; charset=utf-8"
-    fn write_text<S: ToString>(&mut self, string: S) -> Result;
+    fn write_text<B: Into<Bytes>>(&mut self, data: B) -> Result;
 
     /// write object to response body as "application/octet-stream"
     fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(
@@ -149,6 +150,7 @@ pub trait PowerBody: Content {
 
 #[async_trait(?Send)]
 impl<S: State> PowerBody for Context<S> {
+    #[inline]
     async fn body_bytes(&mut self) -> Result<Bytes> {
         let mut bytes = BytesMut::new();
         let mut stream = self.req_mut().stream();
@@ -159,6 +161,7 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "json")]
+    #[inline]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B> {
         let content_type = self.content_type()?;
         content_type.expect(mime::APPLICATION_JSON)?;
@@ -170,6 +173,7 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "urlencoded")]
+    #[inline]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B> {
         self.content_type()?
             .expect(mime::APPLICATION_WWW_FORM_URLENCODED)?;
@@ -177,49 +181,59 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[cfg(feature = "json")]
+    #[inline]
     fn write_json<B: Serialize>(&mut self, data: &B) -> Result {
-        self.resp_mut().write(json::to_bytes(data)?);
-        let content_type: ContentType = "application/json; charset=utf-8".parse()?;
-        self.resp_mut()
-            .headers
-            .insert(http::header::CONTENT_TYPE, content_type.to_value()?);
+        self.resp_mut().write(json::to_string(data)?);
+        self.resp_mut().headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/json; charset=utf-8"),
+        );
         Ok(())
     }
 
     #[cfg(feature = "template")]
+    #[inline]
     fn render<B: Template>(&mut self, data: &B) -> Result {
-        self.resp_mut()
-            .write(data.render().map_err(help::bug_report)?);
-        let content_type: ContentType = "text/html; charset=utf-8".parse()?;
-        self.resp_mut()
-            .headers
-            .insert(http::header::CONTENT_TYPE, content_type.to_value()?);
+        self.resp_mut().write(data.render().map_err(|err| {
+            Error::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("{}\nFails to render template", err),
+                false,
+            )
+        })?);
+        self.resp_mut().headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("text/html; charset=utf-8"),
+        );
         Ok(())
     }
 
-    fn write_text<Str: ToString>(&mut self, string: Str) -> Result {
-        self.resp_mut().write(string.to_string());
-        let content_type: ContentType = "text/plain; charset=utf-8".parse()?;
-        self.resp_mut()
-            .headers
-            .insert(http::header::CONTENT_TYPE, content_type.to_value()?);
+    #[inline]
+    fn write_text<B: Into<Bytes>>(&mut self, data: B) -> Result {
+        self.resp_mut().write(data.into());
+        self.resp_mut().headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("text/plain"),
+        );
         Ok(())
     }
 
+    #[inline]
     fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(
         &mut self,
         reader: B,
     ) -> Result {
         self.resp_mut().write_reader(reader);
-        let content_type: ContentType = "application/octet-stream".parse()?;
-        self.resp_mut()
-            .headers
-            .insert(http::header::CONTENT_TYPE, content_type.to_value()?);
+        self.resp_mut().headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/octet-stream"),
+        );
         Ok(())
     }
 
     #[cfg(feature = "file")]
-    async fn write_file<P: 'static + AsRef<Path>>(
+    #[inline]
+    async fn write_file<P: AsRef<Path>>(
         &mut self,
         path: P,
         typ: DispositionType,
@@ -409,7 +423,7 @@ mod tests {
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
-        assert_eq!("text/plain; charset=utf-8", resp.headers()[CONTENT_TYPE]);
+        assert_eq!("text/plain", resp.headers()[CONTENT_TYPE]);
         assert_eq!("Hello, World!", resp.text().await?);
         Ok(())
     }

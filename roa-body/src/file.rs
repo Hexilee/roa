@@ -6,9 +6,10 @@ use content_disposition::ContentDisposition;
 pub use content_disposition::DispositionType;
 use roa_core::{http, Context, Result, State};
 
-pub async fn write_file<S: State, P: AsRef<Path>>(
+#[inline]
+pub async fn write_file<S: State>(
     ctx: &mut Context<S>,
-    path: P,
+    path: impl AsRef<Path>,
     typ: DispositionType,
 ) -> Result {
     let path = path.as_ref();
