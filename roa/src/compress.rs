@@ -48,28 +48,32 @@ impl<S: State> Middleware<S> for Compress {
         let level = self.0;
         let best_encoding = parse(&ctx.req().headers)
             .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?;
+        let body = std::mem::take(&mut ctx.resp_mut().body);
         let content_encoding = match best_encoding {
             None | Some(Encoding::Gzip) => {
                 ctx.resp_mut()
-                    .wrapped(move |body| GzipEncoder::with_quality(body, level));
+                    .write_stream(GzipEncoder::with_quality(body, level));
                 Encoding::Gzip.to_header_value()
             }
             Some(Encoding::Deflate) => {
                 ctx.resp_mut()
-                    .wrapped(move |body| ZlibEncoder::with_quality(body, level));
+                    .write_stream(ZlibEncoder::with_quality(body, level));
                 Encoding::Deflate.to_header_value()
             }
             Some(Encoding::Brotli) => {
                 ctx.resp_mut()
-                    .wrapped(move |body| BrotliEncoder::with_quality(body, level));
+                    .write_stream(BrotliEncoder::with_quality(body, level));
                 Encoding::Brotli.to_header_value()
             }
             Some(Encoding::Zstd) => {
                 ctx.resp_mut()
-                    .wrapped(move |body| ZstdEncoder::with_quality(body, level));
+                    .write_stream(ZstdEncoder::with_quality(body, level));
                 Encoding::Zstd.to_header_value()
             }
-            Some(Encoding::Identity) => Encoding::Identity.to_header_value(),
+            Some(Encoding::Identity) => {
+                ctx.resp_mut().body = body;
+                Encoding::Identity.to_header_value()
+            }
         };
         ctx.resp_mut()
             .headers
@@ -122,9 +126,10 @@ mod tests {
     fn assert_consumed(assert_counter: usize) -> impl Middleware<()> {
         move |mut ctx: Context<()>, next: Next| async move {
             next.await?;
-            ctx.resp_mut().wrapped(move |stream| Consumer {
+            let body = std::mem::take(&mut ctx.resp_mut().body);
+            ctx.resp_mut().write_stream(Consumer {
                 counter: 0,
-                stream,
+                stream: body,
                 assert_counter,
             });
             Ok(())

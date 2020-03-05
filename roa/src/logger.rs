@@ -35,7 +35,6 @@ use log::{error, info};
 use roa_core::http::{Method, StatusCode};
 use std::io;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::time::Instant;
 
 /// A finite-state machine to log success information in each streaming response.
@@ -68,7 +67,7 @@ impl LogTask {
             start,
             exec,
         } = self;
-        exec.spawn_blocking(|| {
+        exec.spawn_blocking(move || {
             info!(
                 "<-- {} {} {}ms {} {}",
                 method,
@@ -148,7 +147,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                 })
                 .await
         }
-        (OK(_), Body::Bytes(bytes)) => {
+        (Ok(_), Body::Bytes(bytes)) => {
             let size = bytes.size_hint();
             ctx.exec
                 .spawn_blocking(move || {
@@ -170,7 +169,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                 path,
                 status_code,
                 start,
-                exec: ctx.exec.clone(),
+                exec,
             });
             let logger = StreamLogger::Polling {
                 stream: std::mem::take(stream),
