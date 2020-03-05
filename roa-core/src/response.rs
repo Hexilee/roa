@@ -25,7 +25,7 @@ impl Response {
             status: StatusCode::default(),
             version: Version::default(),
             headers: HeaderMap::default(),
-            body: Body::new(),
+            body: Body::default(),
         }
     }
 
@@ -41,7 +41,7 @@ impl Response {
         parts.status = status;
         parts.version = version;
         parts.headers = headers;
-        http::Response::from_parts(parts, hyper::Body::wrap_stream(body))
+        http::Response::from_parts(parts, body.into())
     }
 }
 
