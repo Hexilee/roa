@@ -122,13 +122,6 @@ impl Body {
         }
         self
     }
-
-    /// Wrap self with a wrapper.
-    #[inline]
-    pub fn wrapped(&mut self, wrapper: impl FnOnce(Self) -> Self) -> &mut Self {
-        *self = wrapper(std::mem::take(self));
-        self
-    }
 }
 
 impl BodyStream {
@@ -169,6 +162,12 @@ impl BodyBytes {
                 bytes.freeze()
             }
         }
+    }
+
+    /// Get size hint.
+    #[inline]
+    pub fn size_hint(&self) -> usize {
+        self.size_hint
     }
 }
 
@@ -251,26 +250,37 @@ impl Stream for BodyStream {
     }
 }
 
+impl Stream for Body {
+    type Item = io::Result<Bytes>;
+    #[inline]
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        match &mut *self {
+            Body::Bytes(bytes) => {
+                if bytes.size_hint == 0 {
+                    Poll::Ready(None)
+                } else {
+                    Poll::Ready(Some(Ok(mem::take(bytes).bytes())))
+                }
+            }
+            Body::Stream(stream) => Pin::new(stream).poll_next(cx),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Body, BodyBytes};
+    use super::Body;
     use async_std::fs::File;
-    use futures::StreamExt;
+    use futures::{AsyncReadExt, TryStreamExt};
     use std::io;
 
     async fn read_body(body: Body) -> io::Result<String> {
-        use Body::*;
-        let data = match body {
-            Bytes(bytes) => bytes,
-            Stream(mut stream) => {
-                let mut bytes = BodyBytes::default();
-                while let Some(item) = stream.next().await {
-                    bytes.write(item?);
-                }
-                bytes
-            }
-        };
-        Ok(String::from_utf8_lossy(&*data.bytes()).to_string())
+        let mut data = String::new();
+        body.into_async_read().read_to_string(&mut data).await?;
+        Ok(data)
     }
 
     #[async_std::test]

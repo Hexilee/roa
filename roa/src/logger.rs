@@ -26,37 +26,63 @@
 //! }
 //! ```
 
-use crate::{Context, Executor, JoinHandle, Next, Result, State};
+use crate::{Body, Context, Executor, JoinHandle, Next, Result, State};
 use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};
 use futures::{Future, Stream};
 use log::{error, info};
+use roa_core::http::{Method, StatusCode};
 use std::io;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Instant;
 
-/// A finite-state machine to log information in each response.
-enum Logger<S, F>
-where
-    F: FnOnce(u64),
-{
-    Polling {
-        counter: u64,
-        stream: S,
-        exec: Executor,
-        task: Arc<F>,
-    },
+/// A finite-state machine to log success information in each streaming response.
+enum StreamLogger<S> {
+    Polling { stream: S, task: Box<LogTask> },
 
     Logging(JoinHandle<()>),
 
     Complete,
 }
 
-impl<S, F> Stream for Logger<S, F>
+/// A task structure to log when polling is complete.
+#[derive(Clone)]
+struct LogTask {
+    counter: u64,
+    method: Method,
+    status_code: StatusCode,
+    path: String,
+    start: Instant,
+    exec: Executor,
+}
+
+impl LogTask {
+    fn log(self) -> JoinHandle<()> {
+        let LogTask {
+            counter,
+            method,
+            status_code,
+            path,
+            start,
+            exec,
+        } = self;
+        exec.spawn_blocking(|| {
+            info!(
+                "<-- {} {} {}ms {} {}",
+                method,
+                path,
+                start.elapsed().as_millis(),
+                ByteSize(counter),
+                status_code,
+            )
+        })
+    }
+}
+
+impl<S> Stream for StreamLogger<S>
 where
-    F: 'static + Send + Sync + Unpin + Fn(u64),
     S: 'static + Send + Send + Unpin + Stream<Item = io::Result<Bytes>>,
 {
     type Item = io::Result<Bytes>;
@@ -66,33 +92,28 @@ where
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         match &mut *self {
-            Logger::Polling {
-                stream,
-                exec,
-                counter,
-                task,
-            } => match futures::ready!(Pin::new(stream).poll_next(cx)) {
-                Some(Ok(bytes)) => {
-                    *counter += bytes.len() as u64;
-                    Poll::Ready(Some(Ok(bytes)))
+            StreamLogger::Polling { stream, task } => {
+                match futures::ready!(Pin::new(stream).poll_next(cx)) {
+                    Some(Ok(bytes)) => {
+                        task.counter += bytes.len() as u64;
+                        Poll::Ready(Some(Ok(bytes)))
+                    }
+                    None => {
+                        let handler = task.clone().log();
+                        *self = StreamLogger::Logging(handler);
+                        self.poll_next(cx)
+                    }
+                    err => Poll::Ready(err),
                 }
-                None => {
-                    let counter = *counter;
-                    let task = task.clone();
-                    let handler = exec.spawn_blocking(move || task(counter));
-                    *self = Logger::Logging(handler);
-                    self.poll_next(cx)
-                }
-                err => Poll::Ready(err),
-            },
+            }
 
-            Logger::Logging(handler) => {
+            StreamLogger::Logging(handler) => {
                 futures::ready!(Pin::new(handler).poll(cx));
-                *self = Logger::Complete;
+                *self = StreamLogger::Complete;
                 self.poll_next(cx)
             }
 
-            Logger::Complete => Poll::Ready(None),
+            StreamLogger::Complete => Poll::Ready(None),
         }
     }
 }
@@ -108,35 +129,14 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
 
     let method = ctx.method().clone();
     let path = ctx.uri().path().to_string();
-    let counter = 0;
     let exec = ctx.exec.clone();
-    match result {
-        Ok(()) => {
-            let status_code = ctx.status();
-            ctx.resp_mut().wrapped(move |stream| Logger::Polling {
-                counter,
-                stream,
-                exec,
-                task: Arc::new(move |counter| {
-                    info!(
-                        "<-- {} {} {}ms {} {}",
-                        method,
-                        path,
-                        start.elapsed().as_millis(),
-                        ByteSize(counter),
-                        status_code,
-                    );
-                }),
-            });
-        }
-        Err(ref err) => {
+    let status_code = ctx.status();
+
+    match (&result, &mut ctx.resp_mut().body) {
+        (Err(err), _) => {
             let message = err.message.clone();
-            let status_code = err.status_code;
-            ctx.resp_mut().wrapped(move |stream| Logger::Polling {
-                counter,
-                stream,
-                exec,
-                task: Arc::new(move |_counter| {
+            ctx.exec
+                .spawn_blocking(move || {
                     error!(
                         "<-- {} {} {}ms {}\n{}",
                         method,
@@ -145,10 +145,41 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                         status_code,
                         message,
                     );
-                }),
-            });
+                })
+                .await
         }
-    };
+        (OK(_), Body::Bytes(bytes)) => {
+            let size = bytes.size_hint();
+            ctx.exec
+                .spawn_blocking(move || {
+                    info!(
+                        "<-- {} {} {}ms {} {}",
+                        method,
+                        path,
+                        start.elapsed().as_millis(),
+                        ByteSize(size as u64),
+                        status_code,
+                    );
+                })
+                .await
+        }
+        (Ok(_), Body::Stream(stream)) => {
+            let task = Box::new(LogTask {
+                counter: 0,
+                method,
+                path,
+                status_code,
+                start,
+                exec: ctx.exec.clone(),
+            });
+            let logger = StreamLogger::Polling {
+                stream: std::mem::take(stream),
+                task,
+            };
+            ctx.resp_mut().write_stream(logger);
+        }
+    }
+
     result
 }
 
@@ -158,6 +189,7 @@ mod tests {
     use crate::http::StatusCode;
     use crate::preload::*;
     use crate::{throw, App};
+    use async_std::fs::File;
     use async_std::task::spawn;
     use lazy_static::lazy_static;
     use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
@@ -193,7 +225,7 @@ mod tests {
     async fn log() -> Result<(), Box<dyn std::error::Error>> {
         init()?;
 
-        // info
+        // bytes info
         let (addr, server) = App::new(())
             .gate_fn(logger)
             .end(move |mut ctx| async move {
@@ -232,6 +264,28 @@ mod tests {
         assert_eq!("ERROR", records[3].0);
         assert!(records[3].1.starts_with("<-- GET /"));
         assert!(records[3].1.ends_with("Hello, World!"));
+
+        // stream info
+        let (addr, server) = App::new(())
+            .gate_fn(logger)
+            .end(move |mut ctx| async move {
+                ctx.resp_mut()
+                    .write_reader(File::open("../assets/welcome.html").await?);
+                Ok(())
+            })
+            .run()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        assert_eq!(236, resp.text().await?.len());
+        let records = LOGGER.records.read().unwrap().clone();
+        assert_eq!(6, records.len());
+        assert_eq!("INFO", records[4].0);
+        assert_eq!("--> GET /", records[4].1);
+        assert_eq!("INFO", records[5].0);
+        assert!(records[5].1.starts_with("<-- GET /"));
+        assert!(records[5].1.contains("236 B"));
+        assert!(records[5].1.ends_with("200 OK"));
         Ok(())
     }
 }

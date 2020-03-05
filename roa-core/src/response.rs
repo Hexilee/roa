@@ -15,7 +15,8 @@ pub struct Response {
     /// Raw header map.
     pub headers: HeaderMap<HeaderValue>,
 
-    body: Body,
+    /// Response body.
+    pub body: Body,
 }
 
 impl Response {
