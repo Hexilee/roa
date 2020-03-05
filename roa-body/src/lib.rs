@@ -80,19 +80,12 @@
 //! }
 //! ```
 
-mod content_type;
-mod help;
 use bytes::{Bytes, BytesMut};
-use content_type::Content;
 use futures::{AsyncRead, StreamExt};
+use lazy_static::lazy_static;
 use roa_core::{async_trait, http, Context, Error, Result, State};
+use std::fmt::Display;
 
-#[cfg(feature = "json")]
-mod decode;
-#[cfg(feature = "json")]
-mod json;
-#[cfg(feature = "urlencoded")]
-mod urlencoded;
 #[cfg(feature = "template")]
 use askama::Template;
 #[cfg(feature = "file")]
@@ -104,15 +97,15 @@ use file::{write_file, Path};
 #[cfg(any(feature = "json", feature = "urlencoded"))]
 use serde::de::DeserializeOwned;
 
-use http::StatusCode;
+use http::{header, HeaderValue, StatusCode};
 #[cfg(feature = "json")]
 use serde::Serialize;
 
 /// A context extension to read/write body more simply.
 #[async_trait(?Send)]
-pub trait PowerBody: Content {
-    /// read request body as Vec<u8>.
-    async fn body_bytes(&mut self) -> Result<Bytes>;
+pub trait PowerBody {
+    /// read request body as Bytes.
+    async fn body(&mut self) -> Result<Bytes>;
 
     /// read request body as "application/json".
     #[cfg(feature = "json")]
@@ -148,14 +141,31 @@ pub trait PowerBody: Content {
     ) -> Result;
 }
 
+// Static header value.
+lazy_static! {
+    static ref APPLICATION_JSON: HeaderValue =
+        HeaderValue::from_static("application/json");
+    static ref TEXT_HTML: HeaderValue = HeaderValue::from_static("text/html");
+    static ref TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
+    static ref APPLICATION_OCTET_STREM: HeaderValue =
+        HeaderValue::from_static("application/octet-stream");
+}
+
 #[async_trait(?Send)]
 impl<S: State> PowerBody for Context<S> {
     #[inline]
-    async fn body_bytes(&mut self) -> Result<Bytes> {
-        let mut bytes = BytesMut::new();
+    async fn body(&mut self) -> Result<Bytes> {
+        let mut vector = Vec::<Bytes>::new();
+        let mut size = 0usize;
         let mut stream = self.req_mut().stream();
         while let Some(item) = stream.next().await {
-            bytes.extend(item?)
+            let data = item?;
+            size += data.len();
+            vector.push(data);
+        }
+        let mut bytes = BytesMut::with_capacity(size);
+        for data in vector.iter() {
+            bytes.extend_from_slice(data)
         }
         Ok(bytes.freeze())
     }
@@ -163,31 +173,30 @@ impl<S: State> PowerBody for Context<S> {
     #[cfg(feature = "json")]
     #[inline]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B> {
-        let content_type = self.content_type()?;
-        content_type.expect(mime::APPLICATION_JSON)?;
-        let data = self.body_bytes().await?;
-        match content_type.charset() {
-            None | Some(mime::UTF_8) => json::from_bytes(&data),
-            Some(charset) => json::from_str(&decode::decode(&data, charset.as_str())?),
-        }
+        let data = self.body().await?;
+        serde_json::from_slice(&*data).map_err(handle_invalid_body)
     }
 
     #[cfg(feature = "urlencoded")]
     #[inline]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B> {
-        self.content_type()?
-            .expect(mime::APPLICATION_WWW_FORM_URLENCODED)?;
-        urlencoded::from_bytes(&self.body_bytes().await?)
+        let data = self.body().await?;
+        serde_urlencoded::from_bytes(&*data).map_err(handle_invalid_body)
     }
 
     #[cfg(feature = "json")]
     #[inline]
     fn write_json<B: Serialize>(&mut self, data: &B) -> Result {
-        self.resp_mut().write(json::to_string(data)?);
-        self.resp_mut().headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/json; charset=utf-8"),
-        );
+        self.resp_mut()
+            .write(serde_json::to_vec(data).map_err(|err| {
+                handle_internal_server_error(format!(
+                    "{}\nObject cannot be serialized to json",
+                    err
+                ))
+            })?);
+        self.resp_mut()
+            .headers
+            .insert(header::CONTENT_TYPE, APPLICATION_JSON.clone());
         Ok(())
     }
 
@@ -195,26 +204,20 @@ impl<S: State> PowerBody for Context<S> {
     #[inline]
     fn render<B: Template>(&mut self, data: &B) -> Result {
         self.resp_mut().write(data.render().map_err(|err| {
-            Error::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("{}\nFails to render template", err),
-                false,
-            )
+            handle_internal_server_error(format!("{}\nFails to render template", err))
         })?);
-        self.resp_mut().headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("text/html; charset=utf-8"),
-        );
+        self.resp_mut()
+            .headers
+            .insert(header::CONTENT_TYPE, TEXT_HTML.clone());
         Ok(())
     }
 
     #[inline]
     fn write_text<B: Into<Bytes>>(&mut self, data: B) -> Result {
-        self.resp_mut().write(data.into());
-        self.resp_mut().headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("text/plain"),
-        );
+        self.resp_mut().write(data);
+        self.resp_mut()
+            .headers
+            .insert(header::CONTENT_TYPE, TEXT_PLAIN.clone());
         Ok(())
     }
 
@@ -224,10 +227,9 @@ impl<S: State> PowerBody for Context<S> {
         reader: B,
     ) -> Result {
         self.resp_mut().write_reader(reader);
-        self.resp_mut().headers.insert(
-            http::header::CONTENT_TYPE,
-            http::HeaderValue::from_static("application/octet-stream"),
-        );
+        self.resp_mut()
+            .headers
+            .insert(header::CONTENT_TYPE, APPLICATION_OCTET_STREM.clone());
         Ok(())
     }
 
@@ -242,13 +244,26 @@ impl<S: State> PowerBody for Context<S> {
     }
 }
 
+#[inline]
+fn handle_invalid_body(err: impl Display) -> Error {
+    Error::new(
+        StatusCode::BAD_REQUEST,
+        format!("Invalid Body:\n{}", err),
+        true,
+    )
+}
+
+#[inline]
+fn handle_internal_server_error(err: impl ToString) -> Error {
+    Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::PowerBody;
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;
-    use encoding::EncoderTrap;
     use futures::io::BufReader;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
@@ -257,79 +272,45 @@ mod tests {
     use roa_tcp::Listener;
     use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone, Template)]
-    #[template(path = "user.html")]
-    struct User {
+    #[derive(Debug, Deserialize)]
+    struct UserDto {
         id: u64,
         name: String,
     }
 
+    #[derive(Debug, Serialize, Hash, Eq, PartialEq, Clone, Template)]
+    #[template(path = "user.html")]
+    struct User<'a> {
+        id: u64,
+        name: &'a str,
+    }
+
+    impl PartialEq<UserDto> for User<'_> {
+        fn eq(&self, other: &UserDto) -> bool {
+            self.id == other.id && self.name == other.name
+        }
+    }
+
+    const USER: User = User {
+        id: 0,
+        name: "Hexilee",
+    };
+
     #[tokio::test]
     async fn read_json() -> Result<(), Box<dyn std::error::Error>> {
-        // miss key
         let (addr, server) = App::new(())
             .end(move |mut ctx| async move {
-                let user: User = ctx.read_json().await?;
-                assert_eq!(
-                    User {
-                        id: 0,
-                        name: "Hexilee".to_string()
-                    },
-                    user
-                );
+                let user: UserDto = ctx.read_json().await?;
+                assert_eq!(USER, user);
                 Ok(())
             })
             .run()?;
         spawn(server);
+
         let client = reqwest::Client::new();
-
-        let data = User {
-            id: 0,
-            name: "Hexilee".to_string(),
-        };
-        // err mime type
         let resp = client
             .get(&format!("http://{}", addr))
-            .header(CONTENT_TYPE, "text/plain/html")
-            .send()
-            .await?;
-        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
-        assert!(resp
-            .text()
-            .await?
-            .ends_with("Content-Type value is invalid"));
-
-        // json
-        let resp = client
-            .get(&format!("http://{}", addr))
-            .json(&data)
-            .send()
-            .await?;
-        assert_eq!(StatusCode::OK, resp.status());
-
-        // unmatched Content-Type
-        let resp = client
-            .get(&format!("http://{}", addr))
-            .body(serde_json::to_vec(&data)?)
-            .header(CONTENT_TYPE, "text/xml")
-            .send()
-            .await?;
-        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
-        assert_eq!(
-            "content type unmatched. application/json != text/xml",
-            resp.text().await?
-        );
-
-        // json; encoding
-        let resp = client
-            .get(&format!("http://{}", addr))
-            .body(
-                encoding::label::encoding_from_whatwg_label("gbk")
-                    .unwrap()
-                    .encode(&serde_json::to_string(&data)?, EncoderTrap::Strict)
-                    .unwrap(),
-            )
-            .header(CONTENT_TYPE, "application/json; charset=gbk")
+            .json(&USER)
             .send()
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -338,85 +319,39 @@ mod tests {
 
     #[tokio::test]
     async fn read_form() -> Result<(), Box<dyn std::error::Error>> {
-        // miss key
         let (addr, server) = App::new(())
-            .end(move |mut ctx| async move {
-                let user: User = ctx.read_form().await?;
-                assert_eq!(
-                    User {
-                        id: 0,
-                        name: "Hexilee".to_string()
-                    },
-                    user
-                );
+            .gate_fn(move |mut ctx, _| async move {
+                let user: UserDto = ctx.read_form().await?;
+                assert_eq!(USER, user);
                 Ok(())
             })
             .run()?;
         spawn(server);
+
         let client = reqwest::Client::new();
-
-        let data = User {
-            id: 0,
-            name: "Hexilee".to_string(),
-        };
-        // err mime type
         let resp = client
             .get(&format!("http://{}", addr))
-            .header(CONTENT_TYPE, "text/plain/html")
-            .send()
-            .await?;
-        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
-        assert!(resp
-            .text()
-            .await?
-            .ends_with("Content-Type value is invalid"));
-
-        // x-www-form-urlencoded
-        let resp = client
-            .get(&format!("http://{}", addr))
-            .form(&data)
+            .form(&USER)
             .send()
             .await?;
         assert_eq!(StatusCode::OK, resp.status());
-
-        // unmatched Content-Type
-        let resp = client
-            .get(&format!("http://{}", addr))
-            .body(serde_json::to_vec(&data)?)
-            .header(CONTENT_TYPE, "text/xml")
-            .send()
-            .await?;
-        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
-        assert_eq!(
-            "content type unmatched. application/x-www-form-urlencoded != text/xml",
-            resp.text().await?
-        );
-
         Ok(())
     }
 
     #[tokio::test]
     async fn render() -> Result<(), Box<dyn std::error::Error>> {
-        // miss key
         let (addr, server) = App::new(())
-            .end(move |mut ctx| async move {
-                let user = User {
-                    id: 0,
-                    name: "Hexilee".to_string(),
-                };
-                ctx.render(&user)
-            })
+            .end(move |mut ctx| async move { ctx.render(&USER) })
             .run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
-        assert_eq!("text/html; charset=utf-8", resp.headers()[CONTENT_TYPE]);
+        assert_eq!("text/html", resp.headers()[CONTENT_TYPE]);
         Ok(())
     }
 
     #[tokio::test]
     async fn write_text() -> Result<(), Box<dyn std::error::Error>> {
-        // miss key
         let (addr, server) = App::new(())
             .end(move |mut ctx| async move { ctx.write_text("Hello, World!") })
             .run()?;

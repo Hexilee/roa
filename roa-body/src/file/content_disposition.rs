@@ -1,4 +1,4 @@
-use crate::help::bug_report;
+use super::help::bug_report;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use roa_core::http::header::HeaderValue;
 use roa_core::Result;
@@ -44,6 +44,7 @@ pub struct ContentDisposition {
 }
 
 impl ContentDisposition {
+    #[inline]
     pub(crate) fn new(typ: DispositionType, filename: Option<&str>) -> Self {
         Self {
             typ,
@@ -52,6 +53,7 @@ impl ContentDisposition {
         }
     }
 
+    #[inline]
     pub fn value(&self) -> Result<HeaderValue> {
         let value_str = self.to_string();
         value_str.parse().map_err(|err| {
@@ -64,6 +66,7 @@ impl ContentDisposition {
 }
 
 impl Display for ContentDisposition {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.encoded_filename {
             None => f.write_fmt(format_args!("{}", self.typ)),
@@ -76,6 +79,7 @@ impl Display for ContentDisposition {
 }
 
 impl Display for DispositionType {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             DispositionType::Inline => f.write_str("inline"),

@@ -1,9 +1,11 @@
 mod content_disposition;
-use crate::content_type::ContentType;
-use async_std::fs::File;
+mod help;
+
 pub use async_std::path::Path;
-use content_disposition::ContentDisposition;
 pub use content_disposition::DispositionType;
+
+use async_std::fs::File;
+use content_disposition::ContentDisposition;
 use roa_core::{http, Context, Result, State};
 
 #[inline]
@@ -18,8 +20,11 @@ pub async fn write_file<S: State>(
     if let Some(filename) = path.file_name() {
         ctx.resp_mut().headers.insert(
             http::header::CONTENT_TYPE,
-            ContentType(mime_guess::from_path(&filename).first_or_octet_stream())
-                .to_value()?,
+            mime_guess::from_path(&filename)
+                .first_or_octet_stream()
+                .as_ref()
+                .parse()
+                .map_err(help::bug_report)?,
         );
 
         let name = filename.to_string_lossy();
