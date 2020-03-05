@@ -1,7 +1,7 @@
 use bytes::{Buf, Bytes, BytesMut};
-use futures::future::{ok, Ready};
+use futures::future::ok;
 use futures::io::{self, AsyncRead};
-use futures::stream::{once, Once, Stream};
+use futures::stream::{once, Stream};
 use std::mem;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -9,34 +9,68 @@ use std::task::{Context, Poll};
 const DEFAULT_CHUNK_SIZE: usize = 4096;
 
 /// The body of response.
+///
+/// ### Example
+///
+/// ```rust
+/// use roa_core::Body;
+/// use futures::StreamExt;
+/// use std::io;
+///
+/// async fn read_body(body: Body) -> io::Result<Vec<u8>> {
+///     Ok(match body {
+///         Body::Bytes(bytes) => bytes.bytes().to_vec(),
+///         Body::Stream(mut stream) => {
+///             let mut bytes = Vec::new();
+///             while let Some(item) = stream.next().await {
+///                 bytes.extend_from_slice(&*item?);
+///             }
+///             bytes
+///         }
+///     })
+/// }
+/// ```
 pub enum Body {
-    Bytes {
-        size_hint: usize,
-        data: Vec<Bytes>,
-    },
-    Stream {
-        counter: usize,
-        segments: Vec<Segment>,
-    },
+    /// Bytes kind.
+    Bytes(BodyBytes),
+
+    /// Stream kind.
+    Stream(BodyStream),
+}
+
+/// Bytes based body.
+#[derive(Default)]
+pub struct BodyBytes {
+    size_hint: usize,
+    data: Vec<Bytes>,
+}
+
+/// Stream based body.
+#[derive(Default)]
+pub struct BodyStream {
+    counter: usize,
+    segments: Vec<Segment>,
 }
 
 type Segment = Box<dyn Stream<Item = io::Result<Bytes>> + Sync + Send + Unpin + 'static>;
 
 impl Body {
+    /// Construct an empty body of bytes kind.
     #[inline]
     pub fn bytes() -> Self {
-        Body::Bytes {
+        Body::Bytes(BodyBytes {
             size_hint: 0,
             data: Vec::new(),
-        }
+        })
     }
 
+    /// Construct an empty body of stream kind.
     #[inline]
     pub fn stream() -> Self {
-        Body::Stream {
+        Body::Stream(BodyStream {
             counter: 0,
             segments: Vec::new(),
-        }
+        })
     }
 
     /// Write stream.
@@ -45,16 +79,15 @@ impl Body {
         stream: impl Stream<Item = io::Result<Bytes>> + Sync + Send + Unpin + 'static,
     ) -> &mut Self {
         match self {
-            Body::Stream { counter, segments } => {
-                segments.push(Box::new(stream));
+            Body::Stream(body_stream) => {
+                body_stream.write_stream(stream);
                 self
             }
-            Body::Bytes { size_hint, data } => {
-                let size = *size_hint;
-                let data = mem::take(data);
+            Body::Bytes(bytes) => {
+                let data = mem::take(bytes).bytes();
                 *self = Self::stream();
                 if !data.is_empty() {
-                    self.write_stream(bytes_stream(join_bytes(size, data)));
+                    self.write(data);
                 }
                 self.write_stream(stream)
             }
@@ -82,16 +115,12 @@ impl Body {
 
     /// Write `Bytes`.
     #[inline]
-    pub fn write(&mut self, into_bytes: impl Into<Bytes>) -> &mut Self {
-        let bytes = into_bytes.into();
+    pub fn write(&mut self, data: impl Into<Bytes>) -> &mut Self {
         match self {
-            Body::Bytes { size_hint, data } => {
-                *size_hint += bytes.len();
-                data.push(bytes);
-                self
-            }
-            stream @ Body::Stream { .. } => stream.write_stream(bytes_stream(bytes)),
+            Body::Bytes(bytes) => bytes.write(data),
+            Body::Stream(stream) => stream.write(data),
         }
+        self
     }
 
     /// Wrap self with a wrapper.
@@ -102,18 +131,60 @@ impl Body {
     }
 }
 
+impl BodyStream {
+    /// Write stream.
+    #[inline]
+    fn write_stream(
+        &mut self,
+        stream: impl Stream<Item = io::Result<Bytes>> + Sync + Send + Unpin + 'static,
+    ) {
+        self.segments.push(Box::new(stream))
+    }
+
+    #[inline]
+    fn write(&mut self, bytes: impl Into<Bytes>) {
+        self.write_stream(once(ok(bytes.into())))
+    }
+}
+
+impl BodyBytes {
+    #[inline]
+    fn write(&mut self, bytes: impl Into<Bytes>) {
+        let data = bytes.into();
+        self.size_hint += data.len();
+        self.data.push(data);
+    }
+
+    /// Consume self and return a bytes.
+    #[inline]
+    pub fn bytes(mut self) -> Bytes {
+        match self.data.len() {
+            0 => Bytes::new(),
+            1 => self.data.remove(0),
+            _ => {
+                let mut bytes = BytesMut::with_capacity(self.size_hint);
+                for data in self.data.iter() {
+                    bytes.extend_from_slice(data)
+                }
+                bytes.freeze()
+            }
+        }
+    }
+}
+
 impl From<Body> for hyper::Body {
     #[inline]
     fn from(body: Body) -> Self {
         match body {
-            Body::Bytes { size_hint, data } => {
+            Body::Bytes(bytes) => {
+                let data = bytes.bytes();
                 if data.is_empty() {
                     hyper::Body::empty()
                 } else {
-                    hyper::Body::from(join_bytes(size_hint, data))
+                    hyper::Body::from(data)
                 }
             }
-            stream @ Body::Stream { .. } => hyper::Body::wrap_stream(stream),
+            Body::Stream(stream) => hyper::Body::wrap_stream(stream),
         }
     }
 }
@@ -123,26 +194,6 @@ impl Default for Body {
     fn default() -> Self {
         Self::bytes()
     }
-}
-
-#[inline]
-fn join_bytes(size: usize, mut bytes: Vec<Bytes>) -> Bytes {
-    match bytes.len() {
-        0 => Bytes::new(),
-        1 => bytes.remove(0),
-        _ => {
-            let mut new_bytes = BytesMut::with_capacity(size);
-            for data in bytes.iter() {
-                new_bytes.extend_from_slice(data)
-            }
-            new_bytes.freeze()
-        }
-    }
-}
-
-#[inline]
-pub(crate) fn bytes_stream(bytes: Bytes) -> Once<Ready<io::Result<Bytes>>> {
-    once(ok(bytes))
 }
 
 pub struct ReaderStream<R> {
@@ -180,106 +231,80 @@ where
     }
 }
 
-impl Stream for Body {
+impl Stream for BodyStream {
     type Item = io::Result<Bytes>;
-
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match &mut *self {
-            Body::Stream { counter, segments } => {
-                if *counter >= segments.len() {
-                    return Poll::Ready(None);
-                }
-                match futures::ready!(Pin::new(&mut segments[*counter]).poll_next(cx)) {
-                    None => {
-                        *counter += 1;
-                        self.poll_next(cx)
-                    }
-                    some => Poll::Ready(some),
-                }
+        let counter = self.counter;
+        if counter >= self.segments.len() {
+            return Poll::Ready(None);
+        }
+        match futures::ready!(Pin::new(&mut self.segments[counter]).poll_next(cx)) {
+            None => {
+                self.counter += 1;
+                self.poll_next(cx)
             }
-            Body::Bytes { size_hint, data } => {
-                if data.is_empty() {
-                    Poll::Ready(None)
-                } else {
-                    let data = mem::take(data);
-                    Poll::Ready(Some(Ok(join_bytes(*size_hint, data))))
-                }
-            }
+            some => Poll::Ready(some),
         }
     }
 }
 
-//impl Debug for Body {
-//    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-//        match self {
-//            Body::Bytes { size_hint, data } => f.write_fmt(format_args!(
-//                "Body::Bytes: size hint: {}, data: {}",
-//                *size_hint,
-//                String::from_utf8_lossy(&*join_bytes(*size_hint, data.clone()))
-//            )),
-//            Body::Stream {}
-//        }
-//    }
-//}
-
 #[cfg(test)]
 mod tests {
-    use super::Body;
+    use super::{Body, BodyBytes};
     use async_std::fs::File;
-    use futures::AsyncReadExt;
-    use futures::TryStreamExt;
+    use futures::StreamExt;
+    use std::io;
+
+    async fn read_body(body: Body) -> io::Result<String> {
+        use Body::*;
+        let data = match body {
+            Bytes(bytes) => bytes,
+            Stream(mut stream) => {
+                let mut bytes = BodyBytes::default();
+                while let Some(item) = stream.next().await {
+                    bytes.write(item?);
+                }
+                bytes
+            }
+        };
+        Ok(String::from_utf8_lossy(&*data.bytes()).to_string())
+    }
 
     #[async_std::test]
     async fn body_empty() -> std::io::Result<()> {
         let body = Body::default();
-        let mut data = String::new();
-        body.into_async_read().read_to_string(&mut data).await?;
-        assert_eq!("", data);
+        assert_eq!("", read_body(body).await?);
         Ok(())
     }
 
     #[async_std::test]
     async fn body_single() -> std::io::Result<()> {
         let mut body = Body::default();
-        let mut data = String::new();
-        body.write("Hello, World")
-            .into_async_read()
-            .read_to_string(&mut data)
-            .await?;
-        assert_eq!("Hello, World", data);
+        body.write("Hello, World");
+        assert_eq!("Hello, World", read_body(body).await?);
         Ok(())
     }
 
     #[async_std::test]
     async fn body_multiple() -> std::io::Result<()> {
         let mut body = Body::default();
-        let mut data = String::new();
-        body.write("He")
-            .write("llo, ")
-            .write("World")
-            .into_async_read()
-            .read_to_string(&mut data)
-            .await?;
-        assert_eq!("Hello, World", data);
+        body.write("He").write("llo, ").write("World");
+        assert_eq!("Hello, World", read_body(body).await?);
         Ok(())
     }
 
     #[async_std::test]
     async fn body_composed() -> std::io::Result<()> {
         let mut body = Body::stream();
-        let mut data = String::new();
         body.write("He")
             .write("llo, ")
             .write_reader(File::open("../assets/author.txt").await?)
             .write_reader(File::open("../assets/author.txt").await?)
-            .write(".")
-            .into_async_read()
-            .read_to_string(&mut data)
-            .await?;
-        assert_eq!("Hello, HexileeHexilee.", data);
+            .write(".");
+        assert_eq!("Hello, HexileeHexilee.", read_body(body).await?);
         Ok(())
     }
 }
