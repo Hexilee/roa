@@ -80,7 +80,7 @@ use crate::{
     async_trait, join, Context, Error, Middleware, Next, Result, State, SyncContext,
 };
 use headers::{authorization::Bearer, Authorization, HeaderMapExt};
-use jsonwebtoken::{dangerous_unsafe_decode, decode};
+use jsonwebtoken::decode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::sync::Arc;
@@ -185,15 +185,14 @@ where
     where
         C: 'static + DeserializeOwned,
     {
-        let token = self.load_scoped::<JwtScope, Bearer>("token");
-        match token {
-            Some(token) => dangerous_unsafe_decode(token.token())
-                .map(|data| data.claims)
+        let value = self.load_scoped::<JwtScope, Value>("value");
+        match value {
+            Some(claims) => serde_json::from_value((*claims).clone())
                 .map_err(|err| {
                     Error::new(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!(
-                            "{}\ntoken deserialized fails, this maybe a bug of JwtGuard.",
+                            "{}\nClaims value deserialized fails, this may be a bug of JwtGuard.",
                             err
                         ),
                         false,
@@ -229,10 +228,11 @@ impl<S: State> Middleware<S> for JwtGuard {
             .typed_get::<Authorization<Bearer>>()
             .ok_or_else(|| unauthorized(""))?
             .0;
-        decode::<Value>(bearer.token(), &self.secret, &self.validation)
+        let value = decode::<Value>(bearer.token(), &self.secret, &self.validation)
             .map_err(unauthorized)?;
         ctx.store_scoped(JwtScope, "secret", self.secret.clone());
         ctx.store_scoped(JwtScope, "token", bearer);
+        ctx.store_scoped(JwtScope, "value", value.claims);
         next.await
     }
 }
