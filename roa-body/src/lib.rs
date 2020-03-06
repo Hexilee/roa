@@ -298,13 +298,13 @@ mod tests {
 
     #[tokio::test]
     async fn read_json() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .end(move |mut ctx| async move {
-                let user: UserDto = ctx.read_json().await?;
-                assert_eq!(USER, user);
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |mut ctx| async move {
+            let user: UserDto = ctx.read_json().await?;
+            assert_eq!(USER, user);
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
 
         let client = reqwest::Client::new();
@@ -319,13 +319,13 @@ mod tests {
 
     #[tokio::test]
     async fn read_form() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .gate_fn(move |mut ctx, _| async move {
-                let user: UserDto = ctx.read_form().await?;
-                assert_eq!(USER, user);
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |mut ctx| async move {
+            let user: UserDto = ctx.read_form().await?;
+            assert_eq!(USER, user);
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
 
         let client = reqwest::Client::new();
@@ -340,9 +340,9 @@ mod tests {
 
     #[tokio::test]
     async fn render() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .end(move |mut ctx| async move { ctx.render(&USER) })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |mut ctx| async move { ctx.render(&USER) });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -352,9 +352,9 @@ mod tests {
 
     #[tokio::test]
     async fn write_text() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .end(move |mut ctx| async move { ctx.write_text("Hello, World!") })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |mut ctx| async move { ctx.write_text("Hello, World!") });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -366,13 +366,11 @@ mod tests {
     #[tokio::test]
     async fn write_octet() -> Result<(), Box<dyn std::error::Error>> {
         // miss key
-        let (addr, server) = App::new(())
-            .end(move |mut ctx| async move {
-                ctx.write_octet(BufReader::new(
-                    File::open("../assets/author.txt").await?,
-                ))
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |mut ctx| async move {
+            ctx.write_octet(BufReader::new(File::open("../assets/author.txt").await?))
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

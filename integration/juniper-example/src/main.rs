@@ -146,11 +146,10 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         [Method::GET, Method::POST],
         GraphQL(RootNode::new(Query, Mutation)),
     );
-    app.gate(logger)
-        .gate(router.routes("/")?)
-        .listen("127.0.0.1:8000", |addr| {
-            info!("Server is listening on {}", addr)
-        })?
-        .await?;
+    app.gate(logger).gate(router.routes("/")?);
+    app.listen("127.0.0.1:8000", |addr| {
+        info!("Server is listening on {}", addr)
+    })?
+    .await?;
     Ok(())
 }

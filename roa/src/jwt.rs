@@ -29,15 +29,14 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut app = App::new(());
-//!     let (addr, server) = app
-//!         .gate(guard(DecodingKey::from_secret(SECRET)))
+//!     app.gate(guard(DecodingKey::from_secret(SECRET)))
 //!         .end(move |ctx| async move {
 //!             let user: User = ctx.claims()?;
 //!             assert_eq!(0, user.id);
 //!             assert_eq!("Hexilee", &user.name);
 //!             Ok(())
-//!         })
-//!         .run()?;
+//!         });
+//!     let (addr, server) = app.run()?;
 //!     spawn(server);
 //!     let mut user = User {
 //!         sub: "user".to_string(),
@@ -263,15 +262,14 @@ mod tests {
     #[tokio::test]
     async fn claims() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        let (addr, server) = app
-            .gate(guard(DecodingKey::from_secret(SECRET)))
+        app.gate(guard(DecodingKey::from_secret(SECRET)))
             .end(move |ctx| async move {
                 let user: User = ctx.claims()?;
                 assert_eq!(0, user.id);
                 assert_eq!("Hexilee", &user.name);
                 Ok(())
-            })
-            .run()?;
+            });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
@@ -358,16 +356,15 @@ mod tests {
     #[tokio::test]
     async fn jwt_verify_not_set() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        let (addr, server) = app
-            .gate_fn(move |ctx, _next| async move {
-                let result: Result<User, Error> = ctx.claims();
-                assert!(result.is_err());
-                let status = result.unwrap_err();
-                assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
-                assert_eq!("middleware `JwtGuard` is not set correctly", status.message);
-                Ok(())
-            })
-            .run()?;
+        app.gate_fn(move |ctx, _next| async move {
+            let result: Result<User, Error> = ctx.claims();
+            assert!(result.is_err());
+            let status = result.unwrap_err();
+            assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
+            assert_eq!("middleware `JwtGuard` is not set correctly", status.message);
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
         Ok(())

@@ -187,14 +187,14 @@ impl<S: State> App<S> {
     }
 
     /// Construct a hyper server by an incoming.
-    pub fn accept<I>(&self, incoming: I) -> Server<I, Self, Executor>
+    pub fn accept<I>(self, incoming: I) -> Server<I, Self, Executor>
     where
         I: Accept<Conn = AddrStream>,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
         Server::builder(incoming)
             .executor(self.exec.clone())
-            .serve(self.clone())
+            .serve(self)
     }
 
     /// Make a fake http service for test.
@@ -292,16 +292,6 @@ impl<S: State> HttpService<S> {
             }
         }
         Ok(std::mem::take(&mut *context.resp_mut()))
-    }
-}
-
-impl<S: State> Clone for App<S> {
-    fn clone(&self) -> Self {
-        Self {
-            middleware: self.middleware.clone(),
-            exec: self.exec.clone(),
-            state: self.state.clone(),
-        }
     }
 }
 

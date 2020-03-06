@@ -60,10 +60,10 @@
 //!     let mut app = App::new(());
 //!     // logger
 //!     app.gate_fn(|ctx, next| async move {
-//!       next.await?;
-//!       let rt = ctx.resp().must_get("x-response-time")?;
-//!       info!("{} {} - {}", ctx.method(), ctx.uri(), rt);
-//!       Ok(())
+//!         next.await?;
+//!         let rt = ctx.resp().must_get("x-response-time")?;
+//!         info!("{} {} - {}", ctx.method(), ctx.uri(), rt);
+//!         Ok(())
 //!     });
 //!
 //!     // x-response-time
@@ -101,28 +101,28 @@
 //!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     App::new(())
-//!         .gate_fn(|ctx, next| async move {
-//!             // catch
-//!             if let Err(err) = next.await {
-//!                 // teapot is ok
-//!                 if err.status_code != StatusCode::IM_A_TEAPOT {
-//!                     return Err(err)
-//!                 }
+//!     let mut app = App::new(());
+//!     app.gate_fn(|ctx, next| async move {
+//!         // catch
+//!         if let Err(err) = next.await {
+//!             // teapot is ok
+//!             if err.status_code != StatusCode::IM_A_TEAPOT {
+//!                 return Err(err)
 //!             }
-//!             Ok(())
-//!         })
-//!         .gate_fn(|ctx, next| async move {
-//!             next.await?; // just throw
-//!             unreachable!()
-//!         })
-//!         .end(|_ctx| async move {
-//!             throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
-//!         })
-//!         .listen("127.0.0.1:8000", |addr| {
-//!             info!("Server is listening on {}", addr)
-//!         })?
-//!         .await?;
+//!         }
+//!         Ok(())
+//!     })
+//!     .gate_fn(|ctx, next| async move {
+//!         next.await?; // just throw
+//!         unreachable!()
+//!     })
+//!     .end(|_ctx| async move {
+//!         throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+//!     });
+//!     app.listen("127.0.0.1:8000", |addr| {
+//!         info!("Server is listening on {}", addr)
+//!     })?
+//!     .await?;
 //!     Ok(())
 //! }
 //! ```
@@ -171,13 +171,13 @@
 //!         // do something
 //!         Ok(())
 //!     });
-//!     App::new(())
-//!         // route with prefix "/user"
-//!         .gate(router.routes("/user")?)
-//!         .listen("127.0.0.1:8000", |addr| {
-//!             info!("Server is listening on {}", addr)
-//!         })?
-//!         .await?;
+//!     let mut app = App::new(());
+//!     // route with prefix "/user"
+//!     app.gate(router.routes("/user")?);
+//!     app.listen("127.0.0.1:8000", |addr| {
+//!         info!("Server is listening on {}", addr)
+//!     })?
+//!     .await?;
 //!     
 //!     // get "/user/1", then id == 1.
 //!     Ok(())
@@ -197,16 +197,16 @@
 //!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     App::new(())
-//!         .gate(query_parser)
-//!         .end( |ctx| async move {
-//!             let id: u64 = ctx.must_query("id")?.parse()?;
-//!             Ok(())
-//!         })
-//!         .listen("127.0.0.1:8080", |addr| {
-//!             info!("Server is listening on {}", addr)
-//!         })?
-//!         .await?;     
+//!     let mut app = App::new(());
+//!     app.gate(query_parser);
+//!     app.end( |ctx| async move {
+//!         let id: u64 = ctx.must_query("id")?.parse()?;
+//!         Ok(())
+//!     });
+//!     app.listen("127.0.0.1:8080", |addr| {
+//!         info!("Server is listening on {}", addr)
+//!     })?
+//!     .await?;     
 //!     // request "/?id=1", then id == 1.
 //!     Ok(())
 //! }

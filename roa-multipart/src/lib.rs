@@ -241,7 +241,9 @@ mod tests {
             }
             Ok(())
         });
-        let (addr, server) = app.gate(router.routes("/")?).run()?;
+
+        app.gate(router.routes("/")?);
+        let (addr, server) = app.run()?;
         async_std::task::spawn(server);
 
         // client

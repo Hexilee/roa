@@ -8,14 +8,14 @@ pub trait Listener {
     type Server;
 
     /// Listen on a socket addr, return a server and the real addr it binds.
-    fn listen_on(
-        &self,
+    fn bind(
+        self,
         addr: impl ToSocketAddrs,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 
     /// Listen on a socket addr, return a server, and pass real addr to the callback.
     fn listen(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         callback: impl Fn(SocketAddr),
     ) -> std::io::Result<Self::Server>;
@@ -31,27 +31,27 @@ pub trait Listener {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .gate_fn(|_ctx, next| async move {
-    ///             let inbound = Instant::now();
-    ///             next.await?;
-    ///             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-    ///             Ok(())
-    ///         })
-    ///         .run()?;
+    ///     let mut app = App::new(());
+    ///     app.gate_fn(|_ctx, next| async move {
+    ///         let inbound = Instant::now();
+    ///         next.await?;
+    ///         println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+    ///         Ok(())
+    ///     });
+    ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
     ///     Ok(())
     /// }
     /// ```
-    fn run(&self) -> std::io::Result<(SocketAddr, Self::Server)>;
+    fn run(self) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
 impl<S: State> Listener for App<S> {
     type Server = Server<TcpIncoming, Self, Executor>;
-    fn listen_on(
-        &self,
+    fn bind(
+        self,
         addr: impl ToSocketAddrs,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
         let incoming = TcpIncoming::bind(addr)?;
@@ -60,16 +60,16 @@ impl<S: State> Listener for App<S> {
     }
 
     fn listen(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         callback: impl Fn(SocketAddr),
     ) -> std::io::Result<Self::Server> {
-        let (addr, server) = self.listen_on(addr)?;
+        let (addr, server) = self.bind(addr)?;
         callback(addr);
         Ok(server)
     }
 
-    fn run(&self) -> std::io::Result<(SocketAddr, Self::Server)> {
-        self.listen_on("127.0.0.1:0")
+    fn run(self) -> std::io::Result<(SocketAddr, Self::Server)> {
+        self.bind("127.0.0.1:0")
     }
 }

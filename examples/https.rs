@@ -25,8 +25,8 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     app.end(|mut ctx| async move {
         ctx.write_file("assets/welcome.html", DispositionType::Inline)
             .await
-    })
-    .listen_tls("127.0.0.1:8000", config, |addr| {
+    });
+    app.listen_tls("127.0.0.1:8000", config, |addr| {
         info!("Server is listening on https://localhost:{}", addr.port())
     })?
     .await?;

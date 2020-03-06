@@ -11,12 +11,12 @@
 //!
 //!
 //! # fn main() -> std::io::Result<()> {
-//! let (addr, server) = App::new(())
-//!     .gate(Compress(Level::Fastest))
+//! let mut app = App::new(());
+//! app.gate(Compress(Level::Fastest))
 //!     .end(|mut ctx| async move {
-//!         ctx.write_file("../assets/welcome.html", Inline).await
-//!     })
-//!     .run()?;
+//!     ctx.write_file("../assets/welcome.html", Inline).await
+//! });
+//! let (addr, server) = app.run()?;
 //! // server.await
 //! Ok(())
 //! # }
@@ -138,14 +138,14 @@ mod tests {
 
     #[tokio::test]
     async fn compress() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .gate(assert_consumed(202)) // compressed
+        let mut app = App::new(());
+        app.gate(assert_consumed(202)) // compressed
             .gate(Compress(Level::Fastest))
             .gate(assert_consumed(236)) // the size of assets/welcome.html is 236 bytes.
             .end(|mut ctx| async move {
                 ctx.write_file("../assets/welcome.html", Inline).await
-            })
-            .run()?;
+            });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::builder().gzip(true).build()?;
         let resp = client

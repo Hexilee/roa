@@ -11,8 +11,8 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         let stream = ctx.req_mut().stream();
         ctx.resp_mut().write_stream(stream);
         Ok(())
-    })
-    .listen("127.0.0.1:8000", |addr| {
+    });
+    app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
     .await?;

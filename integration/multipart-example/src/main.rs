@@ -41,11 +41,10 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         }
         Ok(())
     });
-    app.gate(logger)
-        .gate(router.routes("/")?)
-        .listen("127.0.0.1:8000", |addr| {
-            info!("Server is listening on {}", addr)
-        })?
-        .await?;
+    app.gate(logger).gate(router.routes("/")?);
+    app.listen("127.0.0.1:8000", |addr| {
+        info!("Server is listening on {}", addr)
+    })?
+    .await?;
     Ok(())
 }

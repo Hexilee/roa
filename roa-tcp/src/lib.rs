@@ -25,7 +25,7 @@
 //!
 //! # fn main() -> io::Result<()> {
 //! let app = App::new(());
-//! let (addr, server) = app.listen_on("127.0.0.1:0")?;
+//! let (addr, server) = app.bind("127.0.0.1:0")?;
 //! // server.await
 //! Ok(())
 //! # }

@@ -13,12 +13,12 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     pretty_env_logger::init();
-//!     let (addr, server) = App::new(())
-//!         .gate(Cors::new())
+//!     let mut app = App::new(());
+//!     app.gate(Cors::new())
 //!         .end(|ctx| async move {
-//!             Ok(())
-//!         })
-//!         .run()?;
+//!         Ok(())
+//!     });
+//!     let (addr, server) = app.run()?;
 //!     spawn(server);
 //!     let client = reqwest::Client::new();
 //!     let resp = client
@@ -392,13 +392,11 @@ mod tests {
     #[tokio::test]
     async fn default_cors() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        let (addr, server) = app
-            .gate(Cors::new())
-            .end(|mut ctx| async move {
-                ctx.resp_mut().write("Hello, World");
-                Ok(())
-            })
-            .run()?;
+        app.gate(Cors::new()).end(|mut ctx| async move {
+            ctx.resp_mut().write("Hello, World");
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::new();
 
@@ -522,13 +520,11 @@ mod tests {
             .allow_headers(vec![AUTHORIZATION])
             .allow_header(CONTENT_TYPE)
             .build();
-        let (addr, server) = app
-            .gate(configured_cors)
-            .end(|mut ctx| async move {
-                ctx.resp_mut().write("Hello, World");
-                Ok(())
-            })
-            .run()?;
+        app.gate(configured_cors).end(|mut ctx| async move {
+            ctx.resp_mut().write("Hello, World");
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::new();
 

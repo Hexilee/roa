@@ -12,13 +12,13 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let (addr, server) = App::new(())
-//!         .gate(cookie_parser)
+//!     let mut app = App::new(());
+//!     app.gate(cookie_parser)
 //!         .end(|mut ctx| async move {
-//!             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
-//!             Ok(())
-//!         })
-//!         .run()?;
+//!         assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
+//!         Ok(())
+//!     });
+//!     let (addr, server) = app.run()?;
 //!     spawn(server);
 //!     let client = reqwest::Client::new();
 //!     let resp = client
@@ -62,13 +62,13 @@ struct CookieScope;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // downstream of `cookie_parser`
-///     let (addr, server) = App::new(())
-///         .gate(cookie_parser)
+///     let mut app = App::new(());
+///     app.gate(cookie_parser)
 ///         .end( |mut ctx| async move {
-///             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
-///             Ok(())
-///         })
-///         .run()?;
+///         assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
+///         Ok(())
+///     });
+///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let client = reqwest::Client::new();
 ///     let resp = client
@@ -79,12 +79,12 @@ struct CookieScope;
 ///     assert_eq!(StatusCode::OK, resp.status());
 ///
 ///     // miss `cookie_parser`
-///     let (addr, server) = App::new(())
-///         .end( |ctx| async move {
-///             assert!(ctx.cookie("name").is_none());
-///             Ok(())
-///         })
-///         .run()?;
+///     app = App::new(());
+///     app.end( |ctx| async move {
+///         assert!(ctx.cookie("name").is_none());
+///         Ok(())
+///     });
+///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let resp = client
 ///         .get(&format!("http://{}", addr))
@@ -109,13 +109,13 @@ pub trait CookieGetter {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     // downstream of `cookie_parser`
-    ///     let (addr, server) = App::new(())
-    ///         .gate(cookie_parser)
+    ///     let mut app = App::new(());
+    ///     app.gate(cookie_parser)
     ///         .end( |mut ctx| async move {
-    ///             assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
-    ///             Ok(())
-    ///         })
-    ///         .run()?;
+    ///         assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
+    ///         Ok(())
+    ///     });
+    ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
@@ -137,13 +137,13 @@ pub trait CookieGetter {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     // downstream of `cookie_parser`
-    ///     let (addr, server) = App::new(())
-    ///         .gate(cookie_parser)
+    ///     let mut app = App::new(());
+    ///     app.gate(cookie_parser)
     ///         .end( |ctx| async move {
-    ///             assert!(ctx.cookie("name").is_none());
-    ///             Ok(())
-    ///         })
-    ///         .run()?;
+    ///         assert!(ctx.cookie("name").is_none());
+    ///         Ok(())
+    ///     });
+    ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
@@ -167,12 +167,12 @@ pub trait CookieSetter {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(())
-    ///         .end( |mut ctx| async move {
-    ///             ctx.set_cookie(Cookie::new("name", "Hexi Lee"))?;
-    ///             Ok(())
-    ///         })
-    ///         .run()?;
+    ///     let mut app = App::new(());
+    ///     app.end( |mut ctx| async move {
+    ///         ctx.set_cookie(Cookie::new("name", "Hexi Lee"))?;
+    ///         Ok(())
+    ///     });
+    ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
@@ -257,23 +257,21 @@ mod tests {
     #[tokio::test]
     async fn cookie() -> Result<(), Box<dyn std::error::Error>> {
         // miss cookie
-        let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .end(move |ctx| async move {
-                assert!(ctx.cookie("name").is_none());
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.gate(cookie_parser).end(move |ctx| async move {
+            assert!(ctx.cookie("name").is_none());
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
 
-        let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .end(move |mut ctx| async move {
-                ctx.must_cookie("nick name")?;
-                Ok(())
-            })
-            .run()?;
+        app = App::new(());
+        app.gate(cookie_parser).end(move |mut ctx| async move {
+            ctx.must_cookie("nick name")?;
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
@@ -286,13 +284,12 @@ mod tests {
                 .unwrap()
         );
         // string value
-        let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .end(move |mut ctx| async move {
-                assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
-                Ok(())
-            })
-            .run()?;
+        app = App::new(());
+        app.gate(cookie_parser).end(move |mut ctx| async move {
+            assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -306,13 +303,12 @@ mod tests {
 
     #[tokio::test]
     async fn cookie_decode() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .end(move |mut ctx| async move {
-                assert_eq!("bar baz", ctx.must_cookie("bar baz")?.value());
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.gate(cookie_parser).end(move |mut ctx| async move {
+            assert_eq!("bar baz", ctx.must_cookie("bar baz")?.value());
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -326,14 +322,13 @@ mod tests {
 
     #[tokio::test]
     async fn cookie_action() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .gate(cookie_parser)
-            .end(move |mut ctx| async move {
-                assert_eq!("bar baz", ctx.must_cookie("bar baz")?.value());
-                assert_eq!("bar foo", ctx.must_cookie("foo baz")?.value());
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.gate(cookie_parser).end(move |mut ctx| async move {
+            assert_eq!("bar baz", ctx.must_cookie("bar baz")?.value());
+            assert_eq!("bar foo", ctx.must_cookie("foo baz")?.value());
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -347,13 +342,13 @@ mod tests {
 
     #[tokio::test]
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .end(move |mut ctx| async move {
-                ctx.set_cookie(Cookie::new("bar baz", "bar baz"))?;
-                ctx.set_cookie(Cookie::new("bar foo", "foo baz"))?;
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |mut ctx| async move {
+            ctx.set_cookie(Cookie::new("bar baz", "bar baz"))?;
+            ctx.set_cookie(Cookie::new("bar foo", "foo baz"))?;
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

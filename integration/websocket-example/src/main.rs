@@ -97,12 +97,11 @@ fn route(prefix: &'static str) -> Result<RouteEndpoint<SyncChannel>, RouterError
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let mut app = App::new(SyncChannel::new());
-    app.gate(logger)
-        .gate(route("/")?)
-        .listen("127.0.0.1:8000", |addr| {
-            info!("Server is listening on {}", addr)
-        })?
-        .await?;
+    app.gate(logger).gate(route("/")?);
+    app.listen("127.0.0.1:8000", |addr| {
+        info!("Server is listening on {}", addr)
+    })?
+    .await?;
     Ok(())
 }
 
@@ -117,7 +116,8 @@ mod tests {
     async fn echo() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
         let mut app = App::new(channel.clone());
-        let (addr, server) = app.gate(route("/")?).run()?;
+        app.gate(route("/")?);
+        let (addr, server) = app.run()?;
         async_std::task::spawn(server);
         let (ws_stream, _) = connect_async(format!("ws://{}/chat", addr)).await?;
         let (mut sender, mut recv) = ws_stream.split();
@@ -143,7 +143,8 @@ mod tests {
     async fn broadcast() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
         let mut app = App::new(channel.clone());
-        let (addr, server) = app.gate(route("/")?).run()?;
+        app.gate(route("/")?);
+        let (addr, server) = app.run()?;
         async_std::task::spawn(server);
         let url = format!("ws://{}/chat", addr);
         for _ in 0..100 {

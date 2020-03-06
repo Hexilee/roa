@@ -42,8 +42,7 @@
 //! let cert_chain = certs(&mut cert_file).unwrap();
 //! let mut keys = rsa_private_keys(&mut key_file).unwrap();
 //! config.set_single_cert(cert_chain, keys.remove(0))?;
-//!
-//! let (addr, server) = App::new(()).listen_tls_on("127.0.0.1:0", config)?;
+//! let (addr, server) = App::new(()).bind_tls("127.0.0.1:0", config)?;
 //! // server.await
 //! Ok(())
 //! # }
@@ -212,15 +211,15 @@ pub trait TlsListener {
     type Server;
 
     /// Listen on a socket addr, return a server and the real addr it binds.
-    fn listen_tls_on(
-        &self,
+    fn bind_tls(
+        self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 
     /// Listen on a socket addr, return a server, and pass real addr to the callback.
     fn listen_tls(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
         callback: impl Fn(SocketAddr),
@@ -246,30 +245,31 @@ pub trait TlsListener {
     /// let cert_chain = certs(&mut cert_file).unwrap();
     /// let mut keys = rsa_private_keys(&mut key_file).unwrap();
     /// config.set_single_cert(cert_chain, keys.remove(0))?;
-    /// let server = App::new(())
-    ///     .gate_fn(|_ctx, next| async move {
-    ///         let inbound = Instant::now();
-    ///         next.await?;
-    ///         println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-    ///         Ok(())
-    ///     })
-    ///     .listen_tls("127.0.0.1:8000", config, |addr| {
-    ///         println!("Server is listening on https://localhost:{}", addr.port());
-    ///     })?;
+    ///
+    /// let mut app = App::new(());
+    /// app.gate_fn(|_ctx, next| async move {
+    ///     let inbound = Instant::now();
+    ///     next.await?;
+    ///     println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+    ///     Ok(())
+    /// });
+    /// let server = app.listen_tls("127.0.0.1:8000", config, |addr| {
+    ///     println!("Server is listening on https://localhost:{}", addr.port());
+    /// })?;
     /// // server.await
     /// Ok(())
     /// # }
     /// ```
     fn run_tls(
-        &self,
+        self,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
 impl<S: State> TlsListener for App<S> {
     type Server = Server<TlsIncoming, Self, Executor>;
-    fn listen_tls_on(
-        &self,
+    fn bind_tls(
+        self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
@@ -279,21 +279,21 @@ impl<S: State> TlsListener for App<S> {
     }
 
     fn listen_tls(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
         callback: impl Fn(SocketAddr),
     ) -> std::io::Result<Self::Server> {
-        let (addr, server) = self.listen_tls_on(addr, config)?;
+        let (addr, server) = self.bind_tls(addr, config)?;
         callback(addr);
         Ok(server)
     }
 
     fn run_tls(
-        &self,
+        self,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
-        self.listen_tls_on("127.0.0.1:0", config)
+        self.bind_tls("127.0.0.1:0", config)
     }
 }
 
@@ -323,12 +323,13 @@ mod tests {
         let cert_chain = certs(&mut cert_file).unwrap();
         let mut keys = rsa_private_keys(&mut key_file).unwrap();
         config.set_single_cert(cert_chain, keys.remove(0))?;
-        let (addr, server) = App::new(())
-            .end(|mut ctx| async move {
-                ctx.resp_mut().write("Hello, World!");
-                Ok(())
-            })
-            .run_tls(config)?;
+
+        let mut app = App::new(());
+        app.end(|mut ctx| async move {
+            ctx.resp_mut().write("Hello, World!");
+            Ok(())
+        });
+        let (addr, server) = app.run_tls(config)?;
         spawn(server);
 
         let native_tls_connector = native_tls::TlsConnector::builder()

@@ -120,13 +120,13 @@ async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     router.get("", |ctx| serve_dir(ctx, ""));
     wildcard_router.gate(path_checker).get("/", serve_path);
     router.include("/*{path}", wildcard_router);
-    App::new(())
-        .gate(logger)
+    let mut app = App::new(());
+    app.gate(logger)
         .gate(Compress::default())
-        .gate(router.routes("/")?)
-        .listen("127.0.0.1:8000", |addr| {
-            info!("Server is listening on {}", addr)
-        })?
-        .await
-        .map_err(Into::into)
+        .gate(router.routes("/")?);
+    app.listen("127.0.0.1:8000", |addr| {
+        info!("Server is listening on {}", addr)
+    })?
+    .await
+    .map_err(Into::into)
 }

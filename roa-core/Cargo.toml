@@ -30,6 +30,7 @@ log = "0.4"
 tokio = "0.2"
 async-trait = "0.1.24"
 async-std = { version = "1.5.0", features = ["unstable"], optional = true }
+crossbeam-queue = "0.2.1"
 
 [dev-dependencies]
 async-std = { version = "1.5.0", features = ["attributes", "unstable"] }

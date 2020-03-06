@@ -9,12 +9,12 @@ use roa::App;
 
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
-    let (addr, server) = App::new(())
-        .end(|mut ctx| async move {
-            ctx.write_file("assets/author.txt", DispositionType::Inline)
-                .await
-        })
-        .run()?;
+    let mut app = App::new(());
+    app.end(|mut ctx| async move {
+        ctx.write_file("assets/author.txt", DispositionType::Inline)
+            .await
+    });
+    let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
@@ -29,7 +29,9 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
         ctx.write_file(format!("assets/{}", &*filename), DispositionType::Inline)
             .await
     });
-    let (addr, server) = App::new(()).gate(router.routes("/")?).run()?;
+    let mut app = App::new(());
+    app.gate(router.routes("/")?);
+    let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/author.txt", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
@@ -44,7 +46,9 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
         ctx.write_file(format!("./{}", &*path), DispositionType::Inline)
             .await
     });
-    let (addr, server) = App::new(()).gate(router.routes("/")?).run()?;
+    let mut app = App::new(());
+    app.gate(router.routes("/")?);
+    let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/assets/author.txt", addr)).await?;
     assert_eq!("Hexilee", resp.text().await?);
@@ -53,13 +57,12 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
-    let (addr, server) = App::new(())
-        .gate(Compress::default())
-        .end(|mut ctx| async move {
-            ctx.write_file("assets/welcome.html", DispositionType::Inline)
-                .await
-        })
-        .run()?;
+    let mut app = App::new(());
+    app.gate(Compress::default()).end(|mut ctx| async move {
+        ctx.write_file("assets/welcome.html", DispositionType::Inline)
+            .await
+    });
+    let (addr, server) = app.run()?;
     spawn(server);
     let client = reqwest::Client::builder().gzip(true).build()?;
     let resp = client

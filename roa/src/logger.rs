@@ -13,12 +13,12 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     pretty_env_logger::init();
-//!     let (addr, server) = App::new(())
-//!         .gate(logger)
-//!         .end(|mut ctx| async move {
-//!             ctx.write_text("Hello, World!")
-//!         })
-//!         .run()?;
+//!     let mut app = App::new(());
+//!     app.gate(logger);
+//!     app.end(|mut ctx| async move {
+//!         ctx.write_text("Hello, World!")
+//!     });
+//!     let (addr, server) = app.run()?;
 //!     spawn(server);
 //!     let resp = reqwest::get(&format!("http://{}", addr)).await?;
 //!     assert_eq!(StatusCode::OK, resp.status());
@@ -225,13 +225,12 @@ mod tests {
         init()?;
 
         // bytes info
-        let (addr, server) = App::new(())
-            .gate_fn(logger)
-            .end(move |mut ctx| async move {
-                ctx.resp_mut().write("Hello, World.");
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.gate_fn(logger).end(move |mut ctx| async move {
+            ctx.resp_mut().write("Hello, World.");
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -246,12 +245,11 @@ mod tests {
         assert!(records[1].1.ends_with("200 OK"));
 
         // error
-        let (addr, server) = App::new(())
-            .gate_fn(logger)
-            .gate_fn(move |_ctx, _next| async move {
-                throw!(StatusCode::BAD_REQUEST, "Hello, World!")
-            })
-            .run()?;
+        app = App::new(());
+        app.gate_fn(logger).end(move |_ctx| async move {
+            throw!(StatusCode::BAD_REQUEST, "Hello, World!")
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
@@ -265,14 +263,13 @@ mod tests {
         assert!(records[3].1.ends_with("Hello, World!"));
 
         // stream info
-        let (addr, server) = App::new(())
-            .gate_fn(logger)
-            .end(move |mut ctx| async move {
-                ctx.resp_mut()
-                    .write_reader(File::open("../assets/welcome.html").await?);
-                Ok(())
-            })
-            .run()?;
+        app = App::new(());
+        app.gate_fn(logger).end(move |mut ctx| async move {
+            ctx.resp_mut()
+                .write_reader(File::open("../assets/welcome.html").await?);
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

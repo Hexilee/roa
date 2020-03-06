@@ -1,3 +1,5 @@
+mod pool;
+
 use crate::{Error, Executor, Request, Response};
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;

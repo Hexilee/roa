@@ -134,12 +134,12 @@ mod tests {
 
     #[tokio::test]
     async fn host() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!("github.com", ctx.host()?);
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.gate_fn(move |ctx, _next| async move {
+            assert_eq!("github.com", ctx.host()?);
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -161,13 +161,13 @@ mod tests {
 
     #[tokio::test]
     async fn host_err() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .end(move |mut ctx| async move {
-                ctx.req_mut().headers.remove(HOST);
-                assert_eq!("", ctx.host()?);
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |mut ctx| async move {
+            ctx.req_mut().headers.remove(HOST);
+            assert_eq!("", ctx.host()?);
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
@@ -180,21 +180,21 @@ mod tests {
 
     #[tokio::test]
     async fn client_ip() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!(ctx.remote_addr.ip(), ctx.client_ip());
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |ctx| async move {
+            assert_eq!(ctx.remote_addr.ip(), ctx.client_ip());
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
 
-        let (addr, server) = App::new(())
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!("192.168.0.1", ctx.client_ip().to_string());
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |ctx| async move {
+            assert_eq!("192.168.0.1", ctx.client_ip().to_string());
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::new();
         client
@@ -208,12 +208,12 @@ mod tests {
 
     #[tokio::test]
     async fn forwarded_proto() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new(())
-            .gate_fn(move |ctx, _next| async move {
-                assert_eq!("https", ctx.forwarded_proto().unwrap()?);
-                Ok(())
-            })
-            .run()?;
+        let mut app = App::new(());
+        app.end(move |ctx| async move {
+            assert_eq!("https", ctx.forwarded_proto().unwrap()?);
+            Ok(())
+        });
+        let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::new();
         client
