@@ -88,6 +88,7 @@ pub struct App<S> {
     ctx_pool_max: usize,
 }
 
+/// An implementation of hyper MakeService.
 pub struct AppService<S> {
     middleware: Arc<dyn Middleware<S>>,
     pool: Arc<ContextPool<S>>,
@@ -209,6 +210,7 @@ impl<S: State> App<S> {
         self
     }
 
+    /// Build an app service.
     fn service(&self) -> AppService<S> {
         let pool = ContextPool::new(
             self.ctx_pool_min,

@@ -125,7 +125,7 @@ mod response;
 mod state;
 
 #[doc(inline)]
-pub use app::{AddrStream, App};
+pub use app::{AddrStream, App, AppService};
 
 #[doc(inline)]
 pub use executor::{BlockingObj, Executor, FutureObj, JoinHandle, Spawn};
