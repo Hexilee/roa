@@ -83,7 +83,7 @@ mod tests {
             assert_eq!("Hello, World!", data);
             Ok(())
         });
-        let service = app.fake_service();
+        let service = app.http_service();
         let req = Request::from(http::Request::new(Body::from("Hello, World!")));
         let resp = service.serve(req).await?;
         assert_eq!(StatusCode::OK, resp.status);

@@ -199,7 +199,7 @@ impl<S: State> App<S> {
 
     /// Make a fake http service for test.
     #[cfg(test)]
-    pub fn fake_service(&self) -> HttpService<S> {
+    pub fn http_service(&self) -> HttpService<S> {
         let middleware = self.middleware.clone();
         let addr = ([127, 0, 0, 1], 0);
         let state = self.state.clone();
@@ -306,6 +306,16 @@ impl<S: State> Clone for HttpService<S> {
     }
 }
 
+impl<S: State> Clone for App<S> {
+    fn clone(&self) -> Self {
+        Self {
+            middleware: self.middleware.clone(),
+            state: self.state.clone(),
+            exec: self.exec.clone(),
+        }
+    }
+}
+
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
     use crate::{App, Request};
@@ -321,7 +331,7 @@ mod tests {
                 println!("time elapsed: {} ms", inbound.elapsed().as_millis());
                 Ok(())
             })
-            .fake_service();
+            .http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
         Ok(())

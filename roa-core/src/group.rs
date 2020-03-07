@@ -77,7 +77,7 @@ mod tests {
                 }
             }));
         }
-        let service = App::new(()).gate(join_all(middlewares)).fake_service();
+        let service = App::new(()).gate(join_all(middlewares)).http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
         for i in 0..100 {

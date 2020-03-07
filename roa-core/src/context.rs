@@ -1,5 +1,3 @@
-mod pool;
-
 use crate::{Error, Executor, Request, Response};
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
@@ -547,7 +545,7 @@ mod tests_with_runtime {
                 assert_eq!(StatusCode::OK, ctx.status());
                 Ok(())
             })
-            .fake_service();
+            .http_service();
         service.serve(Request::default()).await?;
         Ok(())
     }
@@ -568,7 +566,7 @@ mod tests_with_runtime {
                 assert_eq!(1, ctx.data);
                 Ok(())
             })
-            .fake_service();
+            .http_service();
         service.serve(Request::default()).await?;
         Ok(())
     }
