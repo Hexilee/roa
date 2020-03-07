@@ -60,10 +60,11 @@ impl Request {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Request};
+    use crate::App;
     use futures::AsyncReadExt;
     use http::StatusCode;
-    use hyper::Body;
+    use hyper::service::Service;
+    use hyper::{Body, Request};
 
     #[async_std::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
@@ -74,11 +75,11 @@ mod tests {
             assert_eq!("Hello, World!", data);
             Ok(())
         });
-        let service = app.fake_service();
-        let mut req = Request::default();
-        req.reload(&mut http::Request::new(Body::from("Hello, World!")));
-        let resp = service.serve(req).await?;
-        assert_eq!(StatusCode::OK, resp.status);
+        let mut service = app.http_service();
+        let resp = service
+            .call(Request::new(Body::from("Hello, World!")))
+            .await?;
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 }

@@ -54,9 +54,11 @@ pub fn join_all<S: State>(middlewares: Vec<Arc<dyn Middleware<S>>>) -> Join<S> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{join_all, App, Middleware, Next, Request};
+    use crate::{join_all, App, Middleware, Next};
     use futures::lock::Mutex;
     use http::StatusCode;
+    use hyper::service::Service;
+    use hyper::{Body, Request};
     use std::sync::Arc;
 
     #[async_std::test]
@@ -75,9 +77,9 @@ mod tests {
                 }
             }));
         }
-        let service = App::new(()).gate(join_all(middlewares)).fake_service();
-        let resp = service.serve(Request::default()).await?;
-        assert_eq!(StatusCode::OK, resp.status);
+        let mut service = App::new(()).gate(join_all(middlewares)).http_service();
+        let resp = service.call(Request::new(Body::empty())).await?;
+        assert_eq!(StatusCode::OK, resp.status());
         for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
             assert_eq!(i, vector.lock().await[199 - i]);

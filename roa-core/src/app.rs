@@ -195,23 +195,35 @@ impl<S: State> App<S> {
         self.gate(endpoint)
     }
 
-    fn service(self) -> AppService<S> {
-        let App {
-            state,
-            exec,
-            middlewares,
-            ctx_pool_max,
-            ctx_pool_min,
-        } = self;
-        let pool = ContextPool::new(ctx_pool_min, ctx_pool_max, state, exec);
+    /// Set min size of context pool,
+    /// default value is 1 << 8.
+    pub fn ctx_pool_min(&mut self, min: usize) -> &mut Self {
+        self.ctx_pool_min = min;
+        self
+    }
+
+    /// Set max size of context pool,
+    /// default value is 1 << 20.
+    pub fn ctx_pool_max(&mut self, max: usize) -> &mut Self {
+        self.ctx_pool_max = max;
+        self
+    }
+
+    fn service(&self) -> AppService<S> {
+        let pool = ContextPool::new(
+            self.ctx_pool_min,
+            self.ctx_pool_max,
+            self.state.clone(),
+            self.exec.clone(),
+        );
         AppService {
             pool: Arc::new(pool),
-            middleware: Arc::new(join_all(middlewares)),
+            middleware: Arc::new(join_all(self.middlewares.clone())),
         }
     }
 
     /// Construct a hyper server by an incoming.
-    pub fn accept<I>(self, incoming: I) -> Server<I, AppService<S>, Executor>
+    pub fn accept<I>(&self, incoming: I) -> Server<I, AppService<S>, Executor>
     where
         I: Accept<Conn = AddrStream>,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
@@ -223,8 +235,8 @@ impl<S: State> App<S> {
 
     /// Make a fake http service for test.
     #[cfg(test)]
-    pub fn fake_service(&self) -> HttpService<S> {
-        let middleware = self.middleware.clone();
+    pub fn http_service(&self) -> HttpService<S> {
+        let middleware = Arc::new(join_all(self.middlewares.clone()));
         let addr = ([127, 0, 0, 1], 0);
         let state = self.state.clone();
         let exec = self.exec.clone();
@@ -328,22 +340,24 @@ impl<S: State> HttpService<S> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Request};
-    use http::StatusCode;
+    use crate::App;
+    use http::{Request, StatusCode};
+    use hyper::service::Service;
+    use hyper::Body;
     use std::time::Instant;
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let service = App::new(())
+        let mut service = App::new(())
             .gate_fn(|_ctx, next| async move {
                 let inbound = Instant::now();
                 next.await?;
                 println!("time elapsed: {} ms", inbound.elapsed().as_millis());
                 Ok(())
             })
-            .fake_service();
-        let resp = service.serve(Request::default()).await?;
-        assert_eq!(StatusCode::OK, resp.status);
+            .http_service();
+        let resp = service.call(Request::new(Body::empty())).await?;
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 }
