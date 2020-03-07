@@ -1,5 +1,3 @@
-mod pool;
-
 use crate::{Error, Executor, Request, Response};
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
@@ -164,22 +162,18 @@ impl Default for Bucket {
 }
 
 impl<S> Context<S> {
+    const DEFAULT_ADDR: ([u8; 4], u16) = ([127, 0, 0, 1], 0);
     /// Construct a context from a request, an app and a addr_stream.
     #[inline]
-    pub(crate) fn new(
-        request: Request,
-        state: S,
-        exec: Executor,
-        remote_addr: SocketAddr,
-    ) -> Self {
+    pub(crate) fn new(state: S, exec: Executor) -> Self {
         let inner = Inner {
-            request,
-            response: Response::new(),
+            request: Request::default(),
+            response: Response::default(),
             ctx: SyncContext {
                 state,
                 exec,
                 storage: HashMap::new(),
-                remote_addr,
+                remote_addr: Self::DEFAULT_ADDR.into(),
             },
         };
         Self(Rc::new(UnsafeCell::new(inner)))
@@ -489,6 +483,15 @@ impl<S> SyncContext<S> {
         T: Any + Send + Sync,
     {
         self.load_scoped::<PublicScope, T>(name)
+    }
+}
+
+impl<S: Clone> SyncContext<S> {
+    #[inline]
+    pub(crate) fn reload(&mut self, remote_addr: SocketAddr) {
+        self.remote_addr = remote_addr;
+        self.state = self.state.clone();
+        self.storage.clear();
     }
 }
 

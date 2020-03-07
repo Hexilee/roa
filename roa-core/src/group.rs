@@ -2,7 +2,7 @@ use crate::{async_trait, Context, Middleware, Next, Result, State};
 use std::sync::Arc;
 
 /// A middleware composing and executing other middlewares in a stack-like manner.
-struct Join<S>(Vec<Arc<dyn Middleware<S>>>);
+pub struct Join<S>(Vec<Arc<dyn Middleware<S>>>);
 
 impl<S> Join<S> {
     #[inline]
@@ -40,7 +40,7 @@ impl<S: State> Middleware<S> for Join<S> {
 pub fn join<S: State>(
     current: Arc<dyn Middleware<S>>,
     next: impl Middleware<S>,
-) -> impl Middleware<S> {
+) -> Join<S> {
     join_all(vec![current, Arc::new(next)])
 }
 
@@ -48,9 +48,7 @@ pub fn join<S: State>(
 ///
 /// All middlewares would be composed and executed in a stack-like manner.
 #[inline]
-pub fn join_all<S: State>(
-    middlewares: Vec<Arc<dyn Middleware<S>>>,
-) -> impl Middleware<S> {
+pub fn join_all<S: State>(middlewares: Vec<Arc<dyn Middleware<S>>>) -> Join<S> {
     Join::new(middlewares)
 }
 

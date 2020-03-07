@@ -2,12 +2,11 @@
 mod runtime;
 
 mod future;
+mod pool;
 mod stream;
-use crate::{
-    join, join_all, Context, Error, Middleware, Next, Request, Response, Result, State,
-};
-use future::SendFuture;
-use http::{Request as HttpRequest, Response as HttpResponse};
+use crate::{join_all, Context, Error, Middleware, Next, Result, State};
+use futures::future::err;
+use http::{Request as HttpRequest, Response as HttpResponse, StatusCode};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
 use hyper::Server;
@@ -21,6 +20,8 @@ use std::task::Poll;
 
 use crate::Accept;
 use crate::{Executor, Spawn};
+use future::SendFuture;
+use pool::{ContextPool, DEFAULT_MAX_SIZE, DEFAULT_MIN_SIZE};
 pub use stream::AddrStream;
 
 /// The Application of roa.
@@ -80,32 +81,40 @@ pub use stream::AddrStream;
 /// ```
 ///
 pub struct App<S> {
-    middleware: Arc<dyn Middleware<S>>,
+    middlewares: Vec<Arc<dyn Middleware<S>>>,
+    state: S,
     exec: Executor,
-    pub(crate) state: S,
+    ctx_pool_min: usize,
+    ctx_pool_max: usize,
+}
+
+pub struct AppService<S> {
+    middleware: Arc<dyn Middleware<S>>,
+    pool: Arc<ContextPool<S>>,
 }
 
 /// An implementation of hyper HttpService.
 pub struct HttpService<S> {
     middleware: Arc<dyn Middleware<S>>,
+    pool: Arc<ContextPool<S>>,
     remote_addr: SocketAddr,
-    exec: Executor,
-    pub(crate) state: S,
 }
 
 impl<S: State> App<S> {
     /// Construct an application with custom runtime.
     pub fn with_exec(state: S, exec: impl 'static + Send + Sync + Spawn) -> Self {
         Self {
-            middleware: Arc::new(join_all(Vec::new())),
+            middlewares: Vec::new(),
             exec: Executor(Arc::new(exec)),
             state,
+            ctx_pool_min: DEFAULT_MIN_SIZE,
+            ctx_pool_max: DEFAULT_MAX_SIZE,
         }
     }
 
     /// Use a middleware.
     pub fn gate(&mut self, middleware: impl Middleware<S>) -> &mut Self {
-        self.middleware = Arc::new(join(self.middleware.clone(), middleware));
+        self.middlewares.push(Arc::new(middleware));
         self
     }
 
@@ -186,15 +195,30 @@ impl<S: State> App<S> {
         self.gate(endpoint)
     }
 
+    fn service(self) -> AppService<S> {
+        let App {
+            state,
+            exec,
+            middlewares,
+            ctx_pool_max,
+            ctx_pool_min,
+        } = self;
+        let pool = ContextPool::new(ctx_pool_min, ctx_pool_max, state, exec);
+        AppService {
+            pool: Arc::new(pool),
+            middleware: Arc::new(join_all(middlewares)),
+        }
+    }
+
     /// Construct a hyper server by an incoming.
-    pub fn accept<I>(self, incoming: I) -> Server<I, Self, Executor>
+    pub fn accept<I>(self, incoming: I) -> Server<I, AppService<S>, Executor>
     where
         I: Accept<Conn = AddrStream>,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
         Server::builder(incoming)
             .executor(self.exec.clone())
-            .serve(self)
+            .serve(self.service())
     }
 
     /// Make a fake http service for test.
@@ -204,7 +228,8 @@ impl<S: State> App<S> {
         let addr = ([127, 0, 0, 1], 0);
         let state = self.state.clone();
         let exec = self.exec.clone();
-        HttpService::new(middleware, addr.into(), exec, state)
+        let pool = ContextPool::new(self.ctx_pool_min, self.ctx_pool_max, state, exec);
+        HttpService::new(middleware, addr.into(), Arc::new(pool))
     }
 }
 
@@ -220,19 +245,19 @@ macro_rules! impl_poll_ready {
 type AppFuture<S> =
     Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<S>>> + Send>>;
 
-impl<S: State> Service<&AddrStream> for App<S> {
+impl<S: State> Service<&AddrStream> for AppService<S> {
     type Response = HttpService<S>;
     type Error = std::io::Error;
     type Future = AppFuture<S>;
-    impl_poll_ready!();
+
+    impl_poll_ready! {}
 
     #[inline]
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
         let middleware = self.middleware.clone();
         let addr = stream.remote_addr();
-        let state = self.state.clone();
-        let exec = self.exec.clone();
-        Box::pin(async move { Ok(HttpService::new(middleware, addr, exec, state)) })
+        let pool = self.pool.clone();
+        Box::pin(async move { Ok(HttpService::new(middleware, addr, pool)) })
     }
 }
 
@@ -243,15 +268,27 @@ impl<S: State> Service<HttpRequest<HyperBody>> for HttpService<S> {
     type Response = HttpResponse<HyperBody>;
     type Error = Error;
     type Future = HttpFuture;
-    impl_poll_ready!();
+
+    impl_poll_ready! {}
 
     #[inline]
-    fn call(&mut self, req: HttpRequest<HyperBody>) -> Self::Future {
-        let service = self.clone();
-        Box::pin(async move {
-            let serve_future = SendFuture(Box::pin(service.serve(req.into())));
-            Ok(serve_future.await?.into())
-        })
+    fn call(&mut self, mut req: HttpRequest<HyperBody>) -> Self::Future {
+        let ctx_guard = match self.pool.get(self.remote_addr, &mut req) {
+            Some(guard) => guard,
+            None => {
+                return Box::pin(err(Error::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Resources busy: context pool is empty",
+                    false,
+                )));
+            }
+        };
+        let middleware = self.middleware.clone();
+        let serve_future = SendFuture(Box::pin(async move {
+            Self::serve(middleware, unsafe { ctx_guard.get() }).await?;
+            Ok(unsafe { ctx_guard.get() }.resp_mut().load_resp())
+        }));
+        Box::pin(serve_future)
     }
 }
 
@@ -259,50 +296,33 @@ impl<S: State> HttpService<S> {
     pub fn new(
         middleware: Arc<dyn Middleware<S>>,
         remote_addr: SocketAddr,
-        exec: Executor,
-        state: S,
+        pool: Arc<ContextPool<S>>,
     ) -> Self {
         Self {
             middleware,
             remote_addr,
-            exec,
-            state,
+            pool,
         }
     }
 
-    /// Receive a request then return a response.
+    /// Process a new request.
     /// The entry point of middlewares.
-    pub async fn serve(self, req: Request) -> Result<Response> {
-        let Self {
-            middleware,
-            remote_addr,
-            exec,
-            state,
-        } = self;
-        let mut context = Context::new(req, state, exec, remote_addr);
-        if let Err(err) = middleware.end(unsafe { context.unsafe_clone() }).await {
-            context.resp_mut().status = err.status_code;
+    pub async fn serve(
+        middleware: Arc<dyn Middleware<S>>,
+        mut ctx: Context<S>,
+    ) -> Result {
+        if let Err(err) = middleware.end(unsafe { ctx.unsafe_clone() }).await {
+            ctx.resp_mut().status = err.status_code;
             if err.expose && !err.need_throw() {
-                context.resp_mut().write(err.message);
+                ctx.resp_mut().write(err.message);
             } else if err.expose && err.need_throw() {
-                context.resp_mut().write(err.message.clone());
+                ctx.resp_mut().write(err.message.clone());
                 return Err(err);
             } else if err.need_throw() {
                 return Err(err);
             }
         }
-        Ok(std::mem::take(&mut *context.resp_mut()))
-    }
-}
-
-impl<S: State> Clone for HttpService<S> {
-    fn clone(&self) -> Self {
-        Self {
-            middleware: self.middleware.clone(),
-            state: self.state.clone(),
-            exec: self.exec.clone(),
-            remote_addr: self.remote_addr,
-        }
+        Ok(())
     }
 }
 

@@ -4,8 +4,10 @@ use futures::{AsyncRead, Stream};
 use http::{HeaderMap, HeaderValue, Method, Uri, Version};
 use hyper::Body;
 use std::io;
+use std::mem::swap;
 
 /// Http request type of roa.
+#[derive(Default)]
 pub struct Request {
     /// The request's method
     pub method: Method,
@@ -46,24 +48,13 @@ impl Request {
     }
 }
 
-impl From<http::Request<Body>> for Request {
-    #[inline]
-    fn from(req: http::Request<Body>) -> Self {
-        let (parts, body) = req.into_parts();
-        Self {
-            method: parts.method,
-            uri: parts.uri,
-            version: parts.version,
-            headers: parts.headers,
-            body,
-        }
-    }
-}
-
-impl Default for Request {
-    #[inline]
-    fn default() -> Self {
-        http::Request::new(Body::empty()).into()
+impl Request {
+    pub(crate) fn reload(&mut self, req: &mut http::Request<Body>) {
+        swap(&mut self.method, req.method_mut());
+        swap(&mut self.uri, req.uri_mut());
+        swap(&mut self.headers, req.headers_mut());
+        swap(&mut self.version, req.version_mut());
+        swap(&mut self.body, req.body_mut());
     }
 }
 
@@ -84,7 +75,8 @@ mod tests {
             Ok(())
         });
         let service = app.fake_service();
-        let req = Request::from(http::Request::new(Body::from("Hello, World!")));
+        let mut req = Request::default();
+        req.reload(&mut http::Request::new(Body::from("Hello, World!")));
         let resp = service.serve(req).await?;
         assert_eq!(StatusCode::OK, resp.status);
         Ok(())

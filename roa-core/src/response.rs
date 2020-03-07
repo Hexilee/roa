@@ -1,5 +1,6 @@
 //! A module for Response and its body
 use http::{HeaderMap, HeaderValue, StatusCode, Version};
+use std::mem::{swap, take};
 use std::ops::{Deref, DerefMut};
 
 pub use crate::Body;
@@ -31,18 +32,13 @@ impl Response {
     }
 
     #[inline]
-    fn into_resp(self) -> http::Response<hyper::Body> {
-        let (mut parts, _) = http::Response::new(()).into_parts();
-        let Response {
-            status,
-            version,
-            headers,
-            body,
-        } = self;
-        parts.status = status;
-        parts.version = version;
-        parts.headers = headers;
-        http::Response::from_parts(parts, body.into())
+    pub(crate) fn load_resp(&mut self) -> http::Response<hyper::Body> {
+        let mut resp = http::Response::new(hyper::Body::empty());
+        swap(resp.status_mut(), &mut self.status);
+        swap(resp.version_mut(), &mut self.version);
+        swap(resp.headers_mut(), &mut self.headers);
+        *resp.body_mut() = take(&mut self.body).into();
+        resp
     }
 }
 
@@ -58,13 +54,6 @@ impl DerefMut for Response {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.body
-    }
-}
-
-impl From<Response> for http::Response<hyper::Body> {
-    #[inline]
-    fn from(value: Response) -> Self {
-        value.into_resp()
     }
 }
 
