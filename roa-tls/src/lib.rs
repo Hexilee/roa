@@ -212,14 +212,14 @@ pub trait TlsListener {
 
     /// Listen on a socket addr, return a server and the real addr it binds.
     fn bind_tls(
-        self,
+        &self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 
     /// Listen on a socket addr, return a server, and pass real addr to the callback.
     fn listen_tls(
-        self,
+        &self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
         callback: impl Fn(SocketAddr),
@@ -261,7 +261,7 @@ pub trait TlsListener {
     /// # }
     /// ```
     fn run_tls(
-        self,
+        &self,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
@@ -269,7 +269,7 @@ pub trait TlsListener {
 impl<S: State> TlsListener for App<S> {
     type Server = Server<TlsIncoming, Self, Executor>;
     fn bind_tls(
-        self,
+        &self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
@@ -279,7 +279,7 @@ impl<S: State> TlsListener for App<S> {
     }
 
     fn listen_tls(
-        self,
+        &self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
         callback: impl Fn(SocketAddr),
@@ -290,7 +290,7 @@ impl<S: State> TlsListener for App<S> {
     }
 
     fn run_tls(
-        self,
+        &self,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
         self.bind_tls("127.0.0.1:0", config)
