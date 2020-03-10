@@ -140,7 +140,7 @@ pub use err::{Error, ErrorKind, Result, ResultFuture};
 pub use middleware::Middleware;
 
 #[doc(inline)]
-pub use group::{join, join_all};
+pub use group::{Chain, MiddlewareExt};
 
 pub use state::State;
 

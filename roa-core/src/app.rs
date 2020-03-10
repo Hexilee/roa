@@ -4,7 +4,7 @@ mod runtime;
 mod future;
 mod stream;
 use crate::{
-    join, join_all, Context, Error, Middleware, Next, Request, Response, Result, State,
+    Context, Error, Middleware, MiddlewareExt, Next, Request, Response, Result, State,
 };
 use future::SendFuture;
 use http::{Request as HttpRequest, Response as HttpResponse};
@@ -93,119 +93,123 @@ pub struct HttpService<S> {
     pub(crate) state: S,
 }
 
-impl<S: State> App<S> {
+impl<S> App<S> {
     /// Construct an application with custom runtime.
-    pub fn with_exec(state: S, exec: impl 'static + Send + Sync + Spawn) -> Self {
+    pub fn with_exec(
+        state: S,
+        middleware: impl Middleware<S>,
+        exec: impl 'static + Send + Sync + Spawn,
+    ) -> Self {
         Self {
-            middleware: Arc::new(join_all(Vec::new())),
+            middleware: Arc::new(middleware),
             exec: Executor(Arc::new(exec)),
             state,
         }
     }
 
-    /// Use a middleware.
-    pub fn gate(&mut self, middleware: impl Middleware<S>) -> &mut Self {
-        self.middleware = Arc::new(join(self.middleware.clone(), middleware));
-        self
-    }
-
-    /// A sugar to match a lambda as a middleware.
-    ///
-    /// `App::gate` cannot match a lambda without parameter type indication.
-    ///
-    /// ```rust
-    /// use roa_core::{App, Next};
-    ///
-    /// let mut app = App::new(());
-    /// // app.gate(|_ctx, next| async move { next.await }); compile fails.
-    /// app.gate(|_ctx, next: Next| async move { next.await });
-    /// ```
-    ///
-    /// However, with `App::gate_fn`, you can match a lambda without type indication.
-    /// ```rust
-    /// use roa_core::{App, Next};
-    ///
-    /// let mut app = App::new(());
-    /// app.gate_fn(|_ctx, next| async move { next.await });
-    /// ```
-    pub fn gate_fn<F>(
-        &mut self,
-        middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
-    ) -> &mut Self
-    where
-        F: 'static + Future<Output = Result>,
-    {
-        self.gate(middleware)
-    }
-
-    /// A sugar to match a function pointer like `async fn(Context<S>) -> impl Future`
-    /// and use it as a middleware(endpoint).
-    ///
-    /// As the ducument of `Middleware`, an endpoint is defined as a template:
-    ///
-    /// ```rust
-    /// use roa_core::{App, Context, Result};
-    /// use std::future::Future;
-    ///
-    /// fn endpoint<F>(ctx: Context<()>) -> F
-    /// where F: 'static + Send + Future<Output=Result> {
-    ///     unimplemented!()
-    /// }
-    /// ```
-    ///
-    /// However, an async function is not a template,
-    /// it needs a transfer function to suit for `App::gate`.
-    ///
-    /// ```rust
-    /// use roa_core::{App, Context, Result, State, Middleware};
-    /// use std::future::Future;
-    ///
-    /// async fn endpoint(ctx: Context<()>) -> Result {
-    ///     Ok(())
-    /// }
-    ///
-    /// fn transfer<S, F>(endpoint: fn(Context<S>) -> F) -> impl Middleware<S>
-    /// where S: State,
-    ///       F: 'static + Future<Output=Result> {
-    ///     endpoint
-    /// }
-    ///
-    /// App::new(()).gate(transfer(endpoint));
-    /// ```
-    ///
-    /// And `App::end` is a wrapper of `App::gate` with this transfer function.
-    ///
-    /// ```rust
-    /// use roa_core::App;
-    /// App::new(()).end(|_ctx| async { Ok(()) });
-    /// ```
-    pub fn end<F>(&mut self, endpoint: fn(Context<S>) -> F) -> &mut Self
-    where
-        F: 'static + Future<Output = Result>,
-    {
-        self.gate(endpoint)
-    }
-
-    /// Construct a hyper server by an incoming.
-    pub fn accept<I>(&self, incoming: I) -> Server<I, Self, Executor>
-    where
-        I: Accept<Conn = AddrStream>,
-        I::Error: Into<Box<dyn StdError + Send + Sync>>,
-    {
-        Server::builder(incoming)
-            .executor(self.exec.clone())
-            .serve(self.clone())
-    }
-
-    /// Make a fake http service for test.
-    #[cfg(test)]
-    pub fn http_service(&self) -> HttpService<S> {
-        let middleware = self.middleware.clone();
-        let addr = ([127, 0, 0, 1], 0);
-        let state = self.state.clone();
-        let exec = self.exec.clone();
-        HttpService::new(middleware, addr.into(), exec, state)
-    }
+    // /// Use a middleware.
+    // pub fn gate(&mut self, middleware: impl Middleware<S>) -> &mut Self {
+    //     self.middleware = Arc::new(join(self.middleware.clone(), middleware));
+    //     self
+    // }
+    //
+    // /// A sugar to match a lambda as a middleware.
+    // ///
+    // /// `App::gate` cannot match a lambda without parameter type indication.
+    // ///
+    // /// ```rust
+    // /// use roa_core::{App, Next};
+    // ///
+    // /// let mut app = App::new(());
+    // /// // app.gate(|_ctx, next| async move { next.await }); compile fails.
+    // /// app.gate(|_ctx, next: Next| async move { next.await });
+    // /// ```
+    // ///
+    // /// However, with `App::gate_fn`, you can match a lambda without type indication.
+    // /// ```rust
+    // /// use roa_core::{App, Next};
+    // ///
+    // /// let mut app = App::new(());
+    // /// app.gate_fn(|_ctx, next| async move { next.await });
+    // /// ```
+    // pub fn gate_fn<F>(
+    //     &mut self,
+    //     middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
+    // ) -> &mut Self
+    // where
+    //     F: 'static + Future<Output = Result>,
+    // {
+    //     self.gate(middleware)
+    // }
+    //
+    // /// A sugar to match a function pointer like `async fn(Context<S>) -> impl Future`
+    // /// and use it as a middleware(endpoint).
+    // ///
+    // /// As the ducument of `Middleware`, an endpoint is defined as a template:
+    // ///
+    // /// ```rust
+    // /// use roa_core::{App, Context, Result};
+    // /// use std::future::Future;
+    // ///
+    // /// fn endpoint<F>(ctx: Context<()>) -> F
+    // /// where F: 'static + Send + Future<Output=Result> {
+    // ///     unimplemented!()
+    // /// }
+    // /// ```
+    // ///
+    // /// However, an async function is not a template,
+    // /// it needs a transfer function to suit for `App::gate`.
+    // ///
+    // /// ```rust
+    // /// use roa_core::{App, Context, Result, State, Middleware};
+    // /// use std::future::Future;
+    // ///
+    // /// async fn endpoint(ctx: Context<()>) -> Result {
+    // ///     Ok(())
+    // /// }
+    // ///
+    // /// fn transfer<S, F>(endpoint: fn(Context<S>) -> F) -> impl Middleware<S>
+    // /// where S: State,
+    // ///       F: 'static + Future<Output=Result> {
+    // ///     endpoint
+    // /// }
+    // ///
+    // /// App::new(()).gate(transfer(endpoint));
+    // /// ```
+    // ///
+    // /// And `App::end` is a wrapper of `App::gate` with this transfer function.
+    // ///
+    // /// ```rust
+    // /// use roa_core::App;
+    // /// App::new(()).end(|_ctx| async { Ok(()) });
+    // /// ```
+    // pub fn end<F>(&mut self, endpoint: fn(Context<S>) -> F) -> &mut Self
+    // where
+    //     F: 'static + Future<Output = Result>,
+    // {
+    //     self.gate(endpoint)
+    // }
+    //
+    // /// Construct a hyper server by an incoming.
+    // pub fn accept<I>(&self, incoming: I) -> Server<I, Self, Executor>
+    // where
+    //     I: Accept<Conn = AddrStream>,
+    //     I::Error: Into<Box<dyn StdError + Send + Sync>>,
+    // {
+    //     Server::builder(incoming)
+    //         .executor(self.exec.clone())
+    //         .serve(self.clone())
+    // }
+    //
+    // /// Make a fake http service for test.
+    // #[cfg(test)]
+    // pub fn http_service(&self) -> HttpService<S> {
+    //     let middleware = self.middleware.clone();
+    //     let addr = ([127, 0, 0, 1], 0);
+    //     let state = self.state.clone();
+    //     let exec = self.exec.clone();
+    //     HttpService::new(middleware, addr.into(), exec, state)
+    // }
 }
 
 macro_rules! impl_poll_ready {
@@ -280,7 +284,7 @@ impl<S: State> HttpService<S> {
             state,
         } = self;
         let mut context = Context::new(req, state, exec, remote_addr);
-        if let Err(err) = middleware.end(unsafe { context.unsafe_clone() }).await {
+        if let Err(err) = middleware.end(&mut context).await {
             context.resp_mut().status = err.status_code;
             if err.expose && !err.need_throw() {
                 context.resp_mut().write(err.message);

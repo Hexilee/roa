@@ -1,4 +1,5 @@
-use crate::ResultFuture;
+use crate::Result;
+use std::future::Future;
 
 /// Type of the second parameter in a middleware.
 ///
@@ -65,10 +66,11 @@ use crate::ResultFuture;
 /// });
 /// ```
 ///
-pub type Next = ResultFuture<'static, ()>;
+pub trait Next: Future<Output = Result<()>> {}
+impl<T> Next for T where T: Future<Output = Result<()>> {}
 
 /// The last.
 #[inline]
-pub fn last() -> Next {
-    Box::pin(async move { Ok(()) })
+pub fn last() -> impl Next {
+    async move { Ok(()) }
 }

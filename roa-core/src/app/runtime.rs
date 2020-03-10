@@ -1,10 +1,10 @@
-use crate::{App, BlockingObj, FutureObj, Spawn, State};
+use crate::{App, BlockingObj, FutureObj, Middleware, Spawn, State};
 
-impl<S: State> App<S> {
+impl<S> App<S> {
     /// Construct app with default runtime.
     #[inline]
-    pub fn new(state: S) -> Self {
-        Self::with_exec(state, Exec)
+    pub fn new(state: S, middleware: impl Middleware<S>) -> Self {
+        Self::with_exec(state, middleware, Exec)
     }
 }
 

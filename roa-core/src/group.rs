@@ -1,58 +1,63 @@
-use crate::{async_trait, Context, Middleware, Next, Result, State};
-use std::sync::Arc;
+use crate::{async_trait, Context, Middleware, Next, Result};
+
+pub trait MiddlewareExt<S>: Middleware<S> {
+    fn chain<M>(self, next: M) -> Chain<Self, M>
+    where
+        Self: Sized,
+        M: Middleware<S>,
+    {
+        Chain(self, next)
+    }
+}
+
+impl<S, T> MiddlewareExt<S> for T where T: Middleware<S> {}
 
 /// A middleware composing and executing other middlewares in a stack-like manner.
-struct Join<S>(Vec<Arc<dyn Middleware<S>>>);
-
-impl<S> Join<S> {
-    #[inline]
-    fn new(middlewares: Vec<Arc<dyn Middleware<S>>>) -> Self {
-        Self(middlewares)
-    }
-}
+pub struct Chain<T, U>(T, U);
 
 #[async_trait(?Send)]
-impl<S: State> Middleware<S> for Join<S> {
+impl<S, T, U> Middleware<S> for Chain<T, U>
+where
+    T: Middleware<S>,
+    U: Middleware<S>,
+{
     #[inline]
-    async fn handle(self: Arc<Self>, ctx: Context<S>, mut next: Next) -> Result {
-        for middleware in self.0.iter().rev() {
-            let ctx = unsafe { ctx.unsafe_clone() };
-            let middleware = middleware.clone();
-            next = middleware.handle(ctx, next)
-        }
-        next.await
+    async fn handle(&self, ctx: &mut Context<S>, next: &mut dyn Next) -> Result {
+        let ptr = ctx as *mut Context<S>;
+        let mut next = self.1.handle(unsafe { &mut *ptr }, next);
+        self.1.handle(ctx, &mut next).await
     }
 }
 
-/// Join two middleware.
-///
-/// ```rust
-/// use roa_core::{Middleware, join, Context, Next};
-/// use std::sync::Arc;
-///
-/// let mut middleware: Arc<dyn Middleware<()>> = Arc::new(|_ctx: Context<()>, next: Next| async move {
-///     next.await
-/// });
-///
-/// middleware = Arc::new(join(middleware, |_ctx: Context<()>, next: Next| next));
-/// ```
-#[inline]
-pub fn join<S: State>(
-    current: Arc<dyn Middleware<S>>,
-    next: impl Middleware<S>,
-) -> impl Middleware<S> {
-    join_all(vec![current, Arc::new(next)])
-}
-
-/// Join all middlewares in a vector.
-///
-/// All middlewares would be composed and executed in a stack-like manner.
-#[inline]
-pub fn join_all<S: State>(
-    middlewares: Vec<Arc<dyn Middleware<S>>>,
-) -> impl Middleware<S> {
-    Join::new(middlewares)
-}
+// /// Join two middleware.
+// ///
+// /// ```rust
+// /// use roa_core::{Middleware, join, Context, Next};
+// /// use std::sync::Arc;
+// ///
+// /// let mut middleware: Arc<dyn Middleware<()>> = Arc::new(|_ctx: Context<()>, next: Next| async move {
+// ///     next.await
+// /// });
+// ///
+// /// middleware = Arc::new(join(middleware, |_ctx: Context<()>, next: Next| next));
+// /// ```
+// #[inline]
+// pub fn join<S: State>(
+//     current: Arc<dyn Middleware<S>>,
+//     next: impl Middleware<S>,
+// ) -> impl Middleware<S> {
+//     join_all(vec![current, Arc::new(next)])
+// }
+//
+// /// Join all middlewares in a vector.
+// ///
+// /// All middlewares would be composed and executed in a stack-like manner.
+// #[inline]
+// pub fn join_all<S: State>(
+//     middlewares: Vec<Arc<dyn Middleware<S>>>,
+// ) -> impl Middleware<S> {
+//     Chain::new(middlewares)
+// }
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
