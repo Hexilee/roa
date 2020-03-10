@@ -264,7 +264,6 @@ mod tests {
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;
-    use futures::io::BufReader;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
     use roa_core::http;
@@ -368,7 +367,7 @@ mod tests {
         // miss key
         let mut app = App::new(());
         app.end(move |mut ctx| async move {
-            ctx.write_octet(BufReader::new(File::open("../assets/author.txt").await?))
+            ctx.write_octet(File::open("../assets/author.txt").await?)
         });
         let (addr, server) = app.run()?;
         spawn(server);

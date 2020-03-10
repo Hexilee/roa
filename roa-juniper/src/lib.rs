@@ -60,7 +60,7 @@ where
     async fn handle(self: Arc<Self>, mut ctx: Context<S>, _next: Next) -> Result {
         let request: GraphQLRequest<Sca> = ctx.read_json().await?;
         let juniper_ctx = JuniperContext(ctx.clone());
-        let resp = request.execute_async(&self.0, &juniper_ctx).await;
+        let resp = request.execute(&self.0, &juniper_ctx).await;
         ctx.write_json(&resp)
     }
 }

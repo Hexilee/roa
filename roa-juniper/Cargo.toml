@@ -23,4 +23,3 @@ futures = "0.3.4"
 git = "https://github.com/graphql-rust/juniper.git"
 version = "0.14.2"
 default-features = false
-features = ["async"]
