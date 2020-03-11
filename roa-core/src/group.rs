@@ -80,33 +80,46 @@ where
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{join_all, App, Middleware, Next, Request};
+    use crate::{App, Middleware, MiddlewareExt, Next, Request};
     use futures::lock::Mutex;
     use http::StatusCode;
     use std::sync::Arc;
 
+    fn push_middleware(
+        data: i32,
+        vector: Arc<Mutex<Vec<i32>>>,
+    ) -> impl for<'a> Middleware<'a, ()> {
+        move |ctx, next| {
+            let vector = vector.clone();
+            async move {
+                vector.lock().await.push(data);
+                next.await?;
+                vector.lock().await.push(data);
+                Ok(())
+            }
+        }
+    }
+
     #[async_std::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut middlewares = Vec::<Arc<dyn Middleware<()>>>::new();
-        for i in 0..100 {
-            let vec = vector.clone();
-            middlewares.push(Arc::new(move |_ctx, next: Next| {
-                let vec = vec.clone();
-                async move {
-                    vec.lock().await.push(i);
-                    next.await?;
-                    vec.lock().await.push(i);
-                    Ok(())
-                }
-            }));
-        }
-        let service = App::new(()).gate(join_all(middlewares)).http_service();
+        let endpoint = push_middleware(0, vector.clone())
+            .chain(push_middleware(1, vector.clone()))
+            .chain(push_middleware(2, vector.clone()))
+            .chain(push_middleware(3, vector.clone()))
+            .chain(push_middleware(4, vector.clone()))
+            .chain(push_middleware(5, vector.clone()))
+            .chain(push_middleware(6, vector.clone()))
+            .chain(push_middleware(7, vector.clone()))
+            .chain(push_middleware(8, vector.clone()))
+            .chain(push_middleware(9, vector.clone()))
+            .chain(|_ctx| async { Ok(()) });
+        let service = App::new((), endpoint).http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
-        for i in 0..100 {
+        for i in 0..9 {
             assert_eq!(i, vector.lock().await[i]);
-            assert_eq!(i, vector.lock().await[199 - i]);
+            assert_eq!(i, vector.lock().await[19 - i]);
         }
         Ok(())
     }

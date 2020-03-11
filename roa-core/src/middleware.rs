@@ -116,12 +116,6 @@ pub trait Middleware<'a, S: 'a>: 'static + Sync + Send {
 }
 
 #[async_trait(?Send)]
-pub trait Endpoint<'a, S: 'a>: 'static + Sync + Send {
-    #[inline]
-    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result;
-}
-
-#[async_trait(?Send)]
 impl<'a, S, T, F> Middleware<'a, S> for T
 where
     S: 'a,
@@ -136,6 +130,12 @@ where
     ) -> Result {
         (self)(ctx, next).await
     }
+}
+
+#[async_trait(?Send)]
+pub trait Endpoint<'a, S: 'a>: 'static + Sync + Send {
+    #[inline]
+    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result;
 }
 
 #[async_trait(?Send)]

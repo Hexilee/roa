@@ -199,15 +199,19 @@ impl<S> App<S> {
     //         .serve(self.clone())
     // }
     //
-    // /// Make a fake http service for test.
-    // #[cfg(test)]
-    // pub fn http_service(&self) -> HttpService<S> {
-    //     let middleware = self.middleware.clone();
-    //     let addr = ([127, 0, 0, 1], 0);
-    //     let state = self.state.clone();
-    //     let exec = self.exec.clone();
-    //     HttpService::new(middleware, addr.into(), exec, state)
-    // }
+
+    /// Make a fake http service for test.
+    #[cfg(test)]
+    pub fn http_service(&self) -> HttpService<S>
+    where
+        S: Clone,
+    {
+        let endpoint = self.endpoint.clone();
+        let addr = ([127, 0, 0, 1], 0);
+        let state = self.state.clone();
+        let exec = self.exec.clone();
+        HttpService::new(endpoint, addr.into(), exec, state)
+    }
 }
 
 macro_rules! impl_poll_ready {
