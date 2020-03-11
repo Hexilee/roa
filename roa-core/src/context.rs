@@ -36,23 +36,15 @@ struct PublicScope;
 ///     Ok(())
 /// });
 /// ```
-pub struct Context<S>(Rc<UnsafeCell<Inner<S>>>);
-
-/// Sync parts of Context.
-pub struct SyncContext<S> {
-    /// Application level runtime.
+pub struct Context<S> {
+    pub req: Request,
+    pub resp: Response,
     pub exec: Executor,
 
     /// Socket addr of last client or proxy.
     pub remote_addr: SocketAddr,
     state: S,
     storage: HashMap<TypeId, Bucket>,
-}
-
-struct Inner<S> {
-    request: Request,
-    response: Response,
-    ctx: SyncContext<S>,
 }
 
 /// A wrapper of `HashMap<String, Arc<dyn Any + Send + Sync>>`, method `get` return a `Variable`.
@@ -170,108 +162,14 @@ impl<S> Context<S> {
         exec: Executor,
         remote_addr: SocketAddr,
     ) -> Self {
-        let inner = Inner {
-            request,
-            response: Response::new(),
-            ctx: SyncContext {
-                state,
-                exec,
-                storage: HashMap::new(),
-                remote_addr,
-            },
-        };
-        Self(Rc::new(UnsafeCell::new(inner)))
-    }
-
-    // clone context is unsafe
-    #[inline]
-    pub(crate) unsafe fn unsafe_clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-
-    #[inline]
-    fn inner(&self) -> &Inner<S> {
-        unsafe { &*self.0.get() }
-    }
-
-    #[inline]
-    fn inner_mut(&mut self) -> &mut Inner<S> {
-        unsafe { &mut *self.0.get() }
-    }
-
-    /// Get an immutable reference of request.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::App;
-    /// use roa_core::http::Method;
-    ///
-    /// let mut app = App::new(());
-    /// app.end(|ctx| async move {
-    ///     assert_eq!(Method::GET, ctx.req().method);
-    ///     Ok(())
-    /// });
-    /// ```
-    #[inline]
-    pub fn req(&self) -> &Request {
-        &self.inner().request
-    }
-
-    /// Get an immutable reference of response.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::App;
-    /// use roa_core::http::StatusCode;
-    ///
-    /// let mut app = App::new(());
-    /// app.end(|ctx| async move {
-    ///     assert_eq!(StatusCode::OK, ctx.resp().status);
-    ///     Ok(())
-    /// });
-    /// ```
-    #[inline]
-    pub fn resp(&self) -> &Response {
-        &self.inner().response
-    }
-
-    /// Get a mutable reference of request.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::App;
-    /// use roa_core::http::Method;
-    ///
-    /// let mut app = App::new(());
-    /// app.gate_fn(|mut ctx, next| async move {
-    ///     ctx.req_mut().method = Method::POST;
-    ///     next.await
-    /// });
-    /// app.end(|ctx| async move {
-    ///     assert_eq!(Method::POST, ctx.req().method);
-    ///     Ok(())
-    /// });
-    /// ```
-    #[inline]
-    pub fn req_mut(&mut self) -> &mut Request {
-        &mut self.inner_mut().request
-    }
-
-    /// Get a mutable reference of response.
-    ///
-    /// ### Example
-    /// ```rust
-    /// use roa_core::App;
-    ///
-    /// let mut app = App::new(());
-    /// app.end(|mut ctx| async move {
-    ///     ctx.resp_mut().write("Hello, World!");
-    ///     Ok(())
-    /// });
-    /// ```
-    #[inline]
-    pub fn resp_mut(&mut self) -> &mut Response {
-        &mut self.inner_mut().response
+        Self {
+            req: request,
+            resp: Response::new(),
+            state,
+            exec,
+            storage: HashMap::new(),
+            remote_addr,
+        }
     }
 
     /// Clone URI.
@@ -288,7 +186,7 @@ impl<S> Context<S> {
     /// ```
     #[inline]
     pub fn uri(&self) -> &Uri {
-        &self.req().uri
+        &self.req.uri
     }
 
     /// Clone request::method.
@@ -306,7 +204,7 @@ impl<S> Context<S> {
     /// ```
     #[inline]
     pub fn method(&self) -> &Method {
-        &self.req().method
+        &self.req.method
     }
 
     /// Search for a header value and try to get its string copy.
@@ -327,7 +225,7 @@ impl<S> Context<S> {
     /// ```
     #[inline]
     pub fn header(&self, name: impl AsHeaderName) -> Option<Result<&str, ToStrError>> {
-        self.req().headers.get(name).map(|value| value.to_str())
+        self.req.headers.get(name).map(|value| value.to_str())
     }
 
     /// Clone response::status.
@@ -344,7 +242,7 @@ impl<S> Context<S> {
     /// ```
     #[inline]
     pub fn status(&self) -> StatusCode {
-        self.resp().status
+        self.resp.status
     }
 
     /// Clone request::version.
@@ -362,11 +260,9 @@ impl<S> Context<S> {
     /// ```
     #[inline]
     pub fn version(&self) -> Version {
-        self.req().version
+        self.req.version
     }
-}
 
-impl<S> SyncContext<S> {
     /// Store key-value pair in specific scope.
     ///
     /// ### Example
@@ -490,7 +386,7 @@ impl<S> SyncContext<S> {
     }
 }
 
-impl<S> Deref for SyncContext<S> {
+impl<S> Deref for Context<S> {
     type Target = S;
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -498,37 +394,24 @@ impl<S> Deref for SyncContext<S> {
     }
 }
 
-impl<S> DerefMut for SyncContext<S> {
+impl<S> DerefMut for Context<S> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.state
     }
 }
 
-impl<S: Clone> Clone for SyncContext<S> {
+impl<S: Clone> Clone for Context<S> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
+            req: Request::default(),
+            resp: Response::new(),
             state: self.state.clone(),
             exec: self.exec.clone(),
             storage: self.storage.clone(),
             remote_addr: self.remote_addr,
         }
-    }
-}
-
-impl<S> Deref for Context<S> {
-    type Target = SyncContext<S>;
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.inner().ctx
-    }
-}
-
-impl<S> DerefMut for Context<S> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner_mut().ctx
     }
 }
 

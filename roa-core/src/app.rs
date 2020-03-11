@@ -290,17 +290,17 @@ impl<S> HttpService<S> {
         } = self;
         let mut context = Context::new(req, state, exec, remote_addr);
         if let Err(err) = endpoint.end(&mut context).await {
-            context.resp_mut().status = err.status_code;
+            context.resp.status = err.status_code;
             if err.expose && !err.need_throw() {
-                context.resp_mut().write(err.message);
+                context.resp.write(err.message);
             } else if err.expose && err.need_throw() {
-                context.resp_mut().write(err.message.clone());
+                context.resp.write(err.message.clone());
                 return Err(err);
             } else if err.need_throw() {
                 return Err(err);
             }
         }
-        Ok(std::mem::take(&mut *context.resp_mut()))
+        Ok(std::mem::take(&mut context.resp))
     }
 }
 
