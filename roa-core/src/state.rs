@@ -5,7 +5,7 @@
 ///
 /// ### Example
 /// ```rust
-/// use roa_core::App;
+/// use roa_core::{App, Context, Next, Result, MiddlewareExt, throw};
 /// use roa_core::http::StatusCode;
 ///
 /// #[derive(Clone)]
@@ -13,16 +13,17 @@
 ///     id: u64,
 /// }
 ///
-/// let mut app = App::new(State { id: 0 });
-/// app.gate_fn(|mut ctx, next| async move {
+/// let app = App::new(State { id: 0 }, gate.chain(end));
+/// async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result {
 ///     ctx.id = 1;
 ///     next.await
-/// });
-/// app.end(|ctx| async move {
+/// }
+///
+/// async fn end(ctx: &mut Context<State>) -> Result {
 ///     let id = ctx.id;
 ///     assert_eq!(1, id);
 ///     Ok(())
-/// });
+/// }
 /// ```
 pub trait State: 'static + Clone + Send + Sync + Sized {}
 

@@ -25,7 +25,7 @@ pub type Result<R = ()> = StdResult<R, Error>;
 /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     next.await?; // throw
 ///     unreachable!();
-///     ctx.resp_mut().status = StatusCode::OK;
+///     ctx.resp.status = StatusCode::OK;
 ///     Ok(())
 /// }
 ///

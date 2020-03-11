@@ -23,7 +23,7 @@
 //!
 //! let app = App::new((), end);
 //! async fn end(ctx: &mut Context<()>) -> Result {
-//!     ctx.resp_mut().write("Hello, World");
+//!     ctx.resp.write("Hello, World");
 //!     Ok(())
 //! }
 //! ```
@@ -45,7 +45,7 @@
 //! let app = App::new((), gate.chain(end));
 //!
 //! async fn end(ctx: &mut Context<()>) -> Result {
-//!     ctx.resp_mut().write("Hello, World");
+//!     ctx.resp.write("Hello, World");
 //!     Ok(())
 //! }
 //!
@@ -62,11 +62,12 @@
 //! You can catch or straightly throw an Error returned by next.
 //!
 //! ```rust
-//! use roa_core::{App, throw};
+//! use roa_core::{App, Context, Result, Error, MiddlewareExt, Next, throw};
 //! use roa_core::http::StatusCode;
 //!         
-//! let mut app = App::new(());
-//! app.gate_fn(|ctx, next| async move {
+//! let mut app = App::new((), catch.chain(gate).chain(end));
+//!
+//! async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 //!     // catch
 //!     if let Err(err) = next.await {
 //!         // teapot is ok
@@ -75,14 +76,15 @@
 //!         }
 //!     }
 //!     Ok(())
-//! });
-//! app.gate_fn(|ctx, next| async move {
+//! }
+//! async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 //!     next.await?; // just throw
 //!     unreachable!()
-//! });
-//! app.end(|_ctx| async move {
+//! }
+//!
+//! async fn end(ctx: &mut Context<()>) -> Result {
 //!     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
-//! });
+//! }
 //! ```
 //!
 //! #### error_handler
@@ -91,10 +93,10 @@
 //!
 //! ```rust
 //! use roa_core::{Context, Error, Result, ErrorKind, State};
-//! pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
-//!     context.resp_mut().status = err.status_code;
+//! pub async fn error_handler<S: State>(context: &mut Context<S>, err: Error) -> Result {
+//!     context.resp.status = err.status_code;
 //!     if err.expose {
-//!         context.resp_mut().write(err.message.clone());
+//!         context.resp.write(err.message.clone());
 //!     }
 //!     if err.kind == ErrorKind::ServerError {
 //!         Err(err)
