@@ -5,7 +5,7 @@
 ///
 /// ### Example
 /// ```rust
-/// use roa_core::{App, Context, Next, Result, MiddlewareExt, throw};
+/// use roa_core::{App, Context, Next, Result, MiddlewareExt};
 /// use roa_core::http::StatusCode;
 ///
 /// #[derive(Clone)]

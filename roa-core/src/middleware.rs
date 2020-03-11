@@ -8,97 +8,42 @@ use std::sync::Arc;
 /// There are two kinds of middlewares,
 /// the one is functional middlewares, the another is trait middlewares.
 ///
-/// #### Normal Functional Middlewares
+/// #### Functional Middlewares
 ///
 /// A normal functional middleware is an object implements `Fn` trait:
 ///
 /// ```rust
-/// use roa_core::{Context, Next, Result, State, Middleware};
+/// use roa_core::{Context, Next, Result, Middleware};
 /// use std::future::Future;
 ///
-/// fn is_normal<S, F>(
-///     middleware: impl 'static + Send + Sync + Fn(Context<S>, Next) -> F
-/// ) -> impl Middleware<S>
-/// where S: State,
-///       F: 'static + Future<Output=Result> {
-///     middleware
+/// fn is_middleware<S>(middleware: impl for<'a> Middleware<'a, S>) {
 /// }
 ///
-/// is_normal(|_ctx: Context<()>, next| next);
-/// ```
-///
-/// Both of function pointers and closures are middlewares:
-///
-/// ```rust
-/// use roa_core::{Middleware, Context, Next, Result, State};
-///
-/// fn is_middleware<S: State>(_: impl Middleware<S>) {}
-///
-/// async fn function_ptr(_ctx: Context<()>, next: Next) -> Result {
-///     next.await
-/// }
-///
-/// // capture a variable to avoid matching lambda as function pointer.
-/// let x = 0;
-/// // moving is necessary to confirm closure is static.
-/// let closure = move |ctx: Context<()>, next: Next| async move {
-///     let x = x;
-///     next.await
-/// };
-///
-/// is_middleware(function_ptr);
-/// is_middleware(closure);
-/// ```
-///
-/// #### Endpoints
-///
-/// Another kind of functional middlewares is endpoints,
-/// whose type is `fn<S, F>(Context<S>) -> F where F: 'static + Send + Future<Output=Result>`.
-///
-/// Endpoints never invoke next middleware.
-///
-/// ```rust
-/// use roa_core::{Middleware, Context, Result, State};
-/// use std::future::Future;
-///
-/// fn is_middleware<S: State>(_: impl Middleware<S>) {}
-///
-/// async fn endpoint(_: Context<()>) -> Result {
+/// async fn middleware(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     Ok(())
 /// }
-/// // `fn(Context<()>) -> impl 'static + Send + Future<Output=Result>` is a function pointer
-/// // which returns value of a existential type.
-/// //
-/// // `fn<F>(Context<()>) -> F where F: 'static + Send + Future<Output=Result>` is a template.
-/// //
-/// // They are different!
-/// //
-/// // is_middleware(endpoint); compile fails!
 ///
-/// fn to_middleware<F>(middleware: fn(Context<()>) -> F) -> impl Middleware<()>
-/// where F: 'static + Future<Output=Result> {
-///     middleware
-/// }
-///
-/// is_middleware(to_middleware(endpoint))
+/// is_middleware(middleware);
 /// ```
+///
+/// Closures are also supported, but feature(async_closure) is required:
 ///
 /// #### Trait Middlewares
 ///
 /// A trait middleware is an object implementing trait `Middleware`.
 ///
 /// ```rust
-/// use roa_core::{State, Middleware, Context, Next, Result, async_trait};
+/// use roa_core::{Middleware, Context, Next, Result, async_trait};
 /// use async_std::sync::Arc;
 /// use std::time::Instant;
 ///
-/// fn is_middleware(_: impl Middleware<()>) {}
+/// fn is_middleware<S>(middleware: impl for<'a> Middleware<'a, S>) {}
 ///
 /// struct Logger;
 ///
 /// #[async_trait(?Send)]
-/// impl <S: State> Middleware<S> for Logger {
-///     async fn handle(self:Arc<Self>, ctx: Context<S>, next: Next) -> Result {
+/// impl <'a> Middleware<'a, ()> for Logger {
+///     async fn handle(&'a self, ctx: &'a mut Context<()>, next: Next<'a>) -> Result {
 ///         let start = Instant::now();
 ///         let result = next.await;
 ///         println!("time elapsed: {}ms", start.elapsed().as_millis());
@@ -127,6 +72,54 @@ where
     }
 }
 
+/// ### Endpoint
+///
+/// There are two kinds of endpoints,
+/// the one is functional endpoints, the another is trait endpoints.
+///
+/// #### Functional Endpoints
+///
+/// A normal functional endpoint is an object implements `Fn` trait:
+///
+/// ```rust
+/// use roa_core::{Context, Next, Result, Endpoint};
+/// use std::future::Future;
+///
+/// fn is_endpoint<S>(endpoint: impl for<'a> Endpoint<'a, S>) {
+/// }
+///
+/// async fn endpoint(ctx: &mut Context<()>) -> Result {
+///     Ok(())
+/// }
+///
+/// is_endpoint(endpoint);
+/// ```
+///
+/// Closures are also supported, but feature(async_closure) is required:
+///
+/// #### Trait Endpoints
+///
+/// A trait endpoint is an object implementing trait `Endpoint`.
+///
+/// ```rust
+/// use roa_core::{Endpoint, Context, Next, Result, async_trait};
+/// use async_std::sync::Arc;
+/// use std::time::Instant;
+///
+/// fn is_endpoint<S>(endpoint: impl for<'a> Endpoint<'a, S>) {
+/// }
+///
+/// struct Logger;
+///
+/// #[async_trait(?Send)]
+/// impl <'a> Endpoint<'a, ()> for Logger {
+///     async fn end(&'a self, ctx: &'a mut Context<()>) -> Result {
+///         Ok(())
+///     }
+/// }
+///
+/// is_endpoint(Logger);
+/// ```
 #[async_trait(?Send)]
 pub trait Endpoint<'a, S>: 'static + Sync + Send {
     #[inline]
@@ -155,32 +148,37 @@ where
 /// ### Example
 ///
 /// ```rust
-/// use roa_core::App;
+/// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next};
 /// use roa_core::http::StatusCode;
 ///
-/// let mut app = App::new(());
-/// app.gate_fn(|mut ctx, next| async move {
+/// let mut app = App::new((), first.chain(second).chain(third).chain(end));
+/// async fn first(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     ctx.store("id", "1".to_string());
 ///     next.await?;
 ///     assert_eq!("5", &*ctx.load::<String>("id").unwrap());
 ///     Ok(())
-/// });
-/// app.gate_fn(|mut ctx, next| async move {
+/// }
+/// async fn second(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     assert_eq!("1", &*ctx.load::<String>("id").unwrap());
 ///     ctx.store("id", "2".to_string());
 ///     next.await?;
 ///     assert_eq!("4", &*ctx.load::<String>("id").unwrap());
 ///     ctx.store("id", "5".to_string());
 ///     Ok(())
-/// });
-/// app.gate_fn(|mut ctx, next| async move {
+/// }
+/// async fn third(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     assert_eq!("2", &*ctx.load::<String>("id").unwrap());
 ///     ctx.store("id", "3".to_string());
 ///     next.await?; // next is none; do nothing
 ///     assert_eq!("3", &*ctx.load::<String>("id").unwrap());
 ///     ctx.store("id", "4".to_string());
 ///     Ok(())
-/// });
+/// }
+///
+/// async fn end(ctx: &mut Context<()>) -> Result {
+///     assert_eq!("3", &*ctx.load::<String>("id").unwrap());
+///     Ok(())
+/// }
 /// ```
 ///
 /// ### Error Handling
@@ -188,27 +186,29 @@ where
 /// You can catch or straightly throw a Error returned by next.
 ///
 /// ```rust
-/// use roa_core::{App, throw};
+/// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next, throw};
 /// use roa_core::http::StatusCode;
+///         
+/// let mut app = App::new((), catch.chain(gate).chain(end));
 ///
-/// let mut app = App::new(());
-/// app.gate_fn(|ctx, next| async move {
+/// async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     // catch
 ///     if let Err(err) = next.await {
 ///         // teapot is ok
 ///         if err.status_code != StatusCode::IM_A_TEAPOT {
-///             return Err(err);
+///             return Err(err)
 ///         }
 ///     }
 ///     Ok(())
-/// });
-/// app.gate_fn(|ctx, next| async move {
+/// }
+/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     next.await?; // just throw
 ///     unreachable!()
-/// });
-/// app.gate_fn(|_ctx, _next| async move {
+/// }
+///
+/// async fn end(ctx: &mut Context<()>) -> Result {
 ///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
-/// });
+/// }
 /// ```
 ///
 pub type Next<'a> = &'a mut (dyn Unpin + Future<Output = Result<()>>);
