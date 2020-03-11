@@ -261,7 +261,7 @@ impl<S: State> Service<HttpRequest<HyperBody>> for HttpService<S> {
     }
 }
 
-impl<S: State> HttpService<S> {
+impl<S> HttpService<S> {
     pub fn new(
         endpoint: Arc<dyn for<'a> Endpoint<'a, S>>,
         remote_addr: SocketAddr,
@@ -278,7 +278,10 @@ impl<S: State> HttpService<S> {
 
     /// Receive a request then return a response.
     /// The entry point of middlewares.
-    pub async fn serve(self, req: Request) -> Result<Response> {
+    pub async fn serve(self, req: Request) -> Result<Response>
+    where
+        S: 'static,
+    {
         let Self {
             endpoint,
             remote_addr,
@@ -324,18 +327,18 @@ impl<S: State> Clone for App<S> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Request};
+    use crate::{App, Context, Error, Request};
     use http::StatusCode;
     use std::time::Instant;
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let service = App::new((), |_ctx| async move {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
             let inbound = Instant::now();
             println!("time elapsed: {} ms", inbound.elapsed().as_millis());
             Ok(())
-        })
-        .http_service();
+        }
+        let service = App::new((), test).http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
         Ok(())

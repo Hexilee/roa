@@ -69,19 +69,21 @@ impl Default for Request {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Request};
+    use crate::{App, Context, Error, Request};
     use futures::AsyncReadExt;
     use http::StatusCode;
     use hyper::Body;
 
+    async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+        let mut data = String::new();
+        ctx.req_mut().reader().read_to_string(&mut data).await?;
+        assert_eq!("Hello, World!", data);
+        Ok(())
+    }
+
     #[async_std::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new((), |ctx| async move {
-            let mut data = String::new();
-            ctx.req_mut().reader().read_to_string(&mut data).await?;
-            assert_eq!("Hello, World!", data);
-            Ok(())
-        });
+        let mut app = App::new((), test);
         let service = app.http_service();
         let req = Request::from(http::Request::new(Body::from("Hello, World!")));
         let resp = service.serve(req).await?;

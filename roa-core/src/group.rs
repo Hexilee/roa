@@ -1,10 +1,8 @@
 use crate::{async_trait, Context, Endpoint, Middleware, Next, Result};
+use futures::Future;
 
-pub trait MiddlewareExt<S>: for<'a> Middleware<'a, S> {
-    fn chain<M>(self, next: M) -> Chain<Self, M>
-    where
-        Self: Sized,
-    {
+pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
+    fn chain<M>(self, next: M) -> Chain<Self, M> {
         Chain(self, next)
     }
 }
@@ -80,40 +78,56 @@ where
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Middleware, MiddlewareExt, Next, Request};
+    use crate::{
+        async_trait, App, Context, Error, Middleware, MiddlewareExt, Next, Request,
+    };
     use futures::lock::Mutex;
     use http::StatusCode;
     use std::sync::Arc;
 
-    fn push_middleware(
-        data: i32,
-        vector: Arc<Mutex<Vec<i32>>>,
-    ) -> impl for<'a> Middleware<'a, ()> {
-        move |ctx, next| {
-            let vector = vector.clone();
-            async move {
-                vector.lock().await.push(data);
-                next.await?;
-                vector.lock().await.push(data);
-                Ok(())
-            }
+    struct Pusher {
+        data: usize,
+        vector: Arc<Mutex<Vec<usize>>>,
+    }
+
+    impl Pusher {
+        fn new(data: usize, vector: Arc<Mutex<Vec<usize>>>) -> Self {
+            Self { data, vector }
         }
+    }
+
+    #[async_trait(?Send)]
+    impl<'a> Middleware<'a, ()> for Pusher {
+        async fn handle(
+            &'a self,
+            ctx: &'a mut Context<()>,
+            next: &'a mut dyn Next,
+        ) -> Result<(), Error> {
+            self.vector.lock().await.push(self.data);
+            next.await?;
+            self.vector.lock().await.push(self.data);
+            Ok(())
+        }
+    }
+
+    async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+        Ok(())
     }
 
     #[async_std::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let endpoint = push_middleware(0, vector.clone())
-            .chain(push_middleware(1, vector.clone()))
-            .chain(push_middleware(2, vector.clone()))
-            .chain(push_middleware(3, vector.clone()))
-            .chain(push_middleware(4, vector.clone()))
-            .chain(push_middleware(5, vector.clone()))
-            .chain(push_middleware(6, vector.clone()))
-            .chain(push_middleware(7, vector.clone()))
-            .chain(push_middleware(8, vector.clone()))
-            .chain(push_middleware(9, vector.clone()))
-            .chain(|_ctx| async { Ok(()) });
+        let endpoint = Pusher::new(0, vector.clone())
+            .chain(Pusher::new(1, vector.clone()))
+            .chain(Pusher::new(2, vector.clone()))
+            .chain(Pusher::new(3, vector.clone()))
+            .chain(Pusher::new(4, vector.clone()))
+            .chain(Pusher::new(5, vector.clone()))
+            .chain(Pusher::new(6, vector.clone()))
+            .chain(Pusher::new(7, vector.clone()))
+            .chain(Pusher::new(8, vector.clone()))
+            .chain(Pusher::new(9, vector.clone()))
+            .chain(end);
         let service = App::new((), endpoint).http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);

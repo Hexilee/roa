@@ -534,18 +534,18 @@ impl<S> DerefMut for Context<S> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests_with_runtime {
-    use crate::{App, Context, Request};
+    use crate::{App, Context, Error, MiddlewareExt, Next, Request};
     use http::{StatusCode, Version};
     use std::io::Read;
 
     #[async_std::test]
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
-        let service = App::new((), |ctx| async move {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
             assert_eq!(Version::HTTP_11, ctx.version());
             assert_eq!(StatusCode::OK, ctx.status());
             Ok(())
-        })
-        .http_service();
+        }
+        let service = App::new((), test).http_service();
         service.serve(Request::default()).await?;
         Ok(())
     }
@@ -557,17 +557,19 @@ mod tests_with_runtime {
 
     #[async_std::test]
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
-        // let service = App::new(State { data: 1 }, (|ctx, next|
-        //
-        //         async move {
-        //             ctx.data = 1;
-        //             next.await
-        //         }).chain(|ctx| async move {
-        //         assert_eq!(1, ctx.data);
-        //         Ok(())
-        //     })
-        // })
-        // .http_service();
+        async fn gate(
+            ctx: &mut Context<State>,
+            next: &mut dyn Next,
+        ) -> Result<(), Error> {
+            ctx.data = 1;
+            next.await
+        }
+
+        async fn test(ctx: &mut Context<State>) -> Result<(), Error> {
+            assert_eq!(1, ctx.data);
+            Ok(())
+        }
+        let service = App::new(State { data: 1 }, gate.chain(test)).http_service();
         service.serve(Request::default()).await?;
         Ok(())
     }

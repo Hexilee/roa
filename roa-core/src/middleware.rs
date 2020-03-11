@@ -109,7 +109,7 @@ use std::sync::Arc;
 /// is_middleware(Logger);
 /// ```
 #[async_trait(?Send)]
-pub trait Middleware<'a, S: 'a>: 'static + Sync + Send {
+pub trait Middleware<'a, S>: 'static + Sync + Send {
     /// Handle context and next, then return a future to get status.
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: &'a mut dyn Next)
         -> Result;
@@ -133,7 +133,7 @@ where
 }
 
 #[async_trait(?Send)]
-pub trait Endpoint<'a, S: 'a>: 'static + Sync + Send {
+pub trait Endpoint<'a, S>: 'static + Sync + Send {
     #[inline]
     async fn end(&'a self, ctx: &'a mut Context<S>) -> Result;
 }
@@ -216,5 +216,5 @@ where
 /// });
 /// ```
 ///
-pub trait Next: Future<Output = Result<()>> {}
-impl<T> Next for T where T: Future<Output = Result<()>> {}
+pub trait Next: Unpin + Future<Output = Result<()>> {}
+impl<T> Next for T where T: Unpin + Future<Output = Result<()>> {}
