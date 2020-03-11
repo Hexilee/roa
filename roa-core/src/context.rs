@@ -33,7 +33,7 @@ struct PublicScope;
 /// }
 ///
 /// async fn end(ctx: &mut Context<()>) -> Result {
-///     ctx.resp_mut().write_reader(File::open("assets/welcome.html").await?);
+///     ctx.resp.write_reader(File::open("assets/welcome.html").await?);
 ///     Ok(())
 /// }
 /// ```

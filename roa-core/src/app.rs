@@ -35,7 +35,7 @@ pub use stream::AddrStream;
 /// }
 ///
 /// async fn end(ctx: &mut Context<()>) -> Result {
-///     ctx.resp_mut().write_reader(File::open("assets/welcome.html").await?);
+///     ctx.resp.write_reader(File::open("assets/welcome.html").await?);
 ///     Ok(())
 /// }
 /// ```
@@ -66,13 +66,13 @@ pub use stream::AddrStream;
 ///     }
 /// }
 ///
-/// let app = App::new((), gate.chain(end));
-/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+/// let app = App::new(State::new(), gate.chain(end));
+/// async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result {
 ///     ctx.id = 1;
 ///     next.await
 /// }
 ///
-/// async fn end(ctx: &mut Context<()>) -> Result {
+/// async fn end(ctx: &mut Context<State>) -> Result {
 ///     let id = ctx.id;
 ///     ctx.database.lock().await.get(&id);
 ///     Ok(())

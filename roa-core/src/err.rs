@@ -61,7 +61,7 @@ pub struct Error {
     ///
     /// let app = App::new((), gate.chain(end));
     /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
-    ///     ctx.resp_mut().status = StatusCode::OK;
+    ///     ctx.resp.status = StatusCode::OK;
     ///     next.await // not caught
     /// }
     ///
@@ -123,9 +123,10 @@ impl ErrorKind {
             5 => ServerError,
             _ => panic!(
                 r"status {} cannot be thrown.
-                  Please use `ctx.resp_mut().await.status = xxx` to set it.
+                  Please use `ctx.resp.status = {}` to set it.
                ",
-                status_code
+                status_code,
+                status_code.as_u16()
             ),
         }
     }
