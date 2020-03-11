@@ -24,19 +24,20 @@ pub use stream::AddrStream;
 /// The Application of roa.
 /// ### Example
 /// ```rust,no_run
-/// use roa_core::App;
+/// use roa_core::{App, Context, Next, Result, MiddlewareExt};
 /// use log::info;
 /// use async_std::fs::File;
 ///
-/// let mut app = App::new(());
-/// app.gate_fn(|ctx, next| async move {
+/// let app = App::new((), gate.chain(end));
+/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     info!("{} {}", ctx.method(), ctx.uri());
 ///     next.await
-/// });
-/// app.end(|mut ctx| async move {
+/// }
+///
+/// async fn end(ctx: &mut Context<()>) -> Result {
 ///     ctx.resp_mut().write_reader(File::open("assets/welcome.html").await?);
 ///     Ok(())
-/// });
+/// }
 /// ```
 ///
 /// ### State
@@ -44,7 +45,7 @@ pub use stream::AddrStream;
 /// The only one type implemented `State` by this crate is `()`, you can implement your custom state if neccassary.
 ///
 /// ```rust
-/// use roa_core::App;
+/// use roa_core::{App, Context, Next, Result, MiddlewareExt};
 /// use log::info;
 /// use futures::lock::Mutex;
 /// use std::sync::Arc;
@@ -65,16 +66,17 @@ pub use stream::AddrStream;
 ///     }
 /// }
 ///
-/// let mut app = App::new(State::new());
-/// app.gate_fn(|mut ctx, next| async move {
+/// let app = App::new((), gate.chain(end));
+/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     ctx.id = 1;
 ///     next.await
-/// });
-/// app.end(|ctx| async move {
+/// }
+///
+/// async fn end(ctx: &mut Context<()>) -> Result {
 ///     let id = ctx.id;
 ///     ctx.database.lock().await.get(&id);
 ///     Ok(())
-/// });
+/// }
 /// ```
 ///
 pub struct App<S> {
@@ -104,101 +106,6 @@ impl<S> App<S> {
             state,
         }
     }
-
-    // /// Use a middleware.
-    // pub fn gate(&mut self, middleware: impl Middleware<S>) -> &mut Self {
-    //     self.middleware = Arc::new(join(self.middleware.clone(), middleware));
-    //     self
-    // }
-    //
-    // /// A sugar to match a lambda as a middleware.
-    // ///
-    // /// `App::gate` cannot match a lambda without parameter type indication.
-    // ///
-    // /// ```rust
-    // /// use roa_core::{App, Next};
-    // ///
-    // /// let mut app = App::new(());
-    // /// // app.gate(|_ctx, next| async move { next.await }); compile fails.
-    // /// app.gate(|_ctx, next: Next| async move { next.await });
-    // /// ```
-    // ///
-    // /// However, with `App::gate_fn`, you can match a lambda without type indication.
-    // /// ```rust
-    // /// use roa_core::{App, Next};
-    // ///
-    // /// let mut app = App::new(());
-    // /// app.gate_fn(|_ctx, next| async move { next.await });
-    // /// ```
-    // pub fn gate_fn<F>(
-    //     &mut self,
-    //     middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
-    // ) -> &mut Self
-    // where
-    //     F: 'static + Future<Output = Result>,
-    // {
-    //     self.gate(middleware)
-    // }
-    //
-    // /// A sugar to match a function pointer like `async fn(Context<S>) -> impl Future`
-    // /// and use it as a middleware(endpoint).
-    // ///
-    // /// As the ducument of `Middleware`, an endpoint is defined as a template:
-    // ///
-    // /// ```rust
-    // /// use roa_core::{App, Context, Result};
-    // /// use std::future::Future;
-    // ///
-    // /// fn endpoint<F>(ctx: Context<()>) -> F
-    // /// where F: 'static + Send + Future<Output=Result> {
-    // ///     unimplemented!()
-    // /// }
-    // /// ```
-    // ///
-    // /// However, an async function is not a template,
-    // /// it needs a transfer function to suit for `App::gate`.
-    // ///
-    // /// ```rust
-    // /// use roa_core::{App, Context, Result, State, Middleware};
-    // /// use std::future::Future;
-    // ///
-    // /// async fn endpoint(ctx: Context<()>) -> Result {
-    // ///     Ok(())
-    // /// }
-    // ///
-    // /// fn transfer<S, F>(endpoint: fn(Context<S>) -> F) -> impl Middleware<S>
-    // /// where S: State,
-    // ///       F: 'static + Future<Output=Result> {
-    // ///     endpoint
-    // /// }
-    // ///
-    // /// App::new(()).gate(transfer(endpoint));
-    // /// ```
-    // ///
-    // /// And `App::end` is a wrapper of `App::gate` with this transfer function.
-    // ///
-    // /// ```rust
-    // /// use roa_core::App;
-    // /// App::new(()).end(|_ctx| async { Ok(()) });
-    // /// ```
-    // pub fn end<F>(&mut self, endpoint: fn(Context<S>) -> F) -> &mut Self
-    // where
-    //     F: 'static + Future<Output = Result>,
-    // {
-    //     self.gate(endpoint)
-    // }
-    //
-    // /// Construct a hyper server by an incoming.
-    // pub fn accept<I>(&self, incoming: I) -> Server<I, Self, Executor>
-    // where
-    //     I: Accept<Conn = AddrStream>,
-    //     I::Error: Into<Box<dyn StdError + Send + Sync>>,
-    // {
-    //     Server::builder(incoming)
-    //         .executor(self.exec.clone())
-    //         .serve(self.clone())
-    // }
-    //
 
     /// Make a fake http service for test.
     #[cfg(test)]
@@ -277,7 +184,7 @@ impl<S> HttpService<S> {
     }
 
     /// Receive a request then return a response.
-    /// The entry point of middlewares.
+    /// The entry point of http service.
     pub async fn serve(self, req: Request) -> Result<Response>
     where
         S: 'static,

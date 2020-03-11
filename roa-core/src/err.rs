@@ -18,20 +18,21 @@ pub type Result<R = ()> = StdResult<R, Error>;
 ///
 /// ### Example
 /// ```rust
-/// use roa_core::{App, throw};
+/// use roa_core::{App, Context, Next, Result, MiddlewareExt, throw};
 /// use roa_core::http::StatusCode;
 ///
-/// let mut app = App::new(());
-/// app.gate_fn(|mut ctx, next| async move {
+/// let app = App::new((), gate.chain(end));
+/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     next.await?; // throw
 ///     unreachable!();
 ///     ctx.resp_mut().status = StatusCode::OK;
 ///     Ok(())
-/// });
-/// app.end(|_ctx| async {
+/// }
+///
+/// async fn end(ctx: &mut Context<()>) -> Result {
 ///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"); // throw
 ///     unreachable!()
-/// });
+/// }
 /// ```
 #[macro_export]
 macro_rules! throw {
@@ -55,17 +56,19 @@ pub struct Error {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, throw};
+    /// use roa_core::{App, Context, Next, Result, MiddlewareExt, throw};
     /// use roa_core::http::StatusCode;
     ///
-    /// let mut app = App::new(());
-    /// app.gate_fn(|mut ctx, next| async move {
+    /// let app = App::new((), gate.chain(end));
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.resp_mut().status = StatusCode::OK;
     ///     next.await // not caught
-    /// });
-    /// app.end(|_ctx| async {
-    ///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!") // throw
-    /// });
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
+    ///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"); // throw
+    ///     unreachable!()
+    /// }
     /// ```
     pub status_code: StatusCode,
 
@@ -77,13 +80,15 @@ pub struct Error {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, Error};
+    /// use roa_core::{App, Context, Result, Error};
     /// use roa_core::http::StatusCode;
     ///
-    /// let mut app = App::new(());
-    /// app.end(|_ctx| async {
+    /// let app = App::new((), end);
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
     ///     Err(Error::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // message won't be exposed to user.
-    /// });
+    /// }
+    ///
     /// ```
     pub message: String,
 

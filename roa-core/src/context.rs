@@ -22,19 +22,20 @@ struct PublicScope;
 /// ### Example
 ///
 /// ```rust
-/// use roa_core::App;
+/// use roa_core::{App, Context, Next, Result, MiddlewareExt};
 /// use log::info;
 /// use async_std::fs::File;
 ///
-/// let mut app = App::new(());
-/// app.gate_fn(|ctx, next| async move {
+/// let app = App::new((), gate.chain(end));
+/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     info!("{} {}", ctx.method(), ctx.uri());
 ///     next.await
-/// });
-/// app.end(|mut ctx| async move {
+/// }
+///
+/// async fn end(ctx: &mut Context<()>) -> Result {
 ///     ctx.resp_mut().write_reader(File::open("assets/welcome.html").await?);
 ///     Ok(())
-/// });
+/// }
 /// ```
 pub struct Context<S> {
     pub req: Request,
@@ -176,13 +177,14 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
+    /// use roa_core::{App, Context, Result};
     ///
-    /// let mut app = App::new(());
-    /// app.end(|ctx| async move {
+    /// let mut app = App::new((), get);
+    ///
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!("/", ctx.uri().to_string());
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn uri(&self) -> &Uri {
@@ -193,14 +195,15 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
-    /// use http::Method;
+    /// use roa_core::{App, Context, Result};
+    /// use roa_core::http::Method;
     ///
-    /// let mut app = App::new(());
-    /// app.end(|ctx| async move {
+    /// let mut app = App::new((), get);
+    ///
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!(Method::GET, ctx.method());
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn method(&self) -> &Method {
@@ -211,17 +214,18 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
-    /// use roa_core::http::{StatusCode, header};
+    /// use roa_core::{App, Context, Result};
+    /// use roa_core::http::header::CONTENT_TYPE;
     ///
-    /// let mut app = App::new(());
-    /// app.end(|ctx| async move {
+    /// let mut app = App::new((), get);
+    ///
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!(
     ///         "text/plain",
-    ///         ctx.header(&header::CONTENT_TYPE).unwrap().unwrap()
+    ///         ctx.header(&CONTENT_TYPE).unwrap().unwrap()
     ///     );
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn header(&self, name: impl AsHeaderName) -> Option<Result<&str, ToStrError>> {
@@ -232,13 +236,15 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, http::StatusCode};
+    /// use roa_core::{App, Context, Result};
+    /// use roa_core::http::StatusCode;
     ///
-    /// let mut app = App::new(());
-    /// app.end(|ctx| async move {
+    /// let mut app = App::new((), get);
+    ///
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!(StatusCode::OK, ctx.status());
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn status(&self) -> StatusCode {
@@ -249,14 +255,15 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
-    /// use roa_core::http::{StatusCode, Version};
+    /// use roa_core::{App, Context, Result};
+    /// use roa_core::http::Version;
     ///
-    /// let mut app = App::new(());
-    /// app.end(|ctx| async move {
+    /// let mut app = App::new((), get);
+    ///
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!(Version::HTTP_11, ctx.version());
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn version(&self) -> Version {
@@ -267,22 +274,22 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
-    /// use roa_core::http::{StatusCode, Method};
+    /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
     ///
     /// struct Scope;
     /// struct AnotherScope;
     ///
-    /// let mut app = App::new(());
-    /// app.gate_fn(|mut ctx, next| async move {
+    /// let app = App::new((), gate.chain(end));
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.store_scoped(Scope, "id", "1".to_string());
     ///     next.await
-    /// });
-    /// app.end(|ctx| async move {
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
     ///     assert!(ctx.load_scoped::<AnotherScope, String>("id").is_none());
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn store_scoped<'a, SC, T>(
@@ -311,18 +318,18 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
-    /// use roa_core::http::{StatusCode, Method};
+    /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
     ///
-    /// let mut app = App::new(());
-    /// app.gate_fn(|mut ctx, next| async move {
+    /// let app = App::new((), gate.chain(end));
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.store("id", "1".to_string());
     ///     next.await
-    /// });
-    /// app.end(|ctx| async move {
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn store<'a, T>(&mut self, name: &'a str, value: T) -> Option<Variable<'a, T>>
@@ -337,19 +344,20 @@ impl<S> Context<S> {
     /// ### Example
     ///
     /// ```rust
-    /// use roa_core::App;
+    /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
     ///
     /// struct Scope;
     ///
-    /// let mut app = App::new(());
-    /// app.gate_fn(|mut ctx, next| async move {
+    /// let app = App::new((), gate.chain(end));
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.store_scoped(Scope, "id", "1".to_owned());
     ///     next.await
-    /// });
-    /// app.end(|ctx| async move {
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn load_scoped<'a, SC, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
@@ -365,17 +373,18 @@ impl<S> Context<S> {
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
+    /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
     ///
-    /// let mut app = App::new(());
-    /// app.gate_fn(|mut ctx, next| async move {
+    /// let app = App::new((), gate.chain(end));
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.store("id", "1".to_string());
     ///     next.await
-    /// });
-    /// app.end(|ctx| async move {
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
     ///     assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
-    /// });
+    /// }
     /// ```
     #[inline]
     pub fn load<'a, T>(&self, name: &'a str) -> Option<Variable<'a, T>>
@@ -440,10 +449,7 @@ mod tests_with_runtime {
 
     #[async_std::test]
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
-        async fn gate(
-            ctx: &mut Context<State>,
-            next: &mut dyn Next,
-        ) -> Result<(), Error> {
+        async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result<(), Error> {
             ctx.data = 1;
             next.await
         }

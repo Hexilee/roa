@@ -20,11 +20,7 @@ where
     U: for<'c> Middleware<'c, S>,
 {
     #[inline]
-    async fn handle(
-        &'a self,
-        ctx: &'a mut Context<S>,
-        next: &'a mut dyn Next,
-    ) -> Result {
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         let ptr = ctx as *mut Context<S>;
         let mut next = self.1.handle(unsafe { &mut *ptr }, next);
         self.0.handle(ctx, &mut next).await
@@ -45,36 +41,6 @@ where
         self.0.handle(ctx, &mut next).await
     }
 }
-
-// /// Join two middleware.
-// ///
-// /// ```rust
-// /// use roa_core::{Middleware, join, Context, Next};
-// /// use std::sync::Arc;
-// ///
-// /// let mut middleware: Arc<dyn Middleware<()>> = Arc::new(|_ctx: Context<()>, next: Next| async move {
-// ///     next.await
-// /// });
-// ///
-// /// middleware = Arc::new(join(middleware, |_ctx: Context<()>, next: Next| next));
-// /// ```
-// #[inline]
-// pub fn join<S: State>(
-//     current: Arc<dyn Middleware<S>>,
-//     next: impl Middleware<S>,
-// ) -> impl Middleware<S> {
-//     join_all(vec![current, Arc::new(next)])
-// }
-//
-// /// Join all middlewares in a vector.
-// ///
-// /// All middlewares would be composed and executed in a stack-like manner.
-// #[inline]
-// pub fn join_all<S: State>(
-//     middlewares: Vec<Arc<dyn Middleware<S>>>,
-// ) -> impl Middleware<S> {
-//     Chain::new(middlewares)
-// }
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
@@ -101,7 +67,7 @@ mod tests {
         async fn handle(
             &'a self,
             ctx: &'a mut Context<()>,
-            next: &'a mut dyn Next,
+            next: Next<'a>,
         ) -> Result<(), Error> {
             self.vector.lock().await.push(self.data);
             next.await?;

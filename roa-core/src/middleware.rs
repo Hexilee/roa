@@ -111,23 +111,18 @@ use std::sync::Arc;
 #[async_trait(?Send)]
 pub trait Middleware<'a, S>: 'static + Sync + Send {
     /// Handle context and next, then return a future to get status.
-    async fn handle(&'a self, ctx: &'a mut Context<S>, next: &'a mut dyn Next)
-        -> Result;
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result;
 }
 
 #[async_trait(?Send)]
 impl<'a, S, T, F> Middleware<'a, S> for T
 where
     S: 'a,
-    T: 'static + Send + Sync + Fn(&'a mut Context<S>, &'a mut dyn Next) -> F,
+    T: 'static + Send + Sync + Fn(&'a mut Context<S>, Next<'a>) -> F,
     F: 'a + Future<Output = Result>,
 {
     #[inline]
-    async fn handle(
-        &'a self,
-        ctx: &'a mut Context<S>,
-        next: &'a mut dyn Next,
-    ) -> Result {
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         (self)(ctx, next).await
     }
 }
@@ -216,5 +211,4 @@ where
 /// });
 /// ```
 ///
-pub trait Next: Unpin + Future<Output = Result<()>> {}
-impl<T> Next for T where T: Unpin + Future<Output = Result<()>> {}
+pub type Next<'a> = &'a mut (dyn Unpin + Future<Output = Result<()>>);

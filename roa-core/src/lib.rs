@@ -19,13 +19,13 @@
 //! The obligatory hello world application:
 //!
 //! ```rust
-//! use roa_core::App;
+//! use roa_core::{App, Context, Result, Error};
 //!
-//! let mut app = App::new(());
-//! app.end(|mut ctx| async move {
+//! let app = App::new((), end);
+//! async fn end(ctx: &mut Context<()>) -> Result {
 //!     ctx.resp_mut().write("Hello, World");
 //!     Ok(())
-//! });
+//! }
 //! ```
 //!
 //! #### Cascading
@@ -38,22 +38,23 @@
 //! its upstream behaviour.
 //!
 //! ```rust
-//! use roa_core::App;
+//! use roa_core::{App, Context, Result, Error, MiddlewareExt, Next};
 //! use std::time::Instant;
 //! use log::info;
 //!
-//! let mut app = App::new(());
-//! app.gate_fn(|_ctx, next| async move {
+//! let app = App::new((), gate.chain(end));
+//!
+//! async fn end(ctx: &mut Context<()>) -> Result {
+//!     ctx.resp_mut().write("Hello, World");
+//!     Ok(())
+//! }
+//!
+//! async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 //!     let inbound = Instant::now();
 //!     next.await?;
 //!     info!("time elapsed: {} ms", inbound.elapsed().as_millis());
 //!     Ok(())
-//! });
-//!
-//! app.end(|mut ctx| async move {
-//!     ctx.resp_mut().write("Hello, World");
-//!     Ok(())
-//! });
+//! }
 //! ```
 //!
 //! ### Error Handling
