@@ -9,13 +9,13 @@ pub trait Listener {
 
     /// Listen on a socket addr, return a server and the real addr it binds.
     fn bind(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 
     /// Listen on a socket addr, return a server, and pass real addr to the callback.
     fn listen(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         callback: impl Fn(SocketAddr),
     ) -> std::io::Result<Self::Server>;
@@ -45,13 +45,13 @@ pub trait Listener {
     ///     Ok(())
     /// }
     /// ```
-    fn run(&self) -> std::io::Result<(SocketAddr, Self::Server)>;
+    fn run(self) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
 impl<S: State> Listener for App<S> {
     type Server = Server<TcpIncoming, Self, Executor>;
     fn bind(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
         let incoming = TcpIncoming::bind(addr)?;
@@ -60,7 +60,7 @@ impl<S: State> Listener for App<S> {
     }
 
     fn listen(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         callback: impl Fn(SocketAddr),
     ) -> std::io::Result<Self::Server> {
@@ -69,7 +69,7 @@ impl<S: State> Listener for App<S> {
         Ok(server)
     }
 
-    fn run(&self) -> std::io::Result<(SocketAddr, Self::Server)> {
+    fn run(self) -> std::io::Result<(SocketAddr, Self::Server)> {
         self.bind("127.0.0.1:0")
     }
 }

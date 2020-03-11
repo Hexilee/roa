@@ -107,6 +107,18 @@ impl<S> App<S> {
         }
     }
 
+    /// Construct a hyper server by an incoming.
+    pub fn accept<I>(self, incoming: I) -> Server<I, Self, Executor>
+    where
+        S: State,
+        I: Accept<Conn = AddrStream>,
+        I::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
+        Server::builder(incoming)
+            .executor(self.exec.clone())
+            .serve(self)
+    }
+
     /// Make a fake http service for test.
     #[cfg(test)]
     pub fn http_service(&self) -> HttpService<S>
@@ -211,7 +223,7 @@ impl<S> HttpService<S> {
     }
 }
 
-impl<S: State> Clone for HttpService<S> {
+impl<S: Clone> Clone for HttpService<S> {
     fn clone(&self) -> Self {
         Self {
             endpoint: self.endpoint.clone(),
@@ -222,7 +234,7 @@ impl<S: State> Clone for HttpService<S> {
     }
 }
 
-impl<S: State> Clone for App<S> {
+impl<S: Clone> Clone for App<S> {
     fn clone(&self) -> Self {
         Self {
             endpoint: self.endpoint.clone(),

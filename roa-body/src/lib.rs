@@ -14,12 +14,12 @@
 //! async fn get(mut ctx: Context<()>) -> Result {
 //!     let mut data = String::new();
 //!     // implements futures::AsyncRead.
-//!     ctx.req_mut().reader().read_to_string(&mut data).await?;
+//!     ctx.req.reader().read_to_string(&mut data).await?;
 //!     println!("data: {}", data);
 //!
 //!     // although body is empty now...
-//!     let stream = ctx.req_mut().stream();
-//!     ctx.resp_mut()
+//!     let stream = ctx.req.stream();
+//!     ctx.resp
 //!         // echo
 //!        .write_stream(stream)
 //!        // write object implementing futures::AsyncRead
@@ -67,11 +67,11 @@
 //!
 //!     // write text,
 //!     // set "Content-Type"
-//!     ctx.write_text("Hello, World!")?;
+//!     ctx.write_text("Hello, World!");
 //!
 //!     // write object implementing AsyncRead,
 //!     // set "Content-Type"
-//!     ctx.write_octet(File::open("assets/author.txt").await?)?;
+//!     ctx.write_octet(File::open("assets/author.txt").await?);
 //!
 //!     // render html template, based on [askama](https://github.com/djc/askama).
 //!     // set "Content-Type"
@@ -124,13 +124,10 @@ pub trait PowerBody {
     fn render<B: Template>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/plain; charset=utf-8"
-    fn write_text<B: Into<Bytes>>(&mut self, data: B) -> Result;
+    fn write_text<B: Into<Bytes>>(&mut self, data: B);
 
     /// write object to response body as "application/octet-stream"
-    fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(
-        &mut self,
-        reader: B,
-    ) -> Result;
+    fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(&mut self, reader: B);
 
     /// write object to response body as extension name of file
     #[cfg(feature = "file")]
@@ -157,7 +154,7 @@ impl<S: State> PowerBody for Context<S> {
     async fn body(&mut self) -> Result<Bytes> {
         let mut vector = Vec::<Bytes>::new();
         let mut size = 0usize;
-        let mut stream = self.req_mut().stream();
+        let mut stream = self.req.stream();
         while let Some(item) = stream.next().await {
             let data = item?;
             size += data.len();
@@ -187,14 +184,13 @@ impl<S: State> PowerBody for Context<S> {
     #[cfg(feature = "json")]
     #[inline]
     fn write_json<B: Serialize>(&mut self, data: &B) -> Result {
-        self.resp_mut()
-            .write(serde_json::to_vec(data).map_err(|err| {
-                handle_internal_server_error(format!(
-                    "{}\nObject cannot be serialized to json",
-                    err
-                ))
-            })?);
-        self.resp_mut()
+        self.resp.write(serde_json::to_vec(data).map_err(|err| {
+            handle_internal_server_error(format!(
+                "{}\nObject cannot be serialized to json",
+                err
+            ))
+        })?);
+        self.resp
             .headers
             .insert(header::CONTENT_TYPE, APPLICATION_JSON.clone());
         Ok(())
@@ -203,34 +199,29 @@ impl<S: State> PowerBody for Context<S> {
     #[cfg(feature = "template")]
     #[inline]
     fn render<B: Template>(&mut self, data: &B) -> Result {
-        self.resp_mut().write(data.render().map_err(|err| {
+        self.resp.write(data.render().map_err(|err| {
             handle_internal_server_error(format!("{}\nFails to render template", err))
         })?);
-        self.resp_mut()
+        self.resp
             .headers
             .insert(header::CONTENT_TYPE, TEXT_HTML.clone());
         Ok(())
     }
 
     #[inline]
-    fn write_text<B: Into<Bytes>>(&mut self, data: B) -> Result {
-        self.resp_mut().write(data);
-        self.resp_mut()
+    fn write_text<B: Into<Bytes>>(&mut self, data: B) {
+        self.resp.write(data);
+        self.resp
             .headers
             .insert(header::CONTENT_TYPE, TEXT_PLAIN.clone());
-        Ok(())
     }
 
     #[inline]
-    fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(
-        &mut self,
-        reader: B,
-    ) -> Result {
-        self.resp_mut().write_reader(reader);
-        self.resp_mut()
+    fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(&mut self, reader: B) {
+        self.resp.write_reader(reader);
+        self.resp
             .headers
             .insert(header::CONTENT_TYPE, APPLICATION_OCTET_STREM.clone());
-        Ok(())
     }
 
     #[cfg(feature = "file")]
@@ -267,7 +258,7 @@ mod tests {
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
     use roa_core::http;
-    use roa_core::App;
+    use roa_core::{App, Context, Error};
     use roa_tcp::Listener;
     use serde::{Deserialize, Serialize};
 
@@ -297,13 +288,12 @@ mod tests {
 
     #[tokio::test]
     async fn read_json() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.end(move |mut ctx| async move {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
             let user: UserDto = ctx.read_json().await?;
             assert_eq!(USER, user);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
 
         let client = reqwest::Client::new();
@@ -318,13 +308,12 @@ mod tests {
 
     #[tokio::test]
     async fn read_form() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.end(move |mut ctx| async move {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
             let user: UserDto = ctx.read_form().await?;
             assert_eq!(USER, user);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
 
         let client = reqwest::Client::new();
@@ -339,9 +328,10 @@ mod tests {
 
     #[tokio::test]
     async fn render() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.end(move |mut ctx| async move { ctx.render(&USER) });
-        let (addr, server) = app.run()?;
+        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+            ctx.render(&USER)
+        }
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -351,9 +341,11 @@ mod tests {
 
     #[tokio::test]
     async fn write_text() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.end(move |mut ctx| async move { ctx.write_text("Hello, World!") });
-        let (addr, server) = app.run()?;
+        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+            ctx.write_text("Hello, World!");
+            Ok(())
+        }
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -364,12 +356,11 @@ mod tests {
 
     #[tokio::test]
     async fn write_octet() -> Result<(), Box<dyn std::error::Error>> {
-        // miss key
-        let mut app = App::new(());
-        app.end(move |mut ctx| async move {
-            ctx.write_octet(File::open("../assets/author.txt").await?)
-        });
-        let (addr, server) = app.run()?;
+        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+            ctx.write_octet(File::open("../assets/author.txt").await?);
+            Ok(())
+        }
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
