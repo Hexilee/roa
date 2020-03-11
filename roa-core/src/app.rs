@@ -329,13 +329,10 @@ impl<S: State> Clone for App<S> {
 mod tests {
     use crate::{App, Context, Error, Request};
     use http::StatusCode;
-    use std::time::Instant;
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
-            let inbound = Instant::now();
-            println!("time elapsed: {} ms", inbound.elapsed().as_millis());
             Ok(())
         }
         let service = App::new((), test).http_service();

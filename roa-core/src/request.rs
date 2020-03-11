@@ -76,7 +76,7 @@ mod tests {
 
     async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
         let mut data = String::new();
-        ctx.req_mut().reader().read_to_string(&mut data).await?;
+        ctx.req.reader().read_to_string(&mut data).await?;
         assert_eq!("Hello, World!", data);
         Ok(())
     }
