@@ -34,6 +34,7 @@
 
 #![warn(missing_docs)]
 
+mod endpoints;
 mod err;
 mod path;
 
@@ -46,26 +47,13 @@ use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
 use roa_core::http::{Method, StatusCode};
 use roa_core::{
-    async_trait, join_all, throw, Context, Error, Middleware, Next, Result, State,
-    Variable,
+    async_trait, throw, Context, Endpoint, Error, Middleware, Next, Result, Variable,
 };
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::future::Future;
 use std::result::Result as StdResult;
 use std::sync::Arc;
-
-const ALL_METHODS: [Method; 9] = [
-    Method::GET,
-    Method::POST,
-    Method::PUT,
-    Method::PATCH,
-    Method::OPTIONS,
-    Method::DELETE,
-    Method::HEAD,
-    Method::TRACE,
-    Method::CONNECT,
-];
 
 /// A scope to store and load variables in Context::storage.
 struct RouterScope;
@@ -138,146 +126,36 @@ pub trait RouterParam {
 }
 
 /// A builder of `RouteEndpoint`.
-pub struct Router<S: State> {
-    middlewares: Vec<Arc<dyn Middleware<S>>>,
-    endpoints: Vec<(Method, String, Arc<dyn Middleware<S>>)>,
+pub struct Router<S, M> {
+    middleware: M,
+    endpoints: Vec<(&'static str, Box<dyn for<'a> Endpoint<'a, S>>)>,
 }
 
-struct RouteTable<S: State> {
-    static_route: Trie<String, Arc<dyn Middleware<S>>>,
-    dynamic_route: Vec<(RegexPath, Arc<dyn Middleware<S>>)>,
+struct RouteTable<S> {
+    static_route: Trie<String, Box<dyn for<'a> Endpoint<'a, S>>>,
+    dynamic_route: Vec<(RegexPath, Box<dyn for<'a> Endpoint<'a, S>>)>,
 }
 
-/// A endpoint to handle request by uri path and http method.
-///
-/// - Throw 404 NOT FOUND when path is not matched.
-/// - Throw 405 METHOD NOT ALLOWED when method is not allowed.
-pub struct RouteEndpoint<S: State>(HashMap<Method, RouteTable<S>>);
-
-impl<S: State> Router<S> {
+impl<S, M> Router<S, M> {
     /// Construct a new router.
-    pub fn new() -> Self {
+    pub fn new(middleware: M) -> Self
+    where
+        M: for<'a> Middleware<'a, S>,
+    {
         Self {
-            middlewares: Vec::new(),
+            middleware,
             endpoints: Vec::new(),
         }
     }
 
-    /// use a middleware.
-    pub fn gate(&mut self, middleware: impl Middleware<S>) -> &mut Self {
-        self.middlewares.push(Arc::new(middleware));
-        self
-    }
-
-    /// A sugar to match a lambda as a middleware.
-    ///
-    /// `Router::gate` cannot match a lambda without parameter type indication.
-    ///
-    /// ```rust
-    /// use roa_core::Next;
-    /// use roa_router::Router;
-    ///
-    /// let mut router = Router::<()>::new();
-    /// // router.gate(|_ctx, next| next); compile fails.
-    /// router.gate(|_ctx, next: Next| next);
-    /// ```
-    ///
-    /// However, with `Router::gate_fn`, you can match a lambda without type indication.
-    /// ```rust
-    /// use roa_router::Router;
-    ///
-    /// let mut router = Router::<()>::new();
-    /// router.gate_fn(|_ctx, next| next);
-    /// ```
-    pub fn gate_fn<F>(
-        &mut self,
-        middleware: impl 'static + Sync + Send + Fn(Context<S>, Next) -> F,
-    ) -> &mut Self
-    where
-        F: 'static + Future<Output = Result>,
-    {
-        self.gate(middleware);
-        self
-    }
-
     /// Register a new endpoint.
-    pub fn end(
+    pub fn on(
         &mut self,
         path: &'static str,
-        methods: impl AsRef<[Method]>,
-        endpoint: impl Middleware<S>,
+        endpoint: impl for<'a> Endpoint<'a, S>,
     ) -> &mut Self {
-        let endpoint_ptr = Arc::new(endpoint);
-        for method in methods.as_ref() {
-            self.endpoints.push((
-                method.clone(),
-                path.to_string(),
-                endpoint_ptr.clone(),
-            ));
-        }
+        self.endpoints.push((path, self.middleware));
         self
-    }
-
-    /// A sugar to match a function pointer like `async fn(Context<S>) -> impl Future`
-    /// and use register it as an endpoint.
-    ///
-    /// As the ducument of `Middleware`, an endpoint is defined as a template:
-    ///
-    /// ```rust
-    /// use roa_core::{Context, Result};
-    /// use std::future::Future;
-    ///
-    /// fn endpoint<F>(ctx: Context<()>) -> F
-    /// where F: 'static + Send + Future<Output=Result> {
-    ///     unimplemented!()
-    /// }
-    /// ```
-    ///
-    /// However, an async function is not a template,
-    /// it needs a transfer function to suit for `Router::end`.
-    ///
-    /// ```rust
-    /// use roa_core::{Context, Result, State, Middleware};
-    /// use roa_router::Router;
-    /// use std::future::Future;
-    /// use roa_core::http::Method;
-    ///
-    /// async fn endpoint(ctx: Context<()>) -> Result {
-    ///     Ok(())
-    /// }
-    ///
-    /// fn transfer<S, F>(endpoint: fn(Context<S>) -> F) -> impl Middleware<S>
-    /// where S: State,
-    ///       F: 'static + Future<Output=Result> {
-    ///     endpoint
-    /// }
-    ///
-    /// Router::<()>::new().end("/", [Method::GET], transfer(endpoint));
-    /// ```
-    ///
-    /// And `Router::end_fn` is a wrapper of `Router::end` with this transfer function.
-    ///
-    /// ```rust
-    /// use roa_router::Router;
-    /// use roa_core::http::Method;
-    ///
-    /// Router::<()>::new().end_fn("/", [Method::GET], |_ctx| async { Ok(()) });
-    /// ```
-    pub fn end_fn<F>(
-        &mut self,
-        path: &'static str,
-        methods: impl AsRef<[Method]>,
-        endpoint: fn(Context<S>) -> F,
-    ) -> &mut Self
-    where
-        F: 'static + Future<Output = Result>,
-    {
-        self.end(path, methods, endpoint)
-    }
-
-    /// Include another router with prefix, allowing all methods.
-    pub fn include(&mut self, prefix: &'static str, router: Router<S>) -> &mut Self {
-        self.include_methods(prefix, ALL_METHODS, router)
     }
 
     /// Include another router with prefix, only allowing method in parameter methods.
@@ -295,19 +173,19 @@ impl<S: State> Router<S> {
         self
     }
 
-    /// Return endpoints with prefix.
-    fn on(
-        &self,
-        prefix: &'static str,
-    ) -> impl '_ + Iterator<Item = (Method, String, Arc<dyn Middleware<S>>)> {
-        self.endpoints.iter().map(move |(method, path, endpoint)| {
-            let mut middlewares = self.middlewares.clone();
-            middlewares.push(endpoint.clone());
-            let new_endpoint: Arc<dyn Middleware<S>> = Arc::new(join_all(middlewares));
-            let new_path = join_path(&vec![prefix, path.as_str()]);
-            (method.clone(), new_path, new_endpoint)
-        })
-    }
+    // /// Return endpoints with prefix.
+    // fn on(
+    //     &self,
+    //     prefix: &'static str,
+    // ) -> impl '_ + Iterator<Item = (Method, String, Arc<dyn Middleware<S>>)> {
+    //     self.endpoints.iter().map(move |(method, path, endpoint)| {
+    //         let mut middlewares = self.middleware.clone();
+    //         middlewares.push(endpoint.clone());
+    //         let new_endpoint: Arc<dyn Middleware<S>> = Arc::new(join_all(middlewares));
+    //         let new_path = join_path(&vec![prefix, path.as_str()]);
+    //         (method.clone(), new_path, new_endpoint)
+    //     })
+    // }
 
     /// Build RouteEndpoint with path prefix.
     pub fn routes(

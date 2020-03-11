@@ -1,9 +1,24 @@
 use crate::{async_trait, Context, Endpoint, Middleware, Next, Result};
+use async_std::sync::Arc;
 use futures::Future;
 
 pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
     fn chain<M>(self, next: M) -> Chain<Self, M> {
         Chain(self, next)
+    }
+
+    fn shared(self) -> Shared<S>
+    where
+        S: 'static,
+    {
+        Shared(Arc::new(self))
+    }
+
+    fn boxed(self) -> Boxed<S>
+    where
+        S: 'static,
+    {
+        Boxed(Box::new(self))
     }
 }
 
@@ -11,6 +26,10 @@ impl<S, T> MiddlewareExt<S> for T where T: for<'a> Middleware<'a, S> {}
 
 /// A middleware composing and executing other middlewares in a stack-like manner.
 pub struct Chain<T, U>(T, U);
+
+pub struct Shared<S>(Arc<dyn for<'a> Middleware<'a, S>>);
+
+pub struct Boxed<S>(Box<dyn for<'a> Middleware<'a, S>>);
 
 #[async_trait(?Send)]
 impl<'a, S, T, U> Middleware<'a, S> for Chain<T, U>
@@ -26,6 +45,37 @@ where
         self.0.handle(ctx, &mut next).await
     }
 }
+
+#[async_trait(?Send)]
+impl<'a, S> Middleware<'a, S> for Shared<S>
+where
+    S: 'static,
+{
+    #[inline]
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
+        self.0.handle(ctx, next).await
+    }
+}
+
+impl<S> Clone for Shared<S> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+#[async_trait(?Send)]
+impl<'a, S> Middleware<'a, S> for Boxed<S>
+where
+    S: 'static,
+{
+    #[inline]
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
+        self.0.handle(ctx, next).await
+    }
+}
+
+// delegate_middleware!(Shared<S>);
+// delegate_middleware!(Boxed<S>);
 
 #[async_trait(?Send)]
 impl<'a, S, T, U> Endpoint<'a, S> for Chain<T, U>
@@ -83,23 +133,18 @@ mod tests {
     #[async_std::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let endpoint = Pusher::new(0, vector.clone())
-            .chain(Pusher::new(1, vector.clone()))
-            .chain(Pusher::new(2, vector.clone()))
-            .chain(Pusher::new(3, vector.clone()))
-            .chain(Pusher::new(4, vector.clone()))
-            .chain(Pusher::new(5, vector.clone()))
-            .chain(Pusher::new(6, vector.clone()))
-            .chain(Pusher::new(7, vector.clone()))
-            .chain(Pusher::new(8, vector.clone()))
-            .chain(Pusher::new(9, vector.clone()))
-            .chain(end);
-        let service = App::new((), endpoint).http_service();
+        let mut boxed_middleware = Pusher::new(0, vector.clone()).boxed();
+        for i in 1..100 {
+            boxed_middleware = boxed_middleware
+                .chain(Pusher::new(i, vector.clone()))
+                .boxed()
+        }
+        let service = App::new((), boxed_middleware.chain(end)).http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
-        for i in 0..9 {
+        for i in 0..100 {
             assert_eq!(i, vector.lock().await[i]);
-            assert_eq!(i, vector.lock().await[19 - i]);
+            assert_eq!(i, vector.lock().await[199 - i]);
         }
         Ok(())
     }
