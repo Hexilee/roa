@@ -4,15 +4,6 @@ pub trait MiddlewareExt<S>: for<'a> Middleware<'a, S> {
     fn chain<M>(self, next: M) -> Chain<Self, M>
     where
         Self: Sized,
-        M: for<'a> Middleware<'a, S>,
-    {
-        Chain(self, next)
-    }
-
-    fn end<E>(self, next: E) -> Chain<Self, E>
-    where
-        Self: Sized,
-        E: for<'a> Endpoint<'a, S>,
     {
         Chain(self, next)
     }
@@ -50,9 +41,9 @@ where
     U: for<'c> Endpoint<'c, S>,
 {
     #[inline]
-    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
+    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result {
         let ptr = ctx as *mut Context<S>;
-        let mut next = self.1.call(unsafe { &mut *ptr });
+        let mut next = self.1.end(unsafe { &mut *ptr });
         self.0.handle(ctx, &mut next).await
     }
 }

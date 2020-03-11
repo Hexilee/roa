@@ -119,7 +119,6 @@ mod err;
 mod executor;
 mod group;
 mod middleware;
-mod next;
 mod request;
 mod response;
 mod state;
@@ -137,15 +136,12 @@ pub use context::{Context, SyncContext, Variable};
 pub use err::{Error, ErrorKind, Result, ResultFuture};
 
 #[doc(inline)]
-pub use middleware::{Endpoint, Middleware};
+pub use middleware::{Endpoint, Middleware, Next};
 
 #[doc(inline)]
 pub use group::{Chain, MiddlewareExt};
 
 pub use state::State;
-
-#[doc(inline)]
-pub use next::Next;
 
 #[doc(inline)]
 pub use request::Request;

@@ -1,4 +1,4 @@
-use crate::{async_trait, Context, Next, Result, State};
+use crate::{async_trait, Context, Result, State};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -118,7 +118,7 @@ pub trait Middleware<'a, S: 'a>: 'static + Sync + Send {
 #[async_trait(?Send)]
 pub trait Endpoint<'a, S: 'a>: 'static + Sync + Send {
     #[inline]
-    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result;
+    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result;
 }
 
 #[async_trait(?Send)]
@@ -138,27 +138,6 @@ where
     }
 }
 
-// impl<'a, S, F> Middleware<S> for fn(&'a mut Context<S>, &'a mut dyn Next) -> F
-// where
-//     F: 'a + Future<Output = Result>,
-// {
-//     #[inline]
-//     fn handle<'life0, 'life1, 'life2, 'async_trait>(
-//         &'life0 self,
-//         ctx: &'life1 mut Context<S>,
-//         next: &'life2 mut dyn Next,
-//     ) -> ::core::pin::Pin<Box<dyn ::core::future::Future<Output = Result> + 'async_trait>>
-//     where
-//         'life0: 'async_trait,
-//         'life1: 'async_trait,
-//         'life2: 'async_trait,
-//         'a: 'async_trait,
-//         Self: 'async_trait,
-//     {
-//         Box::pin((self)(ctx, next))
-//     }
-// }
-
 #[async_trait(?Send)]
 impl<'a, S, T, F> Endpoint<'a, S> for T
 where
@@ -167,27 +146,75 @@ where
     F: 'a + Future<Output = Result>,
 {
     #[inline]
-    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
+    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result {
         (self)(ctx).await
     }
 }
 
-// impl<'a, S, F> Middleware<S> for fn(&'a mut Context<S>) -> F
-// where
-//     F: 'a + Future<Output = Result>,
-// {
-//     #[inline]
-//     fn handle<'life0, 'life1, 'life2, 'async_trait>(
-//         &'life0 self,
-//         ctx: &'life1 mut Context<S>,
-//         _next: &'life2 mut dyn Next,
-//     ) -> ::core::pin::Pin<Box<dyn ::core::future::Future<Output = Result> + 'async_trait>>
-//     where
-//         'life0: 'async_trait,
-//         'life1: 'async_trait,
-//         'life2: 'async_trait,
-//         Self: 'async_trait,
-//     {
-//         Box::pin(self(ctx))
-//     }
-// }
+/// Type of the second parameter in a middleware.
+///
+/// `Next` is usually a closure capturing the next middleware, context and the next `Next`.
+///
+/// Developer of middleware can jump to next middleware by calling `next.await`.
+///
+/// ### Example
+///
+/// ```rust
+/// use roa_core::App;
+/// use roa_core::http::StatusCode;
+///
+/// let mut app = App::new(());
+/// app.gate_fn(|mut ctx, next| async move {
+///     ctx.store("id", "1".to_string());
+///     next.await?;
+///     assert_eq!("5", &*ctx.load::<String>("id").unwrap());
+///     Ok(())
+/// });
+/// app.gate_fn(|mut ctx, next| async move {
+///     assert_eq!("1", &*ctx.load::<String>("id").unwrap());
+///     ctx.store("id", "2".to_string());
+///     next.await?;
+///     assert_eq!("4", &*ctx.load::<String>("id").unwrap());
+///     ctx.store("id", "5".to_string());
+///     Ok(())
+/// });
+/// app.gate_fn(|mut ctx, next| async move {
+///     assert_eq!("2", &*ctx.load::<String>("id").unwrap());
+///     ctx.store("id", "3".to_string());
+///     next.await?; // next is none; do nothing
+///     assert_eq!("3", &*ctx.load::<String>("id").unwrap());
+///     ctx.store("id", "4".to_string());
+///     Ok(())
+/// });
+/// ```
+///
+/// ### Error Handling
+///
+/// You can catch or straightly throw a Error returned by next.
+///
+/// ```rust
+/// use roa_core::{App, throw};
+/// use roa_core::http::StatusCode;
+///
+/// let mut app = App::new(());
+/// app.gate_fn(|ctx, next| async move {
+///     // catch
+///     if let Err(err) = next.await {
+///         // teapot is ok
+///         if err.status_code != StatusCode::IM_A_TEAPOT {
+///             return Err(err);
+///         }
+///     }
+///     Ok(())
+/// });
+/// app.gate_fn(|ctx, next| async move {
+///     next.await?; // just throw
+///     unreachable!()
+/// });
+/// app.gate_fn(|_ctx, _next| async move {
+///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+/// });
+/// ```
+///
+pub trait Next: Future<Output = Result<()>> {}
+impl<T> Next for T where T: Future<Output = Result<()>> {}
