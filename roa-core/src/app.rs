@@ -3,9 +3,7 @@ mod runtime;
 
 mod future;
 mod stream;
-use crate::{
-    Context, Error, Middleware, MiddlewareExt, Next, Request, Response, Result, State,
-};
+use crate::{Context, Endpoint, Error, Next, Request, Response, Result, State};
 use future::SendFuture;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
@@ -80,14 +78,14 @@ pub use stream::AddrStream;
 /// ```
 ///
 pub struct App<S> {
-    middleware: Arc<dyn Middleware<S>>,
+    endpoint: Arc<dyn for<'a> Endpoint<'a, S>>,
     exec: Executor,
     pub(crate) state: S,
 }
 
 /// An implementation of hyper HttpService.
 pub struct HttpService<S> {
-    middleware: Arc<dyn Middleware<S>>,
+    endpoint: Arc<dyn for<'a> Endpoint<'a, S>>,
     remote_addr: SocketAddr,
     exec: Executor,
     pub(crate) state: S,
@@ -97,11 +95,11 @@ impl<S> App<S> {
     /// Construct an application with custom runtime.
     pub fn with_exec(
         state: S,
-        middleware: impl Middleware<S>,
+        endpoint: impl for<'a> Endpoint<'a, S>,
         exec: impl 'static + Send + Sync + Spawn,
     ) -> Self {
         Self {
-            middleware: Arc::new(middleware),
+            endpoint: Arc::new(endpoint),
             exec: Executor(Arc::new(exec)),
             state,
         }
@@ -232,11 +230,11 @@ impl<S: State> Service<&AddrStream> for App<S> {
 
     #[inline]
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
-        let middleware = self.middleware.clone();
+        let endpoint = self.endpoint.clone();
         let addr = stream.remote_addr();
         let state = self.state.clone();
         let exec = self.exec.clone();
-        Box::pin(async move { Ok(HttpService::new(middleware, addr, exec, state)) })
+        Box::pin(async move { Ok(HttpService::new(endpoint, addr, exec, state)) })
     }
 }
 
@@ -261,13 +259,13 @@ impl<S: State> Service<HttpRequest<HyperBody>> for HttpService<S> {
 
 impl<S: State> HttpService<S> {
     pub fn new(
-        middleware: Arc<dyn Middleware<S>>,
+        endpoint: Arc<dyn for<'a> Endpoint<'a, S>>,
         remote_addr: SocketAddr,
         exec: Executor,
         state: S,
     ) -> Self {
         Self {
-            middleware,
+            endpoint,
             remote_addr,
             exec,
             state,
@@ -278,13 +276,13 @@ impl<S: State> HttpService<S> {
     /// The entry point of middlewares.
     pub async fn serve(self, req: Request) -> Result<Response> {
         let Self {
-            middleware,
+            endpoint,
             remote_addr,
             exec,
             state,
         } = self;
         let mut context = Context::new(req, state, exec, remote_addr);
-        if let Err(err) = middleware.end(&mut context).await {
+        if let Err(err) = endpoint.call(&mut context).await {
             context.resp_mut().status = err.status_code;
             if err.expose && !err.need_throw() {
                 context.resp_mut().write(err.message);
@@ -302,7 +300,7 @@ impl<S: State> HttpService<S> {
 impl<S: State> Clone for HttpService<S> {
     fn clone(&self) -> Self {
         Self {
-            middleware: self.middleware.clone(),
+            endpoint: self.endpoint.clone(),
             state: self.state.clone(),
             exec: self.exec.clone(),
             remote_addr: self.remote_addr,
@@ -313,7 +311,7 @@ impl<S: State> Clone for HttpService<S> {
 impl<S: State> Clone for App<S> {
     fn clone(&self) -> Self {
         Self {
-            middleware: self.middleware.clone(),
+            endpoint: self.endpoint.clone(),
             state: self.state.clone(),
             exec: self.exec.clone(),
         }
@@ -328,14 +326,12 @@ mod tests {
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let service = App::new(())
-            .gate_fn(|_ctx, next| async move {
-                let inbound = Instant::now();
-                next.await?;
-                println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-                Ok(())
-            })
-            .http_service();
+        let service = App::new((), |_ctx| async move {
+            let inbound = Instant::now();
+            println!("time elapsed: {} ms", inbound.elapsed().as_millis());
+            Ok(())
+        })
+        .http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
         Ok(())

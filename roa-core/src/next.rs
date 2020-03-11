@@ -68,9 +68,3 @@ use std::future::Future;
 ///
 pub trait Next: Future<Output = Result<()>> {}
 impl<T> Next for T where T: Future<Output = Result<()>> {}
-
-/// The last.
-#[inline]
-pub fn last() -> impl Next {
-    async move { Ok(()) }
-}

@@ -1,31 +1,59 @@
-use crate::{async_trait, Context, Middleware, Next, Result};
+use crate::{async_trait, Context, Endpoint, Middleware, Next, Result};
 
-pub trait MiddlewareExt<S>: Middleware<S> {
+pub trait MiddlewareExt<S>: for<'a> Middleware<'a, S> {
     fn chain<M>(self, next: M) -> Chain<Self, M>
     where
         Self: Sized,
-        M: Middleware<S>,
+        M: for<'a> Middleware<'a, S>,
+    {
+        Chain(self, next)
+    }
+
+    fn end<E>(self, next: E) -> Chain<Self, E>
+    where
+        Self: Sized,
+        E: for<'a> Endpoint<'a, S>,
     {
         Chain(self, next)
     }
 }
 
-impl<S, T> MiddlewareExt<S> for T where T: Middleware<S> {}
+impl<S, T> MiddlewareExt<S> for T where T: for<'a> Middleware<'a, S> {}
 
 /// A middleware composing and executing other middlewares in a stack-like manner.
 pub struct Chain<T, U>(T, U);
 
 #[async_trait(?Send)]
-impl<S, T, U> Middleware<S> for Chain<T, U>
+impl<'a, S, T, U> Middleware<'a, S> for Chain<T, U>
 where
-    T: Middleware<S>,
-    U: Middleware<S>,
+    S: 'a,
+    T: for<'b> Middleware<'b, S>,
+    U: for<'c> Middleware<'c, S>,
 {
     #[inline]
-    async fn handle(&self, ctx: &mut Context<S>, next: &mut dyn Next) -> Result {
+    async fn handle(
+        &'a self,
+        ctx: &'a mut Context<S>,
+        next: &'a mut dyn Next,
+    ) -> Result {
         let ptr = ctx as *mut Context<S>;
         let mut next = self.1.handle(unsafe { &mut *ptr }, next);
-        self.1.handle(ctx, &mut next).await
+        self.0.handle(ctx, &mut next).await
+    }
+}
+
+#[async_trait(?Send)]
+impl<'a, S, T, U> Endpoint<'a, S> for Chain<T, U>
+where
+    S: 'a,
+    T: for<'b> Middleware<'b, S>,
+    U: for<'c> Endpoint<'c, S>,
+{
+    #[inline]
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
+        let ptr = ctx as *mut Context<S>;
+        let mut next = self.1.call(unsafe { &mut *ptr });
+        self.0.handle(ctx, &mut next).await
     }
 }
 

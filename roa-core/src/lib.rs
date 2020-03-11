@@ -137,7 +137,7 @@ pub use context::{Context, SyncContext, Variable};
 pub use err::{Error, ErrorKind, Result, ResultFuture};
 
 #[doc(inline)]
-pub use middleware::Middleware;
+pub use middleware::{Endpoint, Middleware};
 
 #[doc(inline)]
 pub use group::{Chain, MiddlewareExt};
@@ -145,7 +145,7 @@ pub use group::{Chain, MiddlewareExt};
 pub use state::State;
 
 #[doc(inline)]
-pub use next::{last, Next};
+pub use next::Next;
 
 #[doc(inline)]
 pub use request::Request;

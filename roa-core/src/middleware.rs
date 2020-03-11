@@ -1,5 +1,6 @@
-use crate::{async_trait, last, Context, Next, Result, State};
+use crate::{async_trait, Context, Next, Result, State};
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 /// ### Middleware
@@ -108,27 +109,34 @@ use std::sync::Arc;
 /// is_middleware(Logger);
 /// ```
 #[async_trait(?Send)]
-pub trait Middleware<S>: 'static + Sync + Send {
+pub trait Middleware<'a, S: 'a>: 'static + Sync + Send {
     /// Handle context and next, then return a future to get status.
-    async fn handle(&self, ctx: &mut Context<S>, next: &mut dyn Next) -> Result;
-
-    /// Handle context as an endpoint.
-    #[inline]
-    async fn end(&self, ctx: &mut Context<S>) -> Result {
-        self.handle(ctx, &mut last()).await
-    }
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: &'a mut dyn Next)
+        -> Result;
 }
 
-// #[async_trait(?Send)]
-// impl<'a, S, F> Middleware<S> for fn(&'a mut Context<S>, &'a mut dyn Next) -> F
-// where
-//     F: 'a + Future<Output = Result>,
-// {
-//     #[inline]
-//     async fn handle(&self, ctx: &mut Context<S>, next: &mut dyn Next) -> Result {
-//         (self)(ctx, next).await
-//     }
-// }
+#[async_trait(?Send)]
+pub trait Endpoint<'a, S: 'a>: 'static + Sync + Send {
+    #[inline]
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result;
+}
+
+#[async_trait(?Send)]
+impl<'a, S, T, F> Middleware<'a, S> for T
+where
+    S: 'a,
+    T: 'static + Send + Sync + Fn(&'a mut Context<S>, &'a mut dyn Next) -> F,
+    F: 'a + Future<Output = Result>,
+{
+    #[inline]
+    async fn handle(
+        &'a self,
+        ctx: &'a mut Context<S>,
+        next: &'a mut dyn Next,
+    ) -> Result {
+        (self)(ctx, next).await
+    }
+}
 
 // impl<'a, S, F> Middleware<S> for fn(&'a mut Context<S>, &'a mut dyn Next) -> F
 // where
@@ -144,35 +152,42 @@ pub trait Middleware<S>: 'static + Sync + Send {
 //         'life0: 'async_trait,
 //         'life1: 'async_trait,
 //         'life2: 'async_trait,
+//         'a: 'async_trait,
 //         Self: 'async_trait,
 //     {
-//         #[allow(
-//             clippy::missing_docs_in_private_items,
-//             clippy::type_repetition_in_bounds,
-//             clippy::used_underscore_binding
-//         )]
-//         async fn __handle<'a, S, F>(
-//             _self: &fn(&'a mut Context<S>, &'a mut dyn Next) -> F,
-//             ctx: &mut Context<S>,
-//             next: &mut dyn Next,
-//         ) -> Result
-//         where
-//             (): Sized,
-//             F: 'a + Future<Output = Result>,
-//         {
-//             (_self)(ctx, next).await
-//         }
-//         Box::pin(__handle::<S, F>(self, ctx, next))
+//         Box::pin((self)(ctx, next))
 //     }
 // }
 
-// #[async_trait(?Send)]
+#[async_trait(?Send)]
+impl<'a, S, T, F> Endpoint<'a, S> for T
+where
+    S: 'a,
+    T: 'static + Send + Sync + Fn(&'a mut Context<S>) -> F,
+    F: 'a + Future<Output = Result>,
+{
+    #[inline]
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
+        (self)(ctx).await
+    }
+}
+
 // impl<'a, S, F> Middleware<S> for fn(&'a mut Context<S>) -> F
 // where
 //     F: 'a + Future<Output = Result>,
 // {
 //     #[inline]
-//     async fn handle(&self, ctx: &mut Context<S>, _next: &mut dyn Next) -> Result {
-//         (self)(ctx).await
+//     fn handle<'life0, 'life1, 'life2, 'async_trait>(
+//         &'life0 self,
+//         ctx: &'life1 mut Context<S>,
+//         _next: &'life2 mut dyn Next,
+//     ) -> ::core::pin::Pin<Box<dyn ::core::future::Future<Output = Result> + 'async_trait>>
+//     where
+//         'life0: 'async_trait,
+//         'life1: 'async_trait,
+//         'life2: 'async_trait,
+//         Self: 'async_trait,
+//     {
+//         Box::pin(self(ctx))
 //     }
 // }
