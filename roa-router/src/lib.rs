@@ -4,28 +4,41 @@
 //! ### Example
 //!
 //! ```rust
-//! use roa_router::{Router, RouterParam};
-//! use roa_core::App;
-//! use roa_core::http::StatusCode;
+//! use roa_router::{Router, RouterParam, get, allow};
+//! use roa_core::{App, Context, Error, MiddlewareExt, Next};
+//! use roa_core::http::{StatusCode, Method};
 //! use roa_tcp::Listener;
 //! use async_std::task::spawn;
 //!
-//! #[tokio::test]
-//! async fn gate() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut router = Router::<()>::new();
-//!     router
-//!         .gate_fn(|_ctx, next| next)
-//!         .get("/", |_ctx| async move {
-//!             Ok(())
-//!         });
-//!     let mut app = App::new(());
-//!     app.gate(router.routes("/route")?);
+//!
+//! async fn gate(_ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {
+//!     next.await
+//! }
+//!
+//! async fn query(ctx: &mut Context<()>) -> Result<(), Error> {
+//!     Ok(())
+//! }
+//!
+//! async fn create(ctx: &mut Context<()>) -> Result<(), Error> {
+//!     Ok(())
+//! }
+//!
+//! async fn graphql(ctx: &mut Context<()>) -> Result<(), Error> {
+//!     Ok(())
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let router = Router::gate(gate)
+//!         .on("/restful", get(query).post(create))
+//!         .on("/graphql", allow([Method::GET, Method::POST], graphql));
+//!     let app = App::new((), router.routes("/api")?);
 //!     let (addr, server) = app.run()?;
 //!     spawn(server);
-//!     let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
+//!     let resp = reqwest::get(&format!("http://{}/api/restful", addr)).await?;
 //!     assert_eq!(StatusCode::OK, resp.status());
 //!
-//!     let resp = reqwest::get(&format!("http://{}/endpoint", addr)).await?;
+//!     let resp = reqwest::get(&format!("http://{}/restful", addr)).await?;
 //!     assert_eq!(StatusCode::NOT_FOUND, resp.status());
 //!     Ok(())
 //! }
@@ -68,21 +81,21 @@ struct RouterScope;
 ///
 /// ```rust
 /// use roa_router::{Router, RouterParam};
-/// use roa_core::App;
+/// use roa_core::{App, Context, Error};
 /// use roa_core::http::StatusCode;
 /// use roa_tcp::Listener;
 /// use async_std::task::spawn;
 ///
+/// async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+///     let id: u64 = ctx.must_param("id")?.parse()?;
+///     assert_eq!(0, id);
+///     Ok(())
+/// }
+///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let mut router = Router::<()>::new();
-///     router.get("/:id", |ctx| async move {
-///         let id: u64 = ctx.must_param("id")?.parse()?;
-///         assert_eq!(0, id);
-///         Ok(())
-///     });
-///     let mut app = App::new(());
-///     app.gate(router.routes("/user")?);
+///     let router = Router::new().on("/:id", test);
+///     let app = App::new((), router.routes("user")?);
 ///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
@@ -101,20 +114,20 @@ pub trait RouterParam {
     ///
     /// ```rust
     /// use roa_router::{Router, RouterParam};
-    /// use roa_core::App;
+    /// use roa_core::{App, Context, Error};
     /// use roa_core::http::StatusCode;
     /// use roa_tcp::Listener;
     /// use async_std::task::spawn;
     ///
+    /// async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+    ///     assert!(ctx.param("name").is_none());
+    ///     Ok(())
+    /// }
+    ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let mut router = Router::<()>::new();
-    ///     router.get("/:id", |ctx| async move {
-    ///         assert!(ctx.param("name").is_none());
-    ///         Ok(())
-    ///     });
-    ///     let mut app = App::new(());
-    ///     app.gate(router.routes("/user")?);
+    ///     let router = Router::new().on("/:id", test);
+    ///     let app = App::new((), router.routes("/user")?);
     ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
@@ -128,8 +141,8 @@ pub trait RouterParam {
 }
 
 /// A builder of `RouteTable`.
-pub struct Router<S, M> {
-    middleware: Option<Shared<M>>,
+pub struct Router<S> {
+    middleware: Option<Shared<S>>,
     endpoints: Vec<(String, Boxed<S>)>,
 }
 
@@ -138,13 +151,12 @@ pub struct RouteTable<S> {
     dynamic_route: Vec<(RegexPath, Boxed<S>)>,
 }
 
-impl<S, M> Router<S, M>
+impl<S> Router<S>
 where
     S: 'static,
-    M: for<'a> Middleware<'a, S>,
 {
     /// Construct a new router.
-    pub fn gate(middleware: M) -> Self {
+    pub fn gate(middleware: impl for<'a> Middleware<'a, S>) -> Self {
         Self {
             middleware: Some(middleware.shared()),
             endpoints: Vec::new(),
@@ -177,7 +189,7 @@ where
     }
 
     /// Include another router with prefix, only allowing method in parameter methods.
-    pub fn include(mut self, prefix: &'static str, router: Router<S, M>) -> Self {
+    pub fn include(mut self, prefix: &'static str, router: Router<S>) -> Self {
         for (path, endpoint) in router.endpoints {
             self.endpoints
                 .push((join_path([prefix, path.as_str()]), self.end(endpoint)))
@@ -195,7 +207,10 @@ where
     }
 }
 
-impl<S: 'static> RouteTable<S> {
+impl<S> RouteTable<S>
+where
+    S: 'static,
+{
     fn new() -> Self {
         Self {
             static_route: Trie::new(),
@@ -225,17 +240,19 @@ impl<S: 'static> RouteTable<S> {
     }
 }
 
-impl<S, M> Default for Router<S, M>
+impl<S> Default for Router<S>
 where
     S: 'static,
-    M: for<'a> Middleware<'a, S>,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S: 'static> Default for RouteTable<S> {
+impl<S> Default for RouteTable<S>
+where
+    S: 'static,
+{
     fn default() -> Self {
         Self::new()
     }
@@ -309,24 +326,24 @@ mod tests {
     use encoding::EncoderTrap;
     use percent_encoding::NON_ALPHANUMERIC;
     use roa_core::http::StatusCode;
-    use roa_core::App;
+    use roa_core::{App, Context, Error, MiddlewareExt, Next};
     use roa_tcp::Listener;
 
+    async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {
+        ctx.store("id", "0".to_string());
+        next.await
+    }
+
+    async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+        let id: u64 = ctx.load::<String>("id").unwrap().parse()?;
+        assert_eq!(0, id);
+        Ok(())
+    }
+
     #[tokio::test]
-    async fn gate() -> Result<(), Box<dyn std::error::Error>> {
-        let mut router = Router::<()>::new();
-        router
-            .gate_fn(|mut ctx, next| async move {
-                ctx.store("id", "0".to_string());
-                next.await
-            })
-            .get("/", |ctx| async move {
-                let id: u64 = ctx.load::<String>("id").unwrap().parse()?;
-                assert_eq!(0, id);
-                Ok(())
-            });
-        let mut app = App::new(());
-        app.gate(router.routes("/route")?);
+    async fn gate_test() -> Result<(), Box<dyn std::error::Error>> {
+        let router = Router::gate(gate).on("/", test);
+        let app = App::new((), router.routes("/route")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
@@ -336,21 +353,9 @@ mod tests {
 
     #[tokio::test]
     async fn route() -> Result<(), Box<dyn std::error::Error>> {
-        let mut router = Router::<()>::new();
-        let mut user_router = Router::<()>::new();
-        router.gate_fn(|mut ctx, next| async move {
-            ctx.store("id", "0".to_string());
-            next.await
-        });
-        user_router.get("/", |ctx| async move {
-            let id: u64 = ctx.load::<String>("id").unwrap().parse()?;
-            assert_eq!(0, id);
-            Ok(())
-        });
-        router.include("/user", user_router);
-
-        let mut app = App::new(());
-        app.gate(router.routes("/route")?);
+        let user_router = Router::new().on("/", test);
+        let router = Router::gate(gate).include("/user", user_router);
+        let mut app = App::new((), router.routes("/route")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route/user", addr)).await?;
@@ -360,11 +365,10 @@ mod tests {
 
     #[test]
     fn conflict_path() -> Result<(), Box<dyn std::error::Error>> {
-        let mut router = Router::<()>::new();
-        let mut evil_router = Router::<()>::new();
-        router.get("/route/endpoint", |_ctx| async { Ok(()) });
-        evil_router.get("/endpoint", |_ctx| async { Ok(()) });
-        router.include("/route", evil_router);
+        let evil_router = Router::new().on("/endpoint", test);
+        let router = Router::new()
+            .on("/route/endpoint", test)
+            .include("/route", evil_router);
         let ret = router.routes("/");
         assert!(ret.is_err());
         Ok(())
@@ -372,8 +376,7 @@ mod tests {
 
     #[tokio::test]
     async fn route_not_found() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.gate(Router::default().routes("/")?);
+        let app = App::new((), Router::default().routes("/")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -383,8 +386,7 @@ mod tests {
 
     #[tokio::test]
     async fn non_utf8_uri() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.gate(Router::default().routes("/")?);
+        let app = App::new((), Router::default().routes("/")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let gbk_path = encoding::label::encoding_from_whatwg_label("gbk")

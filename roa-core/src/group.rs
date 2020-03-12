@@ -17,7 +17,7 @@ pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
         Chain(self, next)
     }
 
-    fn shared(self) -> Shared<Self>
+    fn shared(self) -> Shared<S>
     where
         S: 'static,
     {
@@ -40,7 +40,7 @@ impl<S, T> EndpointExt<S> for T where T: for<'a> Endpoint<'a, S> {}
 /// A middleware composing and executing other middlewares in a stack-like manner.
 pub struct Chain<T, U>(T, U);
 
-pub struct Shared<M>(Arc<M>);
+pub struct Shared<S>(Arc<dyn for<'a> Middleware<'a, S>>);
 
 pub struct Boxed<S>(Box<dyn for<'a> Endpoint<'a, S>>);
 
@@ -59,9 +59,9 @@ where
 }
 
 #[async_trait(?Send)]
-impl<'a, S, M> Middleware<'a, S> for Shared<M>
+impl<'a, S> Middleware<'a, S> for Shared<S>
 where
-    M: Middleware<'a, S>,
+    S: 'static,
 {
     #[inline]
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
@@ -69,7 +69,7 @@ where
     }
 }
 
-impl<M> Clone for Shared<M> {
+impl<S> Clone for Shared<S> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
