@@ -17,13 +17,15 @@ pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
         Chain(self, next)
     }
 
-    fn shared(self) -> Shared<S>
+    fn shared(self) -> Shared<Self>
     where
         S: 'static,
     {
         Shared(Arc::new(self))
     }
+}
 
+pub trait EndpointExt<S>: Sized + for<'a> Endpoint<'a, S> {
     fn boxed(self) -> Boxed<S>
     where
         S: 'static,
@@ -33,13 +35,14 @@ pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
 }
 
 impl<S, T> MiddlewareExt<S> for T where T: for<'a> Middleware<'a, S> {}
+impl<S, T> EndpointExt<S> for T where T: for<'a> Endpoint<'a, S> {}
 
 /// A middleware composing and executing other middlewares in a stack-like manner.
 pub struct Chain<T, U>(T, U);
 
-pub struct Shared<S>(Arc<dyn for<'a> Middleware<'a, S>>);
+pub struct Shared<M>(Arc<M>);
 
-pub struct Boxed<S>(Box<dyn for<'a> Middleware<'a, S>>);
+pub struct Boxed<S>(Box<dyn for<'a> Endpoint<'a, S>>);
 
 #[async_trait(?Send)]
 impl<'a, S, T, U> Middleware<'a, S> for Chain<T, U>
@@ -56,9 +59,9 @@ where
 }
 
 #[async_trait(?Send)]
-impl<'a, S> Middleware<'a, S> for Shared<S>
+impl<'a, S, M> Middleware<'a, S> for Shared<M>
 where
-    S: 'static,
+    M: Middleware<'a, S>,
 {
     #[inline]
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
@@ -66,20 +69,20 @@ where
     }
 }
 
-impl<S> Clone for Shared<S> {
+impl<M> Clone for Shared<M> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
 #[async_trait(?Send)]
-impl<'a, S> Middleware<'a, S> for Boxed<S>
+impl<'a, S> Endpoint<'a, S> for Boxed<S>
 where
     S: 'static,
 {
     #[inline]
-    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
-        self.0.handle(ctx, next).await
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
+        self.0.call(ctx).await
     }
 }
 
@@ -90,9 +93,9 @@ where
     T: for<'b> Middleware<'b, S>,
 {
     #[inline]
-    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result {
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
         let ptr = ctx as *mut Context<S>;
-        let mut next = self.1.end(unsafe { &mut *ptr });
+        let mut next = self.1.call(unsafe { &mut *ptr });
         self.0.handle(ctx, &mut next).await
     }
 }
@@ -138,18 +141,23 @@ mod tests {
     #[async_std::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut boxed_middleware = Pusher::new(0, vector.clone()).boxed();
-        for i in 1..100 {
-            boxed_middleware = boxed_middleware
-                .chain(Pusher::new(i, vector.clone()))
-                .boxed()
-        }
-        let service = App::new((), boxed_middleware.end(end)).http_service();
+        let mut endpoint = Pusher::new(0, vector.clone())
+            .chain(Pusher::new(1, vector.clone()))
+            .chain(Pusher::new(2, vector.clone()))
+            .chain(Pusher::new(3, vector.clone()))
+            .chain(Pusher::new(4, vector.clone()))
+            .chain(Pusher::new(5, vector.clone()))
+            .chain(Pusher::new(6, vector.clone()))
+            .chain(Pusher::new(7, vector.clone()))
+            .chain(Pusher::new(8, vector.clone()))
+            .chain(Pusher::new(9, vector.clone()))
+            .end(end);
+        let service = App::new((), endpoint).http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
-        for i in 0..100 {
+        for i in 0..10 {
             assert_eq!(i, vector.lock().await[i]);
-            assert_eq!(i, vector.lock().await[199 - i]);
+            assert_eq!(i, vector.lock().await[19 - i]);
         }
         Ok(())
     }

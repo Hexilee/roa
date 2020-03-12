@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 
     let mut app = App::new(());
     app.gate(logger);
-    app.end(|mut ctx| async move {
+    app.call(|mut ctx| async move {
         ctx.write_file("assets/welcome.html", DispositionType::Inline)
             .await
     });

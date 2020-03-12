@@ -26,7 +26,7 @@
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let mut app = App::new(());
-//!     app.end(|mut ctx| async move {
+//!     app.call(|mut ctx| async move {
 //!         ctx.write_text("Hello, World")
 //!     });
 //!     app.listen("127.0.0.1:8000", |addr| {
@@ -76,7 +76,7 @@
 //!     });
 //!
 //!     // response
-//!     app.end(|mut ctx| async move {
+//!     app.call(|mut ctx| async move {
 //!         ctx.write_text("Hello, World")
 //!     });
 //!
@@ -107,7 +107,7 @@
 //!         if let Err(err) = next.await {
 //!             // teapot is ok
 //!             if err.status_code != StatusCode::IM_A_TEAPOT {
-//!                 return Err(err)
+//!                 return Err(err);
 //!             }
 //!         }
 //!         Ok(())
@@ -199,7 +199,7 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut app = App::new(());
 //!     app.gate(query_parser);
-//!     app.end( |ctx| async move {
+//!     app.call( |ctx| async move {
 //!         let id: u64 = ctx.must_query("id")?.parse()?;
 //!         Ok(())
 //!     });

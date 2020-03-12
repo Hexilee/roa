@@ -48,8 +48,8 @@ use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
 use roa_core::http::{Method, StatusCode};
 use roa_core::{
-    async_trait, throw, Context, Endpoint, Error, Middleware, MiddlewareExt, Next,
-    Result, Shared, Variable,
+    async_trait, throw, Boxed, Context, Endpoint, EndpointExt, Error, Middleware,
+    MiddlewareExt, Next, Result, Shared, Variable,
 };
 use std::collections::HashMap;
 use std::convert::AsRef;
@@ -128,22 +128,23 @@ pub trait RouterParam {
 }
 
 /// A builder of `RouteTable`.
-pub struct Router<S> {
-    middleware: Option<Shared<S>>,
-    endpoints: Vec<(String, Box<dyn for<'a> Endpoint<'a, S>>)>,
+pub struct Router<S, M> {
+    middleware: Option<Shared<M>>,
+    endpoints: Vec<(String, Boxed<S>)>,
 }
 
-struct RouteTable<S> {
-    static_route: Trie<String, Box<dyn for<'a> Endpoint<'a, S>>>,
-    dynamic_route: Vec<(RegexPath, Box<dyn for<'a> Endpoint<'a, S>>)>,
+pub struct RouteTable<S> {
+    static_route: Trie<String, Boxed<S>>,
+    dynamic_route: Vec<(RegexPath, Boxed<S>)>,
 }
 
-impl<S: 'static> Router<S> {
+impl<S, M> Router<S, M>
+where
+    S: 'static,
+    M: for<'a> Middleware<'a, S>,
+{
     /// Construct a new router.
-    pub fn gate(middleware: impl for<'a> Middleware<'a, S>) -> Self
-    where
-        S: 'static,
-    {
+    pub fn gate(middleware: M) -> Self {
         Self {
             middleware: Some(middleware.shared()),
             endpoints: Vec::new(),
@@ -158,32 +159,28 @@ impl<S: 'static> Router<S> {
         }
     }
 
+    fn end(&self, endpoint: impl for<'a> Endpoint<'a, S>) -> Boxed<S> {
+        match self.middleware.as_ref() {
+            Some(middleware) => middleware.clone().end(endpoint).boxed(),
+            None => endpoint.boxed(),
+        }
+    }
+
     /// Register a new endpoint.
     pub fn on(
         mut self,
         path: &'static str,
         endpoint: impl for<'a> Endpoint<'a, S>,
     ) -> Self {
-        self.endpoints.push((
-            path.to_string(),
-            match self.middleware.as_ref() {
-                Some(middleware) => Box::new(middleware.clone().chain(endpoint)),
-                None => Box::new(endpoint),
-            },
-        ));
+        self.endpoints.push((path.to_string(), self.end(endpoint)));
         self
     }
 
     /// Include another router with prefix, only allowing method in parameter methods.
-    pub fn include(mut self, prefix: &'static str, router: Router<S>) -> Self {
+    pub fn include(mut self, prefix: &'static str, router: Router<S, M>) -> Self {
         for (path, endpoint) in router.endpoints {
-            self.endpoints.push((
-                join_path([prefix, path.as_str()]),
-                match self.middleware.as_ref() {
-                    Some(middleware) => Box::new(middleware.clone().chain(endpoint)),
-                    None => Box::new(endpoint),
-                },
-            ))
+            self.endpoints
+                .push((join_path([prefix, path.as_str()]), self.end(endpoint)))
         }
         self
     }
@@ -210,7 +207,7 @@ impl<S: 'static> RouteTable<S> {
     fn insert(
         &mut self,
         raw_path: impl AsRef<str>,
-        endpoint: Box<dyn for<'a> Endpoint<'a, S>>,
+        endpoint: Boxed<S>,
     ) -> StdResult<(), RouterError> {
         match raw_path.as_ref().parse()? {
             Path::Static(path) => {
@@ -228,7 +225,11 @@ impl<S: 'static> RouteTable<S> {
     }
 }
 
-impl<S: 'static> Default for Router<S> {
+impl<S, M> Default for Router<S, M>
+where
+    S: 'static,
+    M: for<'a> Middleware<'a, S>,
+{
     fn default() -> Self {
         Self::new()
     }
@@ -246,7 +247,7 @@ where
     S: 'static,
 {
     #[inline]
-    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result {
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
         let uri = ctx.uri();
         // standardize path
         let path =
@@ -265,17 +266,17 @@ where
             )?);
 
         // search static routes
-        if let Some(handler) = self.static_route.get(&path) {
-            return handler.end(ctx).await;
+        if let Some(end) = self.static_route.get(&path) {
+            return end.call(ctx).await;
         }
 
         // search dynamic routes
-        for (regexp_path, handler) in self.dynamic_route.iter() {
+        for (regexp_path, end) in self.dynamic_route.iter() {
             if let Some(cap) = regexp_path.re.captures(&path) {
                 for var in regexp_path.vars.iter() {
                     ctx.store_scoped(RouterScope, var, cap[var.as_str()].to_string());
                 }
-                return handler.end(ctx).await;
+                return end.call(ctx).await;
             }
         }
 

@@ -142,7 +142,7 @@ pub use err::{Error, ErrorKind, Result, ResultFuture};
 pub use middleware::{Endpoint, Middleware, Next};
 
 #[doc(inline)]
-pub use group::{Boxed, Chain, MiddlewareExt, Shared};
+pub use group::{Boxed, Chain, EndpointExt, MiddlewareExt, Shared};
 
 pub use state::State;
 

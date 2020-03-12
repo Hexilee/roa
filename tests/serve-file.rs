@@ -10,7 +10,7 @@ use roa::App;
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App::new(());
-    app.end(|mut ctx| async move {
+    app.call(|mut ctx| async move {
         ctx.write_file("assets/author.txt", DispositionType::Inline)
             .await
     });

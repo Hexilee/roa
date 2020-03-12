@@ -325,7 +325,7 @@ mod tests {
         config.set_single_cert(cert_chain, keys.remove(0))?;
 
         let mut app = App::new(());
-        app.end(|mut ctx| async move {
+        app.call(|mut ctx| async move {
             ctx.resp_mut().write("Hello, World!");
             Ok(())
         });

@@ -113,7 +113,7 @@ where
 ///
 /// #[async_trait(?Send)]
 /// impl <'a> Endpoint<'a, ()> for Logger {
-///     async fn end(&'a self, ctx: &'a mut Context<()>) -> Result {
+///     async fn call(&'a self, ctx: &'a mut Context<()>) -> Result {
 ///         Ok(())
 ///     }
 /// }
@@ -123,7 +123,7 @@ where
 #[async_trait(?Send)]
 pub trait Endpoint<'a, S>: 'static + Sync + Send {
     #[inline]
-    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result;
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result;
 }
 
 #[async_trait(?Send)]
@@ -134,7 +134,7 @@ where
     F: 'a + Future<Output = Result>,
 {
     #[inline]
-    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result {
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
         (self)(ctx).await
     }
 }

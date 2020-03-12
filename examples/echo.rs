@@ -7,7 +7,7 @@ use std::error::Error as StdError;
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let mut app = App::new(());
-    app.end(|mut ctx| async move {
+    app.call(|mut ctx| async move {
         let stream = ctx.req_mut().stream();
         ctx.resp_mut().write_stream(stream);
         Ok(())

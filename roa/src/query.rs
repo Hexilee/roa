@@ -14,7 +14,7 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut app = App::new(());
 //!     app.gate(query_parser);
-//!     app.end(|ctx| async move {
+//!     app.call(|ctx| async move {
 //!         assert_eq!("Hexilee", &*ctx.must_query("name")?);
 //!         Ok(())
 //!     });
@@ -51,7 +51,7 @@ struct QueryScope;
 ///     // downstream of `query_parser`
 ///     let mut app = App::new(());
 ///     app.gate(query_parser);
-///     app.end( |ctx| async move {
+///     app.call( |ctx| async move {
 ///         assert_eq!("Hexilee", &*ctx.must_query("name")?);
 ///         Ok(())
 ///     });
@@ -62,7 +62,7 @@ struct QueryScope;
 ///
 ///     // miss `query_parser`
 ///     let mut app = App::new(());
-///     app.end(|ctx| async move {
+///     app.call(|ctx| async move {
 ///         assert!(ctx.query("name").is_none());
 ///         Ok(())
 ///     });
@@ -89,7 +89,7 @@ pub trait Query {
     ///     // downstream of `query_parser`
     ///     let mut app = App::new(());
     ///     app.gate(query_parser);
-    ///     app.end( |ctx| async move {
+    ///     app.call( |ctx| async move {
     ///         assert_eq!("Hexilee", &*ctx.must_query("name")?);
     ///         Ok(())
     ///     });

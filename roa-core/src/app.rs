@@ -208,7 +208,7 @@ impl<S> HttpService<S> {
             state,
         } = self;
         let mut context = Context::new(req, state, exec, remote_addr);
-        if let Err(err) = endpoint.end(&mut context).await {
+        if let Err(err) = endpoint.call(&mut context).await {
             context.resp.status = err.status_code;
             if err.expose && !err.need_throw() {
                 context.resp.write(err.message);

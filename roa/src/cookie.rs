@@ -80,7 +80,7 @@ struct CookieScope;
 ///
 ///     // miss `cookie_parser`
 ///     app = App::new(());
-///     app.end( |ctx| async move {
+///     app.call( |ctx| async move {
 ///         assert!(ctx.cookie("name").is_none());
 ///         Ok(())
 ///     });
@@ -168,7 +168,7 @@ pub trait CookieSetter {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let mut app = App::new(());
-    ///     app.end( |mut ctx| async move {
+    ///     app.call( |mut ctx| async move {
     ///         ctx.set_cookie(Cookie::new("name", "Hexi Lee"))?;
     ///         Ok(())
     ///     });
@@ -343,7 +343,7 @@ mod tests {
     #[tokio::test]
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
-        app.end(move |mut ctx| async move {
+        app.call(move |mut ctx| async move {
             ctx.set_cookie(Cookie::new("bar baz", "bar baz"))?;
             ctx.set_cookie(Cookie::new("bar foo", "foo baz"))?;
             Ok(())

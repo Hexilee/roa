@@ -15,7 +15,7 @@
 //!     pretty_env_logger::init();
 //!     let mut app = App::new(());
 //!     app.gate(logger);
-//!     app.end(|mut ctx| async move {
+//!     app.call(|mut ctx| async move {
 //!         ctx.write_text("Hello, World!")
 //!     });
 //!     let (addr, server) = app.run()?;
