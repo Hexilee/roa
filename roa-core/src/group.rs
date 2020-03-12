@@ -1,9 +1,19 @@
 use crate::{async_trait, Context, Endpoint, Middleware, Next, Result};
-use async_std::sync::Arc;
 use futures::Future;
+use std::sync::Arc;
 
 pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
-    fn chain<M>(self, next: M) -> Chain<Self, M> {
+    fn chain<M>(self, next: M) -> Chain<Self, M>
+    where
+        M: for<'a> Middleware<'a, S>,
+    {
+        Chain(self, next)
+    }
+
+    fn end<E>(self, next: E) -> Chain<Self, E>
+    where
+        E: for<'a> Endpoint<'a, S>,
+    {
         Chain(self, next)
     }
 
@@ -34,9 +44,8 @@ pub struct Boxed<S>(Box<dyn for<'a> Middleware<'a, S>>);
 #[async_trait(?Send)]
 impl<'a, S, T, U> Middleware<'a, S> for Chain<T, U>
 where
-    S: 'a,
+    U: Middleware<'a, S>,
     T: for<'b> Middleware<'b, S>,
-    U: for<'c> Middleware<'c, S>,
 {
     #[inline]
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
@@ -74,15 +83,11 @@ where
     }
 }
 
-// delegate_middleware!(Shared<S>);
-// delegate_middleware!(Boxed<S>);
-
 #[async_trait(?Send)]
 impl<'a, S, T, U> Endpoint<'a, S> for Chain<T, U>
 where
-    S: 'a,
+    U: Endpoint<'a, S>,
     T: for<'b> Middleware<'b, S>,
-    U: for<'c> Endpoint<'c, S>,
 {
     #[inline]
     async fn end(&'a self, ctx: &'a mut Context<S>) -> Result {
@@ -139,7 +144,7 @@ mod tests {
                 .chain(Pusher::new(i, vector.clone()))
                 .boxed()
         }
-        let service = App::new((), boxed_middleware.chain(end)).http_service();
+        let service = App::new((), boxed_middleware.end(end)).http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
         for i in 0..100 {

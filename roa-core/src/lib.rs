@@ -42,7 +42,7 @@
 //! use std::time::Instant;
 //! use log::info;
 //!
-//! let app = App::new((), gate.chain(end));
+//! let app = App::new((), gate.end(end));
 //!
 //! async fn end(ctx: &mut Context<()>) -> Result {
 //!     ctx.resp.write("Hello, World");
@@ -65,7 +65,7 @@
 //! use roa_core::{App, Context, Result, Error, MiddlewareExt, Next, throw};
 //! use roa_core::http::StatusCode;
 //!         
-//! let mut app = App::new((), catch.chain(gate).chain(end));
+//! let mut app = App::new((), catch.chain(gate).end(end));
 //!
 //! async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 //!     // catch
@@ -142,7 +142,7 @@ pub use err::{Error, ErrorKind, Result, ResultFuture};
 pub use middleware::{Endpoint, Middleware, Next};
 
 #[doc(inline)]
-pub use group::{Chain, MiddlewareExt};
+pub use group::{Boxed, Chain, MiddlewareExt, Shared};
 
 pub use state::State;
 

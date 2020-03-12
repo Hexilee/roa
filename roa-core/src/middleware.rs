@@ -151,7 +151,7 @@ where
 /// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next};
 /// use roa_core::http::StatusCode;
 ///
-/// let mut app = App::new((), first.chain(second).chain(third).chain(end));
+/// let mut app = App::new((), first.chain(second).chain(third).end(end));
 /// async fn first(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     ctx.store("id", "1".to_string());
 ///     next.await?;
@@ -189,7 +189,7 @@ where
 /// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next, throw};
 /// use roa_core::http::StatusCode;
 ///         
-/// let mut app = App::new((), catch.chain(gate).chain(end));
+/// let mut app = App::new((), catch.chain(gate).end(end));
 ///
 /// async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     // catch

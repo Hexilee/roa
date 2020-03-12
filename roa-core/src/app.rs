@@ -28,7 +28,7 @@ pub use stream::AddrStream;
 /// use log::info;
 /// use async_std::fs::File;
 ///
-/// let app = App::new((), gate.chain(end));
+/// let app = App::new((), gate.end(end));
 /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     info!("{} {}", ctx.method(), ctx.uri());
 ///     next.await
@@ -66,7 +66,7 @@ pub use stream::AddrStream;
 ///     }
 /// }
 ///
-/// let app = App::new(State::new(), gate.chain(end));
+/// let app = App::new(State::new(), gate.end(end));
 /// async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result {
 ///     ctx.id = 1;
 ///     next.await

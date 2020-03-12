@@ -26,7 +26,7 @@ struct PublicScope;
 /// use log::info;
 /// use async_std::fs::File;
 ///
-/// let app = App::new((), gate.chain(end));
+/// let app = App::new((), gate.end(end));
 /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     info!("{} {}", ctx.method(), ctx.uri());
 ///     next.await
@@ -279,7 +279,7 @@ impl<S> Context<S> {
     /// struct Scope;
     /// struct AnotherScope;
     ///
-    /// let app = App::new((), gate.chain(end));
+    /// let app = App::new((), gate.end(end));
     /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.store_scoped(Scope, "id", "1".to_string());
     ///     next.await
@@ -320,7 +320,7 @@ impl<S> Context<S> {
     /// ```rust
     /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
     ///
-    /// let app = App::new((), gate.chain(end));
+    /// let app = App::new((), gate.end(end));
     /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.store("id", "1".to_string());
     ///     next.await
@@ -348,7 +348,7 @@ impl<S> Context<S> {
     ///
     /// struct Scope;
     ///
-    /// let app = App::new((), gate.chain(end));
+    /// let app = App::new((), gate.end(end));
     /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.store_scoped(Scope, "id", "1".to_owned());
     ///     next.await
@@ -375,7 +375,7 @@ impl<S> Context<S> {
     /// ```rust
     /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
     ///
-    /// let app = App::new((), gate.chain(end));
+    /// let app = App::new((), gate.end(end));
     /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.store("id", "1".to_string());
     ///     next.await
@@ -458,7 +458,7 @@ mod tests_with_runtime {
             assert_eq!(1, ctx.data);
             Ok(())
         }
-        let service = App::new(State { data: 1 }, gate.chain(test)).http_service();
+        let service = App::new(State { data: 1 }, gate.end(test)).http_service();
         service.serve(Request::default()).await?;
         Ok(())
     }

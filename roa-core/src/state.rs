@@ -13,7 +13,7 @@
 ///     id: u64,
 /// }
 ///
-/// let app = App::new(State { id: 0 }, gate.chain(end));
+/// let app = App::new(State { id: 0 }, gate.end(end));
 /// async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result {
 ///     ctx.id = 1;
 ///     next.await

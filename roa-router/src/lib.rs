@@ -38,6 +38,7 @@ mod endpoints;
 mod err;
 mod path;
 
+pub use endpoints::*;
 pub use err::RouterError;
 
 use err::Conflict;
@@ -47,7 +48,8 @@ use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
 use roa_core::http::{Method, StatusCode};
 use roa_core::{
-    async_trait, throw, Context, Endpoint, Error, Middleware, Next, Result, Variable,
+    async_trait, throw, Context, Endpoint, Error, Middleware, MiddlewareExt, Next,
+    Result, Shared, Variable,
 };
 use std::collections::HashMap;
 use std::convert::AsRef;
@@ -125,10 +127,10 @@ pub trait RouterParam {
     fn param<'a>(&self, name: &'a str) -> Option<Variable<'a, String>>;
 }
 
-/// A builder of `RouteEndpoint`.
-pub struct Router<S, M> {
-    middleware: M,
-    endpoints: Vec<(&'static str, Box<dyn for<'a> Endpoint<'a, S>>)>,
+/// A builder of `RouteTable`.
+pub struct Router<S> {
+    middleware: Option<Shared<S>>,
+    endpoints: Vec<(String, Box<dyn for<'a> Endpoint<'a, S>>)>,
 }
 
 struct RouteTable<S> {
@@ -136,141 +138,67 @@ struct RouteTable<S> {
     dynamic_route: Vec<(RegexPath, Box<dyn for<'a> Endpoint<'a, S>>)>,
 }
 
-impl<S, M> Router<S, M> {
+impl<S: 'static> Router<S> {
     /// Construct a new router.
-    pub fn new(middleware: M) -> Self
+    pub fn gate(middleware: impl for<'a> Middleware<'a, S>) -> Self
     where
-        M: for<'a> Middleware<'a, S>,
+        S: 'static,
     {
         Self {
-            middleware,
+            middleware: Some(middleware.shared()),
+            endpoints: Vec::new(),
+        }
+    }
+
+    /// Construct a new router.
+    pub fn new() -> Self {
+        Self {
+            middleware: None,
             endpoints: Vec::new(),
         }
     }
 
     /// Register a new endpoint.
     pub fn on(
-        &mut self,
+        mut self,
         path: &'static str,
         endpoint: impl for<'a> Endpoint<'a, S>,
-    ) -> &mut Self {
-        self.endpoints.push((path, self.middleware));
+    ) -> Self {
+        self.endpoints.push((
+            path.to_string(),
+            match self.middleware.as_ref() {
+                Some(middleware) => Box::new(middleware.clone().chain(endpoint)),
+                None => Box::new(endpoint),
+            },
+        ));
         self
     }
 
     /// Include another router with prefix, only allowing method in parameter methods.
-    pub fn include_methods(
-        &mut self,
-        prefix: &'static str,
-        methods: impl AsRef<[Method]>,
-        router: Router<S>,
-    ) -> &mut Self {
-        for (method, path, endpoint) in router.on(prefix) {
-            if methods.as_ref().contains(&method) {
-                self.endpoints.push((method, path, endpoint))
-            }
+    pub fn include(mut self, prefix: &'static str, router: Router<S>) -> Self {
+        for (path, endpoint) in router.endpoints {
+            self.endpoints.push((
+                join_path([prefix, path.as_str()]),
+                match self.middleware.as_ref() {
+                    Some(middleware) => Box::new(middleware.clone().chain(endpoint)),
+                    None => Box::new(endpoint),
+                },
+            ))
         }
         self
     }
 
-    // /// Return endpoints with prefix.
-    // fn on(
-    //     &self,
-    //     prefix: &'static str,
-    // ) -> impl '_ + Iterator<Item = (Method, String, Arc<dyn Middleware<S>>)> {
-    //     self.endpoints.iter().map(move |(method, path, endpoint)| {
-    //         let mut middlewares = self.middleware.clone();
-    //         middlewares.push(endpoint.clone());
-    //         let new_endpoint: Arc<dyn Middleware<S>> = Arc::new(join_all(middlewares));
-    //         let new_path = join_path(&vec![prefix, path.as_str()]);
-    //         (method.clone(), new_path, new_endpoint)
-    //     })
-    // }
-
     /// Build RouteEndpoint with path prefix.
-    pub fn routes(
-        self,
-        prefix: &'static str,
-    ) -> StdResult<RouteEndpoint<S>, RouterError> {
-        let mut route_endpoint = RouteEndpoint::default();
-        for (method, raw_path, endpoint) in self.on(prefix) {
-            route_endpoint.insert(method, raw_path, endpoint)?;
+    pub fn routes(self, prefix: &'static str) -> StdResult<RouteTable<S>, RouterError> {
+        let mut route_table = RouteTable::default();
+        for (raw_path, endpoint) in self.endpoints {
+            route_table.insert(join_path([prefix, raw_path.as_str()]), endpoint)?;
         }
-        Ok(route_endpoint)
+        Ok(route_table)
     }
 }
 
-impl<S: State> Default for Router<S> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-macro_rules! impl_http_method {
-    ($end:ident, $($method:expr),*) => {
-        #[allow(missing_docs)]
-        pub fn $end<F>(&mut self, path: &'static str, endpoint: fn(Context<S>) -> F) -> &mut Self
-        where
-            F: 'static + Future<Output = Result>,
-        {
-            self.end(path, [$($method, )*], endpoint)
-        }
-    };
-}
-
-impl<S: State> Router<S> {
-    impl_http_method!(get, Method::GET);
-    impl_http_method!(post, Method::POST);
-    impl_http_method!(put, Method::PUT);
-    impl_http_method!(patch, Method::PATCH);
-    impl_http_method!(options, Method::OPTIONS);
-    impl_http_method!(delete, Method::DELETE);
-    impl_http_method!(head, Method::HEAD);
-    impl_http_method!(trace, Method::TRACE);
-    impl_http_method!(connect, Method::CONNECT);
-    impl_http_method!(
-        all,
-        Method::GET,
-        Method::POST,
-        Method::PUT,
-        Method::PATCH,
-        Method::OPTIONS,
-        Method::DELETE,
-        Method::HEAD,
-        Method::TRACE,
-        Method::CONNECT
-    );
-}
-
-impl<S: State> Default for RouteEndpoint<S> {
-    fn default() -> Self {
-        let mut map = HashMap::new();
-        for method in ALL_METHODS.as_ref() {
-            map.insert(method.clone(), RouteTable::new());
-        }
-        Self(map)
-    }
-}
-
-impl<S: State> RouteEndpoint<S> {
-    /// Insert endpoint to route table by method.
-    fn insert(
-        &mut self,
-        method: Method,
-        raw_path: impl AsRef<str>,
-        endpoint: Arc<dyn Middleware<S>>,
-    ) -> StdResult<(), RouterError> {
-        match self.0.get_mut(&method) {
-            Some(route_table) => route_table.insert(raw_path, endpoint),
-            None => {
-                self.0.insert(method.clone(), RouteTable::new());
-                self.insert(method, raw_path, endpoint)
-            }
-        }
-    }
-}
-
-impl<S: State> RouteTable<S> {
+impl<S: 'static> RouteTable<S> {
     fn new() -> Self {
         Self {
             static_route: Trie::new(),
@@ -282,7 +210,7 @@ impl<S: State> RouteTable<S> {
     fn insert(
         &mut self,
         raw_path: impl AsRef<str>,
-        endpoint: Arc<dyn Middleware<S>>,
+        endpoint: Box<dyn for<'a> Endpoint<'a, S>>,
     ) -> StdResult<(), RouterError> {
         match raw_path.as_ref().parse()? {
             Path::Static(path) => {
@@ -298,10 +226,27 @@ impl<S: State> RouteTable<S> {
         }
         Ok(())
     }
+}
 
-    /// Handle request.
+impl<S: 'static> Default for Router<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<S: 'static> Default for RouteTable<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait(?Send)]
+impl<'a, S> Endpoint<'a, S> for RouteTable<S>
+where
+    S: 'static,
+{
     #[inline]
-    async fn end(&self, mut ctx: Context<S>) -> Result {
+    async fn end(&'a self, ctx: &'a mut Context<S>) -> Result {
         let uri = ctx.uri();
         // standardize path
         let path =
@@ -321,7 +266,7 @@ impl<S: State> RouteTable<S> {
 
         // search static routes
         if let Some(handler) = self.static_route.get(&path) {
-            return handler.clone().end(ctx).await;
+            return handler.end(ctx).await;
         }
 
         // search dynamic routes
@@ -330,7 +275,7 @@ impl<S: State> RouteTable<S> {
                 for var in regexp_path.vars.iter() {
                     ctx.store_scoped(RouterScope, var, cap[var.as_str()].to_string());
                 }
-                return handler.clone().end(ctx).await;
+                return handler.end(ctx).await;
             }
         }
 
@@ -339,21 +284,7 @@ impl<S: State> RouteTable<S> {
     }
 }
 
-#[async_trait(?Send)]
-impl<S: State> Middleware<S> for RouteEndpoint<S> {
-    #[inline]
-    async fn handle(self: Arc<Self>, ctx: Context<S>, _next: Next) -> Result {
-        match self.0.get(&ctx.method()) {
-            None => throw!(
-                StatusCode::METHOD_NOT_ALLOWED,
-                format!("method {} is not allowed", &ctx.method())
-            ),
-            Some(handler) => handler.end(ctx).await,
-        }
-    }
-}
-
-impl<S: State> RouterParam for Context<S> {
+impl<S> RouterParam for Context<S> {
     #[inline]
     fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.param(name).ok_or_else(|| {
