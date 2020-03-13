@@ -23,22 +23,19 @@ pub trait Listener {
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
+    /// use roa_core::{App, Context, Error};
     /// use roa_tcp::Listener;
     /// use roa_core::http::StatusCode;
     /// use async_std::task::spawn;
     /// use std::time::Instant;
     ///
+    /// async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+    ///     Ok(())
+    /// }
+    ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let mut app = App::new(());
-    ///     app.gate_fn(|_ctx, next| async move {
-    ///         let inbound = Instant::now();
-    ///         next.await?;
-    ///         println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-    ///         Ok(())
-    ///     });
-    ///     let (addr, server) = app.run()?;
+    ///     let (addr, server) = App::new((), end).run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
