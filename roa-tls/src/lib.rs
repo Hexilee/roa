@@ -3,12 +3,16 @@
 //! ### TlsIncoming
 //!
 //! ```rust
-//! use roa_core::App;
+//! use roa_core::{App, Context, Error};
 //! use roa_tls::TlsIncoming;
 //! use roa_tls::rustls::{ServerConfig, NoClientAuth};
 //! use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
 //! use std::fs::File;
 //! use std::io::BufReader;
+//!
+//! async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+//!     Ok(())
+//! }
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut config = ServerConfig::new(NoClientAuth::new());
@@ -19,7 +23,7 @@
 //! config.set_single_cert(cert_chain, keys.remove(0))?;
 //!
 //! let incoming = TlsIncoming::bind("127.0.0.1:0", config)?;
-//! let server = App::new(()).accept(incoming);
+//! let server = App::new((), end).accept(incoming);
 //! // server.await
 //! Ok(())
 //! # }
@@ -28,12 +32,16 @@
 //! ### TlsListener
 //!
 //! ```rust
-//! use roa_core::App;
+//! use roa_core::{App, Context, Error};
 //! use roa_tls::TlsListener;
 //! use roa_tls::rustls::{ServerConfig, NoClientAuth};
 //! use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
 //! use std::fs::File;
 //! use std::io::BufReader;
+//!
+//! async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+//!     Ok(())
+//! }
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut config = ServerConfig::new(NoClientAuth::new());
@@ -42,7 +50,7 @@
 //! let cert_chain = certs(&mut cert_file).unwrap();
 //! let mut keys = rsa_private_keys(&mut key_file).unwrap();
 //! config.set_single_cert(cert_chain, keys.remove(0))?;
-//! let (addr, server) = App::new(()).bind_tls("127.0.0.1:0", config)?;
+//! let (addr, server) = App::new((), end).bind_tls("127.0.0.1:0", config)?;
 //! // server.await
 //! Ok(())
 //! # }
@@ -212,14 +220,14 @@ pub trait TlsListener {
 
     /// Listen on a socket addr, return a server and the real addr it binds.
     fn bind_tls(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 
     /// Listen on a socket addr, return a server, and pass real addr to the callback.
     fn listen_tls(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
         callback: impl Fn(SocketAddr),
@@ -228,7 +236,7 @@ pub trait TlsListener {
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
     /// ```rust
-    /// use roa_core::App;
+    /// use roa_core::{App, Context, Error};
     /// use roa_tls::TlsListener;
     /// use roa_tls::rustls::{ServerConfig, NoClientAuth};
     /// use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
@@ -238,6 +246,10 @@ pub trait TlsListener {
     /// use std::fs::File;
     /// use std::io::BufReader;
     ///
+    /// async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+    ///     Ok(())
+    /// }
+    ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut config = ServerConfig::new(NoClientAuth::new());
     /// let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
@@ -246,14 +258,7 @@ pub trait TlsListener {
     /// let mut keys = rsa_private_keys(&mut key_file).unwrap();
     /// config.set_single_cert(cert_chain, keys.remove(0))?;
     ///
-    /// let mut app = App::new(());
-    /// app.gate_fn(|_ctx, next| async move {
-    ///     let inbound = Instant::now();
-    ///     next.await?;
-    ///     println!("time elapsed: {} ms", inbound.elapsed().as_millis());
-    ///     Ok(())
-    /// });
-    /// let server = app.listen_tls("127.0.0.1:8000", config, |addr| {
+    /// let server = App::new((), end).listen_tls("127.0.0.1:8000", config, |addr| {
     ///     println!("Server is listening on https://localhost:{}", addr.port());
     /// })?;
     /// // server.await
@@ -261,7 +266,7 @@ pub trait TlsListener {
     /// # }
     /// ```
     fn run_tls(
-        &self,
+        self,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
@@ -269,7 +274,7 @@ pub trait TlsListener {
 impl<S: State> TlsListener for App<S> {
     type Server = Server<TlsIncoming, Self, Executor>;
     fn bind_tls(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
@@ -279,7 +284,7 @@ impl<S: State> TlsListener for App<S> {
     }
 
     fn listen_tls(
-        &self,
+        self,
         addr: impl ToSocketAddrs,
         config: ServerConfig,
         callback: impl Fn(SocketAddr),
@@ -290,7 +295,7 @@ impl<S: State> TlsListener for App<S> {
     }
 
     fn run_tls(
-        &self,
+        self,
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)> {
         self.bind_tls("127.0.0.1:0", config)
@@ -306,7 +311,7 @@ mod tests {
     use hyper_tls::native_tls;
     use hyper_tls::HttpsConnector;
     use roa_core::http::StatusCode;
-    use roa_core::App;
+    use roa_core::{App, Context, Error};
 
     use futures::{AsyncReadExt, TryStreamExt};
     use rustls::internal::pemfile::{certs, rsa_private_keys};
@@ -314,6 +319,11 @@ mod tests {
     use std::fs::File;
     use std::io::{self, BufReader};
     use tokio_tls::TlsConnector;
+
+    async fn end(ctx: &mut Context<()>) -> Result<(), Error> {
+        ctx.resp.write("Hello, World!");
+        Ok(())
+    }
 
     #[tokio::test]
     async fn run_tls() -> Result<(), Box<dyn std::error::Error>> {
@@ -324,11 +334,7 @@ mod tests {
         let mut keys = rsa_private_keys(&mut key_file).unwrap();
         config.set_single_cert(cert_chain, keys.remove(0))?;
 
-        let mut app = App::new(());
-        app.call(|mut ctx| async move {
-            ctx.resp_mut().write("Hello, World!");
-            Ok(())
-        });
+        let app = App::new((), end);
         let (addr, server) = app.run_tls(config)?;
         spawn(server);
 
