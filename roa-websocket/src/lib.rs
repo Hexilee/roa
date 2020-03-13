@@ -5,24 +5,18 @@
 //! use futures::StreamExt;
 //! use roa_router::{Router, RouterError};
 //! use roa_websocket::Websocket;
-//! use roa_core::{App, SyncContext};
+//! use roa_core::{App, Context};
 //! use roa_core::http::Method;
 //!
 //! # fn main() -> Result<(), RouterError> {
-//! let mut app = App::new(());
-//! let mut router = Router::new();
-//! router.end(
-//!     "/chat",
-//!     [Method::GET],
-//!     Websocket::new(|_ctx: SyncContext<()>, stream| async move {
-//!         let (write, read) = stream.split();
-//!         // echo
-//!         if let Err(err) = read.forward(write).await {
-//!             println!("forward err: {}", err);
-//!         }
-//!     }),
-//! );
-//! app.gate(router.routes("/")?);
+//! let router = Router::new().on("/chat", Websocket::new(|_ctx: Context<()>, stream| async move {
+//!     let (write, read) = stream.split();
+//!     // echo
+//!     if let Err(err) = read.forward(write).await {
+//!         println!("forward err: {}", err);
+//!     }
+//! }));
+//! let app = App::new((), router.routes("/")?);
 //! Ok(())
 //! # }
 //! ```
@@ -35,9 +29,7 @@ use headers::{
 use hyper::upgrade::Upgraded;
 use roa_core::http::header::UPGRADE;
 use roa_core::http::StatusCode;
-use roa_core::{
-    async_trait, throw, Context, Error, Middleware, Next, State, SyncContext,
-};
+use roa_core::{async_trait, throw, Context, Endpoint, Error, State};
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -57,30 +49,24 @@ pub type SocketStream = WebSocketStream<Upgraded>;
 /// use futures::StreamExt;
 /// use roa_router::{Router, RouterError};
 /// use roa_websocket::Websocket;
-/// use roa_core::{App, SyncContext};
+/// use roa_core::{App, Context};
 /// use roa_core::http::Method;
 ///
 /// # fn main() -> Result<(), RouterError> {
-/// let mut app = App::new(());
-/// let mut router = Router::new();
-/// router.end(
-///     "/chat",
-///     [Method::GET],
-///     Websocket::new(|_ctx: SyncContext<()>, stream| async move {
-///         let (write, read) = stream.split();
-///         // echo
-///         if let Err(err) = read.forward(write).await {
-///             println!("forward err: {}", err);
-///         }
-///     }),
-/// );
-/// app.gate(router.routes("/")?);
-/// # Ok(())
+/// let router = Router::new().on("/chat", Websocket::new(|_ctx: Context<()>, stream| async move {
+///     let (write, read) = stream.split();
+///     // echo
+///     if let Err(err) = read.forward(write).await {
+///         println!("forward err: {}", err);
+///     }
+/// }));
+/// let app = App::new((), router.routes("/")?);
+/// Ok(())
 /// # }
 /// ```
 pub struct Websocket<F, S, Fut>
 where
-    F: Fn(SyncContext<S>, SocketStream) -> Fut,
+    F: Fn(Context<S>, SocketStream) -> Fut,
 {
     task: Arc<F>,
     config: Option<WebSocketConfig>,
@@ -89,17 +75,17 @@ where
 }
 
 unsafe impl<F, S, Fut> Send for Websocket<F, S, Fut> where
-    F: Sync + Send + Fn(SyncContext<S>, SocketStream) -> Fut
+    F: Sync + Send + Fn(Context<S>, SocketStream) -> Fut
 {
 }
 unsafe impl<F, S, Fut> Sync for Websocket<F, S, Fut> where
-    F: Sync + Send + Fn(SyncContext<S>, SocketStream) -> Fut
+    F: Sync + Send + Fn(Context<S>, SocketStream) -> Fut
 {
 }
 
 impl<F, S, Fut> Websocket<F, S, Fut>
 where
-    F: Fn(SyncContext<S>, SocketStream) -> Fut,
+    F: Fn(Context<S>, SocketStream) -> Fut,
 {
     fn config(config: Option<WebSocketConfig>, task: F) -> Self {
         Self {
@@ -121,27 +107,21 @@ where
     /// use futures::StreamExt;
     /// use roa_router::{Router, RouterError};
     /// use roa_websocket::{Websocket, WebSocketConfig};
-    /// use roa_core::{App, SyncContext};
+    /// use roa_core::{App, Context};
     /// use roa_core::http::Method;
     ///
     /// # fn main() -> Result<(), RouterError> {
-    /// let mut app = App::new(());
-    /// let mut router = Router::new();
-    /// router.end(
-    ///     "/chat",
-    ///     [Method::GET],
-    ///     Websocket::with_config(
-    ///         WebSocketConfig::default(),
-    ///         |_ctx: SyncContext<()>, stream| async move {
-    ///             let (write, read) = stream.split();
-    ///             // echo
-    ///             if let Err(err) = read.forward(write).await {
-    ///                 println!("forward err: {}", err);
-    ///             }
+    /// let router = Router::new().on("/chat", Websocket::with_config(
+    ///     WebSocketConfig::default(),
+    ///     |_ctx: Context<()>, stream| async move {
+    ///         let (write, read) = stream.split();
+    ///         // echo
+    ///         if let Err(err) = read.forward(write).await {
+    ///             println!("forward err: {}", err);
     ///         }
-    ///     ),
+    ///     })
     /// );
-    /// app.gate(router.routes("/")?);
+    /// let app = App::new((), router.routes("/")?);
     /// # Ok(())
     /// # }
     /// ```
@@ -151,18 +131,14 @@ where
 }
 
 #[async_trait(?Send)]
-impl<F, S, Fut> Middleware<S> for Websocket<F, S, Fut>
+impl<'a, F, S, Fut> Endpoint<'a, S> for Websocket<F, S, Fut>
 where
     S: State,
-    F: 'static + Sync + Send + Fn(SyncContext<S>, SocketStream) -> Fut,
+    F: 'static + Sync + Send + Fn(Context<S>, SocketStream) -> Fut,
     Fut: 'static + Send + Future<Output = ()>,
 {
-    async fn handle(
-        self: Arc<Self>,
-        mut ctx: Context<S>,
-        _next: Next,
-    ) -> Result<(), Error> {
-        let header_map = &ctx.req().headers;
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result<(), Error> {
+        let header_map = &ctx.req.headers;
         let key = header_map
             .typed_get::<Upgrade>()
             .filter(|upgrade| upgrade == &Upgrade::websocket())
@@ -175,8 +151,8 @@ where
         match key {
             None => throw!(StatusCode::BAD_REQUEST, "invalid websocket upgrade request"),
             Some(key) => {
-                let body = ctx.req_mut().raw_body();
-                let sync_context = ctx.clone();
+                let body = ctx.req.raw_body();
+                let context = ctx.clone();
                 let task = self.task.clone();
                 let config = self.config;
                 // Setup a future that will eventually receive the upgraded
@@ -196,16 +172,14 @@ where
                                 config,
                             )
                             .await;
-                            task(sync_context, websocket).await
+                            task(context, websocket).await
                         }
                     }
                 });
-                ctx.resp_mut().status = StatusCode::SWITCHING_PROTOCOLS;
-                ctx.resp_mut().headers.typed_insert(Connection::upgrade());
-                ctx.resp_mut().headers.typed_insert(Upgrade::websocket());
-                ctx.resp_mut()
-                    .headers
-                    .typed_insert(SecWebsocketAccept::from(key));
+                ctx.resp.status = StatusCode::SWITCHING_PROTOCOLS;
+                ctx.resp.headers.typed_insert(Connection::upgrade());
+                ctx.resp.headers.typed_insert(Upgrade::websocket());
+                ctx.resp.headers.typed_insert(SecWebsocketAccept::from(key));
                 Ok(())
             }
         }
