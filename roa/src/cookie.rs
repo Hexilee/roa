@@ -33,7 +33,7 @@
 
 use crate::header::FriendlyHeaders;
 use crate::http::{header, StatusCode};
-use crate::{throw, Context, Next, Result, State, SyncContext};
+use crate::{throw, Context, Next, Result};
 pub use cookie::Cookie;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::sync::Arc;

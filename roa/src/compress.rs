@@ -25,7 +25,7 @@
 pub use async_compression::Level;
 
 use crate::http::{header::CONTENT_ENCODING, StatusCode};
-use crate::{async_trait, Context, Error, Middleware, Next, Result, State};
+use crate::{async_trait, Context, Error, Middleware, Next, Result};
 use accept_encoding::{parse, Encoding};
 use async_compression::stream::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 use std::sync::Arc;
@@ -42,42 +42,40 @@ impl Default for Compress {
 }
 
 #[async_trait(?Send)]
-impl<S: State> Middleware<S> for Compress {
-    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
+impl<'a, S> Middleware<'a, S> for Compress {
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         next.await?;
         let level = self.0;
-        let best_encoding = parse(&ctx.req().headers)
+        let best_encoding = parse(&ctx.req.headers)
             .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?;
-        let body = std::mem::take(&mut ctx.resp_mut().body);
+        let body = std::mem::take(&mut ctx.resp.body);
         let content_encoding = match best_encoding {
             None | Some(Encoding::Gzip) => {
-                ctx.resp_mut()
+                ctx.resp
                     .write_stream(GzipEncoder::with_quality(body, level));
                 Encoding::Gzip.to_header_value()
             }
             Some(Encoding::Deflate) => {
-                ctx.resp_mut()
+                ctx.resp
                     .write_stream(ZlibEncoder::with_quality(body, level));
                 Encoding::Deflate.to_header_value()
             }
             Some(Encoding::Brotli) => {
-                ctx.resp_mut()
+                ctx.resp
                     .write_stream(BrotliEncoder::with_quality(body, level));
                 Encoding::Brotli.to_header_value()
             }
             Some(Encoding::Zstd) => {
-                ctx.resp_mut()
+                ctx.resp
                     .write_stream(ZstdEncoder::with_quality(body, level));
                 Encoding::Zstd.to_header_value()
             }
             Some(Encoding::Identity) => {
-                ctx.resp_mut().body = body;
+                ctx.resp.body = body;
                 Encoding::Identity.to_header_value()
             }
         };
-        ctx.resp_mut()
-            .headers
-            .append(CONTENT_ENCODING, content_encoding);
+        ctx.resp.headers.append(CONTENT_ENCODING, content_encoding);
         Ok(())
     }
 }
@@ -126,8 +124,8 @@ mod tests {
     fn assert_consumed(assert_counter: usize) -> impl Middleware<()> {
         move |mut ctx: Context<()>, next: Next| async move {
             next.await?;
-            let body = std::mem::take(&mut ctx.resp_mut().body);
-            ctx.resp_mut().write_stream(Consumer {
+            let body = std::mem::take(&mut ctx.resp.body);
+            ctx.resp.write_stream(Consumer {
                 counter: 0,
                 stream: body,
                 assert_counter,
