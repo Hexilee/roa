@@ -287,7 +287,11 @@ where
         for (regexp_path, end) in self.dynamic_route.iter() {
             if let Some(cap) = regexp_path.re.captures(&path) {
                 for var in regexp_path.vars.iter() {
-                    ctx.store_scoped(RouterScope, var, cap[var.as_str()].to_string());
+                    ctx.store_scoped(
+                        RouterScope,
+                        var.to_string(),
+                        cap[var.as_str()].to_string(),
+                    );
                 }
                 return end.call(ctx).await;
             }
