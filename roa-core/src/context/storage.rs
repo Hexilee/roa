@@ -9,36 +9,22 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 
-pub trait Key: Any {
-    fn key(self) -> &'static str;
-}
-
-impl Key for &'static str {
-    #[inline]
-    fn key(self) -> &'static str {
-        self
-    }
-}
-
 pub trait Value: Any + Send + Sync {}
 
 impl<V> Value for V where V: Any + Send + Sync {}
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-struct WrapKey(TypeId, &'static str);
-
 /// A context scoped storage.
 #[derive(Clone)]
-pub struct Storage(HashMap<WrapKey, Arc<dyn Any + Send + Sync>>);
+pub struct Storage(HashMap<TypeId, HashMap<String, Arc<dyn Any + Send + Sync>>>);
 
 /// A variable.
 #[derive(Debug, Clone)]
-pub struct Variable<V> {
-    key: &'static str,
+pub struct Variable<'a, V> {
+    key: &'a str,
     value: Arc<V>,
 }
 
-impl<V> Deref for Variable<V> {
+impl<V> Deref for Variable<'_, V> {
     type Target = V;
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -46,15 +32,15 @@ impl<V> Deref for Variable<V> {
     }
 }
 
-impl<V> Variable<V> {
+impl<'a, V> Variable<'a, V> {
     /// Construct a variable from name and value.
     #[inline]
-    fn new(key: &'static str, value: Arc<V>) -> Variable<V> {
+    fn new(key: &'a str, value: Arc<V>) -> Self {
         Self { key, value }
     }
 }
 
-impl<V> Variable<V>
+impl<V> Variable<'_, V>
 where
     V: AsRef<str>,
 {
@@ -93,23 +79,35 @@ impl Storage {
     ///
     /// If the storage did have this key present, the value is updated, and the old
     /// value is returned.
-    #[inline]
-    pub fn insert<K: Key, V: Value>(&mut self, key: K, value: V) -> Option<Variable<V>> {
-        let key = key.key();
-        self.0
-            .insert(WrapKey(TypeId::of::<K>(), key), Arc::new(value))
-            .and_then(|value| Some(Variable::new(key, value.downcast().ok()?)))
+    pub fn insert<S, K, V>(&mut self, scope: S, key: K, value: V) -> Option<Arc<V>>
+    where
+        S: Any,
+        K: Into<String>,
+        V: Value,
+    {
+        let id = TypeId::of::<S>();
+        match self.0.get_mut(&id) {
+            Some(bucket) => bucket
+                .insert(key.into(), Arc::new(value))
+                .and_then(|value| Some(value.downcast().ok()?)),
+            None => {
+                self.0.insert(id, HashMap::new());
+                self.insert(scope, key, value)
+            }
+        }
     }
 
     /// If the storage did not have this key present, [`None`] is returned.
     ///
     /// If the storage did have this key present, the key-value pair will be returned as a `Variable`
     #[inline]
-    pub fn get<K: Key, V: Value>(&self, key: K) -> Option<Variable<V>> {
-        let key = key.key();
-        self.0
-            .get(&WrapKey(TypeId::of::<K>(), key))
-            .and_then(|value| Some(Variable::new(key, value.clone().downcast().ok()?)))
+    pub fn get<'a, S, V>(&self, key: &'a str) -> Option<Variable<'a, V>>
+    where
+        S: Any,
+        V: Value,
+    {
+        let value = self.0.get(&TypeId::of::<S>())?.get(key)?.clone();
+        Some(Variable::new(key, value.clone().downcast().ok()?))
     }
 }
 
@@ -129,18 +127,24 @@ mod tests {
 
     #[test]
     fn storage() {
+        struct Scope;
+
         let mut storage = Storage::default();
-        assert!(storage.get::<_, &'static str>("id").is_none());
-        assert!(storage.insert("id", "1").is_none());
+        assert!(storage.get::<Scope, &'static str>("id").is_none());
+        assert!(storage.insert(Scope, "id", "1").is_none());
         let id: i32 = storage
-            .get::<_, &'static str>("id")
+            .get::<Scope, &'static str>("id")
             .unwrap()
             .parse()
             .unwrap();
         assert_eq!(1, id);
         assert_eq!(
             1,
-            storage.insert("id", "2").unwrap().parse::<i32>().unwrap()
+            storage
+                .insert(Scope, "id", "2")
+                .unwrap()
+                .parse::<i32>()
+                .unwrap()
         );
     }
 

@@ -153,27 +153,27 @@ where
 ///
 /// let mut app = App::new((), first.chain(second).chain(third).end(end));
 /// async fn first(ctx: &mut Context<()>, next: Next<'_>) -> Result {
-///     assert!(ctx.storage.insert("id", "1").is_none());
+///     assert!(ctx.store("id", "1").is_none());
 ///     next.await?;
-///     assert_eq!("5", *ctx.storage.get::<_, &'static str>("id").unwrap());
+///     assert_eq!("5", *ctx.load::<&'static str>("id").unwrap());
 ///     Ok(())
 /// }
 /// async fn second(ctx: &mut Context<()>, next: Next<'_>) -> Result {
-///     assert_eq!("1", *ctx.storage.get::<_, &'static str>("id").unwrap());
-///     assert_eq!("1", *ctx.storage.insert("id", "2").unwrap());
+///     assert_eq!("1", *ctx.load::<&'static str>("id").unwrap());
+///     assert_eq!("1", *ctx.store("id", "2").unwrap());
 ///     next.await?;
-///     assert_eq!("4", *ctx.storage.insert("id", "5").unwrap());
+///     assert_eq!("4", *ctx.store("id", "5").unwrap());
 ///     Ok(())
 /// }
 /// async fn third(ctx: &mut Context<()>, next: Next<'_>) -> Result {
-///     assert_eq!("2", *ctx.storage.insert("id", "3").unwrap());
+///     assert_eq!("2", *ctx.store("id", "3").unwrap());
 ///     next.await?; // next is none; do nothing
-///     assert_eq!("3", *ctx.storage.insert("id", "4").unwrap());
+///     assert_eq!("3", *ctx.store("id", "4").unwrap());
 ///     Ok(())
 /// }
 ///
 /// async fn end(ctx: &mut Context<()>) -> Result {
-///     assert_eq!("3", *ctx.storage.get::<_, &'static str>("id").unwrap());
+///     assert_eq!("3", *ctx.load::<&'static str>("id").unwrap());
 ///     Ok(())
 /// }
 /// ```

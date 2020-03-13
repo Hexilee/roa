@@ -226,11 +226,7 @@ where
     ) -> StdResult<(), RouterError> {
         match raw_path.as_ref().parse()? {
             Path::Static(path) => {
-                if self
-                    .static_route
-                    .insert(path.to_string(), endpoint)
-                    .is_some()
-                {
+                if self.static_route.insert(path.clone(), endpoint).is_some() {
                     return Err(Conflict::Path(path).into());
                 }
             }

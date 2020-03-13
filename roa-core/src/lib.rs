@@ -133,7 +133,7 @@ pub use app::{AddrStream, App};
 pub use executor::{BlockingObj, Executor, FutureObj, JoinHandle, Spawn};
 
 #[doc(inline)]
-pub use context::{Context, Key, Variable};
+pub use context::{Context, Variable};
 
 #[doc(inline)]
 pub use err::{Error, ErrorKind, Result, ResultFuture};

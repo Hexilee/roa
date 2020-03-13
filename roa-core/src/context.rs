@@ -13,9 +13,10 @@ use std::fmt::Display;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
-use storage::Storage;
+use std::sync::Arc;
 
-pub use storage::{Key, Variable};
+pub use storage::Variable;
+use storage::{Storage, Value};
 
 /// A structure to share request, response and other data between middlewares.
 ///
@@ -46,8 +47,8 @@ pub struct Context<S> {
 
     /// Socket addr of last client or proxy.
     pub remote_addr: SocketAddr,
-    pub storage: Storage,
 
+    storage: Storage,
     state: S,
 }
 
@@ -166,7 +167,130 @@ impl<S> Context<S> {
     pub fn version(&self) -> Version {
         self.req.version
     }
+
+    /// Store key-value pair in specific scope.
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa_core::{App, Context, Result, Next, MiddlewareExt};
+    ///
+    /// struct Scope;
+    /// struct AnotherScope;
+    ///
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    ///     ctx.store_scoped(Scope, "id", "1".to_string());
+    ///     next.await
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
+    ///     assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
+    ///     assert!(ctx.load_scoped::<AnotherScope, String>("id").is_none());
+    ///     Ok(())
+    /// }
+    ///
+    /// let app = App::new((), gate.end(end));
+    /// ```
+    #[inline]
+    pub fn store_scoped<SC, K, V>(
+        &mut self,
+        scope: SC,
+        key: K,
+        value: V,
+    ) -> Option<Arc<V>>
+    where
+        SC: Any,
+        K: Into<String>,
+        V: Value,
+    {
+        self.storage.insert(scope, key, value)
+    }
+
+    /// Store key-value pair in public scope.
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa_core::{App, Context, Result, Next, MiddlewareExt};
+    ///
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    ///     ctx.store("id", "1".to_string());
+    ///     next.await
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
+    ///     assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
+    ///     Ok(())
+    /// }
+    ///
+    /// let app = App::new((), gate.end(end));
+    /// ```
+    #[inline]
+    pub fn store<K, V>(&mut self, key: K, value: V) -> Option<Arc<V>>
+    where
+        K: Into<String>,
+        V: Value,
+    {
+        self.store_scoped(PublicScope, key, value)
+    }
+
+    /// Search for value by key in specific scope.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// use roa_core::{App, Context, Result, Next, MiddlewareExt};
+    ///
+    /// struct Scope;
+    ///
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    ///     ctx.store_scoped(Scope, "id", "1".to_owned());
+    ///     next.await
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
+    ///     assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
+    ///     Ok(())
+    /// }
+    ///
+    /// let app = App::new((), gate.end(end));
+    /// ```
+    #[inline]
+    pub fn load_scoped<'a, SC, V>(&self, key: &'a str) -> Option<Variable<'a, V>>
+    where
+        SC: Any,
+        V: Value,
+    {
+        self.storage.get::<SC, V>(key)
+    }
+
+    /// Search for value by key in public scope.
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa_core::{App, Context, Result, Next, MiddlewareExt};
+    ///
+    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    ///     ctx.store("id", "1".to_string());
+    ///     next.await
+    /// }
+    ///
+    /// async fn end(ctx: &mut Context<()>) -> Result {
+    ///     assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
+    ///     Ok(())
+    /// }
+    ///
+    /// let app = App::new((), gate.end(end));
+    /// ```
+    #[inline]
+    pub fn load<'a, V>(&self, key: &'a str) -> Option<Variable<'a, V>>
+    where
+        V: Value,
+    {
+        self.load_scoped::<PublicScope, V>(key)
+    }
 }
+
+/// Public storage scope.
+struct PublicScope;
 
 impl<S> Deref for Context<S> {
     type Target = S;
