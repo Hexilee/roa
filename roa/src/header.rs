@@ -119,7 +119,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     if let Some(value) = ctx.req().get(ORIGIN) {
+    ///     if let Some(value) = ctx.req.get(ORIGIN) {
     ///         println!("origin: {}", value?);     
     ///     }   
     ///     Ok(())
@@ -148,7 +148,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     println!("origin: {}", ctx.req().must_get(ORIGIN)?);     
+    ///     println!("origin: {}", ctx.req.must_get(ORIGIN)?);     
     ///     Ok(())
     /// }
     /// ```
@@ -175,7 +175,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(ctx: Context<()>) -> Result {
-    ///     for value in ctx.req().get_all(ORIGIN)?.into_iter() {
+    ///     for value in ctx.req.get_all(ORIGIN)?.into_iter() {
     ///         println!("origin: {}", value);
     ///     }
     ///     Ok(())
@@ -211,7 +211,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(mut ctx: Context<()>) -> Result {
-    ///     ctx.resp_mut().insert(CONTENT_TYPE, "text/plain")?;   
+    ///     ctx.resp.insert(CONTENT_TYPE, "text/plain")?;   
     ///     Ok(())
     /// }
     /// ```
@@ -250,7 +250,7 @@ pub trait FriendlyHeaders {
     /// use roa::header::FriendlyHeaders;
     ///
     /// async fn get(mut ctx: Context<()>) -> Result {
-    ///     ctx.resp_mut().append(SET_COOKIE, "this is a cookie")?;   
+    ///     ctx.resp.append(SET_COOKIE, "this is a cookie")?;   
     ///     Ok(())
     /// }
     /// ```

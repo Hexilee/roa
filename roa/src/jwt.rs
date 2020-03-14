@@ -35,9 +35,9 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let endpoint = guard(DecodingKey::from_secret(SECRET))
-//!         .end(test);
-//!     let (addr, server) = App::new(()).end(endpoint).run()?;
+//!     let (addr, server) = App::new(())
+//!         .gate(guard(DecodingKey::from_secret(SECRET)))
+//!         .end(test).run()?;
 //!     spawn(server);
 //!     let mut user = User {
 //!         sub: "user".to_string(),

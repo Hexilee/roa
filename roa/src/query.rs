@@ -49,7 +49,7 @@ struct QueryScope;
 /// use async_std::task::spawn;
 ///
 /// async fn must(ctx: &mut Context<()>) -> roa::Result {
-///     assert_eq!("Hexilee", &ctx.must_query("name")?);
+///     assert_eq!("Hexilee", &*ctx.must_query("name")?);
 ///     Ok(())
 /// }
 ///
@@ -85,7 +85,7 @@ pub trait Query {
     /// use async_std::task::spawn;
     ///
     /// async fn must(ctx: &mut Context<()>) -> roa::Result {
-    ///     assert_eq!("Hexilee", &ctx.must_query("name")?);
+    ///     assert_eq!("Hexilee", &*ctx.must_query("name")?);
     ///     Ok(())
     /// }
     ///
@@ -117,12 +117,12 @@ pub trait Query {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     // downstream of `query_parser`
-    ///     let mut app = App::new(());
-    ///     app.gate(query_parser)
-    ///     .end( |ctx| async move {
-    ///         assert!(ctx.query("name").is_none());
-    ///         Ok(())
-    ///     });
+    ///     let app = App::new(())
+    ///         .gate(query_parser)
+    ///         .end(|ctx| async move {
+    ///             assert!(ctx.query("name").is_none());
+    ///             Ok(())
+    ///         });
     ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;

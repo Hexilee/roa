@@ -72,7 +72,7 @@
 //!
 //! async fn logger(ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
 //!     next.await?;
-//!     let rt = ctx.resp().must_get("x-response-time")?;
+//!     let rt = ctx.resp.must_get("x-response-time")?;
 //!     info!("{} {} - {}", ctx.method(), ctx.uri(), rt);
 //!     Ok(())
 //! }
@@ -81,7 +81,7 @@
 //!     let start = Instant::now();
 //!     next.await?;
 //!     let ms = start.elapsed().as_millis();
-//!     ctx.resp_mut().insert("x-response-time", format!("{}ms", ms))?;
+//!     ctx.resp.insert("x-response-time", format!("{}ms", ms))?;
 //!     Ok(())
 //! }
 //!
@@ -143,13 +143,13 @@
 //! This is the error_handler:
 //!
 //! ```rust,no_run
-//! use roa_core::{Context, Error, Result, State, ErrorKind};
-//! pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
+//! use roa_core::{Context, Error, Result, ErrorKind};
+//! pub async fn error_handler<S>(ctx: &mut Context<S>, err: Error) -> Result {
 //!     // set status code to err.status_code.
-//!     context.resp_mut().status = err.status_code;
+//!     ctx.resp.status = err.status_code;
 //!     if err.expose {
 //!         // write err.message to response body if err.expose.
-//!         context.resp_mut().write(err.message.clone());
+//!         ctx.resp.write(err.message.clone());
 //!     }
 //!     if err.kind == ErrorKind::ServerError {
 //!         // thrown to hyper
@@ -189,7 +189,7 @@
 //!
 //! async fn end(ctx: &mut Context<()>) -> roa::Result {
 //!     // get "/user/1", then id == 1.
-//!     let id: u64 = ctx.must_param("id")?.parse()?;
+//!     let id: u64 = ctx.must_param("id")?.parse::<i32>()?;
 //!     // do something
 //!     Ok(())
 //! }
