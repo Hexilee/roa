@@ -12,16 +12,13 @@
 //! use futures::StreamExt;
 //! use roa_core::http::StatusCode;
 //! use roa_tcp::Listener;
-//! use roa_router::Router;
-//! use roa_core::{throw, App};
+//! use roa_router::{Router, post};
+//! use roa_core::{self as roa, throw, App, Context};
 //! use roa_multipart::Multipart;
 //! use std::error::Error as StdError;
 //!
-//! # fn main() -> Result<(), Box<dyn StdError>> {
-//! let mut app = App::new(());
-//! let mut router = Router::<()>::new();
-//! router.post("/file", |mut ctx| async move {
-//!     let mut form = Multipart::new(&mut ctx);
+//! async fn post_file(ctx: &mut Context<()>) -> roa::Result {
+//!     let mut form = Multipart::new(ctx);
 //!     while let Some(item) = form.next().await {
 //!         let field = item?;
 //!         match field.content_disposition() {
@@ -37,8 +34,11 @@
 //!         }
 //!     }
 //!     Ok(())
-//! });
-//! let (addr, server) = app.run()?;
+//! }
+//!
+//! # fn main() -> Result<(), Box<dyn StdError>> {
+//! let router = Router::new().on("file", post(post_file));
+//! let (addr, server) = App::new(()).end(router.routes("/")?).run()?;
 //! // server.await
 //! Ok(())
 //! # }
@@ -80,12 +80,12 @@ impl Multipart {
     #[inline]
     pub fn new<S: State>(ctx: &mut Context<S>) -> Self {
         let mut map = HeaderMap::new();
-        if let Some(value) = ctx.req().headers.get(CONTENT_TYPE) {
+        if let Some(value) = ctx.req.headers.get(CONTENT_TYPE) {
             map.insert(CONTENT_TYPE, value.clone())
         }
         Multipart(ActixMultipart::new(
             &map,
-            WrapStream(Some(ctx.req_mut().raw_body())),
+            WrapStream(Some(ctx.req.raw_body())),
         ))
     }
 }
@@ -200,8 +200,8 @@ mod tests {
         Client,
     };
     use roa_core::http::{header::CONTENT_TYPE, StatusCode};
-    use roa_core::{throw, App};
-    use roa_router::Router;
+    use roa_core::{self as roa, throw, App, Context};
+    use roa_router::{post, Router};
     use roa_tcp::Listener;
     use std::error::Error as StdError;
 
@@ -209,40 +209,34 @@ mod tests {
     const FILE_NAME: &str = "author.txt";
     const FIELD_NAME: &str = "file";
 
-    #[tokio::test]
-    async fn upload() -> Result<(), Box<dyn StdError>> {
-        let mut app = App::new(());
-        let mut router = Router::<()>::new();
-        router.post("/file", |mut ctx| async move {
-            let mut form = Multipart::new(&mut ctx);
-            while let Some(item) = form.next().await {
-                let field = item?;
-                match field.content_disposition() {
-                    None => {
-                        throw!(StatusCode::BAD_REQUEST, "content disposition not set")
-                    }
-                    Some(disposition) => {
-                        match (disposition.get_filename(), disposition.get_name()) {
-                            (Some(filename), Some(name)) => {
-                                assert_eq!(FIELD_NAME, name);
-                                assert_eq!(FILE_NAME, filename);
-                                let mut content = String::new();
-                                field
-                                    .into_async_read()
-                                    .read_to_string(&mut content)
-                                    .await?;
-                                let expected_content = read_to_string(FILE_PATH).await?;
-                                assert_eq!(&expected_content, &content);
-                            }
-                            _ => throw!(StatusCode::BAD_REQUEST, "invalid field"),
+    async fn post_file(ctx: &mut Context<()>) -> roa::Result {
+        let mut form = Multipart::new(ctx);
+        while let Some(item) = form.next().await {
+            let field = item?;
+            match field.content_disposition() {
+                None => throw!(StatusCode::BAD_REQUEST, "content disposition not set"),
+                Some(disposition) => {
+                    match (disposition.get_filename(), disposition.get_name()) {
+                        (Some(filename), Some(name)) => {
+                            assert_eq!(FIELD_NAME, name);
+                            assert_eq!(FILE_NAME, filename);
+                            let mut content = String::new();
+                            field.into_async_read().read_to_string(&mut content).await?;
+                            let expected_content = read_to_string(FILE_PATH).await?;
+                            assert_eq!(&expected_content, &content);
                         }
+                        _ => throw!(StatusCode::BAD_REQUEST, "invalid field"),
                     }
                 }
             }
-            Ok(())
-        });
+        }
+        Ok(())
+    }
 
-        app.gate(router.routes("/")?);
+    #[tokio::test]
+    async fn upload() -> Result<(), Box<dyn StdError>> {
+        let router = Router::new().on("/file", post(post_file));
+        let app = App::new(()).end(router.routes("/")?);
         let (addr, server) = app.run()?;
         async_std::task::spawn(server);
 
