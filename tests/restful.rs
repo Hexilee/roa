@@ -254,8 +254,9 @@ fn batch_router() -> Router<State> {
 
 #[tokio::test]
 async fn batch() -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = App::new(Arc::new(RwLock::new(DB::new())));
-    app.gate(query_parser).gate(batch_router().routes("/")?);
+    let app = App::new(Arc::new(RwLock::new(DB::new())))
+        .gate(query_parser)
+        .end(batch_router().routes("/")?);
     let (addr, server) = app.run()?;
     spawn(server);
     // first get, list empty

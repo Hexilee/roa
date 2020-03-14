@@ -5,10 +5,10 @@ use http::Method;
 use log::{debug, error, info, warn};
 use roa::logger::logger;
 use roa::preload::*;
-use roa::router::{RouteEndpoint, Router, RouterError};
+use roa::router::{allow, RouteTable, Router, RouterError};
 use roa::websocket::tungstenite::protocol::frame::{coding::CloseCode, CloseFrame};
 use roa::websocket::{tungstenite::Error as WsError, Message, SocketStream, Websocket};
-use roa::{App, SyncContext};
+use roa::{App, Context};
 use slab::Slab;
 use std::borrow::Cow;
 use std::error::Error as StdError;
@@ -48,7 +48,7 @@ impl SyncChannel {
 }
 
 async fn handle_message(
-    ctx: &SyncContext<SyncChannel>,
+    ctx: &Context<SyncChannel>,
     index: usize,
     mut receiver: SplitStream<SocketStream>,
 ) -> Result<(), WsError> {
@@ -67,37 +67,38 @@ async fn handle_message(
     Ok(())
 }
 
-fn route(prefix: &'static str) -> Result<RouteEndpoint<SyncChannel>, RouterError> {
-    let mut router = Router::new();
-    router.end(
-        "/chat",
-        [Method::GET],
-        Websocket::new(|ctx: SyncContext<SyncChannel>, stream| async move {
-            let (sender, receiver) = stream.split();
-            let index = ctx.register(sender).await;
-            let result = handle_message(&ctx, index, receiver).await;
-            let mut sender = ctx.deregister(index).await;
-            if let Err(err) = result {
-                let result = sender
-                    .send(Message::Close(Some(CloseFrame {
-                        code: CloseCode::Invalid,
-                        reason: Cow::Owned(err.to_string()),
-                    })))
-                    .await;
-                if let Err(err) = result {
-                    error!("send close message error: {}", err)
-                }
-            }
-        }),
-    );
-    router.routes(prefix)
+fn route(prefix: &'static str) -> Result<RouteTable<SyncChannel>, RouterError> {
+    Router::new()
+        .on(
+            "/chat",
+            allow(
+                [Method::GET],
+                Websocket::new(|ctx: Context<SyncChannel>, stream| async move {
+                    let (sender, receiver) = stream.split();
+                    let index = ctx.register(sender).await;
+                    let result = handle_message(&ctx, index, receiver).await;
+                    let mut sender = ctx.deregister(index).await;
+                    if let Err(err) = result {
+                        let result = sender
+                            .send(Message::Close(Some(CloseFrame {
+                                code: CloseCode::Invalid,
+                                reason: Cow::Owned(err.to_string()),
+                            })))
+                            .await;
+                        if let Err(err) = result {
+                            error!("send close message error: {}", err)
+                        }
+                    }
+                }),
+            ),
+        )
+        .routes(prefix)
 }
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
-    let mut app = App::new(SyncChannel::new());
-    app.gate(logger).gate(route("/")?);
+    let app = App::new(SyncChannel::new()).gate(logger).end(route("/")?);
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
@@ -115,8 +116,7 @@ mod tests {
     #[async_std::test]
     async fn echo() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
-        let mut app = App::new(channel.clone());
-        app.gate(route("/")?);
+        let app = App::new(channel.clone()).end(route("/")?);
         let (addr, server) = app.run()?;
         async_std::task::spawn(server);
         let (ws_stream, _) = connect_async(format!("ws://{}/chat", addr)).await?;
@@ -142,8 +142,7 @@ mod tests {
     #[async_std::test]
     async fn broadcast() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
-        let mut app = App::new(channel.clone());
-        app.gate(route("/")?);
+        let app = App::new(channel.clone()).end(route("/")?);
         let (addr, server) = app.run()?;
         async_std::task::spawn(server);
         let url = format!("ws://{}/chat", addr);

@@ -71,7 +71,7 @@ async fn serve_path(ctx: &mut Context<()>) -> Result {
 }
 
 async fn serve_root(ctx: &mut Context<()>) -> Result {
-    serve_dir(ctx, "")
+    serve_dir(ctx, "").await
 }
 
 async fn serve_dir(ctx: &mut Context<()>, path: &str) -> Result {

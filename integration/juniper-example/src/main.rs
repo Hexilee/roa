@@ -131,8 +131,8 @@ impl Mutation {
 }
 
 async fn play_ground(ctx: &mut Context<State>) -> roa::Result {
-    ctx.write_text(juniper::http::playground::playground_source("/api"))?;
-    ctx.resp_mut()
+    ctx.write_text(juniper::http::playground::playground_source("/api"));
+    ctx.resp
         .insert(header::CONTENT_TYPE, "text/html; charset=utf8")?;
     Ok(())
 }

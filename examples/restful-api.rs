@@ -59,7 +59,7 @@ async fn create_user(ctx: &mut Context<Database>) -> Result {
     let user: User = ctx.read_json().await?;
     let id = ctx.create(user).await;
     ctx.write_json(&json!({ "id": id }))?;
-    ctx.resp_mut().status = StatusCode::CREATED;
+    ctx.resp.status = StatusCode::CREATED;
     Ok(())
 }
 
