@@ -29,10 +29,12 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let router = Router::gate(gate)
+//!     let router = Router::new()
+//!         .gate(gate)
 //!         .on("/restful", get(query).post(create))
 //!         .on("/graphql", allow([Method::GET, Method::POST], graphql));
-//!     let app = App::new((), router.routes("/api")?);
+//!     let app = App::new(())
+//!         .end(router.routes("/api")?);
 //!     let (addr, server) = app.run()?;
 //!     spawn(server);
 //!     let resp = reqwest::get(&format!("http://{}/api/restful", addr)).await?;
@@ -61,7 +63,7 @@ use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
 use roa_core::http::{Method, StatusCode};
 use roa_core::{
-    async_trait, throw, Boxed, Context, Endpoint, EndpointExt, Error, Middleware,
+    async_trait, throw, Boxed, Chain, Context, Endpoint, EndpointExt, Error, Middleware,
     MiddlewareExt, Next, Result, Shared, Variable,
 };
 use std::collections::HashMap;
@@ -95,7 +97,7 @@ struct RouterScope;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let router = Router::new().on("/:id", test);
-///     let app = App::new((), router.routes("user")?);
+///     let app = App::new(()).end(router.routes("user")?);
 ///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
@@ -127,7 +129,7 @@ pub trait RouterParam {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let router = Router::new().on("/:id", test);
-    ///     let app = App::new((), router.routes("/user")?);
+    ///     let app = App::new(()).end(router.routes("/user")?);
     ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
@@ -142,7 +144,7 @@ pub trait RouterParam {
 
 /// A builder of `RouteTable`.
 pub struct Router<S> {
-    middleware: Option<Shared<S>>,
+    middleware: Shared<S>,
     endpoints: Vec<(String, Boxed<S>)>,
 }
 
@@ -156,25 +158,10 @@ where
     S: 'static,
 {
     /// Construct a new router.
-    pub fn gate(middleware: impl for<'a> Middleware<'a, S>) -> Self {
-        Self {
-            middleware: Some(middleware.shared()),
-            endpoints: Vec::new(),
-        }
-    }
-
-    /// Construct a new router.
     pub fn new() -> Self {
         Self {
-            middleware: None,
+            middleware: ().shared(),
             endpoints: Vec::new(),
-        }
-    }
-
-    fn end(&self, endpoint: impl for<'a> Endpoint<'a, S>) -> Boxed<S> {
-        match self.middleware.as_ref() {
-            Some(middleware) => middleware.clone().end(endpoint).boxed(),
-            None => endpoint.boxed(),
         }
     }
 
@@ -184,17 +171,33 @@ where
         path: &'static str,
         endpoint: impl for<'a> Endpoint<'a, S>,
     ) -> Self {
-        self.endpoints.push((path.to_string(), self.end(endpoint)));
+        self.endpoints
+            .push((path.to_string(), self.register(endpoint)));
         self
+    }
+
+    fn register(&self, endpoint: impl for<'a> Endpoint<'a, S>) -> Boxed<S> {
+        self.middleware.clone().end(endpoint).boxed()
     }
 
     /// Include another router with prefix, only allowing method in parameter methods.
     pub fn include(mut self, prefix: &'static str, router: Router<S>) -> Self {
         for (path, endpoint) in router.endpoints {
             self.endpoints
-                .push((join_path([prefix, path.as_str()]), self.end(endpoint)))
+                .push((join_path([prefix, path.as_str()]), self.register(endpoint)))
         }
         self
+    }
+
+    pub fn gate(self, next: impl for<'a> Middleware<'a, S>) -> Router<S> {
+        let Self {
+            middleware,
+            endpoints,
+        } = self;
+        Self {
+            middleware: middleware.chain(next).shared(),
+            endpoints,
+        }
     }
 
     /// Build RouteEndpoint with path prefix.
@@ -342,8 +345,8 @@ mod tests {
 
     #[tokio::test]
     async fn gate_test() -> Result<(), Box<dyn std::error::Error>> {
-        let router = Router::gate(gate).on("/", test);
-        let app = App::new((), router.routes("/route")?);
+        let router = Router::new().gate(gate).on("/", test);
+        let app = App::new(()).end(router.routes("/route")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
@@ -354,8 +357,8 @@ mod tests {
     #[tokio::test]
     async fn route() -> Result<(), Box<dyn std::error::Error>> {
         let user_router = Router::new().on("/", test);
-        let router = Router::gate(gate).include("/user", user_router);
-        let mut app = App::new((), router.routes("/route")?);
+        let router = Router::new().gate(gate).include("/user", user_router);
+        let app = App::new(()).end(router.routes("/route")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route/user", addr)).await?;
@@ -376,7 +379,7 @@ mod tests {
 
     #[tokio::test]
     async fn route_not_found() -> Result<(), Box<dyn std::error::Error>> {
-        let app = App::new((), Router::default().routes("/")?);
+        let app = App::new(()).end(Router::default().routes("/")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -386,7 +389,7 @@ mod tests {
 
     #[tokio::test]
     async fn non_utf8_uri() -> Result<(), Box<dyn std::error::Error>> {
-        let app = App::new((), Router::default().routes("/")?);
+        let app = App::new(()).end(Router::default().routes("/")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let gbk_path = encoding::label::encoding_from_whatwg_label("gbk")
