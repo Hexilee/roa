@@ -10,8 +10,8 @@ use log::info;
 use roa::http::{header, Method};
 use roa::logger::logger;
 use roa::preload::*;
-use roa::router::Router;
-use roa::App;
+use roa::router::{allow, get, Router};
+use roa::{App, Context};
 use roa_diesel::{AsyncPool, SqlQuery, WrapError};
 use roa_juniper::{GraphQL, JuniperContext};
 use serde::Serialize;
@@ -130,23 +130,26 @@ impl Mutation {
     }
 }
 
+async fn play_ground(ctx: &mut Context<State>) -> roa::Result {
+    ctx.write_text(juniper::http::playground::playground_source("/api"))?;
+    ctx.resp_mut()
+        .insert(header::CONTENT_TYPE, "text/html; charset=utf8")?;
+    Ok(())
+}
+
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
-    let mut app = App::new(create_pool()?);
-    let mut router = Router::<State>::new();
-    router.get("/", |mut ctx| async move {
-        ctx.write_text(juniper::http::playground::playground_source("/api"))?;
-        ctx.resp_mut()
-            .insert(header::CONTENT_TYPE, "text/html; charset=utf8")?;
-        Ok(())
-    });
-    router.end(
+    let router = Router::new().on("/", get(play_ground)).on(
         "/api",
-        [Method::GET, Method::POST],
-        GraphQL(RootNode::new(Query, Mutation)),
+        allow(
+            [Method::GET, Method::POST],
+            GraphQL(RootNode::new(Query, Mutation)),
+        ),
     );
-    app.gate(logger).gate(router.routes("/")?);
+    let app = App::new(create_pool()?)
+        .gate(logger)
+        .end(router.routes("/")?);
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?

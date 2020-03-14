@@ -8,7 +8,7 @@
 
 use juniper::{http::GraphQLRequest, GraphQLTypeAsync, RootNode, ScalarValue};
 use roa_body::PowerBody;
-use roa_core::{async_trait, Context, Middleware, Next, Result, State};
+use roa_core::{async_trait, Context, Endpoint, Result, State};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
@@ -46,7 +46,7 @@ where
     MutationT::TypeInfo: Send + Sync;
 
 #[async_trait(?Send)]
-impl<'a, S, QueryT, MutationT, Sca> Middleware<'a, S> for GraphQL<QueryT, MutationT, Sca>
+impl<'a, S, QueryT, MutationT, Sca> Endpoint<'a, S> for GraphQL<QueryT, MutationT, Sca>
 where
     S: State,
     Sca: 'static + ScalarValue + Send + Sync,
@@ -57,7 +57,7 @@ where
     MutationT::TypeInfo: Send + Sync,
 {
     #[inline]
-    async fn handle(&'a self, ctx: &'a mut Context<S>, _next: Next<'a>) -> Result {
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
         let request: GraphQLRequest<Sca> = ctx.read_json().await?;
         let juniper_ctx = JuniperContext(ctx.clone());
         let resp = request.execute(&self.0, &juniper_ctx).await;
