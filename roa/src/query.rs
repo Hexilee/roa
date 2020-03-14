@@ -5,19 +5,21 @@
 //!
 //! ```rust
 //! use roa::query::query_parser;
-//! use roa::App;
+//! use roa::{App, Context};
 //! use roa::http::StatusCode;
 //! use roa::preload::*;
 //! use async_std::task::spawn;
 //!
+//! async fn must(ctx: &mut Context<()>) -> roa::Result {
+//!     assert_eq!("Hexilee", &*ctx.must_query("name")?);
+//!     Ok(())
+//! }
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut app = App::new(());
-//!     app.gate(query_parser);
-//!     app.call(|ctx| async move {
-//!         assert_eq!("Hexilee", &*ctx.must_query("name")?);
-//!         Ok(())
-//!     });
+//!     let app = App::new(())
+//!         .gate(query_parser)
+//!         .end(must);
 //!     let (addr, server) = app.run()?;
 //!     spawn(server);
 //!     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
@@ -41,31 +43,29 @@ struct QueryScope;
 ///
 /// ```rust
 /// use roa::query::query_parser;
-/// use roa::App;
+/// use roa::{App, Context};
 /// use roa::http::StatusCode;
 /// use roa::preload::*;
 /// use async_std::task::spawn;
 ///
+/// async fn must(ctx: &mut Context<()>) -> roa::Result {
+///     assert_eq!("Hexilee", &ctx.must_query("name")?);
+///     Ok(())
+/// }
+///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // downstream of `query_parser`
-///     let mut app = App::new(());
-///     app.gate(query_parser);
-///     app.call( |ctx| async move {
-///         assert_eq!("Hexilee", &*ctx.must_query("name")?);
-///         Ok(())
-///     });
+///     let app = App::new(())
+///         .gate(query_parser)
+///         .end(must);
 ///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
 ///     assert_eq!(StatusCode::OK, resp.status());
 ///
 ///     // miss `query_parser`
-///     let mut app = App::new(());
-///     app.call(|ctx| async move {
-///         assert!(ctx.query("name").is_none());
-///         Ok(())
-///     });
+///     let app = App::new(()).end(must);
 ///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
@@ -79,20 +79,22 @@ pub trait Query {
     ///
     /// ```rust
     /// use roa::query::query_parser;
-    /// use roa::App;
+    /// use roa::{App, Context};
     /// use roa::http::StatusCode;
     /// use roa::preload::*;
     /// use async_std::task::spawn;
     ///
+    /// async fn must(ctx: &mut Context<()>) -> roa::Result {
+    ///     assert_eq!("Hexilee", &ctx.must_query("name")?);
+    ///     Ok(())
+    /// }
+    ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     // downstream of `query_parser`
-    ///     let mut app = App::new(());
-    ///     app.gate(query_parser);
-    ///     app.call( |ctx| async move {
-    ///         assert_eq!("Hexilee", &*ctx.must_query("name")?);
-    ///         Ok(())
-    ///     });
+    ///     let app = App::new(())
+    ///         .gate(query_parser)
+    ///         .end(must);
     ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -176,13 +178,13 @@ mod tests {
         }
 
         // miss key
-        let (addr, server) = App::new((), query_parser.end(test)).run()?;
+        let (addr, server) = App::new(()).gate(query_parser).end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
 
         // string value
-        let (addr, server) = App::new((), query_parser.end(test)).run()?;
+        let (addr, server) = App::new(()).gate(query_parser).end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -196,12 +198,12 @@ mod tests {
             Ok(())
         }
         // invalid int value
-        let (addr, server) = App::new((), query_parser.end(test)).run()?;
+        let (addr, server) = App::new(()).gate(query_parser).end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}?age=Hexilee", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
 
-        let (addr, server) = App::new((), query_parser.end(test)).run()?;
+        let (addr, server) = App::new(()).gate(query_parser).end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}?age=120", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -215,7 +217,7 @@ mod tests {
             assert_eq!("rust", &*ctx.must_query("lang")?);
             Ok(())
         }
-        let (addr, server) = App::new((), query_parser.end(test)).run()?;
+        let (addr, server) = App::new(()).gate(query_parser).end(test).run()?;
         spawn(server);
         let resp =
             reqwest::get(&format!("http://{}?name=Hexilee&lang=rust", addr)).await?;

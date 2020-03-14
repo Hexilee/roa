@@ -6,18 +6,21 @@
 //! ```rust
 //! use roa::logger::logger;
 //! use roa::preload::*;
-//! use roa::App;
+//! use roa::{App, Context};
 //! use roa::http::StatusCode;
 //! use async_std::task::spawn;
+//!
+//! async fn end(ctx: &mut Context<()>) -> roa::Result {
+//!     ctx.write_text("Hello, World");
+//!     Ok(())
+//! }
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     pretty_env_logger::init();
-//!     let mut app = App::new(());
-//!     app.gate(logger);
-//!     app.call(|mut ctx| async move {
-//!         ctx.write_text("Hello, World!")
-//!     });
+//!     let app = App::new(())
+//!         .gate(logger)
+//!         .end(end);
 //!     let (addr, server) = app.run()?;
 //!     spawn(server);
 //!     let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -229,7 +232,7 @@ mod tests {
             Ok(())
         }
         // bytes info
-        let (addr, server) = App::new((), logger.end(bytes_info)).run()?;
+        let (addr, server) = App::new(()).gate(logger).end(bytes_info).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -247,7 +250,7 @@ mod tests {
         async fn err(ctx: &mut Context<()>) -> crate::Result {
             throw!(StatusCode::BAD_REQUEST, "Hello, World!")
         }
-        let (addr, server) = App::new((), logger.end(err)).run()?;
+        let (addr, server) = App::new(()).gate(logger).end(err).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
@@ -267,7 +270,7 @@ mod tests {
             Ok(())
         }
         // bytes info
-        let (addr, server) = App::new((), logger.end(stream_info)).run()?;
+        let (addr, server) = App::new(()).gate(logger).end(stream_info).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

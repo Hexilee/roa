@@ -362,7 +362,7 @@ mod tests {
 
     #[tokio::test]
     async fn default_cors() -> Result<(), Box<dyn std::error::Error>> {
-        let (addr, server) = App::new((), Cors::new().end(end)).run()?;
+        let (addr, server) = App::new(()).gate(Cors::new()).end(end).run()?;
         spawn(server);
         let client = reqwest::Client::new();
 
@@ -485,7 +485,7 @@ mod tests {
             .allow_headers(vec![AUTHORIZATION])
             .allow_header(CONTENT_TYPE)
             .build();
-        let (addr, server) = App::new((), configured_cors.end(end)).run()?;
+        let (addr, server) = App::new(()).gate(configured_cors).end(end).run()?;
         spawn(server);
         let client = reqwest::Client::new();
 

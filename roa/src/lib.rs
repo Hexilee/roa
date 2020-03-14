@@ -18,17 +18,19 @@
 //! The obligatory hello world application:
 //!
 //! ```rust,no_run
-//! use roa::App;
+//! use roa::{App, Context};
 //! use roa::preload::*;
 //! use log::info;
 //! use std::error::Error as StdError;
 //!
+//! async fn end(ctx: &mut Context<()>) -> roa::Result {
+//!     ctx.write_text("Hello, World");
+//!     Ok(())
+//! }
+//!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
-//!     let mut app = App::new(());
-//!     app.call(|mut ctx| async move {
-//!         ctx.write_text("Hello, World")
-//!     });
+//!     let app = App::new(()).end(end);
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
@@ -49,7 +51,7 @@
 //! the stack will unwind and each middleware is resumed to perform its upstream behaviour.
 //!
 //! ```rust,no_run
-//! use roa::App;
+//! use roa::{App, Context, Next};
 //! use roa::preload::*;
 //! use log::info;
 //! use std::error::Error as StdError;
@@ -57,35 +59,37 @@
 //!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
-//!     let mut app = App::new(());
-//!     // logger
-//!     app.gate_fn(|ctx, next| async move {
-//!         next.await?;
-//!         let rt = ctx.resp().must_get("x-response-time")?;
-//!         info!("{} {} - {}", ctx.method(), ctx.uri(), rt);
-//!         Ok(())
-//!     });
-//!
-//!     // x-response-time
-//!     app.gate_fn(|mut ctx, next| async move {
-//!         let start = Instant::now();
-//!         next.await?;
-//!         let ms = start.elapsed().as_millis();
-//!         ctx.resp_mut().insert("x-response-time", format!("{}ms", ms))?;
-//!         Ok(())
-//!     });
-//!
-//!     // response
-//!     app.call(|mut ctx| async move {
-//!         ctx.write_text("Hello, World")
-//!     });
-//!
+//!     let app = App::new(())
+//!         .gate(logger)
+//!         .gate(x_response_time)
+//!         .end(response);
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
 //!     .await?;
 //!     Ok(())
 //! }
+//!
+//! async fn logger(ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
+//!     next.await?;
+//!     let rt = ctx.resp().must_get("x-response-time")?;
+//!     info!("{} {} - {}", ctx.method(), ctx.uri(), rt);
+//!     Ok(())
+//! }
+//!
+//! async fn x_response_time(ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
+//!     let start = Instant::now();
+//!     next.await?;
+//!     let ms = start.elapsed().as_millis();
+//!     ctx.resp_mut().insert("x-response-time", format!("{}ms", ms))?;
+//!     Ok(())
+//! }
+//!
+//! async fn response(ctx: &mut Context<()>) -> roa::Result {
+//!     ctx.write_text("Hello, World");
+//!     Ok(())
+//! }
+//!
 //! ```
 //!
 //! ### Error Handling
@@ -93,7 +97,7 @@
 //! You can catch or straightly throw an error returned by next.
 //!
 //! ```rust,no_run
-//! use roa::{App, throw};
+//! use roa::{App, Context, Next, throw};
 //! use roa::preload::*;
 //! use roa::http::StatusCode;
 //! use async_std::task::spawn;
@@ -101,30 +105,37 @@
 //!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut app = App::new(());
-//!     app.gate_fn(|ctx, next| async move {
-//!         // catch
-//!         if let Err(err) = next.await {
-//!             // teapot is ok
-//!             if err.status_code != StatusCode::IM_A_TEAPOT {
-//!                 return Err(err);
-//!             }
-//!         }
-//!         Ok(())
-//!     })
-//!     .gate_fn(|ctx, next| async move {
-//!         next.await?; // just throw
-//!         unreachable!()
-//!     })
-//!     .end(|_ctx| async move {
-//!         throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
-//!     });
+//!     let app = App::new(())
+//!         .gate(catch)
+//!         .gate(not_catch)
+//!         .end(error);
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
 //!     .await?;
 //!     Ok(())
 //! }
+//!
+//! async fn catch(_ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
+//!     // catch
+//!     if let Err(err) = next.await {
+//!         // teapot is ok
+//!         if err.status_code != StatusCode::IM_A_TEAPOT {
+//!             return Err(err);
+//!         }
+//!     }
+//!     Ok(())
+//! }
+//!
+//! async fn not_catch(ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
+//!     next.await?; // just throw
+//!     unreachable!()
+//! }
+//!
+//! async fn error(ctx: &mut Context<()>) -> roa::Result {
+//!     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
+//! }
+//!
 //! ```
 //!
 //! #### error_handler
@@ -157,29 +168,29 @@
 //!
 //! ```rust,no_run
 //! use roa::preload::*;
-//! use roa::router::Router;
-//! use roa::App;
+//! use roa::router::{Router, get};
+//! use roa::{App, Context};
 //! use async_std::task::spawn;
 //! use log::info;
 //!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut router = Router::<()>::new();
-//!     // get dynamic "/:id"
-//!     router.get("/:id", |ctx| async move {
-//!         let id: u64 = ctx.must_param("id")?.parse()?;
-//!         // do something
-//!         Ok(())
-//!     });
-//!     let mut app = App::new(());
-//!     // route with prefix "/user"
-//!     app.gate(router.routes("/user")?);
+//!     let mut router = Router::new()
+//!         .on("/:id", get(end)); // get dynamic "/:id"
+//!     let app = App::new(())
+//!         .end(router.routes("/user")?); // route with prefix "/user"
 //!     app.listen("127.0.0.1:8000", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
 //!     .await?;
 //!     
+//!     Ok(())
+//! }
+//!
+//! async fn end(ctx: &mut Context<()>) -> roa::Result {
 //!     // get "/user/1", then id == 1.
+//!     let id: u64 = ctx.must_param("id")?.parse()?;
+//!     // do something
 //!     Ok(())
 //! }
 //! ```
@@ -191,23 +202,25 @@
 //! ```rust,no_run
 //! use roa::preload::*;
 //! use roa::query::query_parser;
-//! use roa::App;
+//! use roa::{App, Context};
 //! use async_std::task::spawn;
 //! use log::info;
 //!
+//! async fn must(ctx: &mut Context<()>) -> roa::Result {
+//!     // request "/?id=1", then id == 1.
+//!     assert_eq!(1, ctx.must_query("id")?.parse()?);
+//!     Ok(())
+//! }
+//!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut app = App::new(());
-//!     app.gate(query_parser);
-//!     app.call( |ctx| async move {
-//!         let id: u64 = ctx.must_query("id")?.parse()?;
-//!         Ok(())
-//!     });
+//!     let app = App::new(())
+//!         .gate(query_parser)
+//!         .end(must);
 //!     app.listen("127.0.0.1:8080", |addr| {
 //!         info!("Server is listening on {}", addr)
 //!     })?
 //!     .await?;     
-//!     // request "/?id=1", then id == 1.
 //!     Ok(())
 //! }
 //! ```
@@ -261,7 +274,6 @@ pub mod preload {
     pub use crate::forward::Forward;
     pub use crate::header::FriendlyHeaders;
     pub use crate::query::Query;
-    pub use crate::MiddlewareExt;
 
     #[cfg(feature = "tcp")]
     pub use crate::tcp::Listener;
