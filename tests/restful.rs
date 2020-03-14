@@ -4,9 +4,10 @@ use http::StatusCode;
 use multimap::MultiMap;
 use roa::preload::*;
 use roa::query::query_parser;
-use roa::router::Router;
-use roa::{throw, App};
+use roa::router::{get, post, Router};
+use roa::{throw, App, Context};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use slab::Slab;
 use std::collections::HashMap;
 
@@ -89,58 +90,58 @@ impl DB {
 
 type State = Arc<RwLock<DB>>;
 
-fn crud_router() -> Result<Router<State>, Box<dyn std::error::Error>> {
-    let mut router = Router::<State>::new();
-    let mut id_router = Router::<State>::new();
-    router.post("", |mut ctx| async move {
-        let user = ctx.read_json().await?;
-        let id = ctx.write().await.add(user);
-        let mut data = HashMap::new();
-        data.insert("id", id);
-        ctx.resp_mut().status = StatusCode::CREATED;
-        ctx.write_json(&data)
-    });
-    id_router
-        .get("", |mut ctx| async move {
-            let id = ctx.must_param("id")?.parse()?;
-            let db = ctx.read().await;
-            match db.get(id) {
-                Some(user) => {
-                    let data = user.clone();
-                    drop(db);
-                    ctx.write_json(&data)
-                }
-                None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
-            }
-        })
-        .put("", |mut ctx| async move {
-            let id = ctx.must_param("id")?.parse()?;
-            let mut user = ctx.read_json().await?;
-            if ctx.write().await.update(id, &mut user) {
-                ctx.write_json(&user)
-            } else {
-                throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id))
-            }
-        })
-        .delete("", |mut ctx| async move {
-            let id = ctx.must_param("id")?.parse()?;
-            let mut db = ctx.write().await;
-            match db.delete(id) {
-                Some(user) => {
-                    drop(db);
-                    ctx.write_json(&user)
-                }
-                None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
-            }
-        });
-    router.include("/:id", id_router);
-    Ok(router)
+async fn create_user(ctx: &mut Context<State>) -> roa::Result {
+    let user = ctx.read_json().await?;
+    let id = ctx.write().await.add(user);
+    ctx.resp.status = StatusCode::CREATED;
+    ctx.write_json(&json!({ "id": id }))
+}
+
+async fn query_user(ctx: &mut Context<State>) -> roa::Result {
+    let id = ctx.must_param("id")?.parse()?;
+    let db = ctx.read().await;
+    match db.get(id) {
+        Some(user) => {
+            let data = user.clone();
+            drop(db);
+            ctx.write_json(&data)
+        }
+        None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
+    }
+}
+
+async fn update_user(ctx: &mut Context<State>) -> roa::Result {
+    let id = ctx.must_param("id")?.parse()?;
+    let mut user = ctx.read_json().await?;
+    if ctx.write().await.update(id, &mut user) {
+        ctx.write_json(&user)
+    } else {
+        throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id))
+    }
+}
+
+async fn delete_user(ctx: &mut Context<State>) -> roa::Result {
+    let id = ctx.must_param("id")?.parse()?;
+    let mut db = ctx.write().await;
+    match db.delete(id) {
+        Some(user) => {
+            drop(db);
+            ctx.write_json(&user)
+        }
+        None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
+    }
+}
+
+fn crud_router() -> Router<State> {
+    Router::new()
+        .on("/", post(create_user))
+        .on("/:id", get(query_user).put(update_user).delete(delete_user))
 }
 
 #[tokio::test]
 async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = App::new(Arc::new(RwLock::new(DB::new())));
-    app.gate(crud_router()?.routes("/user")?);
+    let app =
+        App::new(Arc::new(RwLock::new(DB::new()))).end(crud_router().routes("/user")?);
     let (addr, server) = app.run()?;
     spawn(server);
     // first get, 404 Not Found
@@ -216,45 +217,45 @@ async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn batch_router() -> Result<Router<State>, Box<dyn std::error::Error>> {
-    let mut router = Router::<State>::new();
-    router
-        .post("/user", |mut ctx| async move {
-            let users: Vec<User> = ctx.read_json().await?;
-            let mut ids = Vec::new();
-            for user in users {
-                ids.push(ctx.write().await.add(user))
-            }
-            ctx.resp_mut().status = StatusCode::CREATED;
-            ctx.write_json(&ids)
-        })
-        .get("/user", |mut ctx| async move {
-            let users = match ctx.query("name") {
-                Some(name) => ctx
-                    .read()
-                    .await
-                    .get_by_name(&name)
-                    .into_iter()
-                    .map(|(id, user)| (id, user.clone()))
-                    .collect::<Vec<(usize, User)>>(),
-                None => ctx
-                    .read()
-                    .await
-                    .main_table
-                    .iter()
-                    .map(|(id, user)| (id, user.clone()))
-                    .collect::<Vec<(usize, User)>>(),
-            };
+async fn create_batch(ctx: &mut Context<State>) -> roa::Result {
+    let users: Vec<User> = ctx.read_json().await?;
+    let mut ids = Vec::new();
+    for user in users {
+        ids.push(ctx.write().await.add(user))
+    }
+    ctx.resp.status = StatusCode::CREATED;
+    ctx.write_json(&ids)
+}
 
-            ctx.write_json(&users)
-        });
-    Ok(router)
+async fn query_batch(ctx: &mut Context<State>) -> roa::Result {
+    let users = match ctx.query("name") {
+        Some(name) => ctx
+            .read()
+            .await
+            .get_by_name(&name)
+            .into_iter()
+            .map(|(id, user)| (id, user.clone()))
+            .collect::<Vec<(usize, User)>>(),
+        None => ctx
+            .read()
+            .await
+            .main_table
+            .iter()
+            .map(|(id, user)| (id, user.clone()))
+            .collect::<Vec<(usize, User)>>(),
+    };
+
+    ctx.write_json(&users)
+}
+
+fn batch_router() -> Router<State> {
+    Router::new().on("/user", get(query_batch).post(create_batch))
 }
 
 #[tokio::test]
 async fn batch() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App::new(Arc::new(RwLock::new(DB::new())));
-    app.gate(query_parser).gate(batch_router()?.routes("/")?);
+    app.gate(query_parser).gate(batch_router().routes("/")?);
     let (addr, server) = app.run()?;
     spawn(server);
     // first get, list empty
