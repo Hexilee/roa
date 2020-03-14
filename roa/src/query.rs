@@ -69,7 +69,7 @@ struct QueryScope;
 ///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
-///     assert_eq!(StatusCode::OK, resp.status());
+///     assert_eq!(StatusCode::BAD_REQUEST, resp.status());
 ///     Ok(())
 /// }
 /// ```
@@ -109,20 +109,22 @@ pub trait Query {
     ///
     /// ```rust
     /// use roa::query::query_parser;
-    /// use roa::App;
+    /// use roa::{App, Context};
     /// use roa::http::StatusCode;
     /// use roa::preload::*;
     /// use async_std::task::spawn;
+    ///
+    /// async fn test(ctx: &mut Context<()>) -> roa::Result {
+    ///     assert!(ctx.query("name").is_none());
+    ///     Ok(())
+    /// }
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     // downstream of `query_parser`
     ///     let app = App::new(())
     ///         .gate(query_parser)
-    ///         .end(|ctx| async move {
-    ///             assert!(ctx.query("name").is_none());
-    ///             Ok(())
-    ///         });
+    ///         .end(test);
     ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;

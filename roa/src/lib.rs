@@ -175,7 +175,7 @@
 //!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut router = Router::new()
+//!     let router = Router::new()
 //!         .on("/:id", get(end)); // get dynamic "/:id"
 //!     let app = App::new(())
 //!         .end(router.routes("/user")?); // route with prefix "/user"
@@ -189,7 +189,7 @@
 //!
 //! async fn end(ctx: &mut Context<()>) -> roa::Result {
 //!     // get "/user/1", then id == 1.
-//!     let id: u64 = ctx.must_param("id")?.parse::<i32>()?;
+//!     let id: u64 = ctx.must_param("id")?.parse()?;
 //!     // do something
 //!     Ok(())
 //! }
@@ -208,7 +208,7 @@
 //!
 //! async fn must(ctx: &mut Context<()>) -> roa::Result {
 //!     // request "/?id=1", then id == 1.
-//!     assert_eq!(1, ctx.must_query("id")?.parse()?);
+//!     let id: u64 = ctx.must_query("id")?.parse()?;
 //!     Ok(())
 //! }
 //!
