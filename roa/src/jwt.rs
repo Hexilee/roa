@@ -75,9 +75,7 @@ pub use jsonwebtoken::{DecodingKey, Validation};
 
 use crate::http::header::{HeaderValue, WWW_AUTHENTICATE};
 use crate::http::StatusCode;
-use crate::{
-    async_trait, join, Context, Error, Middleware, Next, Result, State, SyncContext,
-};
+use crate::{async_trait, Context, Error, Middleware, MiddlewareExt, Next, Result};
 use headers::{authorization::Bearer, Authorization, HeaderMapExt};
 use jsonwebtoken::decode;
 use serde::de::DeserializeOwned;
@@ -118,7 +116,7 @@ pub trait JwtVerifier<S> {
 }
 
 /// Guard by default validation.
-pub fn guard<S: State>(secret: DecodingKey) -> impl Middleware<S> {
+pub fn guard<S: 'static>(secret: DecodingKey) -> impl for<'a> Middleware<'a, S> {
     guard_by(secret, Validation::default())
 }
 
@@ -130,25 +128,22 @@ pub fn guard<S: State>(secret: DecodingKey) -> impl Middleware<S> {
 /// If request fails to pass verification, return 401 UNAUTHORIZED and set response header:
 ///
 /// `WWW-Authenticate: Bearer realm="<jwt>", error="invalid_token"`.
-pub fn guard_by<S: State>(
+pub fn guard_by<S: 'static>(
     secret: DecodingKey,
     validation: Validation,
-) -> impl Middleware<S> {
-    join(
-        Arc::new(catch_www_authenticate),
-        JwtGuard {
-            secret: secret.into_static(),
-            validation,
-        },
-    )
+) -> impl for<'a> Middleware<'a, S> {
+    catch_www_authenticate.chain(JwtGuard {
+        secret: secret.into_static(),
+        validation,
+    })
 }
 
 #[inline]
-async fn catch_www_authenticate<S: State>(mut ctx: Context<S>, next: Next) -> Result {
+async fn catch_www_authenticate<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
     let result = next.await;
     if let Err(ref err) = result {
         if err.status_code == StatusCode::UNAUTHORIZED {
-            ctx.resp_mut()
+            ctx.resp
                 .headers
                 .insert(WWW_AUTHENTICATE, HeaderValue::from_static(INVALID_TOKEN));
         }
@@ -175,10 +170,7 @@ fn guard_not_set() -> Error {
     )
 }
 
-impl<S> JwtVerifier<S> for SyncContext<S>
-where
-    S: State,
-{
+impl<S> JwtVerifier<S> for Context<S> {
     #[inline]
     fn claims<C>(&self) -> Result<C>
     where
@@ -218,11 +210,11 @@ where
 }
 
 #[async_trait(?Send)]
-impl<S: State> Middleware<S> for JwtGuard {
+impl<'a, S> Middleware<'a, S> for JwtGuard {
     #[inline]
-    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         let bearer = ctx
-            .req()
+            .req
             .headers
             .typed_get::<Authorization<Bearer>>()
             .ok_or_else(|| unauthorized(""))?

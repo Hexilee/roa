@@ -38,6 +38,11 @@ impl<'a, V> Variable<'a, V> {
     fn new(key: &'a str, value: Arc<V>) -> Self {
         Self { key, value }
     }
+
+    #[inline]
+    pub fn value(self) -> Arc<V> {
+        self.value
+    }
 }
 
 impl<V> Variable<'_, V>

@@ -280,13 +280,13 @@ impl Builder {
 }
 
 #[async_trait(?Send)]
-impl<S: State> Middleware<S> for Cors {
-    async fn handle(self: Arc<Self>, mut ctx: Context<S>, next: Next) -> Result {
+impl<'a, S> Middleware<'a, S> for Cors {
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         // Always set Vary header
         // https://github.com/rs/cors/issues/10
-        ctx.resp_mut().append(VARY, ORIGIN)?;
+        ctx.resp.append(VARY, ORIGIN)?;
 
-        let origin = match ctx.req().headers.get(ORIGIN) {
+        let origin = match ctx.req.headers.get(ORIGIN) {
             // If there is no Origin header, skip this middleware.
             None => return next.await,
             Some(origin) => AccessControlAllowOrigin::decode(
@@ -307,29 +307,29 @@ impl<S: State> Middleware<S> for Cors {
         let credentials = self.credentials.clone();
         let insert_origin_and_credentials = move |ctx: &mut Context<S>| {
             // Set "Access-Control-Allow-Origin"
-            ctx.resp_mut().headers.typed_insert(allow_origin);
+            ctx.resp.headers.typed_insert(allow_origin);
 
             // Try to set "Access-Control-Allow-Credentials"
             if let Some(credentials) = credentials {
-                ctx.resp_mut().headers.typed_insert(credentials);
+                ctx.resp.headers.typed_insert(credentials);
             }
         };
 
         if ctx.method() != Method::OPTIONS {
             // Simple Request
 
-            insert_origin_and_credentials(&mut ctx);
+            insert_origin_and_credentials(ctx);
 
             // Set "Access-Control-Expose-Headers"
             if let Some(ref exposed_headers) = self.expose_headers {
-                ctx.resp_mut().headers.typed_insert(exposed_headers.clone());
+                ctx.resp.headers.typed_insert(exposed_headers.clone());
             }
             next.await
         } else {
             // Preflight Request
 
             let request_method =
-                match ctx.req().headers.typed_get::<AccessControlRequestMethod>() {
+                match ctx.req.headers.typed_get::<AccessControlRequestMethod>() {
                     // If there is no Origin header or if parsing failed, skip this middleware.
                     None => return next.await,
                     Some(request_method) => request_method,
@@ -344,27 +344,27 @@ impl<S: State> Middleware<S> for Cors {
             };
 
             // Try to set "Access-Control-Allow-Methods"
-            ctx.resp_mut().headers.typed_insert(allow_methods);
+            ctx.resp.headers.typed_insert(allow_methods);
 
-            insert_origin_and_credentials(&mut ctx);
+            insert_origin_and_credentials(ctx);
 
             // Set "Access-Control-Max-Age"
             if let Some(ref max_age) = self.max_age {
-                ctx.resp_mut().headers.typed_insert(max_age.clone());
+                ctx.resp.headers.typed_insert(max_age.clone());
             }
 
             // If allow_headers is None, try to assign `Access-Control-Request-Headers` to `Access-Control-Allow-Headers`.
             let allow_headers = self.allow_headers.clone().or_else(|| {
-                ctx.req()
+                ctx.req
                     .headers
                     .typed_get::<AccessControlRequestHeaders>()
                     .map(|headers| AccessControlAllowHeaders::from_iter(headers.iter()))
             });
             if let Some(headers) = allow_headers {
-                ctx.resp_mut().headers.typed_insert(headers);
+                ctx.resp.headers.typed_insert(headers);
             };
 
-            ctx.resp_mut().status = StatusCode::NO_CONTENT;
+            ctx.resp.status = StatusCode::NO_CONTENT;
             Ok(())
         }
     }
@@ -393,7 +393,7 @@ mod tests {
     async fn default_cors() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new(());
         app.gate(Cors::new()).end(|mut ctx| async move {
-            ctx.resp_mut().write("Hello, World");
+            ctx.resp.write("Hello, World");
             Ok(())
         });
         let (addr, server) = app.run()?;
@@ -521,7 +521,7 @@ mod tests {
             .allow_header(CONTENT_TYPE)
             .build();
         app.gate(configured_cors).end(|mut ctx| async move {
-            ctx.resp_mut().write("Hello, World");
+            ctx.resp.write("Hello, World");
             Ok(())
         });
         let (addr, server) = app.run()?;

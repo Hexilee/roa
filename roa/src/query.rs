@@ -27,7 +27,7 @@
 //! ```
 
 use crate::http::StatusCode;
-use crate::{Context, Error, Next, Result, State, SyncContext, Variable};
+use crate::{Context, Error, Next, Result, Variable};
 use url::form_urlencoded::parse;
 
 /// A scope to store and load variables in Context::storage.
@@ -133,16 +133,17 @@ pub trait Query {
 
 /// A middleware to parse query.
 #[inline]
-pub async fn query_parser<S: State>(mut ctx: Context<S>, next: Next) -> Result {
-    let uri = ctx.uri();
-    let query_string = uri.query().unwrap_or("").to_string();
-    for (key, value) in parse(query_string.as_bytes()) {
-        ctx.store_scoped(QueryScope, &key, value.to_string());
+pub async fn query_parser<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
+    let query_string = ctx.uri().query().unwrap_or("");
+    let pairs: Vec<(String, String)> =
+        parse(query_string.as_bytes()).into_owned().collect();
+    for (key, value) in pairs.into_iter() {
+        ctx.store_scoped(QueryScope, key, value);
     }
     next.await
 }
 
-impl<S: State> Query for SyncContext<S> {
+impl<S> Query for Context<S> {
     #[inline]
     fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.query(name).ok_or_else(|| {

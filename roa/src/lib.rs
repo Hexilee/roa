@@ -261,6 +261,7 @@ pub mod preload {
     pub use crate::forward::Forward;
     pub use crate::header::FriendlyHeaders;
     pub use crate::query::Query;
+    pub use crate::MiddlewareExt;
 
     #[cfg(feature = "tcp")]
     pub use crate::tcp::Listener;

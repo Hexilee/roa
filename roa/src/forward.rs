@@ -80,9 +80,9 @@ pub trait Forward {
 impl<S: State> Forward for Context<S> {
     #[inline]
     fn host(&self) -> Result<String> {
-        if let Some(Ok(value)) = self.req().get("x-forwarded-host") {
+        if let Some(Ok(value)) = self.req.get("x-forwarded-host") {
             Ok(value.to_string())
-        } else if let Some(Ok(value)) = self.req().get(HOST) {
+        } else if let Some(Ok(value)) = self.req.get(HOST) {
             Ok(value.to_string())
         } else {
             throw!(
@@ -105,7 +105,7 @@ impl<S: State> Forward for Context<S> {
     #[inline]
     fn forwarded_ips(&self) -> Vec<IpAddr> {
         let mut addrs = Vec::new();
-        if let Some(Ok(value)) = self.req().get("x-forwarded-for") {
+        if let Some(Ok(value)) = self.req.get("x-forwarded-for") {
             for addr_str in value.split(',') {
                 if let Ok(addr) = addr_str.trim().parse() {
                     addrs.push(addr)
@@ -117,7 +117,7 @@ impl<S: State> Forward for Context<S> {
 
     #[inline]
     fn forwarded_proto(&self) -> Option<Result<String>> {
-        self.req()
+        self.req
             .get("x-forwarded-proto")
             .map(|result| result.map(|value| value.to_string()))
     }

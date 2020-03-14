@@ -121,7 +121,7 @@ where
 ///
 /// Based on crate `log`, the log level must be greater than `INFO` to log all information,
 /// and should be greater than `ERROR` when you need error information only.
-pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
+pub async fn logger<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
     info!("--> {} {}", ctx.method(), ctx.uri().path());
     let start = Instant::now();
     let result = next.await;
@@ -131,7 +131,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
     let exec = ctx.exec.clone();
     let status_code = ctx.status();
 
-    match (&result, &mut ctx.resp_mut().body) {
+    match (&result, &mut ctx.resp.body) {
         (Err(err), _) => {
             let message = err.message.clone();
             ctx.exec
@@ -175,7 +175,7 @@ pub async fn logger<S: State>(mut ctx: Context<S>, next: Next) -> Result {
                 stream: std::mem::take(stream),
                 task,
             };
-            ctx.resp_mut().write_stream(logger);
+            ctx.resp.write_stream(logger);
         }
     }
 
