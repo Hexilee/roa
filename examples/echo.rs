@@ -1,17 +1,18 @@
 use log::info;
 use roa::preload::*;
-use roa::App;
+use roa::{App, Context};
 use std::error::Error as StdError;
+
+async fn echo(ctx: &mut Context<()>) -> roa::Result {
+    let stream = ctx.req.stream();
+    ctx.resp.write_stream(stream);
+    Ok(())
+}
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
-    let mut app = App::new(());
-    app.call(|mut ctx| async move {
-        let stream = ctx.req_mut().stream();
-        ctx.resp_mut().write_stream(stream);
-        Ok(())
-    });
+    let app = App::new(()).end(echo);
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?

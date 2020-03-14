@@ -10,7 +10,7 @@ use roa::compress::Compress;
 use roa::http::StatusCode;
 use roa::logger::logger;
 use roa::preload::*;
-use roa::router::Router;
+use roa::router::{get, Router};
 use roa::{throw, App, Context, Next, Result};
 use std::borrow::Cow;
 use std::result::Result as StdResult;
@@ -49,7 +49,7 @@ impl<'a> Dir<'a> {
     }
 }
 
-async fn path_checker(ctx: Context<()>, next: Next) -> Result {
+async fn path_checker(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     if ctx.must_param("path")?.contains("..") {
         throw!(StatusCode::BAD_REQUEST, "invalid path")
     } else {
@@ -57,7 +57,7 @@ async fn path_checker(ctx: Context<()>, next: Next) -> Result {
     }
 }
 
-async fn serve_path(mut ctx: Context<()>) -> Result {
+async fn serve_path(ctx: &mut Context<()>) -> Result {
     let path_value = ctx.must_param("path")?;
     let path = path_value.as_ref();
     let file_path = Path::new(".").join(path);
@@ -70,7 +70,11 @@ async fn serve_path(mut ctx: Context<()>) -> Result {
     }
 }
 
-async fn serve_dir(mut ctx: Context<()>, path: &str) -> Result {
+async fn serve_root(ctx: &mut Context<()>) -> Result {
+    serve_dir(ctx, "")
+}
+
+async fn serve_dir(ctx: &mut Context<()>, path: &str) -> Result {
     let uri_path = Path::new("/").join(path);
     let mut entries = Path::new(".").join(path).read_dir().await?;
     let title = uri_path
@@ -115,15 +119,14 @@ fn format_time(time: SystemTime) -> String {
 #[async_std::main]
 async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
-    let mut router = Router::new();
-    let mut wildcard_router = Router::new();
-    router.get("", |ctx| serve_dir(ctx, ""));
-    wildcard_router.gate(path_checker).get("/", serve_path);
-    router.include("/*{path}", wildcard_router);
-    let mut app = App::new(());
-    app.gate(logger)
+    let wildcard_router = Router::new().gate(path_checker).on("/", get(serve_path));
+    let router = Router::new()
+        .on("/", serve_root)
+        .include("/*{path}", wildcard_router);
+    let app = App::new(())
+        .gate(logger)
         .gate(Compress::default())
-        .gate(router.routes("/")?);
+        .end(router.routes("/")?);
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
