@@ -8,18 +8,18 @@
 
 use juniper::{http::GraphQLRequest, GraphQLTypeAsync, RootNode, ScalarValue};
 use roa_body::PowerBody;
-use roa_core::{async_trait, Context, Middleware, Next, Result, State, SyncContext};
+use roa_core::{async_trait, Context, Middleware, Next, Result, State};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 /// A wrapper for `roa_core::SyncContext`.
 /// As an implementation of `juniper::Context`.
-pub struct JuniperContext<S>(SyncContext<S>);
+pub struct JuniperContext<S>(Context<S>);
 
 impl<S: State> juniper::Context for JuniperContext<S> {}
 
 impl<S> Deref for JuniperContext<S> {
-    type Target = SyncContext<S>;
+    type Target = Context<S>;
     #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -46,7 +46,7 @@ where
     MutationT::TypeInfo: Send + Sync;
 
 #[async_trait(?Send)]
-impl<S, QueryT, MutationT, Sca> Middleware<S> for GraphQL<QueryT, MutationT, Sca>
+impl<'a, S, QueryT, MutationT, Sca> Middleware<'a, S> for GraphQL<QueryT, MutationT, Sca>
 where
     S: State,
     Sca: 'static + ScalarValue + Send + Sync,
@@ -57,7 +57,7 @@ where
     MutationT::TypeInfo: Send + Sync,
 {
     #[inline]
-    async fn handle(self: Arc<Self>, mut ctx: Context<S>, _next: Next) -> Result {
+    async fn handle(&'a self, ctx: &'a mut Context<S>, _next: Next<'a>) -> Result {
         let request: GraphQLRequest<Sca> = ctx.read_json().await?;
         let juniper_ctx = JuniperContext(ctx.clone());
         let resp = request.execute(&self.0, &juniper_ctx).await;
