@@ -16,7 +16,7 @@
 //!         println!("forward err: {}", err);
 //!     }
 //! }));
-//! let app = App::new((), router.routes("/")?);
+//! let app = App::new(()).end(router.routes("/")?);
 //! Ok(())
 //! # }
 //! ```
@@ -60,7 +60,7 @@ pub type SocketStream = WebSocketStream<Upgraded>;
 ///         println!("forward err: {}", err);
 ///     }
 /// }));
-/// let app = App::new((), router.routes("/")?);
+/// let app = App::new(()).end(router.routes("/")?);
 /// Ok(())
 /// # }
 /// ```
@@ -121,7 +121,7 @@ where
     ///         }
     ///     })
     /// );
-    /// let app = App::new((), router.routes("/")?);
+    /// let app = App::new(()).end(router.routes("/")?);
     /// # Ok(())
     /// # }
     /// ```
