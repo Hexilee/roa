@@ -3,7 +3,10 @@ mod runtime;
 
 mod future;
 mod stream;
-use crate::{Context, Endpoint, Error, Next, Request, Response, Result, State};
+use crate::{
+    Chain, Context, Endpoint, Error, Middleware, MiddlewareExt, Next, Request, Response,
+    Result, State,
+};
 use future::SendFuture;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
@@ -79,34 +82,69 @@ pub use stream::AddrStream;
 /// }
 /// ```
 ///
-pub struct App<S> {
-    endpoint: Arc<dyn for<'a> Endpoint<'a, S>>,
+pub struct App<S, T = ()> {
+    service: T,
     exec: Executor,
-    pub(crate) state: S,
+    state: S,
 }
 
 /// An implementation of hyper HttpService.
-pub struct HttpService<S> {
-    endpoint: Arc<dyn for<'a> Endpoint<'a, S>>,
+pub struct HttpService<S, E> {
+    endpoint: Arc<E>,
     remote_addr: SocketAddr,
     exec: Executor,
     pub(crate) state: S,
 }
 
-impl<S> App<S> {
+impl<S, T> App<S, T> {
+    fn map_service<U>(self, mapper: impl FnOnce(T) -> U) -> App<S, U> {
+        let Self {
+            exec,
+            state,
+            service,
+        } = self;
+        App {
+            service: mapper(service),
+            exec,
+            state,
+        }
+    }
+}
+
+impl<S> App<S, ()> {
     /// Construct an application with custom runtime.
-    pub fn with_exec(
-        state: S,
-        endpoint: impl for<'a> Endpoint<'a, S>,
-        exec: impl 'static + Send + Sync + Spawn,
-    ) -> Self {
+    pub fn with_exec(state: S, exec: impl 'static + Send + Sync + Spawn) -> Self {
         Self {
-            endpoint: Arc::new(endpoint),
+            service: (),
             exec: Executor(Arc::new(exec)),
             state,
         }
     }
+}
 
+impl<S, T> App<S, T>
+where
+    T: for<'a> Middleware<'a, S>,
+{
+    pub fn gate<M>(self, middleware: M) -> App<S, Chain<T, M>>
+    where
+        M: for<'a> Middleware<'a, S>,
+    {
+        self.map_service(move |service| service.chain(middleware))
+    }
+
+    pub fn end<E>(self, endpoint: E) -> App<S, Arc<Chain<T, E>>>
+    where
+        E: for<'a> Endpoint<'a, S>,
+    {
+        self.map_service(move |service| Arc::new(service.end(endpoint)))
+    }
+}
+
+impl<S, E> App<S, Arc<E>>
+where
+    E: for<'a> Endpoint<'a, S>,
+{
     /// Construct a hyper server by an incoming.
     pub fn accept<I>(self, incoming: I) -> Server<I, Self, Executor>
     where
@@ -121,11 +159,11 @@ impl<S> App<S> {
 
     /// Make a fake http service for test.
     #[cfg(test)]
-    pub fn http_service(&self) -> HttpService<S>
+    pub fn http_service(&self) -> HttpService<S, E>
     where
         S: Clone,
     {
-        let endpoint = self.endpoint.clone();
+        let endpoint = self.service.clone();
         let addr = ([127, 0, 0, 1], 0);
         let state = self.state.clone();
         let exec = self.exec.clone();
@@ -142,18 +180,22 @@ macro_rules! impl_poll_ready {
     };
 }
 
-type AppFuture<S> =
-    Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<S>>> + Send>>;
+type AppFuture<S, E> =
+    Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<S, E>>> + Send>>;
 
-impl<S: State> Service<&AddrStream> for App<S> {
-    type Response = HttpService<S>;
+impl<S, E> Service<&AddrStream> for App<S, Arc<E>>
+where
+    S: State,
+    E: for<'a> Endpoint<'a, S>,
+{
+    type Response = HttpService<S, E>;
     type Error = std::io::Error;
-    type Future = AppFuture<S>;
+    type Future = AppFuture<S, E>;
     impl_poll_ready!();
 
     #[inline]
     fn call(&mut self, stream: &AddrStream) -> Self::Future {
-        let endpoint = self.endpoint.clone();
+        let endpoint = self.service.clone();
         let addr = stream.remote_addr();
         let state = self.state.clone();
         let exec = self.exec.clone();
@@ -164,7 +206,11 @@ impl<S: State> Service<&AddrStream> for App<S> {
 type HttpFuture =
     Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>>> + Send>>;
 
-impl<S: State> Service<HttpRequest<HyperBody>> for HttpService<S> {
+impl<S, E> Service<HttpRequest<HyperBody>> for HttpService<S, E>
+where
+    S: State,
+    E: for<'a> Endpoint<'a, S>,
+{
     type Response = HttpResponse<HyperBody>;
     type Error = Error;
     type Future = HttpFuture;
@@ -180,9 +226,9 @@ impl<S: State> Service<HttpRequest<HyperBody>> for HttpService<S> {
     }
 }
 
-impl<S> HttpService<S> {
+impl<S, E> HttpService<S, E> {
     pub fn new(
-        endpoint: Arc<dyn for<'a> Endpoint<'a, S>>,
+        endpoint: Arc<E>,
         remote_addr: SocketAddr,
         exec: Executor,
         state: S,
@@ -200,6 +246,7 @@ impl<S> HttpService<S> {
     pub async fn serve(self, req: Request) -> Result<Response>
     where
         S: 'static,
+        E: for<'a> Endpoint<'a, S>,
     {
         let Self {
             endpoint,
@@ -223,7 +270,7 @@ impl<S> HttpService<S> {
     }
 }
 
-impl<S: Clone> Clone for HttpService<S> {
+impl<S: Clone, E> Clone for HttpService<S, E> {
     fn clone(&self) -> Self {
         Self {
             endpoint: self.endpoint.clone(),
@@ -234,10 +281,10 @@ impl<S: Clone> Clone for HttpService<S> {
     }
 }
 
-impl<S: Clone> Clone for App<S> {
+impl<S: Clone> Clone for App<S, Arc<dyn for<'a> Endpoint<'a, S>>> {
     fn clone(&self) -> Self {
         Self {
-            endpoint: self.endpoint.clone(),
+            service: self.service.clone(),
             state: self.state.clone(),
             exec: self.exec.clone(),
         }

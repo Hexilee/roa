@@ -1,12 +1,12 @@
-use crate::{App, BlockingObj, Endpoint, FutureObj, Spawn, State};
+use crate::{App, BlockingObj, FutureObj, Spawn, State};
 
-impl<S> App<S> {
+impl<S> App<S, ()> {
     /// Construct app with default runtime.
     ///
     /// Feature `runtime` is required.
     #[inline]
-    pub fn new(state: S, endpoint: impl for<'a> Endpoint<'a, S>) -> Self {
-        Self::with_exec(state, endpoint, Exec)
+    pub fn new(state: S) -> Self {
+        Self::with_exec(state, Exec)
     }
 }
 

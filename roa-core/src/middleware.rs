@@ -1,4 +1,4 @@
-use crate::{async_trait, Context, Result, State};
+use crate::{async_trait, Context, Error, Result, State};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -139,6 +139,21 @@ where
     }
 }
 
+#[async_trait(?Send)]
+impl<'a, S> Middleware<'a, S> for () {
+    #[inline]
+    async fn handle(&'a self, _ctx: &'a mut Context<S>, next: Next<'a>) -> Result<()> {
+        next.await
+    }
+}
+
+#[async_trait(?Send)]
+impl<'a, S> Endpoint<'a, S> for () {
+    async fn call(&'a self, _ctx: &'a mut Context<S>) -> Result<()> {
+        Ok(())
+    }
+}
+
 /// Type of the second parameter in a middleware.
 ///
 /// `Next` is usually a closure capturing the next middleware, context and the next `Next`.
@@ -151,7 +166,7 @@ where
 /// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next};
 /// use roa_core::http::StatusCode;
 ///
-/// let mut app = App::new((), first.chain(second).chain(third).end(end));
+/// let mut app = App::new(()).gate(first).chain(second).chain(third).end(end));
 /// async fn first(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     assert!(ctx.store("id", "1").is_none());
 ///     next.await?;
