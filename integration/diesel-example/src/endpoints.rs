@@ -5,20 +5,17 @@ use crate::State;
 use diesel::prelude::*;
 use roa::http::StatusCode;
 use roa::preload::*;
-use roa::router::Router;
+use roa::router::{get, post, Router};
 use roa::{throw, Context, Result};
 use roa_diesel::{AsyncPool, SqlQuery, WrapError};
 
 pub fn post_router() -> Router<State> {
-    let mut router = Router::new();
-    router.post("/", create_post);
-    router.get("/:id", get_post);
-    router.put("/:id", update_post);
-    router.delete("/:id", delete_post);
-    router
+    Router::new()
+        .on("/", post(create_post))
+        .on("/:id", get(get_post).put(update_post).delete(delete_post))
 }
 
-async fn create_post(mut ctx: Context<State>) -> Result {
+async fn create_post(ctx: &mut Context<State>) -> Result {
     let data: NewPost = ctx.read_json().await?;
     let conn = ctx.get_conn().await?;
     let post = ctx
@@ -32,11 +29,11 @@ async fn create_post(mut ctx: Context<State>) -> Result {
             })
         })
         .await?;
-    ctx.resp_mut().status = StatusCode::CREATED;
+    ctx.resp.status = StatusCode::CREATED;
     ctx.write_json(&post)
 }
 
-async fn get_post(mut ctx: Context<State>) -> Result {
+async fn get_post(ctx: &mut Context<State>) -> Result {
     let id: i32 = ctx.must_param("id")?.parse()?;
     match ctx
         .first::<Post, _>(posts.find(id).filter(dsl::published.eq(true)))
@@ -47,7 +44,7 @@ async fn get_post(mut ctx: Context<State>) -> Result {
     }
 }
 
-async fn update_post(mut ctx: Context<State>) -> Result {
+async fn update_post(ctx: &mut Context<State>) -> Result {
     let id: i32 = ctx.must_param("id")?.parse()?;
     let NewPost {
         title,
@@ -69,7 +66,7 @@ async fn update_post(mut ctx: Context<State>) -> Result {
     }
 }
 
-async fn delete_post(mut ctx: Context<State>) -> Result {
+async fn delete_post(ctx: &mut Context<State>) -> Result {
     let id: i32 = ctx.must_param("id")?.parse()?;
     match ctx.first::<Post, _>(posts.find(id)).await? {
         None => throw!(StatusCode::NOT_FOUND, &format!("post({}) not found", id)),
