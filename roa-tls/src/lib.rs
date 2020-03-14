@@ -23,7 +23,7 @@
 //! config.set_single_cert(cert_chain, keys.remove(0))?;
 //!
 //! let incoming = TlsIncoming::bind("127.0.0.1:0", config)?;
-//! let server = App::new((), end).accept(incoming);
+//! let server = App::new(()).end(end).accept(incoming);
 //! // server.await
 //! Ok(())
 //! # }
@@ -50,7 +50,7 @@
 //! let cert_chain = certs(&mut cert_file).unwrap();
 //! let mut keys = rsa_private_keys(&mut key_file).unwrap();
 //! config.set_single_cert(cert_chain, keys.remove(0))?;
-//! let (addr, server) = App::new((), end).bind_tls("127.0.0.1:0", config)?;
+//! let (addr, server) = App::new(()).end(end).bind_tls("127.0.0.1:0", config)?;
 //! // server.await
 //! Ok(())
 //! # }
@@ -64,7 +64,7 @@ use async_tls::TlsAcceptor;
 use futures::io::Error;
 use futures::task::Context;
 use futures::{AsyncRead, AsyncWrite, Future};
-use roa_core::{Accept, AddrStream, App, Executor, Server, State};
+use roa_core::{Accept, AddrStream, App, Endpoint, Executor, Server, State};
 use roa_tcp::TcpIncoming;
 use rustls::ServerConfig;
 use std::io;
@@ -258,7 +258,7 @@ pub trait TlsListener {
     /// let mut keys = rsa_private_keys(&mut key_file).unwrap();
     /// config.set_single_cert(cert_chain, keys.remove(0))?;
     ///
-    /// let server = App::new((), end).listen_tls("127.0.0.1:8000", config, |addr| {
+    /// let server = App::new(()).end(end).listen_tls("127.0.0.1:8000", config, |addr| {
     ///     println!("Server is listening on https://localhost:{}", addr.port());
     /// })?;
     /// // server.await
@@ -271,7 +271,11 @@ pub trait TlsListener {
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
-impl<S: State> TlsListener for App<S> {
+impl<S, E> TlsListener for App<S, Arc<E>>
+where
+    S: State,
+    E: for<'a> Endpoint<'a, S>,
+{
     type Server = Server<TlsIncoming, Self, Executor>;
     fn bind_tls(
         self,
@@ -334,7 +338,7 @@ mod tests {
         let mut keys = rsa_private_keys(&mut key_file).unwrap();
         config.set_single_cert(cert_chain, keys.remove(0))?;
 
-        let app = App::new((), end);
+        let app = App::new(()).end(end);
         let (addr, server) = app.run_tls(config)?;
         spawn(server);
 
