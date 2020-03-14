@@ -1,5 +1,6 @@
 use crate::TcpIncoming;
-use roa_core::{App, Executor, Server, State};
+use async_std::sync::Arc;
+use roa_core::{App, Endpoint, Executor, Server, State};
 use std::net::{SocketAddr, ToSocketAddrs};
 
 /// An app extension.
@@ -35,7 +36,7 @@ pub trait Listener {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new((), end).run()?;
+    ///     let (addr, server) = App::new(()).end(end).run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());
@@ -45,7 +46,11 @@ pub trait Listener {
     fn run(self) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
-impl<S: State> Listener for App<S> {
+impl<S, E> Listener for App<S, Arc<E>>
+where
+    S: State,
+    E: for<'a> Endpoint<'a, S>,
+{
     type Server = Server<TcpIncoming, Self, Executor>;
     fn bind(
         self,

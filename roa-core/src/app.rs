@@ -82,7 +82,7 @@ pub use stream::AddrStream;
 /// }
 /// ```
 ///
-pub struct App<S, T = ()> {
+pub struct App<S, T> {
     service: T,
     exec: Executor,
     state: S,

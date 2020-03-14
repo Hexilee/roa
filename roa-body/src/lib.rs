@@ -293,7 +293,7 @@ mod tests {
             assert_eq!(USER, user);
             Ok(())
         }
-        let (addr, server) = App::new((), test).run()?;
+        let (addr, server) = App::new(()).end(test).run()?;
         spawn(server);
 
         let client = reqwest::Client::new();
@@ -313,7 +313,7 @@ mod tests {
             assert_eq!(USER, user);
             Ok(())
         }
-        let (addr, server) = App::new((), test).run()?;
+        let (addr, server) = App::new(()).end(test).run()?;
         spawn(server);
 
         let client = reqwest::Client::new();
@@ -331,7 +331,7 @@ mod tests {
         async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
             ctx.render(&USER)
         }
-        let (addr, server) = App::new((), test).run()?;
+        let (addr, server) = App::new(()).end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -345,7 +345,7 @@ mod tests {
             ctx.write_text("Hello, World!");
             Ok(())
         }
-        let (addr, server) = App::new((), test).run()?;
+        let (addr, server) = App::new(()).end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -360,7 +360,7 @@ mod tests {
             ctx.write_octet(File::open("../assets/author.txt").await?);
             Ok(())
         }
-        let (addr, server) = App::new((), test).run()?;
+        let (addr, server) = App::new(()).end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
