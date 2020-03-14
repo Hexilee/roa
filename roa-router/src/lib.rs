@@ -61,16 +61,13 @@ use path::{join_path, standardize_path, Path, RegexPath};
 
 use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
-use roa_core::http::{Method, StatusCode};
+use roa_core::http::StatusCode;
 use roa_core::{
-    async_trait, throw, Boxed, Chain, Context, Endpoint, EndpointExt, Error, Middleware,
-    MiddlewareExt, Next, Result, Shared, Variable,
+    async_trait, throw, Boxed, Context, Endpoint, EndpointExt, Error, Middleware,
+    MiddlewareExt, Result, Shared, Variable,
 };
-use std::collections::HashMap;
 use std::convert::AsRef;
-use std::future::Future;
 use std::result::Result as StdResult;
-use std::sync::Arc;
 
 /// A scope to store and load variables in Context::storage.
 struct RouterScope;

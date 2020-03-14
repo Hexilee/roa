@@ -1,6 +1,6 @@
 use super::method_not_allowed;
 use roa_core::http::Method;
-use roa_core::{async_trait, Context, Endpoint, Error, Result};
+use roa_core::{async_trait, Context, Endpoint, Result};
 use std::collections::HashMap;
 
 macro_rules! impl_http_methods {
@@ -20,6 +20,7 @@ macro_rules! impl_http_functions {
     };
 }
 
+/// An endpoint to dispatch requests by http method.
 pub struct Dispatcher<S>(HashMap<Method, Box<dyn for<'a> Endpoint<'a, S>>>);
 
 impl_http_functions!(get, Method::GET);
@@ -55,6 +56,7 @@ impl<'a, S> Endpoint<'a, S> for Dispatcher<S>
 where
     S: 'static,
 {
+    #[inline]
     async fn call(&'a self, ctx: &'a mut Context<S>) -> Result<()> {
         match self.0.get(ctx.method()) {
             Some(endpoint) => endpoint.call(ctx).await,
