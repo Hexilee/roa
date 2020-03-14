@@ -130,7 +130,7 @@ mod state;
 pub use app::{AddrStream, App};
 
 #[doc(inline)]
-pub use executor::{BlockingObj, Executor, FutureObj, JoinHandle, Spawn};
+pub use executor::{Executor, JoinHandle, Spawn};
 
 #[doc(inline)]
 pub use context::{Context, Variable};

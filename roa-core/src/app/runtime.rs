@@ -1,4 +1,5 @@
-use crate::{App, BlockingObj, FutureObj, Spawn, State};
+use crate::executor::{BlockingObj, FutureObj};
+use crate::{App, Spawn, State};
 
 impl<S> App<S, ()> {
     /// Construct app with default runtime.
