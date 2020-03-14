@@ -187,7 +187,7 @@ mod tests {
     use super::logger;
     use crate::http::StatusCode;
     use crate::preload::*;
-    use crate::{throw, App};
+    use crate::{throw, App, Context};
     use async_std::fs::File;
     use async_std::task::spawn;
     use lazy_static::lazy_static;
@@ -224,13 +224,12 @@ mod tests {
     async fn log() -> Result<(), Box<dyn std::error::Error>> {
         init()?;
 
-        // bytes info
-        let mut app = App::new(());
-        app.gate_fn(logger).end(move |mut ctx| async move {
-            ctx.resp_mut().write("Hello, World.");
+        async fn bytes_info(ctx: &mut Context<()>) -> crate::Result {
+            ctx.resp.write("Hello, World.");
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        // bytes info
+        let (addr, server) = App::new((), logger.end(bytes_info)).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -245,11 +244,10 @@ mod tests {
         assert!(records[1].1.ends_with("200 OK"));
 
         // error
-        app = App::new(());
-        app.gate_fn(logger).end(move |_ctx| async move {
+        async fn err(ctx: &mut Context<()>) -> crate::Result {
             throw!(StatusCode::BAD_REQUEST, "Hello, World!")
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), logger.end(err)).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
@@ -263,13 +261,13 @@ mod tests {
         assert!(records[3].1.ends_with("Hello, World!"));
 
         // stream info
-        app = App::new(());
-        app.gate_fn(logger).end(move |mut ctx| async move {
-            ctx.resp_mut()
+        async fn stream_info(ctx: &mut Context<()>) -> crate::Result {
+            ctx.resp
                 .write_reader(File::open("../assets/welcome.html").await?);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        // bytes info
+        let (addr, server) = App::new((), logger.end(stream_info)).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

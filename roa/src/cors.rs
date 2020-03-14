@@ -1,39 +1,5 @@
 //! The cors module of roa.
 //! This module provides a middleware `Cors`.
-//!
-//! ### Example
-//!
-//! ```rust
-//! use roa::cors::Cors;
-//! use roa::App;
-//! use roa::preload::*;
-//! use roa::http::{StatusCode, header::{ORIGIN, ACCESS_CONTROL_ALLOW_ORIGIN}};
-//! use async_std::task::spawn;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     pretty_env_logger::init();
-//!     let mut app = App::new(());
-//!     app.gate(Cors::new())
-//!         .end(|ctx| async move {
-//!         Ok(())
-//!     });
-//!     let (addr, server) = app.run()?;
-//!     spawn(server);
-//!     let client = reqwest::Client::new();
-//!     let resp = client
-//!         .get(&format!("http://{}", addr))
-//!         .header(ORIGIN, "http://github.com")
-//!         .send()
-//!         .await?;
-//!     assert_eq!(StatusCode::OK, resp.status());
-//!     assert_eq!(
-//!         "http://github.com",
-//!         resp.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN).unwrap().to_str()?
-//!     );
-//!     Ok(())
-//! }
-//! ```
 
 use crate::http::header::{HeaderName, HeaderValue, ORIGIN, VARY};
 
@@ -58,11 +24,11 @@ use std::time::Duration;
 /// ### Default
 ///
 /// The default Cors middleware works well,
-/// it will use "origin" as value of response header "access-control-allow-origin",
+/// it will use value of "origin" as value of response header "access-control-allow-origin",
 ///
 /// And in preflight request,
-/// it will use "access-control-request-method" as value of "access-control-allow-methods"
-/// and use "access-control-request-headers" as value of "access-control-allow-headers".
+/// it will use value of "access-control-request-method" as value of "access-control-allow-methods"
+/// and use "access-control-request-headers" as "access-control-allow-headers".
 ///
 /// Build a default Cors middleware:
 ///
@@ -382,21 +348,21 @@ mod tests {
     };
     use crate::http::{HeaderValue, Method, StatusCode};
     use crate::preload::*;
-    use crate::App;
+    use crate::{App, Context};
     use async_std::task::spawn;
     use headers::{
         AccessControlAllowCredentials, AccessControlAllowOrigin,
         AccessControlExposeHeaders, HeaderMapExt, HeaderName,
     };
 
+    async fn end(ctx: &mut Context<()>) -> crate::Result {
+        ctx.resp.write("Hello, World");
+        Ok(())
+    }
+
     #[tokio::test]
     async fn default_cors() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.gate(Cors::new()).end(|mut ctx| async move {
-            ctx.resp.write("Hello, World");
-            Ok(())
-        });
-        let (addr, server) = app.run()?;
+        let (addr, server) = App::new((), Cors::new().end(end)).run()?;
         spawn(server);
         let client = reqwest::Client::new();
 
@@ -508,7 +474,6 @@ mod tests {
 
     #[tokio::test]
     async fn configured_cors() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
         let configured_cors = Cors::builder()
             .allow_credentials(true)
             .max_age(86400)
@@ -520,11 +485,7 @@ mod tests {
             .allow_headers(vec![AUTHORIZATION])
             .allow_header(CONTENT_TYPE)
             .build();
-        app.gate(configured_cors).end(|mut ctx| async move {
-            ctx.resp.write("Hello, World");
-            Ok(())
-        });
-        let (addr, server) = app.run()?;
+        let (addr, server) = App::new((), configured_cors.end(end)).run()?;
         spawn(server);
         let client = reqwest::Client::new();
 

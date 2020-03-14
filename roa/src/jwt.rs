@@ -6,7 +6,7 @@
 //!
 //! ```rust
 //! use roa::jwt::{guard, DecodingKey};
-//! use roa::App;
+//! use roa::{App, Context};
 //! use roa::http::header::AUTHORIZATION;
 //! use roa::http::StatusCode;
 //! use roa::preload::*;
@@ -26,24 +26,25 @@
 //!
 //! const SECRET: &[u8] = b"123456";
 //!
+//! async fn test(ctx: &mut Context<()>) -> roa::Result {
+//!     let user: User = ctx.claims()?;
+//!     assert_eq!(0, user.id);
+//!     assert_eq!("Hexilee", &user.name);
+//!     Ok(())
+//! }
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut app = App::new(());
-//!     app.gate(guard(DecodingKey::from_secret(SECRET)))
-//!         .end(move |ctx| async move {
-//!             let user: User = ctx.claims()?;
-//!             assert_eq!(0, user.id);
-//!             assert_eq!("Hexilee", &user.name);
-//!             Ok(())
-//!         });
-//!     let (addr, server) = app.run()?;
+//!     let endpoint = guard(DecodingKey::from_secret(SECRET))
+//!         .end(test);
+//!     let (addr, server) = App::new((), endpoint).run()?;
 //!     spawn(server);
 //!     let mut user = User {
 //!         sub: "user".to_string(),
 //!         company: "None".to_string(),
 //!         exp: (SystemTime::now() + Duration::from_secs(86400))
 //!             .duration_since(UNIX_EPOCH)?
-//!             .as_secs(), // one second ago
+//!             .as_secs(),
 //!         id: 0,
 //!         name: "Hexilee".to_string(),
 //!     };
@@ -68,8 +69,6 @@
 //!     Ok(())
 //! }
 //! ```
-
-// Currently this mod support HMAC only, TODO: support more algorithms.
 
 pub use jsonwebtoken::{DecodingKey, Validation};
 
@@ -97,7 +96,7 @@ struct JwtScope;
 /// use roa::jwt::JwtVerifier;
 /// use serde_json::Value;
 ///
-/// async fn get(ctx: Context<()>) -> Result {
+/// async fn get(ctx: &mut Context<()>) -> Result {
 ///     let claims: Value = ctx.claims()?;
 ///     Ok(())
 /// }
@@ -201,7 +200,7 @@ impl<S> JwtVerifier<S> for Context<S> {
         let secret = self.load_scoped::<JwtScope, DecodingKey<'static>>("secret");
         let token = self.load_scoped::<JwtScope, Bearer>("token");
         match (secret, token) {
-            (Some(secret), Some(token)) => decode(token.token(), &*secret, validation)
+            (Some(secret), Some(token)) => decode(token.token(), &secret, validation)
                 .map(|data| data.claims)
                 .map_err(unauthorized),
             _ => Err(guard_not_set()),
@@ -209,7 +208,7 @@ impl<S> JwtVerifier<S> for Context<S> {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait(? Send)]
 impl<'a, S> Middleware<'a, S> for JwtGuard {
     #[inline]
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
@@ -234,7 +233,7 @@ mod tests {
     use crate::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use crate::http::StatusCode;
     use crate::preload::*;
-    use crate::{App, Error};
+    use crate::{App, Context, Error};
     use async_std::task::spawn;
     use jsonwebtoken::{encode, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
@@ -253,15 +252,15 @@ mod tests {
 
     #[tokio::test]
     async fn claims() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.gate(guard(DecodingKey::from_secret(SECRET)))
-            .end(move |ctx| async move {
-                let user: User = ctx.claims()?;
-                assert_eq!(0, user.id);
-                assert_eq!("Hexilee", &user.name);
-                Ok(())
-            });
-        let (addr, server) = app.run()?;
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
+            let user: User = ctx.claims()?;
+            assert_eq!(0, user.id);
+            assert_eq!("Hexilee", &user.name);
+            Ok(())
+        }
+
+        let endpoint = guard(DecodingKey::from_secret(SECRET)).end(test);
+        let (addr, server) = App::new((), endpoint).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
@@ -314,7 +313,7 @@ mod tests {
                     encode(
                         &Header::default(),
                         &user,
-                        &EncodingKey::from_secret(SECRET)
+                        &EncodingKey::from_secret(SECRET),
                     )?
                 ),
             )
@@ -335,7 +334,7 @@ mod tests {
                     encode(
                         &Header::default(),
                         &user,
-                        &EncodingKey::from_secret(SECRET)
+                        &EncodingKey::from_secret(SECRET),
                     )?
                 ),
             )
@@ -347,18 +346,19 @@ mod tests {
 
     #[tokio::test]
     async fn jwt_verify_not_set() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.gate_fn(move |ctx, _next| async move {
-            let result: Result<User, Error> = ctx.claims();
-            assert!(result.is_err());
-            let status = result.unwrap_err();
-            assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
-            assert_eq!("middleware `JwtGuard` is not set correctly", status.message);
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
+            let _: User = ctx.claims()?;
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
-        reqwest::get(&format!("http://{}", addr)).await?;
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, resp.status());
+        assert_eq!(
+            "middleware `JwtGuard` is not set correctly",
+            resp.text().await?
+        );
         Ok(())
     }
 }

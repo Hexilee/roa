@@ -19,7 +19,7 @@ pub trait Forward {
     /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
-    /// async fn get(ctx: Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     println!("host: {}", ctx.host()?);
     ///     Ok(())
     /// }
@@ -35,7 +35,7 @@ pub trait Forward {
     /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
-    /// async fn get(ctx: Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     println!("client ip: {}", ctx.client_ip());
     ///     Ok(())
     /// }
@@ -51,7 +51,7 @@ pub trait Forward {
     /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
-    /// async fn get(ctx: Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     println!("forwarded ips: {:?}", ctx.forwarded_ips());
     ///     Ok(())
     /// }
@@ -67,7 +67,7 @@ pub trait Forward {
     /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
-    /// async fn get(ctx: Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context<()>) -> Result {
     ///     if let Some(result) = ctx.forwarded_proto() {
     ///         println!("forwarded proto: {}", result?);
     ///     }
@@ -129,17 +129,16 @@ mod tests {
     use crate::http::header::HOST;
     use crate::http::{HeaderValue, StatusCode};
     use crate::preload::*;
-    use crate::App;
+    use crate::{App, Context};
     use async_std::task::spawn;
 
     #[tokio::test]
     async fn host() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.gate_fn(move |ctx, _next| async move {
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
             assert_eq!("github.com", ctx.host()?);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -161,13 +160,12 @@ mod tests {
 
     #[tokio::test]
     async fn host_err() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.call(move |mut ctx| async move {
-            ctx.req_mut().headers.remove(HOST);
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
+            ctx.req.headers.remove(HOST);
             assert_eq!("", ctx.host()?);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::BAD_REQUEST, resp.status());
@@ -180,21 +178,19 @@ mod tests {
 
     #[tokio::test]
     async fn client_ip() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.call(move |ctx| async move {
+        async fn remote_addr(ctx: &mut Context<()>) -> crate::Result {
             assert_eq!(ctx.remote_addr.ip(), ctx.client_ip());
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), remote_addr).run()?;
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
 
-        let mut app = App::new(());
-        app.call(move |ctx| async move {
+        async fn forward_addr(ctx: &mut Context<()>) -> crate::Result {
             assert_eq!("192.168.0.1", ctx.client_ip().to_string());
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), forward_addr).run()?;
         spawn(server);
         let client = reqwest::Client::new();
         client
@@ -208,12 +204,11 @@ mod tests {
 
     #[tokio::test]
     async fn forwarded_proto() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.call(move |ctx| async move {
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
             assert_eq!("https", ctx.forwarded_proto().unwrap()?);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), test).run()?;
         spawn(server);
         let client = reqwest::Client::new();
         client

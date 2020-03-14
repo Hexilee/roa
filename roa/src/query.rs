@@ -165,28 +165,24 @@ mod tests {
     use crate::http::StatusCode;
     use crate::preload::*;
     use crate::query::query_parser;
-    use crate::App;
+    use crate::{App, Context};
     use async_std::task::spawn;
 
     #[tokio::test]
     async fn query() -> Result<(), Box<dyn std::error::Error>> {
-        // miss key
-        let mut app = App::new(());
-        app.gate(query_parser).end(|ctx| async move {
-            assert!(ctx.query("name").is_none());
-            Ok(())
-        });
-        let (addr, server) = app.run()?;
-        spawn(server);
-        reqwest::get(&format!("http://{}/", addr)).await?;
-
-        // string value
-        app = App::new(());
-        app.gate(query_parser).end(|ctx| async move {
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
             assert_eq!("Hexilee", &*ctx.must_query("name")?);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+
+        // miss key
+        let (addr, server) = App::new((), query_parser.end(test)).run()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}/", addr)).await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+
+        // string value
+        let (addr, server) = App::new((), query_parser.end(test)).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}?name=Hexilee", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -195,23 +191,17 @@ mod tests {
 
     #[tokio::test]
     async fn query_parse() -> Result<(), Box<dyn std::error::Error>> {
-        // invalid int value
-        let mut app = App::new(());
-        app.gate(query_parser).end(|ctx| async move {
-            assert!(ctx.must_query("age")?.parse::<u64>().is_err());
-            Ok(())
-        });
-        let (addr, server) = app.run()?;
-        spawn(server);
-        let resp = reqwest::get(&format!("http://{}?age=Hexilee", addr)).await?;
-        assert_eq!(StatusCode::OK, resp.status());
-
-        app = App::new(());
-        app.gate(query_parser).end(|ctx| async move {
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
             assert_eq!(120, ctx.must_query("age")?.parse::<u64>()?);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        // invalid int value
+        let (addr, server) = App::new((), query_parser.end(test)).run()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}?age=Hexilee", addr)).await?;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
+
+        let (addr, server) = App::new((), query_parser.end(test)).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}?age=120", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -220,13 +210,12 @@ mod tests {
 
     #[tokio::test]
     async fn query_action() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.gate(query_parser).end(|ctx| async move {
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
             assert_eq!("Hexilee", &*ctx.must_query("name")?);
             assert_eq!("rust", &*ctx.must_query("lang")?);
             Ok(())
-        });
-        let (addr, server) = app.run()?;
+        }
+        let (addr, server) = App::new((), query_parser.end(test)).run()?;
         spawn(server);
         let resp =
             reqwest::get(&format!("http://{}?name=Hexilee&lang=rust", addr)).await?;

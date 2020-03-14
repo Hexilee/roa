@@ -6,16 +6,15 @@
 //! ```rust
 //! use roa::compress::{Compress, Level};
 //! use roa::body::DispositionType::*;
-//! use roa::App;
+//! use roa::{App, Context, Result};
 //! use roa::preload::*;
 //!
+//! async fn end(ctx: &mut Context<()>) -> Result {
+//!     ctx.write_file("../assets/welcome.html", Inline).await
+//! }
 //!
 //! # fn main() -> std::io::Result<()> {
-//! let mut app = App::new(());
-//! app.gate(Compress(Level::Fastest))
-//!     .end(|mut ctx| async move {
-//!     ctx.write_file("../assets/welcome.html", Inline).await
-//! });
+//! let mut app = App::new((), Compress(Level::Fastest).end(end));
 //! let (addr, server) = app.run()?;
 //! // server.await
 //! Ok(())
@@ -86,10 +85,11 @@ mod tests {
     use crate::compress::{Compress, Level};
     use crate::http::{header::ACCEPT_ENCODING, StatusCode};
     use crate::preload::*;
-    use crate::{App, Context, Middleware, Next};
+    use crate::{async_trait, App, Context, Middleware, Next};
     use async_std::task::spawn;
     use bytes::Bytes;
     use futures::Stream;
+    use roa_core::Error;
     use std::io;
     use std::pin::Pin;
     use std::task::{self, Poll};
@@ -121,28 +121,40 @@ mod tests {
             }
         }
     }
-    fn assert_consumed(assert_counter: usize) -> impl Middleware<()> {
-        move |mut ctx: Context<()>, next: Next| async move {
+
+    struct Assert(usize);
+
+    #[async_trait(?Send)]
+    impl<'a, S> Middleware<'a, S> for Assert {
+        async fn handle(
+            &'a self,
+            ctx: &'a mut Context<S>,
+            next: Next<'a>,
+        ) -> crate::Result {
             next.await?;
             let body = std::mem::take(&mut ctx.resp.body);
             ctx.resp.write_stream(Consumer {
                 counter: 0,
                 stream: body,
-                assert_counter,
+                assert_counter: self.0,
             });
             Ok(())
         }
     }
 
+    async fn end(ctx: &mut Context<()>) -> crate::Result {
+        ctx.write_file("../assets/welcome.html", Inline).await
+    }
+
     #[tokio::test]
     async fn compress() -> Result<(), Box<dyn std::error::Error>> {
-        let mut app = App::new(());
-        app.gate(assert_consumed(202)) // compressed
-            .gate(Compress(Level::Fastest))
-            .gate(assert_consumed(236)) // the size of assets/welcome.html is 236 bytes.
-            .end(|mut ctx| async move {
-                ctx.write_file("../assets/welcome.html", Inline).await
-            });
+        let app = App::new(
+            (),
+            Assert(202) // compressed to 202 bytes
+                .chain(Compress(Level::Fastest))
+                .chain(Assert(236)) // the size of assets/welcome.html is 236 bytes.
+                .end(end),
+        );
         let (addr, server) = app.run()?;
         spawn(server);
         let client = reqwest::Client::builder().gzip(true).build()?;
