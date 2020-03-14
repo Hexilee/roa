@@ -1,8 +1,10 @@
 use crate::{async_trait, Context, Endpoint, Middleware, Next, Result};
-use futures::Future;
 use std::sync::Arc;
 
+/// A set of method to chain middleware/endpoint to middleware
+/// or make middleware shared.
 pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
+    /// Chain two middlewares.
     fn chain<M>(self, next: M) -> Chain<Self, M>
     where
         M: for<'a> Middleware<'a, S>,
@@ -10,6 +12,7 @@ pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
         Chain(self, next)
     }
 
+    /// Chain an endpoint to a middleware.
     fn end<E>(self, next: E) -> Chain<Self, E>
     where
         E: for<'a> Endpoint<'a, S>,
@@ -17,6 +20,7 @@ pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
         Chain(self, next)
     }
 
+    /// Make middleware shared.
     fn shared(self) -> Shared<S>
     where
         S: 'static,
@@ -25,7 +29,9 @@ pub trait MiddlewareExt<S>: Sized + for<'a> Middleware<'a, S> {
     }
 }
 
+/// Extra methods of endpoint.
 pub trait EndpointExt<S>: Sized + for<'a> Endpoint<'a, S> {
+    /// Box an endpoint.
     fn boxed(self) -> Boxed<S>
     where
         S: 'static,
@@ -40,8 +46,10 @@ impl<S, T> EndpointExt<S> for T where T: for<'a> Endpoint<'a, S> {}
 /// A middleware composing and executing other middlewares in a stack-like manner.
 pub struct Chain<T, U>(T, U);
 
+/// Shared middleware.
 pub struct Shared<S>(Arc<dyn for<'a> Middleware<'a, S>>);
 
+/// Boxed endpoint.
 pub struct Boxed<S>(Box<dyn for<'a> Endpoint<'a, S>>);
 
 #[async_trait(?Send)]
@@ -70,6 +78,7 @@ where
 }
 
 impl<S> Clone for Shared<S> {
+    #[inline]
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }

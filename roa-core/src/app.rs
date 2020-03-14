@@ -4,7 +4,7 @@ mod runtime;
 mod future;
 mod stream;
 use crate::{
-    Chain, Context, Endpoint, Error, Middleware, MiddlewareExt, Next, Request, Response,
+    Chain, Context, Endpoint, Error, Middleware, MiddlewareExt, Request, Response,
     Result, State,
 };
 use future::SendFuture;
@@ -97,6 +97,7 @@ pub struct HttpService<S, E> {
 }
 
 impl<S, T> App<S, T> {
+    /// Map app::service
     fn map_service<U>(self, mapper: impl FnOnce(T) -> U) -> App<S, U> {
         let Self {
             exec,
@@ -126,6 +127,7 @@ impl<S, T> App<S, T>
 where
     T: for<'a> Middleware<'a, S>,
 {
+    /// Use a middleware.
     pub fn gate<M>(self, middleware: M) -> App<S, Chain<T, M>>
     where
         M: for<'a> Middleware<'a, S>,
@@ -133,6 +135,7 @@ where
         self.map_service(move |service| service.chain(middleware))
     }
 
+    /// Set endpoint, then app can only be used to serve http request.
     pub fn end<E>(self, endpoint: E) -> App<S, Arc<Chain<T, E>>>
     where
         E: for<'a> Endpoint<'a, S>,

@@ -1,18 +1,13 @@
 mod storage;
 
-use crate::{Error, Executor, Request, Response};
+use crate::{Executor, Request, Response};
 use http::header::{AsHeaderName, ToStrError};
 use http::StatusCode;
 use http::{Method, Uri, Version};
 use std::any::Any;
-use std::any::TypeId;
 use std::borrow::Cow;
-use std::cell::UnsafeCell;
-use std::collections::HashMap;
-use std::fmt::Display;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
-use std::str::FromStr;
 use std::sync::Arc;
 
 pub use storage::Variable;
@@ -41,8 +36,13 @@ use storage::{Storage, Value};
 /// }
 /// ```
 pub struct Context<S> {
+    /// The request, to read http method, uri, version, headers and body.
     pub req: Request,
+
+    /// The response, to set http status, version, headers and body.
     pub resp: Response,
+
+    /// The executor, to spawn futures or blocking works.
     pub exec: Executor,
 
     /// Socket addr of last client or proxy.

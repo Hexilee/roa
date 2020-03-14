@@ -1,7 +1,5 @@
-use crate::{async_trait, Context, Error, Result, State};
+use crate::{async_trait, Context, Result};
 use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
 
 /// ### Middleware
 ///
@@ -122,7 +120,7 @@ where
 /// ```
 #[async_trait(?Send)]
 pub trait Endpoint<'a, S>: 'static + Sync + Send {
-    #[inline]
+    /// Call this endpoint.
     async fn call(&'a self, ctx: &'a mut Context<S>) -> Result;
 }
 
@@ -139,6 +137,7 @@ where
     }
 }
 
+/// Fake middleware.
 #[async_trait(?Send)]
 impl<'a, S> Middleware<'a, S> for () {
     #[inline]
@@ -147,8 +146,10 @@ impl<'a, S> Middleware<'a, S> for () {
     }
 }
 
+/// Fake endpoint.
 #[async_trait(?Send)]
 impl<'a, S> Endpoint<'a, S> for () {
+    #[inline]
     async fn call(&'a self, _ctx: &'a mut Context<S>) -> Result<()> {
         Ok(())
     }

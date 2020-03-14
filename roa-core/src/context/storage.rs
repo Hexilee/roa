@@ -1,10 +1,9 @@
 use crate::Error;
 use http::StatusCode;
 use std::any::{Any, TypeId};
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::hash::Hash;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -41,6 +40,7 @@ impl<'a, V> Variable<'a, V> {
         Self { key, value }
     }
 
+    /// Consume self and get inner Arc<T>.
     #[inline]
     pub fn value(self) -> Arc<V> {
         self.value
