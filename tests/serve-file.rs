@@ -4,16 +4,16 @@ use http::header::ACCEPT_ENCODING;
 use roa::body::DispositionType;
 use roa::compress::Compress;
 use roa::preload::*;
-use roa::router::Router;
-use roa::App;
+use roa::router::{get, Router};
+use roa::{App, Context};
 
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = App::new(());
-    app.call(|mut ctx| async move {
+    async fn test(ctx: &mut Context<()>) -> roa::Result {
         ctx.write_file("assets/author.txt", DispositionType::Inline)
             .await
-    });
+    }
+    let app = App::new(()).end(get(test));
     let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -23,14 +23,13 @@ async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
-    let mut router = Router::<()>::new();
-    router.get("/:filename", |mut ctx| async move {
+    async fn test(ctx: &mut Context<()>) -> roa::Result {
         let filename = ctx.must_param("filename")?;
         ctx.write_file(format!("assets/{}", &*filename), DispositionType::Inline)
             .await
-    });
-    let mut app = App::new(());
-    app.gate(router.routes("/")?);
+    }
+    let router = Router::new().on("/:filename", get(test));
+    let app = App::new(()).end(router.routes("/")?);
     let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/author.txt", addr)).await?;
@@ -40,14 +39,13 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
-    let mut router = Router::<()>::new();
-    router.get("/*{path}", |mut ctx| async move {
+    async fn test(ctx: &mut Context<()>) -> roa::Result {
         let path = ctx.must_param("path")?;
         ctx.write_file(format!("./{}", &*path), DispositionType::Inline)
             .await
-    });
-    let mut app = App::new(());
-    app.gate(router.routes("/")?);
+    }
+    let router = Router::new().on("/*{path}", get(test));
+    let app = App::new(()).end(router.routes("/")?);
     let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/assets/author.txt", addr)).await?;
@@ -57,11 +55,11 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = App::new(());
-    app.gate(Compress::default()).end(|mut ctx| async move {
+    async fn test(ctx: &mut Context<()>) -> roa::Result {
         ctx.write_file("assets/welcome.html", DispositionType::Inline)
             .await
-    });
+    }
+    let app = App::new(()).gate(Compress::default()).end(get(test));
     let (addr, server) = app.run()?;
     spawn(server);
     let client = reqwest::Client::builder().gzip(true).build()?;
