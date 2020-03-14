@@ -199,7 +199,7 @@ impl<S> Context<S> {
     ) -> Option<Arc<V>>
     where
         SC: Any,
-        K: Into<String>,
+        K: Into<Cow<'static, str>>,
         V: Value,
     {
         self.storage.insert(scope, key, value)
@@ -226,7 +226,7 @@ impl<S> Context<S> {
     #[inline]
     pub fn store<K, V>(&mut self, key: K, value: V) -> Option<Arc<V>>
     where
-        K: Into<String>,
+        K: Into<Cow<'static, str>>,
         V: Value,
     {
         self.store_scoped(PublicScope, key, value)

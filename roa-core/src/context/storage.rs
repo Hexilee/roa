@@ -15,7 +15,9 @@ impl<V> Value for V where V: Any + Send + Sync {}
 
 /// A context scoped storage.
 #[derive(Clone)]
-pub struct Storage(HashMap<TypeId, HashMap<String, Arc<dyn Any + Send + Sync>>>);
+pub struct Storage(
+    HashMap<TypeId, HashMap<Cow<'static, str>, Arc<dyn Any + Send + Sync>>>,
+);
 
 /// A variable.
 #[derive(Debug, Clone)]
@@ -87,7 +89,7 @@ impl Storage {
     pub fn insert<S, K, V>(&mut self, scope: S, key: K, value: V) -> Option<Arc<V>>
     where
         S: Any,
-        K: Into<String>,
+        K: Into<Cow<'static, str>>,
         V: Value,
     {
         let id = TypeId::of::<S>();
