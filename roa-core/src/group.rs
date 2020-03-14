@@ -134,25 +134,22 @@ mod tests {
         }
     }
 
-    async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
-        Ok(())
-    }
-
     #[async_std::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let mut endpoint = Pusher::new(0, vector.clone())
-            .chain(Pusher::new(1, vector.clone()))
-            .chain(Pusher::new(2, vector.clone()))
-            .chain(Pusher::new(3, vector.clone()))
-            .chain(Pusher::new(4, vector.clone()))
-            .chain(Pusher::new(5, vector.clone()))
-            .chain(Pusher::new(6, vector.clone()))
-            .chain(Pusher::new(7, vector.clone()))
-            .chain(Pusher::new(8, vector.clone()))
-            .chain(Pusher::new(9, vector.clone()))
-            .end(end);
-        let service = App::new((), endpoint).http_service();
+        let service = App::new(())
+            .gate(Pusher::new(0, vector.clone()))
+            .gate(Pusher::new(1, vector.clone()))
+            .gate(Pusher::new(2, vector.clone()))
+            .gate(Pusher::new(3, vector.clone()))
+            .gate(Pusher::new(4, vector.clone()))
+            .gate(Pusher::new(5, vector.clone()))
+            .gate(Pusher::new(6, vector.clone()))
+            .gate(Pusher::new(7, vector.clone()))
+            .gate(Pusher::new(8, vector.clone()))
+            .gate(Pusher::new(9, vector.clone()))
+            .end(())
+            .http_service();
         let resp = service.serve(Request::default()).await?;
         assert_eq!(StatusCode::OK, resp.status);
         for i in 0..10 {

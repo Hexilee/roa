@@ -21,7 +21,7 @@ pub type Result<R = ()> = StdResult<R, Error>;
 /// use roa_core::{App, Context, Next, Result, MiddlewareExt, throw};
 /// use roa_core::http::StatusCode;
 ///
-/// let app = App::new((), gate.end(end));
+/// let app = App::new(()).gate(gate).end(end);
 /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     next.await?; // throw
 ///     unreachable!();
@@ -59,7 +59,7 @@ pub struct Error {
     /// use roa_core::{App, Context, Next, Result, MiddlewareExt, throw};
     /// use roa_core::http::StatusCode;
     ///
-    /// let app = App::new((), gate.end(end));
+    /// let app = App::new(()).gate(gate).end(end);
     /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     ///     ctx.resp.status = StatusCode::OK;
     ///     next.await // not caught
@@ -83,7 +83,7 @@ pub struct Error {
     /// use roa_core::{App, Context, Result, Error};
     /// use roa_core::http::StatusCode;
     ///
-    /// let app = App::new((), end);
+    /// let app = App::new(()).end(end);
     ///
     /// async fn end(ctx: &mut Context<()>) -> Result {
     ///     Err(Error::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // message won't be exposed to user.

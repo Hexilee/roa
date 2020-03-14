@@ -166,7 +166,11 @@ impl<'a, S> Endpoint<'a, S> for () {
 /// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next};
 /// use roa_core::http::StatusCode;
 ///
-/// let mut app = App::new(()).gate(first).chain(second).chain(third).end(end));
+/// let app = App::new(())
+///     .gate(first)
+///     .gate(second)
+///     .gate(third)
+///     .end(end);
 /// async fn first(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     assert!(ctx.store("id", "1").is_none());
 ///     next.await?;
@@ -201,7 +205,10 @@ impl<'a, S> Endpoint<'a, S> for () {
 /// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next, throw};
 /// use roa_core::http::StatusCode;
 ///         
-/// let mut app = App::new((), catch.chain(gate).end(end));
+/// let app = App::new(())
+///     .gate(catch)
+///     .gate(gate)
+///     .end(end);
 ///
 /// async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 ///     // catch
