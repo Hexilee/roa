@@ -2,7 +2,7 @@ use crate::WrapError;
 use diesel::r2d2::{ConnectionManager, PoolError};
 use diesel::Connection;
 use r2d2::{Builder, PooledConnection};
-use roa_core::{async_trait, Error, State, SyncContext};
+use roa_core::{async_trait, Context, Error, State};
 use std::time::Duration;
 
 /// An alias for r2d2::Pool<diesel::r2d2::ConnectionManager<Conn>>.
@@ -87,7 +87,7 @@ where
 }
 
 #[async_trait]
-impl<S, Conn> AsyncPool<Conn> for SyncContext<S>
+impl<S, Conn> AsyncPool<Conn> for Context<S>
 where
     S: State + AsRef<Pool<Conn>>,
     Conn: Connection + 'static,
