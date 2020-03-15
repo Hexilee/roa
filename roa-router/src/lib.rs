@@ -1,5 +1,5 @@
 //! The router module of roa.
-//! This module provides an endpoint `RouteEndpoint` and a context extension `RouterParam`.
+//! This module provides many endpoint wrappers like `Router`, `Dispatcher` and a context extension `RouterParam`.
 //!
 //! ### Example
 //!
@@ -53,7 +53,10 @@ mod endpoints;
 mod err;
 mod path;
 
+#[doc(inline)]
 pub use endpoints::*;
+
+#[doc(inline)]
 pub use err::RouterError;
 
 use err::Conflict;
@@ -145,6 +148,7 @@ pub struct Router<S> {
     endpoints: Vec<(String, Boxed<S>)>,
 }
 
+/// An endpoint to route request by uri path.
 pub struct RouteTable<S> {
     static_route: Trie<String, Boxed<S>>,
     dynamic_route: Vec<(RegexPath, Boxed<S>)>,
@@ -173,6 +177,7 @@ where
         self
     }
 
+    /// Chain an endpoint to self.middleware.
     fn register(&self, endpoint: impl for<'a> Endpoint<'a, S>) -> Boxed<S> {
         self.middleware.clone().end(endpoint).boxed()
     }
@@ -186,6 +191,7 @@ where
         self
     }
 
+    /// Chain a middleware to Router::middleware.
     pub fn gate(self, next: impl for<'a> Middleware<'a, S>) -> Router<S> {
         let Self {
             middleware,
@@ -197,7 +203,7 @@ where
         }
     }
 
-    /// Build RouteEndpoint with path prefix.
+    /// Build RouteTable with path prefix.
     pub fn routes(self, prefix: &'static str) -> StdResult<RouteTable<S>, RouterError> {
         let mut route_table = RouteTable::default();
         for (raw_path, endpoint) in self.endpoints {

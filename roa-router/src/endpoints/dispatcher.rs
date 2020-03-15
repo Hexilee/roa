@@ -6,9 +6,29 @@ use std::collections::HashMap;
 
 macro_rules! impl_http_methods {
     ($end:ident, $method:expr) => {
-        pub fn $end(mut self, endpoint: impl for<'a> Endpoint<'a, S>) -> Self {
-            self.0.insert($method, Box::new(endpoint));
-            self
+        doc_comment! {
+        concat!("Method to add or override endpoint on ", stringify!($method), ".
+
+You can use it as follow:
+
+```
+use roa_core::{App, Context, Result};
+use roa_router::get;
+
+async fn foo(ctx: &mut Context<()>) -> Result {
+    Ok(())
+}
+
+async fn bar(ctx: &mut Context<()>) -> Result {
+    Ok(())
+}
+
+let app = App::new(()).end(get(foo).", stringify!($end), "(bar));
+```"),
+            pub fn $end(mut self, endpoint: impl for<'a> Endpoint<'a, S>) -> Self {
+                self.0.insert($method, Box::new(endpoint));
+                self
+            }
         }
     };
 }
@@ -30,14 +50,14 @@ async fn end(ctx: &mut Context<()>) -> Result {
 
 let app = App::new(()).end(", stringify!($end), "(end));
 ```"),
-                pub fn $end<S>(endpoint: impl for<'a> Endpoint<'a, S>) -> Dispatcher<S> {
-                        Dispatcher::<S>::default().$end(endpoint)
-                    }
-                }
+            pub fn $end<S>(endpoint: impl for<'a> Endpoint<'a, S>) -> Dispatcher<S> {
+                    Dispatcher::<S>::default().$end(endpoint)
+            }
+        }
     };
 }
 
-/// An endpoint to dispatch requests by http method.
+/// An endpoint wrapper to dispatch requests by http method.
 pub struct Dispatcher<S>(HashMap<Method, Box<dyn for<'a> Endpoint<'a, S>>>);
 
 impl_http_functions!(get, Method::GET);
@@ -62,6 +82,7 @@ impl<S> Dispatcher<S> {
     impl_http_methods!(connect, Method::CONNECT);
 }
 
+/// Empty dispatcher.
 impl<S> Default for Dispatcher<S> {
     fn default() -> Self {
         Self(HashMap::new())
