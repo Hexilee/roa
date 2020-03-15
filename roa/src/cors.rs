@@ -5,7 +5,7 @@ use crate::http::header::{HeaderName, HeaderValue, ORIGIN, VARY};
 
 use crate::http::{Method, StatusCode};
 use crate::preload::*;
-use crate::{async_trait, Context, Middleware, Next, Result, State};
+use crate::{async_trait, Context, Middleware, Next, Result};
 use headers::{
     AccessControlAllowCredentials, AccessControlAllowHeaders, AccessControlAllowMethods,
     AccessControlAllowOrigin, AccessControlExposeHeaders, AccessControlMaxAge,
@@ -16,7 +16,6 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt::Debug;
 use std::iter::FromIterator;
-use std::sync::Arc;
 use std::time::Duration;
 
 /// A middleware to deal with Cross-Origin Resource Sharing (CORS).

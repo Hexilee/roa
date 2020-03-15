@@ -29,7 +29,7 @@
 //! }
 //! ```
 
-use crate::{Body, Context, Executor, JoinHandle, Next, Result, State};
+use crate::{Body, Context, Executor, JoinHandle, Next, Result};
 use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};

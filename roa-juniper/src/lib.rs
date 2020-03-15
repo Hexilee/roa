@@ -10,7 +10,6 @@ use juniper::{http::GraphQLRequest, GraphQLTypeAsync, RootNode, ScalarValue};
 use roa_body::PowerBody;
 use roa_core::{async_trait, Context, Endpoint, Result, State};
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 
 /// A wrapper for `roa_core::SyncContext`.
 /// As an implementation of `juniper::Context`.

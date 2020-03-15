@@ -27,7 +27,6 @@ use crate::http::{header::CONTENT_ENCODING, StatusCode};
 use crate::{async_trait, Context, Error, Middleware, Next, Result};
 use accept_encoding::{parse, Encoding};
 use async_compression::stream::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
-use std::sync::Arc;
 
 /// A middleware to negotiate with client and compress response body automatically,
 /// supports gzip, deflate, brotli, zstd and identity.

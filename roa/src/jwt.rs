@@ -79,7 +79,6 @@ use headers::{authorization::Bearer, Authorization, HeaderMapExt};
 use jsonwebtoken::decode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use std::sync::Arc;
 
 const INVALID_TOKEN: &str = r#"Bearer realm="<jwt>", error="invalid_token""#;
 
