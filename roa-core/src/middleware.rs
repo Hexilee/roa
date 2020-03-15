@@ -140,6 +140,7 @@ where
 /// Fake middleware.
 #[async_trait(?Send)]
 impl<'a, S> Middleware<'a, S> for () {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     #[inline]
     async fn handle(&'a self, _ctx: &'a mut Context<S>, next: Next<'a>) -> Result<()> {
         next.await
@@ -149,6 +150,7 @@ impl<'a, S> Middleware<'a, S> for () {
 /// Fake endpoint.
 #[async_trait(?Send)]
 impl<'a, S> Endpoint<'a, S> for () {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     #[inline]
     async fn call(&'a self, _ctx: &'a mut Context<S>) -> Result<()> {
         Ok(())

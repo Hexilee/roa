@@ -41,6 +41,8 @@ impl Default for Compress {
 
 #[async_trait(?Send)]
 impl<'a, S> Middleware<'a, S> for Compress {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[inline]
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         next.await?;
         let level = self.0;
