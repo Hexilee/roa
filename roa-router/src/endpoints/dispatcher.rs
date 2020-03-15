@@ -1,4 +1,5 @@
 use super::method_not_allowed;
+use doc_comment::doc_comment;
 use roa_core::http::Method;
 use roa_core::{async_trait, Context, Endpoint, Result};
 use std::collections::HashMap;
@@ -14,9 +15,25 @@ macro_rules! impl_http_methods {
 
 macro_rules! impl_http_functions {
     ($end:ident, $method:expr) => {
-        pub fn $end<S>(endpoint: impl for<'a> Endpoint<'a, S>) -> Dispatcher<S> {
-            Dispatcher::<S>::default().$end(endpoint)
-        }
+        doc_comment! {
+        concat!("Function to construct dispatcher with ", stringify!($method), " and an endpoint.
+
+You can use it as follow:
+
+```
+use roa_core::{App, Context, Result};
+use roa_router::", stringify!($end), ";
+
+async fn end(ctx: &mut Context<()>) -> Result {
+    Ok(())
+}
+
+let app = App::new(()).end(", stringify!($end), "(end));
+```"),
+                pub fn $end<S>(endpoint: impl for<'a> Endpoint<'a, S>) -> Dispatcher<S> {
+                        Dispatcher::<S>::default().$end(endpoint)
+                    }
+                }
     };
 }
 

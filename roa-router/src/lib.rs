@@ -73,8 +73,8 @@ use std::result::Result as StdResult;
 struct RouterScope;
 
 /// A context extension.
-/// This extension must be used in downstream of middleware `RouteEndpoint`,
-/// otherwise you cannot get expected router parameter.
+/// This extension must be used in downstream of middleware `RouteTable`,
+/// otherwise you cannot get expected router parameters.
 ///
 /// ### Example
 ///

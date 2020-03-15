@@ -1,7 +1,7 @@
 use roa_core::http;
 use std::fmt::{self, Display, Formatter};
 
-/// Error occurring in building route endpoint.
+/// Error occurring in building route table.
 #[derive(Debug)]
 pub enum RouterError {
     /// Dynamic paths miss variable.
