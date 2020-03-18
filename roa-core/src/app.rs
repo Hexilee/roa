@@ -1,4 +1,4 @@
-#[cfg(feature = "runtime")]
+#[cfg(any(feature = "tokio-rt", feature = "async-rt"))]
 mod runtime;
 
 mod future;
@@ -202,7 +202,7 @@ where
     #[inline]
     fn call(&mut self, stream: &AddrStream<IO>) -> Self::Future {
         let endpoint = self.service.clone();
-        let addr = stream.remote_addr();
+        let addr = stream.remote_addr;
         let state = self.state.clone();
         let exec = self.exec.clone();
         Box::pin(async move { Ok(HttpService::new(endpoint, addr, exec, state)) })

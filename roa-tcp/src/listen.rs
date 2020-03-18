@@ -1,7 +1,7 @@
 use crate::TcpIncoming;
-use async_std::sync::Arc;
 use roa_core::{App, Endpoint, Executor, Server, State};
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::Arc;
 
 /// An app extension.
 pub trait Listener {

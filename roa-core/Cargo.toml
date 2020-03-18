@@ -15,7 +15,7 @@ categories = ["network-programming", "asynchronous",
 
 
 [package.metadata.docs.rs]
-features = ["runtime"]
+features = ["full"]
 
 [badges]
 codecov = { repository = "Hexilee/roa" }
@@ -29,10 +29,12 @@ hyper = { version = "0.13", default-features = false, features = ["stream"] }
 log = "0.4"
 tokio = "0.2.13"
 async-trait = "0.1.24"
+async-std = { version = "1.5", features = ["unstable"], optional = true }
 
 [dev-dependencies]
 tokio = { version = "0.2.13", features = ["rt-threaded", "blocking", "macros"] }
-async-std = "1.5"
 
 [features]
-runtime = ["tokio/rt-threaded", "tokio/blocking"]
+full = ["tokio-rt", "async-rt"]
+tokio-rt = ["tokio/rt-threaded", "tokio/blocking"]
+async-rt = ["async-std"]

@@ -2,11 +2,11 @@
 //!
 //! ### TlsIncoming
 //!
-//! ```rust
+//! ```rust,no_run
 //! use roa_core::{App, Context, Error};
 //! use roa_tls::TlsIncoming;
-//! use roa_tls::rustls::{ServerConfig, NoClientAuth};
-//! use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
+//! use roa_tls::tls::{ServerConfig, NoClientAuth};
+//! use roa_tls::tls::internal::pemfile::{certs, rsa_private_keys};
 //! use std::fs::File;
 //! use std::io::BufReader;
 //!
@@ -14,28 +14,28 @@
 //!     Ok(())
 //! }
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let mut config = ServerConfig::new(NoClientAuth::new());
-//! let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
-//! let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-//! let cert_chain = certs(&mut cert_file).unwrap();
-//! let mut keys = rsa_private_keys(&mut key_file).unwrap();
-//! config.set_single_cert(cert_chain, keys.remove(0))?;
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut config = ServerConfig::new(NoClientAuth::new());
+//!     let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+//!     let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+//!     let cert_chain = certs(&mut cert_file).unwrap();
+//!     let mut keys = rsa_private_keys(&mut key_file).unwrap();
+//!     config.set_single_cert(cert_chain, keys.remove(0))?;
 //!
-//! let incoming = TlsIncoming::bind("127.0.0.1:0", config)?;
-//! let server = App::new(()).end(end).accept(incoming);
-//! // server.await
-//! Ok(())
-//! # }
+//!     let incoming = TlsIncoming::bind("127.0.0.1:0", config)?;
+//!     App::new(()).end(end).accept(incoming).await?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ### TlsListener
 //!
-//! ```rust
+//! ```rust,no_run
 //! use roa_core::{App, Context, Error};
 //! use roa_tls::TlsListener;
-//! use roa_tls::rustls::{ServerConfig, NoClientAuth};
-//! use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
+//! use roa_tls::tls::{ServerConfig, NoClientAuth};
+//! use roa_tls::tls::internal::pemfile::{certs, rsa_private_keys};
 //! use std::fs::File;
 //! use std::io::BufReader;
 //!
@@ -43,63 +43,67 @@
 //!     Ok(())
 //! }
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let mut config = ServerConfig::new(NoClientAuth::new());
-//! let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
-//! let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-//! let cert_chain = certs(&mut cert_file).unwrap();
-//! let mut keys = rsa_private_keys(&mut key_file).unwrap();
-//! config.set_single_cert(cert_chain, keys.remove(0))?;
-//! let (addr, server) = App::new(()).end(end).bind_tls("127.0.0.1:0", config)?;
-//! // server.await
-//! Ok(())
-//! # }
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut config = ServerConfig::new(NoClientAuth::new());
+//!     let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+//!     let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+//!     let cert_chain = certs(&mut cert_file).unwrap();
+//!     let mut keys = rsa_private_keys(&mut key_file).unwrap();
+//!     config.set_single_cert(cert_chain, keys.remove(0))?;
+//!     let (addr, server) = App::new(()).end(end).bind_tls("127.0.0.1:0", config)?;
+//!     server.await?;
+//!     Ok(())
+//! }
 //! ```
 
 #![warn(missing_docs)]
 
-use async_std::net::TcpStream;
-use async_tls::server::TlsStream;
-use async_tls::TlsAcceptor;
+use bytes::{Buf, BufMut};
 use futures::io::Error;
 use futures::task::Context;
-use futures::{AsyncRead, AsyncWrite, Future};
 use roa_core::{Accept, AddrStream, App, Endpoint, Executor, Server, State};
 use roa_tcp::TcpIncoming;
-use rustls::ServerConfig;
+use std::future::Future;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{self, Poll};
+use tls::ServerConfig;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_rustls::server::TlsStream;
+use tokio_rustls::TlsAcceptor;
 
-pub use rustls;
+pub use rustls as tls;
 
 /// A stream of connections from a TcpIncoming.
 /// As an implementation of roa_core::Accept.
-pub struct TlsIncoming {
-    incoming: TcpIncoming,
+pub struct TlsIncoming<I> {
+    incoming: I,
     acceptor: TlsAcceptor,
 }
 
-type AcceptFuture = dyn 'static
-    + Sync
-    + Send
-    + Unpin
-    + Future<Output = io::Result<TlsStream<TcpStream>>>;
+type AcceptFuture<IO> =
+    dyn 'static + Sync + Send + Unpin + Future<Output = io::Result<TlsStream<IO>>>;
 
-enum WrapStream {
-    Handshaking(Box<AcceptFuture>),
-    Streaming(Box<TlsStream<TcpStream>>),
+/// A finite-state machine to do tls handshake.
+pub enum WrapStream<IO> {
+    /// Handshaking state.
+    Handshaking(Box<AcceptFuture<IO>>),
+
+    /// Streaming state.
+    Streaming(Box<TlsStream<IO>>),
 }
 
+use std::mem::MaybeUninit;
 use WrapStream::*;
 
-impl WrapStream {
+impl<IO> WrapStream<IO> {
     #[inline]
     fn poll_handshake(
-        handshake: &mut AcceptFuture,
+        handshake: &mut AcceptFuture<IO>,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<Self>> {
         let stream = futures::ready!(Pin::new(handshake).poll(cx))?;
@@ -107,7 +111,18 @@ impl WrapStream {
     }
 }
 
-impl AsyncRead for WrapStream {
+impl<IO> AsyncRead for WrapStream<IO>
+where
+    IO: 'static + Unpin + AsyncRead + AsyncWrite,
+{
+    #[inline]
+    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [MaybeUninit<u8>]) -> bool {
+        match self {
+            Streaming(stream) => stream.prepare_uninitialized_buffer(buf),
+            _ => false,
+        }
+    }
+
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -121,9 +136,29 @@ impl AsyncRead for WrapStream {
             }
         }
     }
+
+    fn poll_read_buf<B: BufMut>(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut B,
+    ) -> Poll<io::Result<usize>>
+    where
+        Self: Sized,
+    {
+        match &mut *self {
+            Streaming(stream) => Pin::new(stream).poll_read_buf(cx, buf),
+            Handshaking(handshake) => {
+                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                self.poll_read_buf(cx, buf)
+            }
+        }
+    }
 }
 
-impl AsyncWrite for WrapStream {
+impl<IO> AsyncWrite for WrapStream<IO>
+where
+    IO: 'static + Unpin + AsyncRead + AsyncWrite,
+{
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -151,65 +186,96 @@ impl AsyncWrite for WrapStream {
         }
     }
 
-    fn poll_close(
+    fn poll_shutdown(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Error>> {
         match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_close(cx),
+            Streaming(stream) => Pin::new(stream).poll_shutdown(cx),
             Handshaking(handshake) => {
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
-                self.poll_close(cx)
+                self.poll_shutdown(cx)
+            }
+        }
+    }
+
+    fn poll_write_buf<B: Buf>(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut B,
+    ) -> Poll<Result<usize, Error>>
+    where
+        Self: Sized,
+    {
+        match &mut *self {
+            Streaming(stream) => Pin::new(stream).poll_write_buf(cx, buf),
+            Handshaking(handshake) => {
+                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                self.poll_write_buf(cx, buf)
             }
         }
     }
 }
 
-impl TlsIncoming {
-    /// Construct from roa_tcp::TcpIncoming.
-    pub fn new(incoming: TcpIncoming, config: ServerConfig) -> Self {
+impl<I> TlsIncoming<I> {
+    /// Construct from inner incoming.
+    pub fn new(incoming: I, config: ServerConfig) -> Self {
         Self {
             incoming,
             acceptor: Arc::new(config).into(),
         }
     }
+}
 
-    /// Construct from a socket addr.
+impl TlsIncoming<TcpIncoming> {
+    /// Bind a socket addr.
     pub fn bind(addr: impl ToSocketAddrs, config: ServerConfig) -> io::Result<Self> {
-        let incoming = TcpIncoming::bind(addr)?;
-        Ok(Self::new(incoming, config))
+        Ok(Self::new(TcpIncoming::bind(addr)?, config))
     }
 }
 
-impl Deref for TlsIncoming {
-    type Target = TcpIncoming;
+impl<I> Deref for TlsIncoming<I> {
+    type Target = I;
     fn deref(&self) -> &Self::Target {
         &self.incoming
     }
 }
 
-impl DerefMut for TlsIncoming {
+impl<I> DerefMut for TlsIncoming<I> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.incoming
     }
 }
 
-impl Accept for TlsIncoming {
-    type Conn = AddrStream;
-    type Error = io::Error;
+impl<I, IO> Accept for TlsIncoming<I>
+where
+    IO: 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite,
+    I: Unpin + Accept<Conn = AddrStream<IO>>,
+{
+    type Conn = AddrStream<WrapStream<IO>>;
+    type Error = I::Error;
 
     #[inline]
     fn poll_accept(
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let stream = futures::ready!(Pin::new(&mut self.incoming).poll_stream(cx))?;
-        let addr = stream.peer_addr()?;
-        let accept_future = self.acceptor.accept(stream);
-        Poll::Ready(Some(Ok(AddrStream::new(
-            addr,
-            Handshaking(Box::new(accept_future)),
-        ))))
+        Poll::Ready(
+            match futures::ready!(Pin::new(&mut self.incoming).poll_accept(cx)) {
+                Some(Ok(AddrStream {
+                    stream,
+                    remote_addr,
+                })) => {
+                    let accept_future = self.acceptor.accept(stream);
+                    Some(Ok(AddrStream::new(
+                        remote_addr,
+                        Handshaking(Box::new(accept_future)),
+                    )))
+                }
+                Some(Err(err)) => Some(Err(err)),
+                None => None,
+            },
+        )
     }
 }
 
@@ -235,13 +301,13 @@ pub trait TlsListener {
 
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
-    /// ```rust
+    /// ```rust,no_run
     /// use roa_core::{App, Context, Error};
     /// use roa_tls::TlsListener;
-    /// use roa_tls::rustls::{ServerConfig, NoClientAuth};
-    /// use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
+    /// use roa_tls::tls::{ServerConfig, NoClientAuth};
+    /// use roa_tls::tls::internal::pemfile::{certs, rsa_private_keys};
     /// use roa_core::http::StatusCode;
-    /// use async_std::task::spawn;
+    /// use tokio::spawn;
     /// use std::time::Instant;
     /// use std::fs::File;
     /// use std::io::BufReader;
@@ -250,20 +316,21 @@ pub trait TlsListener {
     ///     Ok(())
     /// }
     ///
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut config = ServerConfig::new(NoClientAuth::new());
-    /// let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
-    /// let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-    /// let cert_chain = certs(&mut cert_file).unwrap();
-    /// let mut keys = rsa_private_keys(&mut key_file).unwrap();
-    /// config.set_single_cert(cert_chain, keys.remove(0))?;
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let mut config = ServerConfig::new(NoClientAuth::new());
+    ///     let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+    ///     let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+    ///     let cert_chain = certs(&mut cert_file).unwrap();
+    ///     let mut keys = rsa_private_keys(&mut key_file).unwrap();
+    ///     config.set_single_cert(cert_chain, keys.remove(0))?;
     ///
-    /// let server = App::new(()).end(end).listen_tls("127.0.0.1:8000", config, |addr| {
-    ///     println!("Server is listening on https://localhost:{}", addr.port());
-    /// })?;
-    /// // server.await
-    /// Ok(())
-    /// # }
+    ///     let server = App::new(()).end(end).listen_tls("127.0.0.1:8000", config, |addr| {
+    ///         println!("Server is listening on https://localhost:{}", addr.port());
+    ///     })?;
+    ///     server.await?;
+    ///     Ok(())
+    /// }
     /// ```
     fn run_tls(
         self,
@@ -276,7 +343,7 @@ where
     S: State,
     E: for<'a> Endpoint<'a, S>,
 {
-    type Server = Server<TlsIncoming, Self, Executor>;
+    type Server = Server<TlsIncoming<TcpIncoming>, Self, Executor>;
     fn bind_tls(
         self,
         addr: impl ToSocketAddrs,
@@ -309,13 +376,13 @@ where
 #[cfg(test)]
 mod tests {
     use crate::TlsListener;
-    use async_std::task::spawn;
     use hyper::client::{Client, HttpConnector};
     use hyper::Body;
     use hyper_tls::native_tls;
     use hyper_tls::HttpsConnector;
     use roa_core::http::StatusCode;
     use roa_core::{App, Context, Error};
+    use tokio::spawn;
 
     use futures::{AsyncReadExt, TryStreamExt};
     use rustls::internal::pemfile::{certs, rsa_private_keys};

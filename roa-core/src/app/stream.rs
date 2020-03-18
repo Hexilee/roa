@@ -10,8 +10,11 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 /// A transport returned yieled by `AddrIncoming`.
 pub struct AddrStream<IO> {
-    remote_addr: SocketAddr,
-    stream: IO,
+    /// remote addr.
+    pub remote_addr: SocketAddr,
+
+    /// inner io stream.
+    pub stream: IO,
 }
 
 impl<IO> AddrStream<IO> {
@@ -22,12 +25,6 @@ impl<IO> AddrStream<IO> {
             remote_addr,
             stream,
         }
-    }
-
-    /// Returns the remote (peer) address of this connection.
-    #[inline]
-    pub fn remote_addr(&self) -> SocketAddr {
-        self.remote_addr
     }
 }
 

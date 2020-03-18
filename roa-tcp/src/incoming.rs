@@ -1,15 +1,15 @@
-use async_std::net::{SocketAddr, TcpListener, TcpStream};
 use futures::FutureExt as _;
-use futures_timer::Delay;
 use log::{debug, error, trace};
 use roa_core::{Accept, AddrStream};
 use std::fmt;
 use std::future::Future;
 use std::io;
-use std::net::{TcpListener as StdListener, ToSocketAddrs};
+use std::net::{SocketAddr, TcpListener as StdListener, ToSocketAddrs};
 use std::pin::Pin;
 use std::task::{self, Poll};
 use std::time::Duration;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::time::{delay_for, Delay};
 
 /// A stream of connections from binding to an address.
 /// As an implementation of roa_core::Accept.
@@ -18,6 +18,7 @@ pub struct TcpIncoming {
     addr: SocketAddr,
     listener: TcpListener,
     sleep_on_errors: bool,
+    tcp_keepalive_timeout: Option<Duration>,
     tcp_nodelay: bool,
     timeout: Option<Delay>,
 }
@@ -33,9 +34,10 @@ impl TcpIncoming {
     pub fn from_std(listener: StdListener) -> io::Result<Self> {
         let addr = listener.local_addr()?;
         Ok(TcpIncoming {
-            listener: listener.into(),
+            listener: TcpListener::from_std(listener)?,
             addr,
             sleep_on_errors: true,
+            tcp_keepalive_timeout: None,
             tcp_nodelay: false,
             timeout: None,
         })
@@ -44,6 +46,16 @@ impl TcpIncoming {
     /// Get the local address bound to this listener.
     pub fn local_addr(&self) -> SocketAddr {
         self.addr
+    }
+
+    /// Set whether TCP keepalive messages are enabled on accepted connections.
+    ///
+    /// If `None` is specified, keepalive is disabled, otherwise the duration
+    /// specified will be the time to remain idle before sending TCP keepalive
+    /// probes.
+    pub fn set_keepalive(&mut self, keepalive: Option<Duration>) -> &mut Self {
+        self.tcp_keepalive_timeout = keepalive;
+        self
     }
 
     /// Set the value of `TCP_NODELAY` option for accepted connections.
@@ -72,10 +84,10 @@ impl TcpIncoming {
     }
 
     /// Poll TcpStream.
-    pub fn poll_stream(
+    fn poll_stream(
         &mut self,
         cx: &mut task::Context<'_>,
-    ) -> Poll<io::Result<TcpStream>> {
+    ) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
             match Pin::new(to).poll(cx) {
@@ -90,11 +102,16 @@ impl TcpIncoming {
 
         loop {
             match accept.poll_unpin(cx) {
-                Poll::Ready(Ok((stream, _))) => {
+                Poll::Ready(Ok((stream, addr))) => {
+                    if let Some(dur) = self.tcp_keepalive_timeout {
+                        if let Err(e) = stream.set_keepalive(Some(dur)) {
+                            trace!("error trying to set TCP keepalive: {}", e);
+                        }
+                    }
                     if let Err(e) = stream.set_nodelay(self.tcp_nodelay) {
                         trace!("error trying to set TCP nodelay: {}", e);
                     }
-                    return Poll::Ready(Ok(stream));
+                    return Poll::Ready(Ok((stream, addr)));
                 }
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(e)) => {
@@ -109,7 +126,7 @@ impl TcpIncoming {
                         error!("accept error: {}", e);
 
                         // Sleep 1s.
-                        let mut timeout = Delay::new(Duration::from_secs(1));
+                        let mut timeout = delay_for(Duration::from_secs(1));
 
                         match Pin::new(&mut timeout).poll(cx) {
                             Poll::Ready(()) => {
@@ -131,7 +148,7 @@ impl TcpIncoming {
 }
 
 impl Accept for TcpIncoming {
-    type Conn = AddrStream;
+    type Conn = AddrStream<TcpStream>;
     type Error = io::Error;
 
     #[inline]
@@ -139,8 +156,7 @@ impl Accept for TcpIncoming {
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let stream = futures::ready!(self.poll_stream(cx))?;
-        let addr = stream.peer_addr()?;
+        let (stream, addr) = futures::ready!(self.poll_stream(cx))?;
         Poll::Ready(Some(Ok(AddrStream::new(addr, stream))))
     }
 }
@@ -163,9 +179,10 @@ fn is_connection_error(e: &io::Error) -> bool {
 
 impl fmt::Debug for TcpIncoming {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TcpIncoming")
+        f.debug_struct("AddrIncoming")
             .field("addr", &self.addr)
             .field("sleep_on_errors", &self.sleep_on_errors)
+            .field("tcp_keepalive_timeout", &self.tcp_keepalive_timeout)
             .field("tcp_nodelay", &self.tcp_nodelay)
             .finish()
     }

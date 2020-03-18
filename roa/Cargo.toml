@@ -26,7 +26,6 @@ codecov = { repository = "Hexilee/roa" }
 [dependencies]
 log = "0.4"
 futures = "0.3"
-async-std = "1.5.0"
 bytesize = "1.0"
 async-trait = "0.1.22"
 url = "2.1.1"
@@ -34,7 +33,7 @@ percent-encoding = "2.1"
 bytes = "0.5"
 headers = "0.3.1"
 
-roa-core = { path = "../roa-core", version = "0.5.0-beta", features = ["runtime"] }
+roa-core = { path = "../roa-core", version = "0.5.0-beta" }
 roa-tcp = { path = "../roa-tcp", version = "0.5.0-beta", optional = true }
 roa-tls = { path = "../roa-tls", version = "0.5.0-beta", optional = true }
 roa-body = { path = "../roa-body", version = "0.5.0-beta", features = ["full"], optional = true }
@@ -64,8 +63,9 @@ encoding = "0.2"
 askama = "0.9"
 
 [features]
-default = ["tcp"]
-full = ["tcp", "tls", "body", "router", "jwt", "cookies", "compress", "websocket"]
+default = ["tcp", "tokio-rt"]
+full = ["tokio-rt", "tls", "body", "router", "jwt", "cookies", "compress", "websocket"]
+tokio-rt = ["roa-core/tokio-rt"]
 tcp = ["roa-tcp"]
 tls = ["roa-tls"]
 cookies = ["cookie"]
@@ -74,3 +74,7 @@ body = ["roa-body"]
 router = ["roa-router"]
 websocket = ["roa-websocket"]
 compress = ["async-compression", "accept-encoding"]
+
+# based on async-std
+async-rt = ["roa-core/async-rt"]
+
