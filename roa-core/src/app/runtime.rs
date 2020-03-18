@@ -1,5 +1,6 @@
 use crate::executor::{BlockingObj, FutureObj};
 use crate::{App, Spawn};
+use tokio::task::{spawn, spawn_blocking};
 
 impl<S> App<S, ()> {
     /// Construct app with default runtime.
@@ -16,11 +17,11 @@ pub struct Exec;
 impl Spawn for Exec {
     #[inline]
     fn spawn(&self, fut: FutureObj) {
-        async_std::task::spawn(fut);
+        spawn(fut);
     }
 
     #[inline]
     fn spawn_blocking(&self, task: BlockingObj) {
-        async_std::task::spawn_blocking(task);
+        spawn_blocking(task);
     }
 }
