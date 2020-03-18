@@ -8,7 +8,7 @@
 //! use roa::preload::*;
 //! use roa::{App, Context};
 //! use roa::http::StatusCode;
-//! use async_std::task::spawn;
+//! use tokio::spawn;
 //!
 //! async fn end(ctx: &mut Context<()>) -> roa::Result {
 //!     ctx.write_text("Hello, World");
@@ -191,11 +191,11 @@ mod tests {
     use crate::http::StatusCode;
     use crate::preload::*;
     use crate::{throw, App, Context};
-    use async_std::fs::File;
-    use async_std::task::spawn;
     use lazy_static::lazy_static;
     use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
     use std::sync::RwLock;
+    use tokio::fs::File;
+    use tokio::spawn;
 
     struct TestLogger {
         records: RwLock<Vec<(String, String)>>,

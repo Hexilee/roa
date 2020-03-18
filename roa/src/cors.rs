@@ -348,11 +348,11 @@ mod tests {
     use crate::http::{HeaderValue, Method, StatusCode};
     use crate::preload::*;
     use crate::{App, Context};
-    use async_std::task::spawn;
     use headers::{
         AccessControlAllowCredentials, AccessControlAllowOrigin,
         AccessControlExposeHeaders, HeaderMapExt, HeaderName,
     };
+    use tokio::spawn;
 
     async fn end(ctx: &mut Context<()>) -> crate::Result {
         ctx.resp.write("Hello, World");

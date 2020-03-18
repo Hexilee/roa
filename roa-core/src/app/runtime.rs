@@ -1,11 +1,7 @@
 use crate::executor::{BlockingObj, FutureObj};
 use crate::{App, Spawn};
 
-#[cfg(all(not(feature = "async-rt"), feature = "tokio-rt"))]
 use tokio::task::{spawn, spawn_blocking};
-
-#[cfg(feature = "async-rt")]
-use async_std::task::{spawn, spawn_blocking};
 
 impl<S> App<S, ()> {
     /// Construct app with default runtime.

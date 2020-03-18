@@ -9,7 +9,7 @@ use roa::websocket::Websocket;
 use roa::{App, Context};
 use std::error::Error as StdError;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let router = Router::new().on(

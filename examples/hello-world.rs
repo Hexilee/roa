@@ -8,7 +8,7 @@ async fn hello(ctx: &mut Context<()>) -> roa::Result {
     Ok(())
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let app = App::new(()).end(hello);

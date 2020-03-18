@@ -28,7 +28,7 @@
 //!     Ok(())
 //! }
 //!
-//! #[async_std::main]
+//! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let app = App::new(()).end(end);
 //!     app.listen("127.0.0.1:8000", |addr| {
@@ -57,7 +57,7 @@
 //! use std::error::Error as StdError;
 //! use std::time::Instant;
 //!
-//! #[async_std::main]
+//! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn StdError>> {
 //!     let app = App::new(())
 //!         .gate(logger)
@@ -100,10 +100,10 @@
 //! use roa::{App, Context, Next, throw};
 //! use roa::preload::*;
 //! use roa::http::StatusCode;
-//! use async_std::task::spawn;
+//! use tokio::spawn;
 //! use log::info;
 //!
-//! #[async_std::main]
+//! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let app = App::new(())
 //!         .gate(catch)
@@ -170,10 +170,10 @@
 //! use roa::preload::*;
 //! use roa::router::{Router, get};
 //! use roa::{App, Context};
-//! use async_std::task::spawn;
+//! use tokio::spawn;
 //! use log::info;
 //!
-//! #[async_std::main]
+//! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let router = Router::new()
 //!         .on("/:id", get(end)); // get dynamic "/:id"
@@ -203,7 +203,7 @@
 //! use roa::preload::*;
 //! use roa::query::query_parser;
 //! use roa::{App, Context};
-//! use async_std::task::spawn;
+//! use tokio::spawn;
 //! use log::info;
 //!
 //! async fn must(ctx: &mut Context<()>) -> roa::Result {
@@ -212,7 +212,7 @@
 //!     Ok(())
 //! }
 //!
-//! #[async_std::main]
+//! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let app = App::new(())
 //!         .gate(query_parser)

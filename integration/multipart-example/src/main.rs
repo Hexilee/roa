@@ -1,4 +1,3 @@
-use async_std::fs::File;
 use async_std::io;
 use async_std::path::Path;
 use futures::stream::TryStreamExt;
@@ -12,6 +11,7 @@ use roa::router::{get, post, Router};
 use roa::{throw, App, Context};
 use roa_multipart::Multipart;
 use std::error::Error as StdError;
+use tokio::fs::File;
 
 async fn get_form(ctx: &mut Context<()>) -> roa::Result {
     ctx.write_file("./assets/index.html", DispositionType::Inline)
@@ -38,7 +38,7 @@ async fn post_file(ctx: &mut Context<()>) -> roa::Result {
     Ok(())
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let router = Router::new()

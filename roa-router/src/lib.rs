@@ -8,7 +8,7 @@
 //! use roa_core::{App, Context, Error, MiddlewareExt, Next};
 //! use roa_core::http::{StatusCode, Method};
 //! use roa_tcp::Listener;
-//! use async_std::task::spawn;
+//! use tokio::spawn;
 //!
 //!
 //! async fn gate(_ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {
@@ -86,7 +86,7 @@ struct RouterScope;
 /// use roa_core::{App, Context, Error};
 /// use roa_core::http::StatusCode;
 /// use roa_tcp::Listener;
-/// use async_std::task::spawn;
+/// use tokio::spawn;
 ///
 /// async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
 ///     let id: u64 = ctx.must_param("id")?.parse()?;
@@ -119,7 +119,7 @@ pub trait RouterParam {
     /// use roa_core::{App, Context, Error};
     /// use roa_core::http::StatusCode;
     /// use roa_tcp::Listener;
-    /// use async_std::task::spawn;
+    /// use tokio::spawn;
     ///
     /// async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
     ///     assert!(ctx.param("name").is_none());
@@ -328,12 +328,12 @@ impl<S> RouterParam for Context<S> {
 #[cfg(test)]
 mod tests {
     use super::Router;
-    use async_std::task::spawn;
     use encoding::EncoderTrap;
     use percent_encoding::NON_ALPHANUMERIC;
     use roa_core::http::StatusCode;
-    use roa_core::{App, Context, Error, MiddlewareExt, Next};
+    use roa_core::{App, Context, Error, Next};
     use roa_tcp::Listener;
+    use tokio::spawn;
 
     async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {
         ctx.store("id", "0".to_string());

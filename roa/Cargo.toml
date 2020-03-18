@@ -47,9 +47,8 @@ async-compression = { version = "0.3", features = ["all-algorithms", "stream"], 
 accept-encoding = { package = "accept-encoding-fork", version = "=0.2.0-alpha.3", optional = true }
 
 [dev-dependencies]
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.2.13", features = ["rt-threaded", "blocking", "macros", "fs"] }
 reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
-async-std = { version = "1.5.0", features = ["attributes"] }
 pretty_env_logger = "0.3"
 serde = { version = "1", features = ["derive"] }
 test-case = "1.0.0"
@@ -63,9 +62,9 @@ encoding = "0.2"
 askama = "0.9"
 
 [features]
-default = ["tcp", "tokio-rt"]
-full = ["tokio-rt", "tls", "body", "router", "jwt", "cookies", "compress", "websocket"]
-tokio-rt = ["roa-core/tokio-rt"]
+default = ["tcp", "rt"]
+full = ["rt", "tls", "body", "router", "jwt", "cookies", "compress", "websocket"]
+rt = ["roa-core/rt"]
 tcp = ["roa-tcp"]
 tls = ["roa-tls"]
 cookies = ["cookie"]
@@ -74,7 +73,3 @@ body = ["roa-body"]
 router = ["roa-router"]
 websocket = ["roa-websocket"]
 compress = ["async-compression", "accept-encoding"]
-
-# based on async-std
-async-rt = ["roa-core/async-rt"]
-

@@ -5,7 +5,7 @@
 //!
 //! ### Example
 //! ```
-//! use async_std::fs::File;
+//! use tokio::fs::File;
 //! use async_std::io;
 //! use async_std::path::Path;
 //! use futures::stream::TryStreamExt;
@@ -192,7 +192,6 @@ impl std::error::Error for WrapError {}
 #[cfg(test)]
 mod tests {
     use super::Multipart;
-    use async_std::fs::{read, read_to_string};
     use futures::stream::TryStreamExt;
     use futures::{AsyncReadExt, StreamExt};
     use reqwest::{
@@ -204,6 +203,7 @@ mod tests {
     use roa_router::{post, Router};
     use roa_tcp::Listener;
     use std::error::Error as StdError;
+    use tokio::fs::{read, read_to_string};
 
     const FILE_PATH: &str = "../assets/author.txt";
     const FILE_NAME: &str = "author.txt";
@@ -238,7 +238,7 @@ mod tests {
         let router = Router::new().on("/file", post(post_file));
         let app = App::new(()).end(router.routes("/")?);
         let (addr, server) = app.run()?;
-        async_std::task::spawn(server);
+        tokio::spawn(server);
 
         // client
         let url = format!("http://{}/file", addr);

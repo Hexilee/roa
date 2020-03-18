@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 roa = { path = "../../roa", features = ["router", "body"] }
 roa-multipart = { path = "../../roa-multipart" }
-async-std = { version = "1.5", features = ["attributes"] }
+tokio = { version = "0.2.13", features = ["rt-threaded", "blocking", "macros"] }
 log = "0.4"
 pretty_env_logger = "0.3"
 futures = "0.3"

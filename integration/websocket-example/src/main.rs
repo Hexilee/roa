@@ -1,4 +1,3 @@
-use async_std::sync::{Arc, Mutex, RwLock};
 use futures::stream::SplitSink;
 use futures::{stream::SplitStream, SinkExt, StreamExt};
 use http::Method;
@@ -12,6 +11,8 @@ use roa::{App, Context};
 use slab::Slab;
 use std::borrow::Cow;
 use std::error::Error as StdError;
+use std::sync::Arc;
+use tokio::sync::{Mutex, RwLock};
 
 type Sender = SplitSink<SocketStream, Message>;
 type Channel = Slab<Mutex<Sender>>;
@@ -95,7 +96,7 @@ fn route(prefix: &'static str) -> Result<RouteTable<SyncChannel>, RouterError> {
         .routes(prefix)
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let app = App::new(SyncChannel::new()).gate(logger).end(route("/")?);
@@ -113,12 +114,12 @@ mod tests {
     use roa::preload::*;
     use std::time::Duration;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn echo() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
         let app = App::new(channel.clone()).end(route("/")?);
         let (addr, server) = app.run()?;
-        async_std::task::spawn(server);
+        tokio::spawn(server);
         let (ws_stream, _) = connect_async(format!("ws://{}/chat", addr)).await?;
         let (mut sender, mut recv) = ws_stream.split();
         async_std::task::sleep(Duration::from_secs(1)).await;
@@ -139,16 +140,16 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn broadcast() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
         let app = App::new(channel.clone()).end(route("/")?);
         let (addr, server) = app.run()?;
-        async_std::task::spawn(server);
+        tokio::spawn(server);
         let url = format!("ws://{}/chat", addr);
         for _ in 0..100 {
             let url = url.clone();
-            async_std::task::spawn(async move {
+            tokio::spawn(async move {
                 if let Ok((ws_stream, _)) = connect_async(url).await {
                     let (mut sender, mut recv) = ws_stream.split();
                     if let Some(Ok(message)) = recv.next().await {

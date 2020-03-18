@@ -27,7 +27,7 @@ pub trait Listener {
     /// use roa_core::{App, Context, Error};
     /// use roa_tcp::Listener;
     /// use roa_core::http::StatusCode;
-    /// use async_std::task::spawn;
+    /// use tokio::spawn;
     /// use std::time::Instant;
     ///
     /// async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {

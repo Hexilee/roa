@@ -18,7 +18,7 @@ use roa_router::{Router, RouterParam};
 use roa_core::App;
 use roa_core::http::StatusCode;
 use roa_tcp::Listener;
-use async_std::task::spawn;
+use tokio::spawn;
 
 #[tokio::test]
 async fn gate() -> Result<(), Box<dyn std::error::Error>> {

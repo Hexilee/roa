@@ -129,7 +129,6 @@ impl Default for Storage {
 mod tests {
     use super::{Storage, Variable};
     use http::StatusCode;
-    use std::borrow::Cow;
     use std::sync::Arc;
 
     #[test]

@@ -15,7 +15,7 @@ It won't be used as a module of crate `roa` until implementing a cleaner Multipa
 
 ### Example
 ```
-use async_std::fs::File;
+use tokio::fs::File;
 use async_std::io;
 use async_std::path::Path;
 use futures::stream::TryStreamExt;

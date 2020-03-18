@@ -1,4 +1,4 @@
-#[cfg(any(feature = "tokio-rt", feature = "async-rt"))]
+#[cfg(feature = "rt")]
 mod runtime;
 
 mod future;
@@ -30,7 +30,7 @@ pub use stream::AddrStream;
 /// ```rust,no_run
 /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
 /// use log::info;
-/// use async_std::fs::File;
+/// use tokio::fs::File;
 ///
 /// let app = App::new(()).gate(gate).end(end);
 /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
@@ -302,7 +302,7 @@ mod tests {
     use crate::{App, Context, Error, Request};
     use http::StatusCode;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         let service = App::new(()).end(()).http_service();
         let resp = service.serve(Request::default()).await?;

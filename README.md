@@ -61,7 +61,7 @@ use roa::App;
 use roa::preload::*;
 use std::error::Error as StdError;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let mut app = App::new(());
     app.end(|mut ctx| async move {

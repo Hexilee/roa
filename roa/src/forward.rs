@@ -130,7 +130,7 @@ mod tests {
     use crate::http::{HeaderValue, StatusCode};
     use crate::preload::*;
     use crate::{App, Context};
-    use async_std::task::spawn;
+    use tokio::spawn;
 
     #[tokio::test]
     async fn host() -> Result<(), Box<dyn std::error::Error>> {

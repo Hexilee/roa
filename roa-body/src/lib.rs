@@ -9,7 +9,7 @@
 //! use roa_core::{Context, Result};
 //! use futures::AsyncReadExt;
 //! use futures::io::BufReader;
-//! use async_std::fs::File;
+//! use tokio::fs::File;
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
 //!     let mut data = String::new();
@@ -40,7 +40,7 @@
 //! use roa_body::{PowerBody, DispositionType::*};
 //! use serde::{Serialize, Deserialize};
 //! use askama::Template;
-//! use async_std::fs::File;
+//! use tokio::fs::File;
 //! use futures::io::BufReader;
 //!
 //! #[derive(Debug, Serialize, Deserialize, Template)]
@@ -253,14 +253,14 @@ fn handle_internal_server_error(err: impl ToString) -> Error {
 mod tests {
     use super::PowerBody;
     use askama::Template;
-    use async_std::fs::File;
-    use async_std::task::spawn;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
     use roa_core::http;
     use roa_core::{App, Context, Error};
     use roa_tcp::Listener;
     use serde::{Deserialize, Serialize};
+    use tokio::fs::File;
+    use tokio::spawn;
 
     #[derive(Debug, Deserialize)]
     struct UserDto {

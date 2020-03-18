@@ -22,7 +22,7 @@ use storage::{Storage, Value};
 /// ```rust
 /// use roa_core::{App, Context, Next, Result};
 /// use log::info;
-/// use async_std::fs::File;
+/// use tokio::fs::File;
 ///
 /// let app = App::new(()).gate(gate).end(end);
 /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
@@ -327,7 +327,7 @@ mod tests_with_runtime {
     use http::{StatusCode, Version};
     use std::io::Read;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
         async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
             assert_eq!(Version::HTTP_11, ctx.version());
@@ -344,7 +344,7 @@ mod tests_with_runtime {
         data: usize,
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
         async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result<(), Error> {
             ctx.data = 1;

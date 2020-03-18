@@ -116,7 +116,7 @@ fn format_time(time: SystemTime) -> String {
     datetime.format("%d/%m/%Y %T").to_string()
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     let wildcard_router = Router::new().gate(path_checker).on("/", get(serve_path));

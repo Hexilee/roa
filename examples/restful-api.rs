@@ -82,7 +82,7 @@ async fn delete_user(ctx: &mut Context<Database>) -> Result {
     ctx.write_json(&user)
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     let router = Router::new()
         .on("/", post(create_user))

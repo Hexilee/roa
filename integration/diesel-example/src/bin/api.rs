@@ -4,7 +4,7 @@ use roa::logger::logger;
 use roa::preload::*;
 use roa::App;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let app = App::new(create_pool()?)

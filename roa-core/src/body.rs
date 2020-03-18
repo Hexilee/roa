@@ -273,9 +273,9 @@ impl Stream for Body {
 #[cfg(test)]
 mod tests {
     use super::Body;
-    use async_std::fs::File;
     use futures::{AsyncReadExt, TryStreamExt};
     use std::io;
+    use tokio::fs::File;
 
     async fn read_body(body: Body) -> io::Result<String> {
         let mut data = String::new();
@@ -283,14 +283,14 @@ mod tests {
         Ok(data)
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_empty() -> std::io::Result<()> {
         let body = Body::default();
         assert_eq!("", read_body(body).await?);
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_single() -> std::io::Result<()> {
         let mut body = Body::default();
         body.write("Hello, World");
@@ -298,7 +298,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_multiple() -> std::io::Result<()> {
         let mut body = Body::default();
         body.write("He").write("llo, ").write("World");
@@ -306,7 +306,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_composed() -> std::io::Result<()> {
         let mut body = Body::stream();
         body.write("He")

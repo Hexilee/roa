@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 roa = { path = "../../roa", features = ["router", "body", "websocket"] }
 roa-websocket = { path = "../../roa-websocket" }
-async-std = { version = "1.5", features = ["attributes"] }
+tokio = { version = "0.2.13", features = ["rt-threaded", "blocking", "macros", "sync"] }
 log = "0.4"
 pretty_env_logger = "0.3"
 futures = "0.3"

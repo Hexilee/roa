@@ -87,13 +87,12 @@ mod tests {
     use crate::http::{header::ACCEPT_ENCODING, StatusCode};
     use crate::preload::*;
     use crate::{async_trait, App, Context, Middleware, Next};
-    use async_std::task::spawn;
     use bytes::Bytes;
     use futures::Stream;
-    use roa_core::Error;
     use std::io;
     use std::pin::Pin;
     use std::task::{self, Poll};
+    use tokio::spawn;
 
     struct Consumer<S> {
         counter: usize,

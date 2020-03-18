@@ -10,7 +10,7 @@
 //! use roa::http::header::AUTHORIZATION;
 //! use roa::http::StatusCode;
 //! use roa::preload::*;
-//! use async_std::task::spawn;
+//! use tokio::spawn;
 //! use jsonwebtoken::{encode, Header, EncodingKey};
 //! use serde::{Deserialize, Serialize};
 //! use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -232,11 +232,11 @@ mod tests {
     use crate::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use crate::http::StatusCode;
     use crate::preload::*;
-    use crate::{App, Context, Error};
-    use async_std::task::spawn;
+    use crate::{App, Context};
     use jsonwebtoken::{encode, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use tokio::spawn;
 
     #[derive(Debug, Serialize, Deserialize)]
     struct User {

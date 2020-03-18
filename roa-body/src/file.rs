@@ -4,9 +4,9 @@ mod help;
 pub use async_std::path::Path;
 pub use content_disposition::DispositionType;
 
-use async_std::fs::File;
 use content_disposition::ContentDisposition;
 use roa_core::{http, Context, Result, State};
+use tokio::fs::File;
 
 #[inline]
 pub async fn write_file<S: State>(

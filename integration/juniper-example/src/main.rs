@@ -137,7 +137,7 @@ async fn play_ground(ctx: &mut Context<State>) -> roa::Result {
     Ok(())
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let router = Router::new().on("/", get(play_ground)).on(

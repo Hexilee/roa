@@ -14,7 +14,7 @@ async fn serve_file(ctx: &mut Context<()>) -> roa::Result {
         .await
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
 

@@ -4,7 +4,7 @@ use roa::preload::*;
 use roa::{App, Context};
 use std::error::Error as StdError;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
     let app = App::new(()).end(async move |ctx: &mut Context<()>| {

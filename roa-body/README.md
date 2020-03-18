@@ -19,7 +19,7 @@ The `roa_core` provides several methods to read/write body.
 use roa_core::{Context, Result};
 use futures::AsyncReadExt;
 use futures::io::BufReader;
-use async_std::fs::File;
+use tokio::fs::File;
 
 async fn get(mut ctx: Context<()>) -> Result {
     // roa_core::Body implements futures::AsyncRead.
@@ -47,7 +47,7 @@ use roa_core::{Context, Result};
 use roa_body::{PowerBody, DispositionType::*};
 use serde::{Serialize, Deserialize};
 use askama::Template;
-use async_std::fs::File;
+use tokio::fs::File;
 use futures::io::BufReader;
 
 #[derive(Debug, Serialize, Deserialize, Template)]
