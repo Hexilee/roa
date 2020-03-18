@@ -111,9 +111,7 @@ where
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{
-        async_trait, App, Context, Error, Middleware, MiddlewareExt, Next, Request,
-    };
+    use crate::{async_trait, App, Context, Error, Middleware, Next, Request};
     use futures::lock::Mutex;
     use http::StatusCode;
     use std::sync::Arc;
@@ -133,7 +131,7 @@ mod tests {
     impl<'a> Middleware<'a, ()> for Pusher {
         async fn handle(
             &'a self,
-            ctx: &'a mut Context<()>,
+            _ctx: &'a mut Context<()>,
             next: Next<'a>,
         ) -> Result<(), Error> {
             self.vector.lock().await.push(self.data);

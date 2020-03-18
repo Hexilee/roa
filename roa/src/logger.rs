@@ -247,7 +247,7 @@ mod tests {
         assert!(records[1].1.ends_with("200 OK"));
 
         // error
-        async fn err(ctx: &mut Context<()>) -> crate::Result {
+        async fn err(_ctx: &mut Context<()>) -> crate::Result {
             throw!(StatusCode::BAD_REQUEST, "Hello, World!")
         }
         let (addr, server) = App::new(()).gate(logger).end(err).run()?;

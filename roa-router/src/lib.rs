@@ -332,7 +332,7 @@ mod tests {
     use encoding::EncoderTrap;
     use percent_encoding::NON_ALPHANUMERIC;
     use roa_core::http::StatusCode;
-    use roa_core::{App, Context, Error, MiddlewareExt, Next};
+    use roa_core::{App, Context, Error, Next};
     use roa_tcp::Listener;
 
     async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {

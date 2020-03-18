@@ -269,7 +269,7 @@ impl<S, E> HttpService<S, E> {
                 return Err(err);
             }
         }
-        Ok(std::mem::take(&mut context.resp))
+        Ok(context.resp)
     }
 }
 
@@ -296,7 +296,7 @@ impl<S: Clone> Clone for App<S, Arc<dyn for<'a> Endpoint<'a, S>>> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Context, Error, Request};
+    use crate::{App, Request};
     use http::StatusCode;
 
     #[async_std::test]

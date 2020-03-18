@@ -90,7 +90,6 @@ mod tests {
     use async_std::task::spawn;
     use bytes::Bytes;
     use futures::Stream;
-    use roa_core::Error;
     use std::io;
     use std::pin::Pin;
     use std::task::{self, Poll};

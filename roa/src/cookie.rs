@@ -171,7 +171,6 @@ mod tests {
     use crate::preload::*;
     use crate::{App, Context};
     use async_std::task::spawn;
-    use futures::AsyncReadExt;
 
     async fn must(ctx: &mut Context<()>) -> crate::Result {
         assert_eq!("Hexi Lee", ctx.must_cookie("nick name")?.value());

@@ -323,9 +323,8 @@ impl<S: Clone> Clone for Context<S> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests_with_runtime {
-    use crate::{App, Context, Error, MiddlewareExt, Next, Request};
+    use crate::{App, Context, Error, Next, Request};
     use http::{StatusCode, Version};
-    use std::io::Read;
 
     #[async_std::test]
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {

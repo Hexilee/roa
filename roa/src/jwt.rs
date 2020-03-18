@@ -232,7 +232,7 @@ mod tests {
     use crate::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use crate::http::StatusCode;
     use crate::preload::*;
-    use crate::{App, Context, Error};
+    use crate::{App, Context};
     use async_std::task::spawn;
     use jsonwebtoken::{encode, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
