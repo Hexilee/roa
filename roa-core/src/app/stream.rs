@@ -1,5 +1,6 @@
 use futures::io::{AsyncRead, AsyncWrite};
 use std::io;
+use std::mem::MaybeUninit;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::task::{self, Poll};
@@ -35,6 +36,11 @@ impl AddrStream {
 }
 
 impl TokioRead for AddrStream {
+    #[inline]
+    unsafe fn prepare_uninitialized_buffer(&self, _buf: &mut [MaybeUninit<u8>]) -> bool {
+        false
+    }
+
     #[inline]
     fn poll_read(
         mut self: Pin<&mut Self>,
