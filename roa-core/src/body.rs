@@ -16,33 +16,31 @@ const DEFAULT_CHUNK_SIZE: usize = 4096;
 /// use roa_core::Body;
 /// use futures::StreamExt;
 /// use std::io;
+/// use bytes::Bytes;
 ///
-/// async fn read_body(body: Body) -> io::Result<Vec<u8>> {
+/// async fn read_body(body: Body) -> io::Result<Bytes> {
 ///     Ok(match body {
-///         Body::Bytes(bytes) => bytes.bytes().to_vec(),
+///         Body::Empty => Bytes::new(),
+///         Body::Once(bytes) => bytes,
 ///         Body::Stream(mut stream) => {
 ///             let mut bytes = Vec::new();
 ///             while let Some(item) = stream.next().await {
 ///                 bytes.extend_from_slice(&*item?);
 ///             }
-///             bytes
+///             bytes.into()
 ///         }
 ///     })
 /// }
 /// ```
 pub enum Body {
+    /// Empty kind
+    Empty,
+
     /// Bytes kind.
-    Bytes(BodyBytes),
+    Once(Bytes),
 
     /// Stream kind.
     Stream(BodyStream),
-}
-
-/// Bytes based body.
-#[derive(Default)]
-pub struct BodyBytes {
-    size_hint: usize,
-    data: Vec<Bytes>,
 }
 
 /// Stream based body.
@@ -55,13 +53,16 @@ pub struct BodyStream {
 type Segment = Box<dyn Stream<Item = io::Result<Bytes>> + Sync + Send + Unpin + 'static>;
 
 impl Body {
-    /// Construct an empty body of bytes kind.
+    /// Construct an empty body.
     #[inline]
-    pub fn bytes() -> Self {
-        Body::Bytes(BodyBytes {
-            size_hint: 0,
-            data: Vec::new(),
-        })
+    pub fn empty() -> Self {
+        Body::Empty
+    }
+
+    /// Construct a once body.
+    #[inline]
+    pub fn once(bytes: impl Into<Bytes>) -> Self {
+        Body::Once(bytes.into())
     }
 
     /// Construct an empty body of stream kind.
@@ -79,17 +80,19 @@ impl Body {
         stream: impl Stream<Item = io::Result<Bytes>> + Sync + Send + Unpin + 'static,
     ) -> &mut Self {
         match self {
+            Body::Empty => {
+                *self = Self::stream();
+                self.write_stream(stream)
+            }
+            Body::Once(bytes) => {
+                let data = mem::take(bytes);
+                *self = Self::stream();
+                self.write(data);
+                self.write_stream(stream)
+            }
             Body::Stream(body_stream) => {
                 body_stream.write_stream(stream);
                 self
-            }
-            Body::Bytes(bytes) => {
-                let data = mem::take(bytes).bytes();
-                *self = Self::stream();
-                if !data.is_empty() {
-                    self.write(data);
-                }
-                self.write_stream(stream)
             }
         }
     }
@@ -114,10 +117,17 @@ impl Body {
     }
 
     /// Write `Bytes`.
-    #[inline]
     pub fn write(&mut self, data: impl Into<Bytes>) -> &mut Self {
         match self {
-            Body::Bytes(bytes) => bytes.write(data),
+            Body::Empty => {
+                *self = Self::once(data.into());
+            }
+            Body::Once(bytes) => {
+                let mut stream = Self::stream();
+                stream.write(mem::take(bytes));
+                stream.write(data.into());
+                *self = stream;
+            }
             Body::Stream(stream) => stream.write(data),
         }
         self
@@ -140,49 +150,12 @@ impl BodyStream {
     }
 }
 
-impl BodyBytes {
-    #[inline]
-    fn write(&mut self, bytes: impl Into<Bytes>) {
-        let data = bytes.into();
-        self.size_hint += data.len();
-        self.data.push(data);
-    }
-
-    /// Consume self and return a bytes.
-    #[inline]
-    pub fn bytes(mut self) -> Bytes {
-        match self.data.len() {
-            0 => Bytes::new(),
-            1 => self.data.remove(0),
-            _ => {
-                let mut bytes = BytesMut::with_capacity(self.size_hint);
-                for data in self.data.iter() {
-                    bytes.extend_from_slice(data)
-                }
-                bytes.freeze()
-            }
-        }
-    }
-
-    /// Get size hint.
-    #[inline]
-    pub fn size_hint(&self) -> usize {
-        self.size_hint
-    }
-}
-
 impl From<Body> for hyper::Body {
     #[inline]
     fn from(body: Body) -> Self {
         match body {
-            Body::Bytes(bytes) => {
-                let data = bytes.bytes();
-                if data.is_empty() {
-                    hyper::Body::empty()
-                } else {
-                    hyper::Body::from(data)
-                }
-            }
+            Body::Empty => hyper::Body::empty(),
+            Body::Once(bytes) => hyper::Body::from(bytes),
             Body::Stream(stream) => hyper::Body::wrap_stream(stream),
         }
     }
@@ -191,7 +164,7 @@ impl From<Body> for hyper::Body {
 impl Default for Body {
     #[inline]
     fn default() -> Self {
-        Self::bytes()
+        Self::empty()
     }
 }
 
@@ -258,12 +231,11 @@ impl Stream for Body {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         match &mut *self {
-            Body::Bytes(bytes) => {
-                if bytes.size_hint == 0 {
-                    Poll::Ready(None)
-                } else {
-                    Poll::Ready(Some(Ok(mem::take(bytes).bytes())))
-                }
+            Body::Empty => Poll::Ready(None),
+            Body::Once(bytes) => {
+                let data = mem::take(bytes);
+                *self = Body::empty();
+                Poll::Ready(Some(Ok(data)))
             }
             Body::Stream(stream) => Pin::new(stream).poll_next(cx),
         }
