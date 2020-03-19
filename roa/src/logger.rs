@@ -29,7 +29,7 @@
 //! }
 //! ```
 
-use crate::{Body, Context, Executor, JoinHandle, Next, Result};
+use crate::{Context, Executor, JoinHandle, Next, Result};
 use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};
@@ -134,8 +134,8 @@ pub async fn logger<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
     let exec = ctx.exec.clone();
     let status_code = ctx.status();
 
-    match (&result, &mut ctx.resp.body) {
-        (Err(err), _) => {
+    match &result {
+        Err(err) => {
             let message = err.message.clone();
             ctx.exec
                 .spawn_blocking(move || {
@@ -150,22 +150,7 @@ pub async fn logger<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
                 })
                 .await
         }
-        (Ok(_), Body::Bytes(bytes)) => {
-            let size = bytes.size_hint();
-            ctx.exec
-                .spawn_blocking(move || {
-                    info!(
-                        "<-- {} {} {}ms {} {}",
-                        method,
-                        path,
-                        start.elapsed().as_millis(),
-                        ByteSize(size as u64),
-                        status_code,
-                    );
-                })
-                .await
-        }
-        (Ok(_), Body::Stream(stream)) => {
+        Ok(_) => {
             let task = Box::new(LogTask {
                 counter: 0,
                 method,
@@ -175,7 +160,7 @@ pub async fn logger<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
                 exec,
             });
             let logger = StreamLogger::Polling {
-                stream: std::mem::take(stream),
+                stream: std::mem::take(&mut ctx.resp.body),
                 task,
             };
             ctx.resp.write_stream(logger);
