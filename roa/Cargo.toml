@@ -26,7 +26,6 @@ codecov = { repository = "Hexilee/roa" }
 [dependencies]
 log = "0.4"
 futures = "0.3"
-async-std = "1.5.0"
 bytesize = "1.0"
 async-trait = "0.1.22"
 url = "2.1.1"
@@ -40,6 +39,8 @@ roa-tcp = { path = "../roa-tcp", version = "0.5.0-beta", optional = true }
 roa-tls = { path = "../roa-tls", version = "0.5.0-beta", optional = true }
 roa-router = { path = "../roa-router", version = "0.5.0-beta", optional = true }
 roa-websocket = { path = "../roa-websocket", version = "0.5.0-beta", optional = true }
+roa-tokio = { path = "../roa-tokio", version = "0.5.0-beta", optional = true }
+roa-diesel = { path = "../roa-diesel", version = "0.5.0-beta", optional = true }
 cookie = { version = "0.13", features = ["percent-encode"], optional = true }
 jsonwebtoken = { version = "7.1", optional = true }
 serde = { version = "1", optional = true }
@@ -64,8 +65,22 @@ encoding = "0.2"
 askama = "0.9"
 
 [features]
-default = ["rt", "tcp"]
-full = ["rt", "json", "urlencoded", "file", "template", "tcp", "tls", "router", "jwt", "cookies", "compress", "websocket"]
+default = ["async-rt"]
+full = [
+    "json",
+    "urlencoded",
+    "file",
+    "template",
+    "tls",
+    "router",
+    "jwt",
+    "cookies",
+    "compress",
+    "websocket",
+    "diesel",
+    "async-rt",
+    "tokio-rt"
+]
 rt = ["roa-core/runtime"]
 json = ["roa-body/json"]
 urlencoded = ["roa-body/urlencoded"]
@@ -78,3 +93,7 @@ jwt = ["jsonwebtoken", "serde", "serde_json"]
 router = ["roa-router"]
 websocket = ["roa-websocket"]
 compress = ["async-compression", "accept-encoding"]
+diesel = ["roa-diesel"]
+
+async-rt = ["rt", "tcp"]
+tokio-rt = ["roa-tokio"]

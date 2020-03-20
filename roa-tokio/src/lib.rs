@@ -3,7 +3,7 @@
 #![warn(missing_docs)]
 
 #[cfg(doctest)]
-doc_comment::doctest!("./README.md");
+doc_comment::doctest!("../README.md");
 
 mod net;
 mod runtime;

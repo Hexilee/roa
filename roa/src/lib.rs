@@ -253,6 +253,12 @@ pub use roa_tls as tls;
 #[cfg(feature = "websocket")]
 pub use roa_websocket as websocket;
 
+#[cfg(feature = "diesel")]
+pub use roa_diesel as diesel;
+
+#[cfg(feature = "tokio-rt")]
+pub use roa_tokio as tokio;
+
 pub mod cors;
 pub mod forward;
 pub mod header;
@@ -289,4 +295,7 @@ pub mod preload {
 
     #[cfg(feature = "router")]
     pub use crate::router::RouterParam;
+
+    #[cfg(feature = "diesel")]
+    pub use crate::diesel::{AsyncPool, SqlQuery};
 }
