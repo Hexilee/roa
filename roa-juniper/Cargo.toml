@@ -23,3 +23,4 @@ futures = "0.3.4"
 git = "https://github.com/graphql-rust/juniper.git"
 version = "0.14.2"
 default-features = false
+rev = "27e00419b0637d58fc926325a668fa8b3c09ffa0"

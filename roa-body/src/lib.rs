@@ -338,7 +338,7 @@ mod tests {
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
-        assert_eq!("text/html", resp.headers()[CONTENT_TYPE]);
+        assert_eq!("text/html; charset=utf-8", resp.headers()[CONTENT_TYPE]);
         Ok(())
     }
 
