@@ -47,6 +47,10 @@ jobs:
             registryName: roa-websocket
             path: roa-websocket
             publishPath: /target/package
+          - name: roa-tokio
+            registryName: roa-tokio
+            path: roa-tokio
+            publishPath: /target/package
           - name: roa
             registryName: roa
             path: roa
