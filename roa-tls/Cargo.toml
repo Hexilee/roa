@@ -20,10 +20,10 @@ categories = ["network-programming", "asynchronous",
 roa-core = { path = "../roa-core", version = "0.5.0-beta" }
 roa-tcp = { path = "../roa-tcp", version = "0.5.0-beta" }
 futures = "0.3"
-rustls = "0.16.0"
-async-tls = "0.6.0"
-async-std = "1.5.0"
+rustls = "0.17.0"
+tokio-rustls = "0.13.0"
 tokio = "0.2.13"
+bytes = "0.5.4"
 
 [dev-dependencies]
 async-std = { version = "1.5.0", features = ["attributes"] }

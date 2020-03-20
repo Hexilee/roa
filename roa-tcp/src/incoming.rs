@@ -29,7 +29,7 @@ pub struct TcpIncoming {
 /// A wrapper for async_std::io::{Read, Write}.
 ///
 /// An implementation of tokio::io::{AsyncRead, AsyncWrite}.
-pub struct WrapStream<IO>(pub IO);
+pub struct WrapStream<IO>(IO);
 
 impl TcpIncoming {
     /// Creates a new `TcpIncoming` binding to provided socket address.
