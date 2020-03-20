@@ -1,6 +1,6 @@
 [package]
 name = "roa"
-version = "0.5.0-beta.4"
+version = "0.5.0-rc"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -33,14 +33,14 @@ percent-encoding = "2.1"
 bytes = "0.5"
 headers = "0.3.1"
 
-roa-core = { path = "../roa-core", version = "0.5.0-beta" }
-roa-body = { path = "../roa-body", version = "0.5.0-beta" }
-roa-tcp = { path = "../roa-tcp", version = "0.5.0-beta", optional = true }
-roa-tls = { path = "../roa-tls", version = "0.5.0-beta", optional = true }
-roa-router = { path = "../roa-router", version = "0.5.0-beta", optional = true }
-roa-websocket = { path = "../roa-websocket", version = "0.5.0-beta", optional = true }
-roa-tokio = { path = "../roa-tokio", version = "0.5.0-beta", optional = true }
-roa-diesel = { path = "../roa-diesel", version = "0.5.0-beta", optional = true }
+roa-core = { path = "../roa-core", version = "0.5.0-rc" }
+roa-body = { path = "../roa-body", version = "0.5.0-rc" }
+roa-tcp = { path = "../roa-tcp", version = "0.5.0-rc", optional = true }
+roa-tls = { path = "../roa-tls", version = "0.5.0-rc", optional = true }
+roa-router = { path = "../roa-router", version = "0.5.0-rc", optional = true }
+roa-websocket = { path = "../roa-websocket", version = "0.5.0-rc", optional = true }
+roa-tokio = { path = "../roa-tokio", version = "0.5.0-rc", optional = true }
+roa-diesel = { path = "../roa-diesel", version = "0.5.0-rc", optional = true }
 cookie = { version = "0.13", features = ["percent-encode"], optional = true }
 jsonwebtoken = { version = "7.1", optional = true }
 serde = { version = "1", optional = true }

@@ -1,6 +1,6 @@
 [package]
 name = "roa-body"
-version = "0.5.0-beta.2"
+version = "0.5.0-rc"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -26,7 +26,7 @@ log = "0.4"
 futures = "0.3"
 bytes = "0.5.4"
 lazy_static = "1.4"
-roa-core = { path = "../roa-core", version = "0.5.0-beta" }
+roa-core = { path = "../roa-core", version = "0.5.0-rc" }
 async-std = { version = "1.5", optional = true }
 serde = { version = "1", optional = true }
 askama = { version = "0.9", optional = true }
@@ -40,8 +40,8 @@ test-case = "1.0.0"
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
 async-std = "1.5"
-roa-tcp = { path = "../roa-tcp", version = "0.5.0-beta" }
-roa-core = { path = "../roa-core", version = "0.5.0-beta", features = ["runtime"] }
+roa-tcp = { path = "../roa-tcp", version = "0.5.0-rc" }
+roa-core = { path = "../roa-core", version = "0.5.0-rc", features = ["runtime"] }
 mime = "0.3"
 
 [features]

@@ -1,6 +1,6 @@
 [package]
 name = "roa-tls"
-version = "0.5.0-beta"
+version = "0.5.0-rc"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -17,8 +17,8 @@ categories = ["network-programming", "asynchronous",
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-roa-core = { path = "../roa-core", version = "0.5.0-beta" }
-roa-tcp = { path = "../roa-tcp", version = "0.5.0-beta" }
+roa-core = { path = "../roa-core", version = "0.5.0-rc" }
+roa-tcp = { path = "../roa-tcp", version = "0.5.0-rc" }
 futures = "0.3"
 rustls = "0.17.0"
 tokio-rustls = "0.13.0"
@@ -28,7 +28,7 @@ bytes = "0.5.4"
 [dev-dependencies]
 async-std = { version = "1.5.0", features = ["attributes"] }
 tokio = { version = "0.2", features = ["full"] }
-roa-core = { path = "../roa-core", version = "0.5.0-beta", features = ["runtime"] }
+roa-core = { path = "../roa-core", version = "0.5.0-rc", features = ["runtime"] }
 tokio-tls = "0.3.0"
 hyper-tls = "0.4.1"
 hyper = "0.13.2"
