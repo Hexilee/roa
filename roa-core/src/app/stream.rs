@@ -1,44 +1,39 @@
-use futures::io::{AsyncRead, AsyncWrite};
+use bytes::{Buf, BufMut};
 use std::io;
 use std::mem::MaybeUninit;
 use std::net::SocketAddr;
 use std::pin::Pin;
+use std::task::Context;
 use std::task::{self, Poll};
-use tokio::io::{AsyncRead as TokioRead, AsyncWrite as TokioWrite};
-
-trait InnerStream: 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite {}
-impl<T> InnerStream for T where T: 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite {}
+use tokio::io::{AsyncRead, AsyncWrite};
 
 /// A transport returned yieled by `AddrIncoming`.
-pub struct AddrStream {
-    remote_addr: SocketAddr,
-    stream: Box<dyn InnerStream>,
+pub struct AddrStream<IO> {
+    /// The remote address of this stream.
+    pub remote_addr: SocketAddr,
+
+    /// The inner stream.
+    pub stream: IO,
 }
 
-impl AddrStream {
+impl<IO> AddrStream<IO> {
     /// Construct an AddrStream from an addr and a AsyncReadWriter.
     #[inline]
-    pub fn new(
-        remote_addr: SocketAddr,
-        stream: impl 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite,
-    ) -> AddrStream {
+    pub fn new(remote_addr: SocketAddr, stream: IO) -> AddrStream<IO> {
         AddrStream {
             remote_addr,
-            stream: Box::new(stream),
+            stream,
         }
-    }
-
-    /// Returns the remote (peer) address of this connection.
-    #[inline]
-    pub fn remote_addr(&self) -> SocketAddr {
-        self.remote_addr
     }
 }
 
-impl TokioRead for AddrStream {
+impl<IO> AsyncRead for AddrStream<IO>
+where
+    IO: Unpin + AsyncRead,
+{
     #[inline]
-    unsafe fn prepare_uninitialized_buffer(&self, _buf: &mut [MaybeUninit<u8>]) -> bool {
-        false
+    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [MaybeUninit<u8>]) -> bool {
+        self.stream.prepare_uninitialized_buffer(buf)
     }
 
     #[inline]
@@ -47,27 +42,41 @@ impl TokioRead for AddrStream {
         cx: &mut task::Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut *self.stream).poll_read(cx, buf)
+        Pin::new(&mut self.stream).poll_read(cx, buf)
+    }
+
+    #[inline]
+    fn poll_read_buf<B: BufMut>(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut B,
+    ) -> Poll<io::Result<usize>>
+    where
+        Self: Sized,
+    {
+        Pin::new(&mut self.stream).poll_read_buf(cx, buf)
     }
 }
 
-impl TokioWrite for AddrStream {
+impl<IO> AsyncWrite for AddrStream<IO>
+where
+    IO: Unpin + AsyncWrite,
+{
     #[inline]
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut *self.stream).poll_write(cx, buf)
+        Pin::new(&mut self.stream).poll_write(cx, buf)
     }
 
     #[inline]
     fn poll_flush(
-        self: Pin<&mut Self>,
-        _cx: &mut task::Context<'_>,
+        mut self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
     ) -> Poll<io::Result<()>> {
-        // TCP flush is a noop
-        Poll::Ready(Ok(()))
+        Pin::new(&mut self.stream).poll_flush(cx)
     }
 
     #[inline]
@@ -75,6 +84,18 @@ impl TokioWrite for AddrStream {
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<io::Result<()>> {
-        Pin::new(&mut *self.stream).poll_close(cx)
+        Pin::new(&mut self.stream).poll_shutdown(cx)
+    }
+
+    #[inline]
+    fn poll_write_buf<B: Buf>(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut B,
+    ) -> Poll<io::Result<usize>>
+    where
+        Self: Sized,
+    {
+        Pin::new(&mut self.stream).poll_write_buf(cx, buf)
     }
 }

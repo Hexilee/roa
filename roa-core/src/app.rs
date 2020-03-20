@@ -19,6 +19,7 @@ use std::pin::Pin;
 use std::result::Result as StdResult;
 use std::sync::Arc;
 use std::task::Poll;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::Accept;
 use crate::{Executor, Spawn};
@@ -149,10 +150,11 @@ where
     E: for<'a> Endpoint<'a, S>,
 {
     /// Construct a hyper server by an incoming.
-    pub fn accept<I>(self, incoming: I) -> Server<I, Self, Executor>
+    pub fn accept<I, IO>(self, incoming: I) -> Server<I, Self, Executor>
     where
         S: State,
-        I: Accept<Conn = AddrStream>,
+        IO: 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite,
+        I: Accept<Conn = AddrStream<IO>>,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
         Server::builder(incoming)
@@ -186,10 +188,11 @@ macro_rules! impl_poll_ready {
 type AppFuture<S, E> =
     Pin<Box<dyn 'static + Future<Output = std::io::Result<HttpService<S, E>>> + Send>>;
 
-impl<S, E> Service<&AddrStream> for App<S, Arc<E>>
+impl<S, E, IO> Service<&AddrStream<IO>> for App<S, Arc<E>>
 where
     S: State,
     E: for<'a> Endpoint<'a, S>,
+    IO: 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite,
 {
     type Response = HttpService<S, E>;
     type Error = std::io::Error;
@@ -197,9 +200,9 @@ where
     impl_poll_ready!();
 
     #[inline]
-    fn call(&mut self, stream: &AddrStream) -> Self::Future {
+    fn call(&mut self, stream: &AddrStream<IO>) -> Self::Future {
         let endpoint = self.service.clone();
-        let addr = stream.remote_addr();
+        let addr = stream.remote_addr;
         let state = self.state.clone();
         let exec = self.exec.clone();
         Box::pin(async move { Ok(HttpService::new(endpoint, addr, exec, state)) })
