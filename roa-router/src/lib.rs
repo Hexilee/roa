@@ -1,5 +1,5 @@
-//! The router module of roa.
-//! This module provides many endpoint wrappers like `Router`, `Dispatcher` and a context extension `RouterParam`.
+//! The router crate of roa.
+//! This crate provides many endpoint wrappers like `Router`, `Dispatcher` and a context extension `RouterParam`.
 //!
 //! ### Example
 //!
@@ -48,6 +48,9 @@
 //!
 
 #![warn(missing_docs)]
+
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
 
 mod endpoints;
 mod err;

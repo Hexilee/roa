@@ -11,29 +11,22 @@
 This crate provides a websocket endpoint.
 
 ### Example
-
 ```rust
 use futures::StreamExt;
 use roa_router::{Router, RouterError};
 use roa_websocket::Websocket;
-use roa_core::{App, SyncContext};
+use roa_core::{App, Context};
 use roa_core::http::Method;
 
 # fn main() -> Result<(), RouterError> {
-let mut app = App::new(());
-let mut router = Router::new();
-router.end(
-    "/chat",
-    [Method::GET],
-    Websocket::new(|_ctx: SyncContext<()>, stream| async move {
-        let (write, read) = stream.split();
-        // echo
-        if let Err(err) = read.forward(write).await {
-            println!("forward err: {}", err);
-        }
-    }),
-);
-app.gate(router.routes("/")?);
+let router = Router::new().on("/chat", Websocket::new(|_ctx: Context<()>, stream| async move {
+    let (write, read) = stream.split();
+    // echo
+    if let Err(err) = read.forward(write).await {
+        println!("forward err: {}", err);
+    }
+}));
+let app = App::new(()).end(router.routes("/")?);
 Ok(())
 # }
 ```

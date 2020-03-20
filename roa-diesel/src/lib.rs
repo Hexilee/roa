@@ -34,6 +34,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
+
 mod async_ext;
 mod err;
 mod pool;

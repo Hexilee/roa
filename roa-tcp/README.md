@@ -12,31 +12,41 @@ This crate provides an acceptor implementing `roa_core::Accept` and an app exten
 
 ### TcpIncoming
 
-```
-use roa_core::App;
+```rust,no_run
+use roa_core::{self as roa, App, Context};
 use roa_tcp::TcpIncoming;
-use std::io;
+use std::error::Error;
 
-# fn main() -> io::Result<()> {
-let app = App::new(());
-let incoming = TcpIncoming::bind("127.0.0.1:0")?;
-let server = app.accept(incoming);
-// server.await
-Ok(())
-# }
+async fn end(_ctx: &mut Context<()>) -> roa::Result {
+    Ok(())
+}
+
+#[async_std::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let app = App::new(()).end(end);
+    let incoming = TcpIncoming::bind("127.0.0.1:0")?;
+    let server = app.accept(incoming);
+    server.await?;
+    Ok(())
+}
 ```
 
 ### Listener
 
-```
-use roa_core::App;
+```rust,no_run
+use roa_core::{self as roa, App, Context};
 use roa_tcp::Listener;
-use std::io;
+use std::error::Error;
 
-# fn main() -> io::Result<()> {
-let app = App::new(());
-let (addr, server) = app.listen_on("127.0.0.1:0")?;
-// server.await
-Ok(())
-# }
+async fn end(_ctx: &mut Context<()>) -> roa::Result {
+    Ok(())
+}
+
+#[async_std::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let app = App::new(()).end(end);
+    let (addr, server) = app.bind("127.0.0.1:0")?;
+    server.await?;
+    Ok(())
+}
 ```

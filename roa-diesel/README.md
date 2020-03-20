@@ -15,7 +15,7 @@ This crate provides two context extensions.
 ### AsyncPool
 A context extension to access r2d2 pool asynchronously.
 
-```
+```rust
 use roa_core::{Context, Result};
 use diesel::sqlite::SqliteConnection;
 use roa_diesel::{Pool, AsyncPool};
@@ -42,3 +42,4 @@ A context extension to execute diesel dsl asynchronously.
 
 Refer to [integration example](https://github.com/Hexilee/roa/tree/master/integration/diesel-example)
 for more usage.
+

@@ -22,18 +22,21 @@ use futures::io::BufReader;
 use async_std::fs::File;
 
 async fn get(mut ctx: Context<()>) -> Result {
-    // roa_core::Body implements futures::AsyncRead.
     let mut data = String::new();
-    ctx.req_mut().body().read_to_string(&mut data).await?;
+    // implements futures::AsyncRead.
+    ctx.req.reader().read_to_string(&mut data).await?;
     println!("data: {}", data);
 
-    ctx.resp_mut()
+    // although body is empty now...
+    let stream = ctx.req.stream();
+    ctx.resp
+        // echo
+       .write_stream(stream)
        // write object implementing futures::AsyncRead
-       .write(File::open("assets/author.txt").await?)
-       // write `impl ToString`
-       .write_str("I am Roa.")
-       // write `impl Into<Vec<u8>>`
-       .write_bytes(b"Hey Roa.".as_ref());
+       .write_reader(File::open("assets/author.txt").await?)
+       // write `Bytes`
+       .write("I am Roa.")
+       .write("Hey Roa.");
     Ok(())
 }
 ```
@@ -74,16 +77,15 @@ async fn get(mut ctx: Context<()>) -> Result {
 
     // write text,
     // set "Content-Type"
-    ctx.write_text("Hello, World!")?;
+    ctx.write_text("Hello, World!");
 
     // write object implementing AsyncRead,
     // set "Content-Type"
-    ctx.write_octet(File::open("assets/author.txt").await?)?;
+    ctx.write_octet(File::open("assets/author.txt").await?);
 
     // render html template, based on [askama](https://github.com/djc/askama).
     // set "Content-Type"
     ctx.render(&user)?;
     Ok(())
 }
-```
- 
+``` 

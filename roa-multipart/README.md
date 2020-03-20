@@ -14,24 +14,21 @@ which may cause heavy dependencies.
 It won't be used as a module of crate `roa` until implementing a cleaner Multipart.  
 
 ### Example
-```
+```rust,no_run
 use async_std::fs::File;
 use async_std::io;
 use async_std::path::Path;
 use futures::stream::TryStreamExt;
 use futures::StreamExt;
-use roa::http::StatusCode;
-use roa::preload::*;
-use roa::router::Router;
-use roa::{throw, App};
+use roa_core::http::StatusCode;
+use roa_tcp::Listener;
+use roa_router::{Router, post};
+use roa_core::{self as roa, throw, App, Context};
 use roa_multipart::Multipart;
 use std::error::Error as StdError;
 
-# fn main() -> Result<(), Box<dyn StdError>> {
-let mut app = App::new(());
-let mut router = Router::<()>::new();
-router.post("/file", |mut ctx| async move {
-    let mut form = Multipart::new(&mut ctx);
+async fn post_file(ctx: &mut Context<()>) -> roa::Result {
+    let mut form = Multipart::new(ctx);
     while let Some(item) = form.next().await {
         let field = item?;
         match field.content_disposition() {
@@ -47,9 +44,13 @@ router.post("/file", |mut ctx| async move {
         }
     }
     Ok(())
-});
-let (addr, server) = app.run()?;
-// server.await
-Ok(())
-# }
+}
+
+#[async_std::main]
+async fn main() -> Result<(), Box<dyn StdError>> {
+    let router = Router::new().on("file", post(post_file));
+    let (addr, server) = App::new(()).end(router.routes("/")?).run()?;
+    server.await?;
+    Ok(())
+}
 ```

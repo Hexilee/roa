@@ -19,13 +19,13 @@ A Roa application is a structure containing a middleware group which composes an
 The obligatory hello world application:
 
 ```rust
-use roa_core::App;
+use roa_core::{App, Context, Result, Error};
 
-let mut app = App::new(());
-app.end(|mut ctx| async move {
-    ctx.resp_mut().write("Hello, World");
+let app = App::new(()).end(end);
+async fn end(ctx: &mut Context<()>) -> Result {
+    ctx.resp.write("Hello, World");
     Ok(())
-});
+}
 ```
 
 #### Cascading
@@ -38,22 +38,23 @@ middleware to execute downstream, the stack will unwind and each middleware is r
 its upstream behaviour.
 
 ```rust
-use roa_core::App;
+use roa_core::{App, Context, Result, Error, MiddlewareExt, Next};
 use std::time::Instant;
 use log::info;
 
-let mut app = App::new(());
-app.gate_fn(|_ctx, next| async move {
+let app = App::new(()).gate(gate).end(end);
+
+async fn end(ctx: &mut Context<()>) -> Result {
+    ctx.resp.write("Hello, World");
+    Ok(())
+}
+
+async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     let inbound = Instant::now();
     next.await?;
     info!("time elapsed: {} ms", inbound.elapsed().as_millis());
     Ok(())
-});
-
-app.end(|mut ctx| async move {
-    ctx.resp_mut().write("Hello, World");
-    Ok(())
-});
+}
 ```
 
 ### Error Handling
@@ -61,11 +62,12 @@ app.end(|mut ctx| async move {
 You can catch or straightly throw an Error returned by next.
 
 ```rust
-use roa_core::{App, throw};
+use roa_core::{App, Context, Result, Error, MiddlewareExt, Next, throw};
 use roa_core::http::StatusCode;
         
-let mut app = App::new(());
-app.gate_fn(|ctx, next| async move {
+let app = App::new(()).gate(catch).gate(gate).end(end);
+
+async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     // catch
     if let Err(err) = next.await {
         // teapot is ok
@@ -74,14 +76,15 @@ app.gate_fn(|ctx, next| async move {
         }
     }
     Ok(())
-});
-app.gate_fn(|ctx, next| async move {
+}
+async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     next.await?; // just throw
     unreachable!()
-});
-app.end(|_ctx| async move {
+}
+
+async fn end(ctx: &mut Context<()>) -> Result {
     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
-});
+}
 ```
 
 #### error_handler
@@ -90,10 +93,10 @@ This is the error_handler:
 
 ```rust
 use roa_core::{Context, Error, Result, ErrorKind, State};
-pub async fn error_handler<S: State>(mut context: Context<S>, err: Error) -> Result {
-    context.resp_mut().status = err.status_code;
+pub async fn error_handler<S: State>(context: &mut Context<S>, err: Error) -> Result {
+    context.resp.status = err.status_code;
     if err.expose {
-        context.resp_mut().write(err.message.clone());
+        context.resp.write(err.message.clone());
     }
     if err.kind == ErrorKind::ServerError {
         Err(err)

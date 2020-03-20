@@ -34,6 +34,7 @@ crossbeam-queue = "0.2.1"
 
 [dev-dependencies]
 async-std = { version = "1.5.0", features = ["attributes", "unstable"] }
+doc-comment = "0.3.3"
 
 [features]
 runtime = ["async-std"]

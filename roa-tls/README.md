@@ -12,49 +12,56 @@ This crate provides an acceptor implementing `roa_core::Accept` and an app exten
 
 ### TlsIncoming
 
-```rust
-use roa_core::App;
-use roa_tls::TlsIncoming;
-use roa_tls::rustls::{ServerConfig, NoClientAuth};
-use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
+```rust,no_run
+use roa_core::{App, Context, Error};
+use roa_tls::{TlsIncoming, ServerConfig, NoClientAuth};
+use roa_tls::internal::pemfile::{certs, rsa_private_keys};
 use std::fs::File;
 use std::io::BufReader;
 
-# fn main() -> Result<(), Box<dyn std::error::Error>> {
-let mut config = ServerConfig::new(NoClientAuth::new());
-let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
-let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-let cert_chain = certs(&mut cert_file).unwrap();
-let mut keys = rsa_private_keys(&mut key_file).unwrap();
-config.set_single_cert(cert_chain, keys.remove(0))?;
+async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+    Ok(())
+}
 
-let incoming = TlsIncoming::bind("127.0.0.1:0", config)?;
-let server = App::new(()).accept(incoming);
-// server.await
-Ok(())
-# }
+#[async_std::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut config = ServerConfig::new(NoClientAuth::new());
+    let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+    let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+    let cert_chain = certs(&mut cert_file).unwrap();
+    let mut keys = rsa_private_keys(&mut key_file).unwrap();
+    config.set_single_cert(cert_chain, keys.remove(0))?;
+    
+    let incoming = TlsIncoming::bind("127.0.0.1:0", config)?;
+    let server = App::new(()).end(end).accept(incoming);
+    server.await?;
+    Ok(())
+}
 ```
 
 ### TlsListener
 
-```rust
-use roa_core::App;
-use roa_tls::TlsListener;
-use roa_tls::rustls::{ServerConfig, NoClientAuth};
-use roa_tls::rustls::internal::pemfile::{certs, rsa_private_keys};
+```rust,no_run
+use roa_core::{App, Context, Error};
+use roa_tls::{TlsListener, ServerConfig, NoClientAuth};
+use roa_tls::internal::pemfile::{certs, rsa_private_keys};
 use std::fs::File;
 use std::io::BufReader;
 
-# fn main() -> Result<(), Box<dyn std::error::Error>> {
-let mut config = ServerConfig::new(NoClientAuth::new());
-let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
-let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-let cert_chain = certs(&mut cert_file).unwrap();
-let mut keys = rsa_private_keys(&mut key_file).unwrap();
-config.set_single_cert(cert_chain, keys.remove(0))?;
+async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+    Ok(())
+}
 
-let (addr, server) = App::new(()).listen_tls_on("127.0.0.1:0", config)?;
-// server.await
-Ok(())
-# }
+#[async_std::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut config = ServerConfig::new(NoClientAuth::new());
+    let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
+    let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
+    let cert_chain = certs(&mut cert_file).unwrap();
+    let mut keys = rsa_private_keys(&mut key_file).unwrap();
+    config.set_single_cert(cert_chain, keys.remove(0))?;
+    let (addr, server) = App::new(()).end(end).bind_tls("127.0.0.1:0", config)?;
+    server.await?;
+    Ok(())
+}
 ```

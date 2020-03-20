@@ -52,19 +52,19 @@
 # Cargo.toml
 
 [dependencies]
-roa = "0.5.0-beta"
+roa = "0.5.0-rc"
 async-std = { version = "1.5", features = ["attributes"] }
 ```
 
-```rust
+```rust,no_run
 use roa::{App, Context};
 use roa::preload::*;
 use std::error::Error as StdError;
+
 async fn hello(ctx: &mut Context<()>) -> roa::Result {
-    ctx.resp.write_text("Hello, World");
+    ctx.write_text("Hello, World");
     Ok(())
 }
-
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {

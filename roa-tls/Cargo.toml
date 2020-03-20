@@ -32,4 +32,5 @@ roa-core = { path = "../roa-core", version = "0.5.0-rc", features = ["runtime"] 
 tokio-tls = "0.3.0"
 hyper-tls = "0.4.1"
 hyper = "0.13.2"
+doc-comment = "0.3.3"
 

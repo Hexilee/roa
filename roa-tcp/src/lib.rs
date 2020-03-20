@@ -41,6 +41,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
+
 mod incoming;
 mod listen;
 

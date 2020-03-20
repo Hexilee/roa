@@ -22,6 +22,9 @@
 //! ```
 #![warn(missing_docs)]
 
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
+
 use headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion,
     Upgrade,

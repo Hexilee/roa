@@ -80,6 +80,11 @@
 //! }
 //! ```
 
+#![warn(missing_docs)]
+
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
+
 use bytes::{Bytes, BytesMut};
 use futures::{AsyncRead, StreamExt};
 use lazy_static::lazy_static;

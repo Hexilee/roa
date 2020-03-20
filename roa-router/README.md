@@ -8,32 +8,49 @@
 
 ## Roa-router
 
-The router module of roa.
-This module provides an endpoint `RouteEndpoint` and a context extension `RouterParam`.
+The router crate of roa.
+This crate provides many endpoint wrappers like `Router`, `Dispatcher` and a context extension `RouterParam`.
 
 ### Example
 
 ```rust
-use roa_router::{Router, RouterParam};
-use roa_core::App;
-use roa_core::http::StatusCode;
+use roa_router::{Router, RouterParam, get, allow};
+use roa_core::{App, Context, Error, MiddlewareExt, Next};
+use roa_core::http::{StatusCode, Method};
 use roa_tcp::Listener;
 use async_std::task::spawn;
 
-#[tokio::test]
-async fn gate() -> Result<(), Box<dyn std::error::Error>> {
-    let mut router = Router::<()>::new();
-    router
-        .gate_fn(|_ctx, next| next)
-        .get("/", |_ctx| async move {
-            Ok(())
-        });
-    let (addr, server) = App::new(()).gate(router.routes("/route")?).run()?;
+
+async fn gate(_ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {
+    next.await
+}
+
+async fn query(ctx: &mut Context<()>) -> Result<(), Error> {
+    Ok(())
+}
+
+async fn create(ctx: &mut Context<()>) -> Result<(), Error> {
+    Ok(())
+}
+
+async fn graphql(ctx: &mut Context<()>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let router = Router::new()
+        .gate(gate)
+        .on("/restful", get(query).post(create))
+        .on("/graphql", allow([Method::GET, Method::POST], graphql));
+    let app = App::new(())
+        .end(router.routes("/api")?);
+    let (addr, server) = app.run()?;
     spawn(server);
-    let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
+    let resp = reqwest::get(&format!("http://{}/api/restful", addr)).await?;
     assert_eq!(StatusCode::OK, resp.status());
 
-    let resp = reqwest::get(&format!("http://{}/endpoint", addr)).await?;
+    let resp = reqwest::get(&format!("http://{}/restful", addr)).await?;
     assert_eq!(StatusCode::NOT_FOUND, resp.status());
     Ok(())
 }

@@ -115,6 +115,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
+
 mod app;
 mod body;
 mod context;

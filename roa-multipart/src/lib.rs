@@ -46,6 +46,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
+
 use actix_http::error::PayloadError;
 use actix_http::http::HeaderMap;
 use actix_multipart::Field as ActixField;

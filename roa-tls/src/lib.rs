@@ -56,6 +56,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
+
 use bytes::{Buf, BufMut};
 use futures::Future;
 use roa_core::{Accept, AddrStream, App, Endpoint, Executor, Server, State};
