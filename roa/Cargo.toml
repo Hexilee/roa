@@ -81,7 +81,7 @@ full = [
     "async-rt",
     "tokio-rt"
 ]
-rt = ["roa-core/runtime"]
+runtime = ["roa-core/runtime"]
 json = ["roa-body/json"]
 urlencoded = ["roa-body/urlencoded"]
 file = ["roa-body/file"]
@@ -95,5 +95,5 @@ websocket = ["roa-websocket"]
 compress = ["async-compression", "accept-encoding"]
 diesel = ["roa-diesel"]
 
-async-rt = ["rt", "tcp"]
+async-rt = ["runtime", "tcp"]
 tokio-rt = ["roa-tokio"]
