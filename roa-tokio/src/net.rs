@@ -188,3 +188,23 @@ impl fmt::Debug for TcpIncoming {
             .finish()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::TcpIncoming;
+    use crate::Exec;
+    use roa_core::http::StatusCode;
+    use roa_core::App;
+    use std::error::Error;
+
+    #[tokio::test]
+    async fn incoming() -> Result<(), Box<dyn Error>> {
+        let app = App::with_exec((), Exec).end(());
+        let incoming = TcpIncoming::bind("127.0.0.1:0")?;
+        let addr = incoming.local_addr();
+        tokio::spawn(app.accept(incoming));
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+}
