@@ -58,14 +58,15 @@
 
 #![warn(missing_docs)]
 
+use async_std::io::{Read, Write};
 use async_std::net::TcpStream;
 use async_tls::server::TlsStream;
 use async_tls::TlsAcceptor;
 use futures::io::Error;
 use futures::task::Context;
-use futures::{AsyncRead, AsyncWrite, Future};
+use futures::Future;
 use roa_core::{Accept, AddrStream, App, Endpoint, Executor, Server, State};
-use roa_tcp::TcpIncoming;
+use roa_tcp::{TcpIncoming, WrapStream};
 use rustls::ServerConfig;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -89,14 +90,14 @@ type AcceptFuture = dyn 'static
     + Unpin
     + Future<Output = io::Result<TlsStream<TcpStream>>>;
 
-enum WrapStream {
+enum HandshakingStream {
     Handshaking(Box<AcceptFuture>),
     Streaming(Box<TlsStream<TcpStream>>),
 }
 
-use WrapStream::*;
+use HandshakingStream::*;
 
-impl WrapStream {
+impl HandshakingStream {
     #[inline]
     fn poll_handshake(
         handshake: &mut AcceptFuture,
@@ -107,7 +108,7 @@ impl WrapStream {
     }
 }
 
-impl AsyncRead for WrapStream {
+impl Read for HandshakingStream {
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -123,7 +124,7 @@ impl AsyncRead for WrapStream {
     }
 }
 
-impl AsyncWrite for WrapStream {
+impl Write for HandshakingStream {
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -195,7 +196,7 @@ impl DerefMut for TlsIncoming {
 }
 
 impl Accept for TlsIncoming {
-    type Conn = AddrStream;
+    type Conn = AddrStream<WrapStream<HandshakingStream>>;
     type Error = io::Error;
 
     #[inline]
@@ -203,12 +204,13 @@ impl Accept for TlsIncoming {
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let stream = futures::ready!(Pin::new(&mut self.incoming).poll_stream(cx))?;
-        let addr = stream.peer_addr()?;
+        match futures::ready!(Pin::new(&mut self.incoming).poll_accept(cx)) {
+            Some(Ok(AddrStream{stream, remote_addr})) => 
+        }
         let accept_future = self.acceptor.accept(stream);
         Poll::Ready(Some(Ok(AddrStream::new(
             addr,
-            Handshaking(Box::new(accept_future)),
+            WrapStream(Handshaking(Box::new(accept_future))),
         ))))
     }
 }
