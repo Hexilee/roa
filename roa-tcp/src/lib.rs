@@ -45,7 +45,7 @@ mod incoming;
 mod listen;
 
 #[doc(inline)]
-pub use incoming::TcpIncoming;
+pub use incoming::{TcpIncoming, WrapStream};
 
 #[doc(inline)]
 pub use listen::Listener;

@@ -22,6 +22,7 @@ futures-timer = "3.0"
 async-std = "1.5.0"
 futures = "0.3"
 log = "0.4"
+tokio = "0.2.13"
 
 [dev-dependencies]
 reqwest = "0.10"
