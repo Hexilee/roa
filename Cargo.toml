@@ -19,6 +19,7 @@ members = [
     "roa-router",
     "roa-websocket",
     "roa-juniper",
+    "roa-tokio",
     "integration/diesel-example",
     "integration/multipart-example",
     "integration/websocket-example",

@@ -1,18 +1,16 @@
-use async_std::io::{Read, Write};
-use async_std::net::{SocketAddr, TcpListener, TcpStream};
 use futures::FutureExt as _;
-use futures_timer::Delay;
 use log::{debug, error, trace};
 use roa_core::{Accept, AddrStream};
 use std::fmt;
 use std::future::Future;
 use std::io;
-use std::mem::MaybeUninit;
+use std::net::SocketAddr;
 use std::net::{TcpListener as StdListener, ToSocketAddrs};
 use std::pin::Pin;
-use std::task::{self, Context, Poll};
+use std::task::{self, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::time::{delay_for, Delay};
 
 /// A stream of connections from binding to an address.
 /// As an implementation of roa_core::Accept.
@@ -20,15 +18,11 @@ use tokio::io::{AsyncRead, AsyncWrite};
 pub struct TcpIncoming {
     addr: SocketAddr,
     listener: TcpListener,
+    tcp_keepalive_timeout: Option<Duration>,
     sleep_on_errors: bool,
     tcp_nodelay: bool,
     timeout: Option<Delay>,
 }
-
-/// A wrapper for async_std::io::{Read, Write}.
-///
-/// An implementation of tokio::io::{AsyncRead, AsyncWrite}.
-pub struct WrapStream<IO>(IO);
 
 impl TcpIncoming {
     /// Creates a new `TcpIncoming` binding to provided socket address.
@@ -41,8 +35,9 @@ impl TcpIncoming {
     pub fn from_std(listener: StdListener) -> io::Result<Self> {
         let addr = listener.local_addr()?;
         Ok(TcpIncoming {
-            listener: listener.into(),
+            listener: TcpListener::from_std(listener)?,
             addr,
+            tcp_keepalive_timeout: None,
             sleep_on_errors: true,
             tcp_nodelay: false,
             timeout: None,
@@ -52,6 +47,16 @@ impl TcpIncoming {
     /// Get the local address bound to this listener.
     pub fn local_addr(&self) -> SocketAddr {
         self.addr
+    }
+
+    /// Set whether TCP keepalive messages are enabled on accepted connections.
+    ///
+    /// If `None` is specified, keepalive is disabled, otherwise the duration
+    /// specified will be the time to remain idle before sending TCP keepalive
+    /// probes.
+    pub fn set_keepalive(&mut self, keepalive: Option<Duration>) -> &mut Self {
+        self.tcp_keepalive_timeout = keepalive;
+        self
     }
 
     /// Set the value of `TCP_NODELAY` option for accepted connections.
@@ -83,7 +88,7 @@ impl TcpIncoming {
     fn poll_stream(
         &mut self,
         cx: &mut task::Context<'_>,
-    ) -> Poll<io::Result<(WrapStream<TcpStream>, SocketAddr)>> {
+    ) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
             match Pin::new(to).poll(cx) {
@@ -99,10 +104,15 @@ impl TcpIncoming {
         loop {
             match accept.poll_unpin(cx) {
                 Poll::Ready(Ok((stream, addr))) => {
+                    if let Some(dur) = self.tcp_keepalive_timeout {
+                        if let Err(e) = stream.set_keepalive(Some(dur)) {
+                            trace!("error trying to set TCP keepalive: {}", e);
+                        }
+                    }
                     if let Err(e) = stream.set_nodelay(self.tcp_nodelay) {
                         trace!("error trying to set TCP nodelay: {}", e);
                     }
-                    return Poll::Ready(Ok((WrapStream(stream), addr)));
+                    return Poll::Ready(Ok((stream, addr)));
                 }
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(e)) => {
@@ -117,7 +127,7 @@ impl TcpIncoming {
                         error!("accept error: {}", e);
 
                         // Sleep 1s.
-                        let mut timeout = Delay::new(Duration::from_secs(1));
+                        let mut timeout = delay_for(Duration::from_secs(1));
 
                         match Pin::new(&mut timeout).poll(cx) {
                             Poll::Ready(()) => {
@@ -139,7 +149,7 @@ impl TcpIncoming {
 }
 
 impl Accept for TcpIncoming {
-    type Conn = AddrStream<WrapStream<TcpStream>>;
+    type Conn = AddrStream<TcpStream>;
     type Error = io::Error;
 
     #[inline]
@@ -172,57 +182,9 @@ impl fmt::Debug for TcpIncoming {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TcpIncoming")
             .field("addr", &self.addr)
+            .field("tcp_keepalive_timeout", &self.tcp_keepalive_timeout)
             .field("sleep_on_errors", &self.sleep_on_errors)
             .field("tcp_nodelay", &self.tcp_nodelay)
             .finish()
-    }
-}
-
-impl<IO> AsyncRead for WrapStream<IO>
-where
-    IO: Unpin + Read,
-{
-    #[inline]
-    unsafe fn prepare_uninitialized_buffer(&self, _buf: &mut [MaybeUninit<u8>]) -> bool {
-        false
-    }
-
-    #[inline]
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.0).poll_read(cx, buf)
-    }
-}
-
-impl<IO> AsyncWrite for WrapStream<IO>
-where
-    IO: Unpin + Write,
-{
-    #[inline]
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.0).poll_write(cx, buf)
-    }
-
-    #[inline]
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.0).poll_flush(cx)
-    }
-
-    #[inline]
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.0).poll_close(cx)
     }
 }

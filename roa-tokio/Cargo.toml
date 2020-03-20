@@ -1,0 +1,24 @@
+[package]
+name = "roa-tokio"
+version = "0.5.0-beta"
+authors = ["Hexilee <i@hexilee.me>"]
+edition = "2018"
+license = "MIT"
+readme = "./README.md"
+repository = "https://github.com/Hexilee/roa"
+documentation = "https://docs.rs/roa-tcp"
+homepage = "https://github.com/Hexilee/roa/wiki"
+description = "roa with tokio runtime and net"
+keywords = ["http", "web", "framework", "async"]
+categories = ["network-programming", "asynchronous",
+              "web-programming::http-server"]
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+roa-core = { path = "../roa-core", version = "0.5.0-beta" }
+futures = "0.3"
+log = "0.4"
+tokio = { version = "0.2.13", features = ["full"] }
+doc-comment = "0.3"
