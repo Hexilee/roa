@@ -239,7 +239,6 @@
 
 pub use roa_core::*;
 
-#[cfg(feature = "body")]
 pub use roa_body as body;
 
 #[cfg(feature = "router")]
@@ -271,6 +270,7 @@ pub mod compress;
 
 /// Reexport all extensional traits.
 pub mod preload {
+    pub use crate::body::PowerBody;
     pub use crate::forward::Forward;
     pub use crate::header::FriendlyHeaders;
     pub use crate::query::Query;
@@ -280,9 +280,6 @@ pub mod preload {
 
     #[cfg(feature = "tls")]
     pub use crate::tls::TlsListener;
-
-    #[cfg(feature = "body")]
-    pub use crate::body::PowerBody;
 
     #[cfg(feature = "cookies")]
     pub use crate::cookie::{CookieGetter, CookieSetter};

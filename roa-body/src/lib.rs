@@ -115,7 +115,7 @@ pub trait PowerBody {
     #[cfg(feature = "urlencoded")]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B>;
 
-    /// write object to response body as "application/json; charset=utf-8"
+    /// write object to response body as "application/json"
     #[cfg(feature = "json")]
     fn write_json<B: Serialize>(&mut self, data: &B) -> Result;
 
@@ -123,7 +123,7 @@ pub trait PowerBody {
     #[cfg(feature = "template")]
     fn render<B: Template>(&mut self, data: &B) -> Result;
 
-    /// write object to response body as "text/plain; charset=utf-8"
+    /// write object to response body as "text/plain"
     fn write_text<B: Into<Bytes>>(&mut self, data: B);
 
     /// write object to response body as "application/octet-stream"
@@ -142,7 +142,8 @@ pub trait PowerBody {
 lazy_static! {
     static ref APPLICATION_JSON: HeaderValue =
         HeaderValue::from_static("application/json");
-    static ref TEXT_HTML: HeaderValue = HeaderValue::from_static("text/html; charset=utf-8");
+    static ref TEXT_HTML: HeaderValue =
+        HeaderValue::from_static("text/html; charset=utf-8");
     static ref TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
     static ref APPLICATION_OCTET_STREM: HeaderValue =
         HeaderValue::from_static("application/octet-stream");
@@ -235,6 +236,7 @@ impl<S: State> PowerBody for Context<S> {
     }
 }
 
+#[allow(dead_code)]
 #[inline]
 fn handle_invalid_body(err: impl Display) -> Error {
     Error::new(
@@ -244,6 +246,7 @@ fn handle_invalid_body(err: impl Display) -> Error {
     )
 }
 
+#[allow(dead_code)]
 #[inline]
 fn handle_internal_server_error(err: impl ToString) -> Error {
     Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)

@@ -49,8 +49,3 @@ futures = "0.3"
 
 [features]
 nightly = []
-
-#[[example]]
-#name = "async-closure"
-#path = "nightly/async-closure.rs"
-#required-features = ["nightly"]

@@ -34,10 +34,10 @@ percent-encoding = "2.1"
 bytes = "0.5"
 headers = "0.3.1"
 
-roa-core = { path = "../roa-core", version = "0.5.0-beta", features = ["runtime"] }
+roa-core = { path = "../roa-core", version = "0.5.0-beta" }
+roa-body = { path = "../roa-body", version = "0.5.0-beta" }
 roa-tcp = { path = "../roa-tcp", version = "0.5.0-beta", optional = true }
 roa-tls = { path = "../roa-tls", version = "0.5.0-beta", optional = true }
-roa-body = { path = "../roa-body", version = "0.5.0-beta", features = ["full"], optional = true }
 roa-router = { path = "../roa-router", version = "0.5.0-beta", optional = true }
 roa-websocket = { path = "../roa-websocket", version = "0.5.0-beta", optional = true }
 cookie = { version = "0.13", features = ["percent-encode"], optional = true }
@@ -64,13 +64,17 @@ encoding = "0.2"
 askama = "0.9"
 
 [features]
-default = ["tcp"]
-full = ["tcp", "tls", "body", "router", "jwt", "cookies", "compress", "websocket"]
+default = ["rt", "tcp"]
+full = ["rt", "json", "urlencoded", "file", "template", "tcp", "tls", "router", "jwt", "cookies", "compress", "websocket"]
+rt = ["roa-core/runtime"]
+json = ["roa-body/json"]
+urlencoded = ["roa-body/urlencoded"]
+file = ["roa-body/file"]
+template = ["roa-body/template"]
 tcp = ["roa-tcp"]
 tls = ["roa-tls"]
 cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde", "serde_json"]
-body = ["roa-body"]
 router = ["roa-router"]
 websocket = ["roa-websocket"]
 compress = ["async-compression", "accept-encoding"]
