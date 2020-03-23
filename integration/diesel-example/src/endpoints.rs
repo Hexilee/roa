@@ -3,11 +3,11 @@ use crate::models::*;
 use crate::schema::posts::dsl::{self, posts};
 use crate::State;
 use diesel::prelude::*;
+use roa::diesel::WrapError;
 use roa::http::StatusCode;
 use roa::preload::*;
 use roa::router::{get, post, Router};
 use roa::{throw, Context, Result};
-use roa_diesel::{AsyncPool, SqlQuery, WrapError};
 
 pub fn post_router() -> Router<State> {
     Router::new()

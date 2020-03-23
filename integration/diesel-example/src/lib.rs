@@ -8,7 +8,7 @@ pub mod schema;
 
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use roa_diesel::{make_pool, Pool};
+use roa::diesel::{make_pool, Pool};
 
 #[derive(Clone)]
 pub struct State(pub Pool<SqliteConnection>);
