@@ -31,7 +31,7 @@ fn must_build(pattern: &str) -> Regex {
     Regex::new(pattern).unwrap_or_else(|err| {
         panic!(
             r#"{}
-                regex pattern {} is invalid, this is a bug of roa-router::path.
+                regex pattern {} is invalid, this is a bug of roa::router::path.
                 please report it to https://github.com/Hexilee/roa"#,
             err, pattern
         )

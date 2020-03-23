@@ -1,4 +1,4 @@
-//! An extension crate for roa.
+//! An extension moddule for roa.
 //! This module provides a context extension `PowerBody`.
 //!
 //! ### Read/write body in a easier way.
@@ -6,7 +6,7 @@
 //! The `roa_core` provides several methods to read/write body.
 //!
 //! ```rust
-//! use roa_core::{Context, Result};
+//! use roa::{Context, Result};
 //! use futures::AsyncReadExt;
 //! use futures::io::BufReader;
 //! use async_std::fs::File;
@@ -36,8 +36,8 @@
 //! The `PowerBody` provides more powerful methods to handle it.
 //!
 //! ```rust
-//! use roa_core::{Context, Result};
-//! use roa_body::{PowerBody, DispositionType::*};
+//! use roa::{Context, Result};
+//! use roa::body::{PowerBody, DispositionType::*};
 //! use serde::{Serialize, Deserialize};
 //! use askama::Template;
 //! use async_std::fs::File;
@@ -80,15 +80,10 @@
 //! }
 //! ```
 
-#![warn(missing_docs)]
-
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
-
+use crate::{async_trait, http, Context, Error, Result, State};
 use bytes::{Bytes, BytesMut};
 use futures::{AsyncRead, StreamExt};
 use lazy_static::lazy_static;
-use roa_core::{async_trait, http, Context, Error, Result, State};
 use std::fmt::Display;
 
 #[cfg(feature = "template")]
@@ -114,18 +109,22 @@ pub trait PowerBody {
 
     /// read request body as "application/json".
     #[cfg(feature = "json")]
+    #[cfg_attr(feature = "docs", doc(cfg(json)))]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B>;
 
     /// read request body as "application/x-www-form-urlencoded".
     #[cfg(feature = "urlencoded")]
+    #[cfg_attr(feature = "docs", doc(cfg(urlencoded)))]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B>;
 
     /// write object to response body as "application/json"
     #[cfg(feature = "json")]
+    #[cfg_attr(feature = "docs", doc(cfg(json)))]
     fn write_json<B: Serialize>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/html; charset=utf-8"
     #[cfg(feature = "template")]
+    #[cfg_attr(feature = "docs", doc(cfg(template)))]
     fn render<B: Template>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/plain"
@@ -136,6 +135,7 @@ pub trait PowerBody {
 
     /// write object to response body as extension name of file
     #[cfg(feature = "file")]
+    #[cfg_attr(feature = "docs", doc(cfg(file)))]
     async fn write_file<P: 'static + AsRef<Path>>(
         &mut self,
         path: P,
@@ -260,13 +260,13 @@ fn handle_internal_server_error(err: impl ToString) -> Error {
 #[cfg(test)]
 mod tests {
     use super::PowerBody;
+    use crate::http;
+    use crate::{App, Context, Error};
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
-    use roa_core::http;
-    use roa_core::{App, Context, Error};
     use roa_tcp::Listener;
     use serde::{Deserialize, Serialize};
 

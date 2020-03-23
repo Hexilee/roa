@@ -1,12 +1,12 @@
-//! This crate provides a websocket endpoint.
+//! This module provides a websocket endpoint.
 //!
 //! ### Example
 //! ```
 //! use futures::StreamExt;
-//! use roa_router::{Router, RouterError};
-//! use roa_websocket::Websocket;
-//! use roa_core::{App, Context};
-//! use roa_core::http::Method;
+//! use roa::router::{Router, RouterError};
+//! use roa::websocket::Websocket;
+//! use roa::{App, Context};
+//! use roa::http::Method;
 //!
 //! # fn main() -> Result<(), RouterError> {
 //! let router = Router::new().on("/chat", Websocket::new(|_ctx: Context<()>, stream| async move {
@@ -20,19 +20,15 @@
 //! Ok(())
 //! # }
 //! ```
-#![warn(missing_docs)]
 
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
-
+use crate::http::header::UPGRADE;
+use crate::http::StatusCode;
+use crate::{async_trait, throw, Context, Endpoint, Error, State};
 use headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion,
     Upgrade,
 };
 use hyper::upgrade::Upgraded;
-use roa_core::http::header::UPGRADE;
-use roa_core::http::StatusCode;
-use roa_core::{async_trait, throw, Context, Endpoint, Error, State};
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -50,10 +46,10 @@ pub type SocketStream = WebSocketStream<Upgraded>;
 /// ### Example
 /// ```
 /// use futures::StreamExt;
-/// use roa_router::{Router, RouterError};
-/// use roa_websocket::Websocket;
-/// use roa_core::{App, Context};
-/// use roa_core::http::Method;
+/// use roa::router::{Router, RouterError};
+/// use roa::websocket::Websocket;
+/// use roa::{App, Context};
+/// use roa::http::Method;
 ///
 /// # fn main() -> Result<(), RouterError> {
 /// let router = Router::new().on("/chat", Websocket::new(|_ctx: Context<()>, stream| async move {
@@ -108,10 +104,10 @@ where
     /// ### Example
     /// ```
     /// use futures::StreamExt;
-    /// use roa_router::{Router, RouterError};
-    /// use roa_websocket::{Websocket, WebSocketConfig};
-    /// use roa_core::{App, Context};
-    /// use roa_core::http::Method;
+    /// use roa::router::{Router, RouterError};
+    /// use roa::websocket::{Websocket, WebSocketConfig};
+    /// use roa::{App, Context};
+    /// use roa::http::Method;
     ///
     /// # fn main() -> Result<(), RouterError> {
     /// let router = Router::new().on("/chat", Websocket::with_config(

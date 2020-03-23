@@ -236,13 +236,15 @@
 //! - logger: a logger middleware.
 
 #![warn(missing_docs)]
+#![cfg_attr(feature = "docs", feature(doc_cfg))]
 
 pub use roa_core::*;
 
-pub use roa_body as body;
+pub mod body;
 
 #[cfg(feature = "router")]
-pub use roa_router as router;
+#[cfg_attr(feature = "docs", doc(cfg(router)))]
+pub mod router;
 
 #[cfg(feature = "tcp")]
 pub use roa_tcp as tcp;
@@ -251,7 +253,8 @@ pub use roa_tcp as tcp;
 pub use roa_tls as tls;
 
 #[cfg(feature = "websocket")]
-pub use roa_websocket as websocket;
+#[cfg_attr(feature = "docs", doc(cfg(websocket)))]
+pub mod websocket;
 
 #[cfg(feature = "diesel")]
 pub use roa_diesel as diesel;
@@ -294,6 +297,7 @@ pub mod preload {
     pub use crate::jwt::JwtVerifier;
 
     #[cfg(feature = "router")]
+    #[cfg_attr(feature = "docs", doc(cfg(router)))]
     pub use crate::router::RouterParam;
 
     #[cfg(feature = "diesel")]

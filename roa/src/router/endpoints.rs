@@ -1,8 +1,8 @@
 mod dispatcher;
 mod guard;
 
-use roa_core::http::{Method, StatusCode};
-use roa_core::{throw, Result};
+use crate::http::{Method, StatusCode};
+use crate::{throw, Result};
 
 fn method_not_allowed(method: &Method) -> Result {
     throw!(

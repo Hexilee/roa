@@ -23,14 +23,6 @@ jobs:
             registryName: roa-tcp
             path: roa-tcp
             publishPath: /target/package
-          - name: roa-router
-            registryName: roa-router
-            path: roa-router
-            publishPath: /target/package
-          - name: roa-body
-            registryName: roa-body
-            path: roa-body
-            publishPath: /target/package
           - name: roa-tls
             registryName: roa-tls
             path: roa-tls
@@ -42,10 +34,6 @@ jobs:
           - name: roa-multipart
             registryName: roa-multipart
             path: roa-multipart
-            publishPath: /target/package
-          - name: roa-websocket
-            registryName: roa-websocket
-            path: roa-websocket
             publishPath: /target/package
           - name: roa-tokio
             registryName: roa-tokio

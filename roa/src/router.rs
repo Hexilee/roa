@@ -1,12 +1,12 @@
-//! The router crate of roa.
+//! The router module of roa.
 //! This crate provides many endpoint wrappers like `Router`, `Dispatcher` and a context extension `RouterParam`.
 //!
 //! ### Example
 //!
 //! ```rust
-//! use roa_router::{Router, RouterParam, get, allow};
-//! use roa_core::{App, Context, Error, MiddlewareExt, Next};
-//! use roa_core::http::{StatusCode, Method};
+//! use roa::router::{Router, RouterParam, get, allow};
+//! use roa::{App, Context, Error, MiddlewareExt, Next};
+//! use roa::http::{StatusCode, Method};
 //! use roa_tcp::Listener;
 //! use async_std::task::spawn;
 //!
@@ -47,11 +47,6 @@
 //! ```
 //!
 
-#![warn(missing_docs)]
-
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
-
 mod endpoints;
 mod err;
 mod path;
@@ -62,16 +57,15 @@ pub use endpoints::*;
 #[doc(inline)]
 pub use err::RouterError;
 
-use err::Conflict;
-use path::{join_path, standardize_path, Path, RegexPath};
-
-use percent_encoding::percent_decode_str;
-use radix_trie::Trie;
-use roa_core::http::StatusCode;
-use roa_core::{
+use crate::http::StatusCode;
+use crate::{
     async_trait, throw, Boxed, Context, Endpoint, EndpointExt, Error, Middleware,
     MiddlewareExt, Result, Shared, Variable,
 };
+use err::Conflict;
+use path::{join_path, standardize_path, Path, RegexPath};
+use percent_encoding::percent_decode_str;
+use radix_trie::Trie;
 use std::convert::AsRef;
 use std::result::Result as StdResult;
 
@@ -85,9 +79,9 @@ struct RouterScope;
 /// ### Example
 ///
 /// ```rust
-/// use roa_router::{Router, RouterParam};
-/// use roa_core::{App, Context, Error};
-/// use roa_core::http::StatusCode;
+/// use roa::router::{Router, RouterParam};
+/// use roa::{App, Context, Error};
+/// use roa::http::StatusCode;
 /// use roa_tcp::Listener;
 /// use async_std::task::spawn;
 ///
@@ -118,9 +112,9 @@ pub trait RouterParam {
     /// ### Example
     ///
     /// ```rust
-    /// use roa_router::{Router, RouterParam};
-    /// use roa_core::{App, Context, Error};
-    /// use roa_core::http::StatusCode;
+    /// use roa::router::{Router, RouterParam};
+    /// use roa::{App, Context, Error};
+    /// use roa::http::StatusCode;
     /// use roa_tcp::Listener;
     /// use async_std::task::spawn;
     ///
@@ -331,11 +325,11 @@ impl<S> RouterParam for Context<S> {
 #[cfg(test)]
 mod tests {
     use super::Router;
+    use crate::http::StatusCode;
+    use crate::{App, Context, Error, Next};
     use async_std::task::spawn;
     use encoding::EncoderTrap;
     use percent_encoding::NON_ALPHANUMERIC;
-    use roa_core::http::StatusCode;
-    use roa_core::{App, Context, Error, Next};
     use roa_tcp::Listener;
 
     async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {

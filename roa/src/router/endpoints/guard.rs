@@ -1,6 +1,6 @@
-use crate::endpoints::method_not_allowed;
-use roa_core::http::Method;
-use roa_core::{async_trait, Context, Endpoint, Result};
+use super::method_not_allowed;
+use crate::http::Method;
+use crate::{async_trait, Context, Endpoint, Result};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -33,9 +33,9 @@ fn hash_set(methods: impl AsRef<[Method]>) -> HashSet<Method> {
 /// Only requests with http method in list can access this endpoint, otherwise will get a 405 METHOD NOT ALLOWED.
 ///
 /// ```
-/// use roa_core::{App, Context, Result};
-/// use roa_core::http::Method;
-/// use roa_router::allow;
+/// use roa::{App, Context, Result};
+/// use roa::http::Method;
+/// use roa::router::allow;
 ///
 /// async fn foo(ctx: &mut Context<()>) -> Result {
 ///     Ok(())
@@ -55,9 +55,9 @@ pub fn allow<E>(methods: impl AsRef<[Method]>, endpoint: E) -> Guard<E> {
 /// Only requests with http method not in list can access this endpoint, otherwise will get a 405 METHOD NOT ALLOWED.
 ///
 /// ```
-/// use roa_core::{App, Context, Result};
-/// use roa_core::http::Method;
-/// use roa_router::deny;
+/// use roa::{App, Context, Result};
+/// use roa::http::Method;
+/// use roa::router::deny;
 ///
 /// async fn foo(ctx: &mut Context<()>) -> Result {
 ///     Ok(())

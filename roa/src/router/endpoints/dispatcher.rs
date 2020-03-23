@@ -1,7 +1,7 @@
 use super::method_not_allowed;
+use crate::http::Method;
+use crate::{async_trait, Context, Endpoint, Result};
 use doc_comment::doc_comment;
-use roa_core::http::Method;
-use roa_core::{async_trait, Context, Endpoint, Result};
 use std::collections::HashMap;
 
 macro_rules! impl_http_methods {
@@ -12,8 +12,8 @@ macro_rules! impl_http_methods {
 You can use it as follow:
 
 ```
-use roa_core::{App, Context, Result};
-use roa_router::get;
+use roa::{App, Context, Result};
+use roa::router::get;
 
 async fn foo(ctx: &mut Context<()>) -> Result {
     Ok(())
@@ -41,8 +41,8 @@ macro_rules! impl_http_functions {
 You can use it as follow:
 
 ```
-use roa_core::{App, Context, Result};
-use roa_router::", stringify!($end), ";
+use roa::{App, Context, Result};
+use roa::router::", stringify!($end), ";
 
 async fn end(ctx: &mut Context<()>) -> Result {
     Ok(())

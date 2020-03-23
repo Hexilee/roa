@@ -1,5 +1,5 @@
-use roa_core::http::StatusCode;
-use roa_core::Error;
+use crate::http::StatusCode;
+use crate::Error;
 
 const BUG_HELP: &str =
     r"This is a bug, please report it to https://github.com/Hexilee/roa.";

@@ -1,7 +1,7 @@
 use super::help::bug_report;
+use crate::http::header::HeaderValue;
+use crate::Result;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
-use roa_core::http::header::HeaderValue;
-use roa_core::Result;
 use std::fmt::{self, Display, Formatter};
 
 // This encode set is used for HTTP header values and is defined at
