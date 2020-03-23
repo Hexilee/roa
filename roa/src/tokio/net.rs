@@ -1,6 +1,6 @@
+use crate::{Accept, AddrStream};
 use futures::FutureExt as _;
 use log::{debug, error, trace};
-use roa_core::{Accept, AddrStream};
 use std::fmt;
 use std::future::Future;
 use std::io;
@@ -192,9 +192,9 @@ impl fmt::Debug for TcpIncoming {
 #[cfg(test)]
 mod tests {
     use super::TcpIncoming;
-    use crate::Exec;
-    use roa_core::http::StatusCode;
-    use roa_core::App;
+    use crate::http::StatusCode;
+    use crate::tokio::Exec;
+    use crate::App;
     use std::error::Error;
 
     #[tokio::test]

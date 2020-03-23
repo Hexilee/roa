@@ -3,9 +3,9 @@
 //! ### TlsIncoming
 //!
 //! ```rust
-//! use roa_core::{App, Context, Error};
-//! use roa_tls::{TlsIncoming, ServerConfig, NoClientAuth};
-//! use roa_tls::internal::pemfile::{certs, rsa_private_keys};
+//! use roa::{App, Context, Error};
+//! use roa::tls::{TlsIncoming, ServerConfig, NoClientAuth};
+//! use roa::tls::internal::pemfile::{certs, rsa_private_keys};
 //! use std::fs::File;
 //! use std::io::BufReader;
 //!
@@ -31,9 +31,9 @@
 //! ### TlsListener
 //!
 //! ```rust
-//! use roa_core::{App, Context, Error};
-//! use roa_tls::{TlsListener, ServerConfig, NoClientAuth};
-//! use roa_tls::internal::pemfile::{certs, rsa_private_keys};
+//! use roa::{App, Context, Error};
+//! use roa::tls::{TlsIncoming, ServerConfig, NoClientAuth, TlsListener};
+//! use roa::tls::internal::pemfile::{certs, rsa_private_keys};
 //! use std::fs::File;
 //! use std::io::BufReader;
 //!
@@ -54,15 +54,10 @@
 //! # }
 //! ```
 
-#![warn(missing_docs)]
-
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
-
+use crate::tcp::TcpIncoming;
+use crate::{Accept, AddrStream, App, Endpoint, Executor, Server, State};
 use bytes::{Buf, BufMut};
 use futures::Future;
-use roa_core::{Accept, AddrStream, App, Endpoint, Executor, Server, State};
-use roa_tcp::TcpIncoming;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::ops::{Deref, DerefMut};
@@ -298,9 +293,9 @@ pub trait TlsListener {
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, Context, Error};
-    /// use roa_tls::{TlsListener, ServerConfig, NoClientAuth};
-    /// use roa_tls::internal::pemfile::{certs, rsa_private_keys};
+    /// use roa::{App, Context, Error};
+    /// use roa::tls::{TlsIncoming, ServerConfig, NoClientAuth, TlsListener};
+    /// use roa::tls::internal::pemfile::{certs, rsa_private_keys};
     /// use roa_core::http::StatusCode;
     /// use async_std::task::spawn;
     /// use std::time::Instant;
@@ -369,14 +364,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::TlsListener;
+    use crate::http::StatusCode;
+    use crate::tls::TlsListener;
+    use crate::{App, Context, Error};
     use async_std::task::spawn;
     use hyper::client::{Client, HttpConnector};
     use hyper::Body;
     use hyper_tls::native_tls;
     use hyper_tls::HttpsConnector;
-    use roa_core::http::StatusCode;
-    use roa_core::{App, Context, Error};
 
     use futures::{AsyncReadExt, TryStreamExt};
     use rustls::internal::pemfile::{certs, rsa_private_keys};

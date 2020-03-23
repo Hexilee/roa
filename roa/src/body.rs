@@ -261,13 +261,13 @@ fn handle_internal_server_error(err: impl ToString) -> Error {
 mod tests {
     use super::PowerBody;
     use crate::http;
+    use crate::tcp::Listener;
     use crate::{App, Context, Error};
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
-    use roa_tcp::Listener;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Deserialize)]

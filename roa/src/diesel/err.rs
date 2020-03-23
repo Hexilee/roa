@@ -1,7 +1,7 @@
+use crate::http::StatusCode;
+use crate::Error;
 use diesel::r2d2::PoolError;
 use diesel::result::Error as DieselError;
-use roa_core::http::StatusCode;
-use roa_core::Error;
 use std::fmt::{self, Display, Formatter};
 
 /// A wrapper for diesel error and r2d2 error.

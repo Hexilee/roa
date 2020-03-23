@@ -240,42 +240,47 @@
 
 pub use roa_core::*;
 
-pub mod body;
-
 #[cfg(feature = "router")]
 #[cfg_attr(feature = "docs", doc(cfg(router)))]
 pub mod router;
 
 #[cfg(feature = "tcp")]
-pub use roa_tcp as tcp;
+pub mod tcp;
 
 #[cfg(feature = "tls")]
-pub use roa_tls as tls;
+#[cfg_attr(feature = "docs", doc(cfg(tls)))]
+pub mod tls;
 
 #[cfg(feature = "websocket")]
 #[cfg_attr(feature = "docs", doc(cfg(websocket)))]
 pub mod websocket;
 
-#[cfg(feature = "diesel")]
-pub use roa_diesel as diesel;
+#[cfg(feature = "orm")]
+#[cfg_attr(feature = "docs", doc(cfg(orm)))]
+pub mod diesel;
 
 #[cfg(feature = "tokio-rt")]
-pub use roa_tokio as tokio;
+#[cfg_attr(feature = "docs", doc(cfg(tokio-rt)))]
+pub mod tokio;
 
+#[cfg(feature = "cookies")]
+#[cfg_attr(feature = "docs", doc(cfg(cookies)))]
+pub mod cookie;
+
+#[cfg(feature = "jwt")]
+#[cfg_attr(feature = "docs", doc(cfg(jwt)))]
+pub mod jwt;
+
+#[cfg(feature = "compress")]
+#[cfg_attr(feature = "docs", doc(cfg(compress)))]
+pub mod compress;
+
+pub mod body;
 pub mod cors;
 pub mod forward;
 pub mod header;
 pub mod logger;
 pub mod query;
-
-#[cfg(feature = "cookies")]
-pub mod cookie;
-
-#[cfg(feature = "jwt")]
-pub mod jwt;
-
-#[cfg(feature = "compress")]
-pub mod compress;
 
 /// Reexport all extensional traits.
 pub mod preload {
@@ -288,18 +293,22 @@ pub mod preload {
     pub use crate::tcp::Listener;
 
     #[cfg(feature = "tls")]
+    #[cfg_attr(feature = "docs", doc(cfg(tls)))]
     pub use crate::tls::TlsListener;
 
     #[cfg(feature = "cookies")]
+    #[cfg_attr(feature = "docs", doc(cfg(cookies)))]
     pub use crate::cookie::{CookieGetter, CookieSetter};
 
     #[cfg(feature = "jwt")]
+    #[cfg_attr(feature = "docs", doc(cfg(jwt)))]
     pub use crate::jwt::JwtVerifier;
 
     #[cfg(feature = "router")]
     #[cfg_attr(feature = "docs", doc(cfg(router)))]
     pub use crate::router::RouterParam;
 
-    #[cfg(feature = "diesel")]
+    #[cfg(feature = "orm")]
+    #[cfg_attr(feature = "docs", doc(cfg(orm)))]
     pub use crate::diesel::{AsyncPool, SqlQuery};
 }

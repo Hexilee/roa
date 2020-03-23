@@ -3,8 +3,8 @@
 //! ### TcpIncoming
 //!
 //! ```
-//! use roa_core::{App, Context, Result};
-//! use roa_tcp::TcpIncoming;
+//! use roa::{App, Context, Result};
+//! use roa::tcp::TcpIncoming;
 //! use std::io;
 //!
 //! async fn end(_ctx: &mut Context<()>) -> Result {
@@ -23,8 +23,8 @@
 //! ### Listener
 //!
 //! ```
-//! use roa_core::{App, Context, Result};
-//! use roa_tcp::Listener;
+//! use roa::{App, Context, Result};
+//! use roa::tcp::Listener;
 //! use std::io;
 //!
 //! async fn end(_ctx: &mut Context<()>) -> Result {
@@ -38,11 +38,6 @@
 //! Ok(())
 //! # }
 //! ```
-
-#![warn(missing_docs)]
-
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
 
 mod incoming;
 mod listen;

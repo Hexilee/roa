@@ -1,8 +1,8 @@
-use crate::WrapError;
+use super::WrapError;
+use crate::{async_trait, Context, Error, State};
 use diesel::r2d2::{ConnectionManager, PoolError};
 use diesel::Connection;
 use r2d2::{Builder, PooledConnection};
-use roa_core::{async_trait, Context, Error, State};
 use std::time::Duration;
 
 /// An alias for r2d2::Pool<diesel::r2d2::ConnectionManager<Conn>>.
@@ -16,7 +16,7 @@ pub type WrapConnection<Conn> = PooledConnection<ConnectionManager<Conn>>;
 /// ### Example
 ///
 /// ```
-/// use roa_diesel::{make_pool, WrapError, Pool};
+/// use roa::diesel::{make_pool, WrapError, Pool};
 /// use diesel::sqlite::SqliteConnection;
 ///
 /// # fn main() -> Result<(), WrapError> {
@@ -51,9 +51,9 @@ where
     /// error.
     ///
     /// ```
-    /// use roa_core::{Context, Result};
+    /// use roa::{Context, Result};
     /// use diesel::sqlite::SqliteConnection;
-    /// use roa_diesel::{Pool, AsyncPool};
+    /// use roa::diesel::{Pool, AsyncPool};
     /// use diesel::r2d2::ConnectionManager;
     ///
     /// #[derive(Clone)]

@@ -4,9 +4,9 @@
 //! A context extension to access r2d2 pool asynchronously.
 //!
 //! ```
-//! use roa_core::{Context, Result};
+//! use roa::{Context, Result};
 //! use diesel::sqlite::SqliteConnection;
-//! use roa_diesel::{Pool, AsyncPool};
+//! use roa::diesel::{Pool, AsyncPool};
 //! use diesel::r2d2::ConnectionManager;
 //!
 //! #[derive(Clone)]
@@ -31,11 +31,6 @@
 //! Refer to [integration example](https://github.com/Hexilee/roa/tree/master/integration/diesel-example)
 //! for more usage.
 //!
-
-#![warn(missing_docs)]
-
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
 
 mod async_ext;
 mod err;

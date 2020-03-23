@@ -1,9 +1,9 @@
 //! This crate provides tokio-based runtime and acceptor for roa.
 //!
-//! ```,no_run
-//! use roa_core::http::StatusCode;
-//! use roa_core::{self as roa, App, Context};
-//! use roa_tokio::{TcpIncoming, Exec};
+//! ```rust,no_run
+//! use roa::http::StatusCode;
+//! use roa::{App, Context};
+//! use roa::tokio::{TcpIncoming, Exec};
 //! use std::error::Error;
 //!
 //! async fn end(_ctx: &mut Context<()>) -> roa::Result {
@@ -19,11 +19,6 @@
 //!     Ok(())
 //! }
 //! ```
-
-#![warn(missing_docs)]
-
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
 
 mod net;
 mod runtime;

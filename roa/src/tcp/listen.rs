@@ -1,4 +1,4 @@
-use crate::TcpIncoming;
+use super::TcpIncoming;
 use async_std::sync::Arc;
 use roa_core::{App, Endpoint, Executor, Server, State};
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -24,9 +24,9 @@ pub trait Listener {
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, Context, Error};
-    /// use roa_tcp::Listener;
-    /// use roa_core::http::StatusCode;
+    /// use roa::{App, Context, Error};
+    /// use roa::tcp::Listener;
+    /// use roa::http::StatusCode;
     /// use async_std::task::spawn;
     /// use std::time::Instant;
     ///

@@ -7,7 +7,7 @@
 //! use roa::router::{Router, RouterParam, get, allow};
 //! use roa::{App, Context, Error, MiddlewareExt, Next};
 //! use roa::http::{StatusCode, Method};
-//! use roa_tcp::Listener;
+//! use roa::tcp::Listener;
 //! use async_std::task::spawn;
 //!
 //!
@@ -82,7 +82,7 @@ struct RouterScope;
 /// use roa::router::{Router, RouterParam};
 /// use roa::{App, Context, Error};
 /// use roa::http::StatusCode;
-/// use roa_tcp::Listener;
+/// use roa::tcp::Listener;
 /// use async_std::task::spawn;
 ///
 /// async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
@@ -115,7 +115,7 @@ pub trait RouterParam {
     /// use roa::router::{Router, RouterParam};
     /// use roa::{App, Context, Error};
     /// use roa::http::StatusCode;
-    /// use roa_tcp::Listener;
+    /// use roa::tcp::Listener;
     /// use async_std::task::spawn;
     ///
     /// async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
@@ -326,11 +326,11 @@ impl<S> RouterParam for Context<S> {
 mod tests {
     use super::Router;
     use crate::http::StatusCode;
+    use crate::tcp::Listener;
     use crate::{App, Context, Error, Next};
     use async_std::task::spawn;
     use encoding::EncoderTrap;
     use percent_encoding::NON_ALPHANUMERIC;
-    use roa_tcp::Listener;
 
     async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {
         ctx.store("id", "0".to_string());

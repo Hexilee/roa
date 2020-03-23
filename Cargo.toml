@@ -10,13 +10,9 @@ publish = false
 [workspace]
 members = [
     "roa",
-    "roa-tcp",
-    "roa-tls",
     "roa-core",
-    "roa-diesel",
     "roa-multipart",
     "roa-juniper",
-    "roa-tokio",
     "integration/diesel-example",
     "integration/multipart-example",
     "integration/websocket-example",

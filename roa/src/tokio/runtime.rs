@@ -1,4 +1,4 @@
-use roa_core::Spawn;
+use crate::Spawn;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -11,8 +11,8 @@ pub type BlockingObj = Box<dyn 'static + Send + FnOnce()>;
 /// Tokio-based executor.
 ///
 /// ```
-/// use roa_core::App;
-/// use roa_tokio::Exec;
+/// use roa::App;
+/// use roa::tokio::Exec;
 ///
 /// let app = App::with_exec((), Exec);
 /// ```
@@ -33,9 +33,9 @@ impl Spawn for Exec {
 #[cfg(test)]
 mod tests {
     use super::Exec;
-    use roa_core::http::StatusCode;
-    use roa_core::App;
-    use roa_tcp::Listener;
+    use crate::http::StatusCode;
+    use crate::tcp::Listener;
+    use crate::App;
     use std::error::Error;
 
     #[tokio::test]
