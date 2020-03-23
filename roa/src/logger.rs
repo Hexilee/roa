@@ -170,7 +170,7 @@ pub async fn logger<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
     result
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use super::logger;
     use crate::http::StatusCode;

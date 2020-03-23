@@ -322,7 +322,7 @@ impl<S> RouterParam for Context<S> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use super::Router;
     use crate::http::StatusCode;

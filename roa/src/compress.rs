@@ -80,7 +80,7 @@ impl<'a, S> Middleware<'a, S> for Compress {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp", feature = "file"))]
 mod tests {
     use crate::body::DispositionType::*;
     use crate::compress::{Compress, Level};

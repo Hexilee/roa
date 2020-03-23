@@ -335,7 +335,7 @@ impl<'a, S> Middleware<'a, S> for Cors {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use super::Cors;
     use crate::http::header::{

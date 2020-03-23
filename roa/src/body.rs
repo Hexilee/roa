@@ -257,7 +257,7 @@ fn handle_internal_server_error(err: impl ToString) -> Error {
     Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use super::PowerBody;
     use crate::http;
@@ -289,11 +289,13 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     const USER: User = User {
         id: 0,
         name: "Hexilee",
     };
 
+    #[cfg(feature = "json")]
     #[tokio::test]
     async fn read_json() -> Result<(), Box<dyn std::error::Error>> {
         async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
@@ -314,6 +316,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "urlencoded")]
     #[tokio::test]
     async fn read_form() -> Result<(), Box<dyn std::error::Error>> {
         async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
@@ -334,6 +337,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "template")]
     #[tokio::test]
     async fn render() -> Result<(), Box<dyn std::error::Error>> {
         async fn test(ctx: &mut Context<()>) -> Result<(), Error> {

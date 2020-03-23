@@ -19,25 +19,9 @@ jobs:
             registryName: roa-core
             path: roa-core
             publishPath: /target/package
-          - name: roa-tcp
-            registryName: roa-tcp
-            path: roa-tcp
-            publishPath: /target/package
-          - name: roa-tls
-            registryName: roa-tls
-            path: roa-tls
-            publishPath: /target/package
-          - name: roa-diesel
-            registryName: roa-diesel
-            path: roa-diesel
-            publishPath: /target/package
           - name: roa-multipart
             registryName: roa-multipart
             path: roa-multipart
-            publishPath: /target/package
-          - name: roa-tokio
-            registryName: roa-tokio
-            path: roa-tokio
             publishPath: /target/package
           - name: roa
             registryName: roa

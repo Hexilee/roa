@@ -19,7 +19,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all --all-features
+          args: --all --features "full"
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -42,5 +42,5 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --all-features --no-fail-fast
+          args: --all --features "full" --no-fail-fast
         

@@ -161,7 +161,7 @@ impl<S> CookieSetter for Context<S> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use crate::cookie::{cookie_parser, Cookie};
     use crate::http::{

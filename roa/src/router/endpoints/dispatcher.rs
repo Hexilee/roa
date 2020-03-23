@@ -11,7 +11,7 @@ macro_rules! impl_http_methods {
 
 You can use it as follow:
 
-```
+```rust
 use roa::{App, Context, Result};
 use roa::router::get;
 
@@ -40,7 +40,7 @@ macro_rules! impl_http_functions {
 
 You can use it as follow:
 
-```
+```rust
 use roa::{App, Context, Result};
 use roa::router::", stringify!($end), ";
 

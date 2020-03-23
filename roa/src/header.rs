@@ -297,7 +297,7 @@ impl FriendlyHeaders for Response {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use crate::http::header::CONTENT_TYPE;
     use crate::http::{HeaderValue, StatusCode};

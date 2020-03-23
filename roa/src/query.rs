@@ -164,7 +164,7 @@ impl<S> Query for Context<S> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use crate::http::StatusCode;
     use crate::preload::*;

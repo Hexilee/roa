@@ -123,7 +123,7 @@ impl<S: State> Forward for Context<S> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use super::Forward;
     use crate::http::header::HOST;

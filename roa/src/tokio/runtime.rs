@@ -30,7 +30,7 @@ impl Spawn for Exec {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use super::Exec;
     use crate::http::StatusCode;

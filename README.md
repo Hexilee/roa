@@ -48,7 +48,7 @@
 
 #### Get start
 
-```toml
+```
 # Cargo.toml
 
 [dependencies]

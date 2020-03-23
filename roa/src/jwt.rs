@@ -226,7 +226,7 @@ impl<'a, S> Middleware<'a, S> for JwtGuard {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tcp"))]
 mod tests {
     use super::{guard, DecodingKey, INVALID_TOKEN};
     use crate::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
