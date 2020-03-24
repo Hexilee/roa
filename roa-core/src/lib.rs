@@ -57,9 +57,9 @@
 //! }
 //! ```
 //!
-//! ### Error Handling
+//! ### Status Handling
 //!
-//! You can catch or straightly throw an Error returned by next.
+//! You can catch or straightly throw an status returned by next.
 //!
 //! ```rust
 //! use roa_core::{App, Context, Result, Status, MiddlewareExt, Next, throw};
@@ -69,10 +69,10 @@
 //!
 //! async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
 //!     // catch
-//!     if let Err(err) = next.await {
+//!     if let Err(status) = next.await {
 //!         // teapot is ok
-//!         if err.status_code != StatusCode::IM_A_TEAPOT {
-//!             return Err(err);
+//!         if status.status_code != StatusCode::IM_A_TEAPOT {
+//!             return Err(status);
 //!         }
 //!     }
 //!     Ok(())
@@ -87,31 +87,32 @@
 //! }
 //! ```
 //!
-//! #### error_handler
-//! App has an error_handler to handle `Error` thrown by the top middleware.
-//! This is the error_handler:
+//! #### status_handler
+//! App has an status_handler to handle `Error` thrown by the top middleware.
+//! This is the status_handler:
 //!
 //! ```rust
-//! use roa_core::{Context, Status, Result, ErrorKind, State};
-//! pub async fn error_handler<S: State>(context: &mut Context<S>, err: Status) -> Result {
-//!     context.resp.status = err.status_code;
-//!     if err.expose {
-//!         context.resp.write(err.message.clone());
+//! use roa_core::{Context, Status, Result, State};
+//! pub async fn status_handler<S: State>(ctx: &mut Context<S>, status: Status) -> Result {
+//!     ctx.resp.status = status.status_code;
+//!     if status.expose {
+//!         ctx.resp.write(status.message.clone());
 //!     }
-//!     if err.kind == ErrorKind::ServerError {
-//!         Err(err)
+//!     if status.status_code.as_u16() / 100 == 5 {
+//!         // internal server error
+//!         Err(status)
 //!     } else {
 //!         Ok(())
 //!     }
 //! }
 //! ```
 //!
-//! The Error thrown by this error_handler will be handled by hyper.
+//! The Status thrown by this status_handler will be handled by hyper.
 //!
 //! ### HTTP Server.
 //!
 //! Use `roa_core::accept` to construct a http server.
-//! Please refer to crate [![Crate version](https://img.shields.io/crates/v/roa-tcp.svg)](https://crates.io/crates/roa-tcp) for more information.
+//! Please refer to `roa::tcp` for more information.
 
 #![warn(missing_docs)]
 
