@@ -354,46 +354,42 @@ mod tests {
     }
 
     #[test]
-    fn request_get_all() -> Result<(), Box<dyn std::error::Error>> {
+    fn request_get_all() {
         let mut request = Request::default();
-        request.append(CONTENT_TYPE, "text/html")?;
-        request.append(CONTENT_TYPE, "text/plain")?;
-        let ret = request.get_all(CONTENT_TYPE)?;
+        assert!(request.append(CONTENT_TYPE, "text/html").is_ok());
+        assert!(request.append(CONTENT_TYPE, "text/plain").is_ok());
+        let ret = request.get_all(CONTENT_TYPE).unwrap();
         assert_eq!("text/html", ret[0]);
         assert_eq!("text/plain", ret[1]);
-        Ok(())
     }
 
     #[test]
-    fn insert() -> Result<(), Box<dyn std::error::Error>> {
+    fn insert() {
         let mut request = Request::default();
-        request.insert(CONTENT_TYPE, "text/html")?;
-        assert_eq!("text/html", request.must_get(CONTENT_TYPE)?);
-        let old_data = request.insert(CONTENT_TYPE, "text/plain")?.unwrap();
+        assert!(request.insert(CONTENT_TYPE, "text/html").is_ok());
+        assert_eq!("text/html", request.must_get(CONTENT_TYPE).unwrap());
+        let old_data = request.insert(CONTENT_TYPE, "text/plain").unwrap().unwrap();
         assert_eq!("text/html", old_data);
-        assert_eq!("text/plain", request.must_get(CONTENT_TYPE)?);
-        Ok(())
+        assert_eq!("text/plain", request.must_get(CONTENT_TYPE).unwrap());
     }
 
     #[test]
-    fn insert_fail() -> Result<(), Box<dyn std::error::Error>> {
+    fn insert_fail() {
         let mut request = Request::default();
         let ret = request.insert(CONTENT_TYPE, "\r\n");
         assert!(ret.is_err());
         let status = ret.unwrap_err();
         assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
         assert!(status.message.ends_with("Invalid header value"));
-        Ok(())
     }
 
     #[test]
-    fn append_fail() -> Result<(), Box<dyn std::error::Error>> {
+    fn append_fail() {
         let mut request = Request::default();
         let ret = request.append(CONTENT_TYPE, "\r\n");
         assert!(ret.is_err());
         let status = ret.unwrap_err();
         assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, status.status_code);
         assert!(status.message.ends_with("Invalid header value"));
-        Ok(())
     }
 }

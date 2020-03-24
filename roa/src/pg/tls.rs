@@ -162,10 +162,8 @@ pub async fn connect_tls(
     let dns_name_ref = DNSNameRef::try_from_ascii_str(try_tcp_host(config)?)
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
     let connector = TlsConnector::from(Arc::new(tls_config));
-
-    let (client, conn) = config
+    config
         .connect_raw(WrapStream(stream), Connector::new(connector, dns_name_ref))
         .await
-        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
-    Ok((Client(client), conn))
+        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
 }

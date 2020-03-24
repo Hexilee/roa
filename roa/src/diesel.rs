@@ -33,14 +33,10 @@
 //!
 
 mod async_ext;
-mod err;
 mod pool;
 
 #[doc(inline)]
 pub use async_ext::SqlQuery;
-
-#[doc(inline)]
-pub use err::WrapError;
 
 #[doc(inline)]
 pub use pool::{builder, make_pool, AsyncPool, Pool, WrapConnection};

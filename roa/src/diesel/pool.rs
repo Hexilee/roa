@@ -1,4 +1,3 @@
-use super::WrapError;
 use crate::{async_trait, Context, State, Status};
 use diesel::r2d2::{ConnectionManager, PoolError};
 use diesel::Connection;
@@ -16,10 +15,11 @@ pub type WrapConnection<Conn> = PooledConnection<ConnectionManager<Conn>>;
 /// ### Example
 ///
 /// ```
-/// use roa::diesel::{make_pool, WrapError, Pool};
+/// use roa::diesel::{make_pool, Pool};
 /// use diesel::sqlite::SqliteConnection;
+/// use std::error::Error;
 ///
-/// # fn main() -> Result<(), WrapError> {
+/// # fn main() -> Result<(), Box<dyn Error>> {
 /// let pool: Pool<SqliteConnection> = make_pool(":memory:")?;
 /// Ok(())
 /// # }
@@ -95,10 +95,7 @@ where
     #[inline]
     async fn get_conn(&self) -> Result<WrapConnection<Conn>, Status> {
         let pool = self.as_ref().clone();
-        self.exec
-            .spawn_blocking(move || pool.get())
-            .await
-            .map_err(|err| WrapError::from(err).into())
+        Ok(self.exec.spawn_blocking(move || pool.get()).await?)
     }
 
     #[inline]
@@ -107,10 +104,10 @@ where
         timeout: Duration,
     ) -> Result<WrapConnection<Conn>, Status> {
         let pool = self.as_ref().clone();
-        self.exec
+        Ok(self
+            .exec
             .spawn_blocking(move || pool.get_timeout(timeout))
-            .await
-            .map_err(|err| WrapError::from(err).into())
+            .await?)
     }
 
     #[inline]

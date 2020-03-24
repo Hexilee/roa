@@ -118,10 +118,10 @@
 //!
 //! async fn catch(_ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
 //!     // catch
-//!     if let Err(err) = next.await {
+//!     if let Err(status) = next.await {
 //!         // teapot is ok
-//!         if err.status_code != StatusCode::IM_A_TEAPOT {
-//!             return Err(err);
+//!         if status.status_code != StatusCode::IM_A_TEAPOT {
+//!             return Err(status);
 //!         }
 //!     }
 //!     Ok(())
@@ -138,30 +138,27 @@
 //!
 //! ```
 //!
-//! #### error_handler
-//! App has an error_handler to handle error thrown by the top middleware.
-//! This is the error_handler:
+//! #### status_handler
+//! App has an status_handler to handle status thrown by the top middleware.
+//! This is the status_handler:
 //!
 //! ```rust,no_run
-//! use roa_core::{Context, Status, Result, ErrorKind};
-//! pub async fn error_handler<S>(ctx: &mut Context<S>, err: Status) -> Result {
-//!     // set status code to err.status_code.
-//!     ctx.resp.status = err.status_code;
-//!     if err.expose {
-//!         // write err.message to response body if err.expose.
-//!         ctx.resp.write(err.message.clone());
+//! use roa::{Context, Status, Result, State};
+//! pub async fn status_handler<S: State>(ctx: &mut Context<S>, status: Status) -> Result {
+//!     ctx.resp.status = status.status_code;
+//!     if status.expose {
+//!         ctx.resp.write(status.message.clone());
 //!     }
-//!     if err.kind == ErrorKind::ServerError {
-//!         // thrown to hyper
-//!         Err(err)
+//!     if status.status_code.as_u16() / 100 == 5 {
+//!         // internal server error, throw to hyper
+//!         Err(status)
 //!     } else {
-//!         // caught
 //!         Ok(())
 //!     }
 //! }
 //! ```
 //!
-//! The error thrown by this error_handler will be handled by hyper.
+//! The status thrown by this status_handler will be handled by hyper.
 //!
 //! ### Router.
 //! Roa provides a configurable and nestable router.

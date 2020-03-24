@@ -14,6 +14,7 @@
 //!
 //! async fn query(ctx: &mut Context<State>) -> Result {
 //!     ctx.pg.query_one("SELECT * FROM user WHERE id=$1", &[&1]).await?;
+//!     Ok(())
 //! }
 //! ```
 
@@ -22,7 +23,6 @@
 pub mod tls;
 pub use tokio_postgres::{Client, Config};
 
-mod client;
 use crate::tcp::WrapStream;
 use async_std::net::TcpStream;
 use std::io;
@@ -77,9 +77,8 @@ pub async fn connect(
     config: &Config,
 ) -> io::Result<(Client, Connection<WrapStream<TcpStream>, NoTlsStream>)> {
     let stream = connect_stream(config).await?;
-    let (client, conn) = config
+    config
         .connect_raw(WrapStream(stream), NoTls)
         .await
-        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
-    Ok((Client(client), conn))
+        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
 }

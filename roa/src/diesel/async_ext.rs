@@ -1,5 +1,5 @@
-use super::{AsyncPool, Pool, WrapError};
-use crate::{async_trait, Context, Result, State, Status};
+use super::{AsyncPool, Pool};
+use crate::{async_trait, Context, Result, State};
 use diesel::connection::Connection;
 use diesel::helper_types::Limit;
 use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, LoadQuery};
@@ -83,11 +83,6 @@ pub trait SqlQuery<Conn: 'static + Connection> {
         Limit<Q>: LoadQuery<Conn, U>;
 }
 
-#[inline]
-fn map_diesel_error(err: DieselError) -> Status {
-    WrapError::from(err).into()
-}
-
 #[async_trait]
 impl<S, Conn> SqlQuery<Conn> for Context<S>
 where
@@ -100,10 +95,10 @@ where
         E: 'static + Send + ExecuteDsl<Conn>,
     {
         let conn = self.get_conn().await?;
-        self.exec
+        Ok(self
+            .exec
             .spawn_blocking(move || ExecuteDsl::<Conn>::execute(exec, &*conn))
-            .await
-            .map_err(map_diesel_error)
+            .await?)
     }
 
     /// Executes the given query, returning a `Vec` with the returned rows.
@@ -134,7 +129,7 @@ where
         match self.exec.spawn_blocking(move || query.load(&*conn)).await {
             Ok(data) => Ok(data),
             Err(DieselError::NotFound) => Ok(Vec::new()),
-            Err(err) => Err(map_diesel_error(err)),
+            Err(err) => Err(err.into()),
         }
     }
 
@@ -154,11 +149,11 @@ where
         Q: 'static + Send + LoadQuery<Conn, U>,
     {
         let conn = self.get_conn().await?;
-        self.exec
+        Ok(self
+            .exec
             .spawn_blocking(move || query.get_result(&*conn))
             .await
-            .optional()
-            .map_err(map_diesel_error)
+            .optional()?)
     }
 
     /// Runs the command, returning an `Vec` with the affected rows.
@@ -192,10 +187,10 @@ where
         Limit<Q>: LoadQuery<Conn, U>,
     {
         let conn = self.get_conn().await?;
-        self.exec
+        Ok(self
+            .exec
             .spawn_blocking(move || query.limit(1).get_result(&*conn))
             .await
-            .optional()
-            .map_err(map_diesel_error)
+            .optional()?)
     }
 }
