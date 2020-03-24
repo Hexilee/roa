@@ -23,7 +23,7 @@
 
 use crate::http::header::UPGRADE;
 use crate::http::StatusCode;
-use crate::{async_trait, throw, Context, Endpoint, Error, State};
+use crate::{async_trait, throw, Context, Endpoint, State, Status};
 use headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion,
     Upgrade,
@@ -136,7 +136,7 @@ where
     F: 'static + Sync + Send + Fn(Context<S>, SocketStream) -> Fut,
     Fut: 'static + Send + Future<Output = ()>,
 {
-    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result<(), Error> {
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result<(), Status> {
         let header_map = &ctx.req.headers;
         let key = header_map
             .typed_get::<Upgrade>()

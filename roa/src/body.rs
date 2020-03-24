@@ -80,7 +80,7 @@
 //! }
 //! ```
 
-use crate::{async_trait, http, Context, Error, Result, State};
+use crate::{async_trait, http, Context, Result, State, Status};
 use bytes::{Bytes, BytesMut};
 use futures::{AsyncRead, StreamExt};
 use lazy_static::lazy_static;
@@ -243,8 +243,8 @@ impl<S: State> PowerBody for Context<S> {
 
 #[allow(dead_code)]
 #[inline]
-fn handle_invalid_body(err: impl Display) -> Error {
-    Error::new(
+fn handle_invalid_body(err: impl Display) -> Status {
+    Status::new(
         StatusCode::BAD_REQUEST,
         format!("Invalid Body:\n{}", err),
         true,
@@ -253,8 +253,8 @@ fn handle_invalid_body(err: impl Display) -> Error {
 
 #[allow(dead_code)]
 #[inline]
-fn handle_internal_server_error(err: impl ToString) -> Error {
-    Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
+fn handle_internal_server_error(err: impl ToString) -> Status {
+    Status::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
 }
 
 #[cfg(all(test, feature = "tcp"))]
@@ -262,7 +262,7 @@ mod tests {
     use super::PowerBody;
     use crate::http;
     use crate::tcp::Listener;
-    use crate::{App, Context, Error};
+    use crate::{App, Context, Status};
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;
@@ -298,7 +298,7 @@ mod tests {
     #[cfg(feature = "json")]
     #[tokio::test]
     async fn read_json() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
             let user: UserDto = ctx.read_json().await?;
             assert_eq!(USER, user);
             Ok(())
@@ -319,7 +319,7 @@ mod tests {
     #[cfg(feature = "urlencoded")]
     #[tokio::test]
     async fn read_form() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
             let user: UserDto = ctx.read_form().await?;
             assert_eq!(USER, user);
             Ok(())
@@ -340,7 +340,7 @@ mod tests {
     #[cfg(feature = "template")]
     #[tokio::test]
     async fn render() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
             ctx.render(&USER)
         }
         let (addr, server) = App::new(()).end(test).run()?;
@@ -353,7 +353,7 @@ mod tests {
 
     #[tokio::test]
     async fn write_text() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
             ctx.write_text("Hello, World!");
             Ok(())
         }
@@ -368,7 +368,7 @@ mod tests {
 
     #[tokio::test]
     async fn write_octet() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
             ctx.write_octet(File::open("../assets/author.txt").await?);
             Ok(())
         }

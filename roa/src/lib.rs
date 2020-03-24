@@ -143,8 +143,8 @@
 //! This is the error_handler:
 //!
 //! ```rust,no_run
-//! use roa_core::{Context, Error, Result, ErrorKind};
-//! pub async fn error_handler<S>(ctx: &mut Context<S>, err: Error) -> Result {
+//! use roa_core::{Context, Status, Result, ErrorKind};
+//! pub async fn error_handler<S>(ctx: &mut Context<S>, err: Status) -> Result {
 //!     // set status code to err.status_code.
 //!     ctx.resp.status = err.status_code;
 //!     if err.expose {
@@ -258,6 +258,10 @@ pub mod websocket;
 #[cfg(feature = "orm")]
 #[cfg_attr(feature = "docs", doc(cfg(orm)))]
 pub mod diesel;
+
+#[cfg(feature = "pg")]
+#[cfg_attr(feature = "docs", doc(cfg(pg)))]
+pub mod pg;
 
 #[cfg(feature = "tokio_rt")]
 #[cfg_attr(feature = "docs", doc(cfg(tokio_rt)))]

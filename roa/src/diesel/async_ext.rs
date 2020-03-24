@@ -1,5 +1,5 @@
 use super::{AsyncPool, Pool, WrapError};
-use crate::{async_trait, Context, Error, Result, State};
+use crate::{async_trait, Context, Result, State, Status};
 use diesel::connection::Connection;
 use diesel::helper_types::Limit;
 use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, LoadQuery};
@@ -84,7 +84,7 @@ pub trait SqlQuery<Conn: 'static + Connection> {
 }
 
 #[inline]
-fn map_diesel_error(err: DieselError) -> Error {
+fn map_diesel_error(err: DieselError) -> Status {
     WrapError::from(err).into()
 }
 

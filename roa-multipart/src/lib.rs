@@ -58,7 +58,7 @@ use bytes::Bytes;
 use futures::Stream;
 use hyper::Body;
 use roa_core::http::{header::CONTENT_TYPE, StatusCode};
-use roa_core::{Context, Error, State};
+use roa_core::{Context, State, Status};
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::ops::Deref;
@@ -156,7 +156,7 @@ impl Stream for Field {
                     MultipartError::Payload(PayloadError::Io(err)) => err,
                     err => io::Error::new(
                         io::ErrorKind::Other,
-                        Error::new(
+                        Status::new(
                             StatusCode::INTERNAL_SERVER_ERROR,
                             format!("{}\nread multipart field error.", err),
                             false,
@@ -176,10 +176,10 @@ impl Deref for Field {
     }
 }
 
-impl From<WrapError> for Error {
+impl From<WrapError> for Status {
     #[inline]
     fn from(err: WrapError) -> Self {
-        Error::new(StatusCode::BAD_REQUEST, err, true)
+        Status::new(StatusCode::BAD_REQUEST, err, true)
     }
 }
 

@@ -3,13 +3,13 @@
 //! ### TlsIncoming
 //!
 //! ```rust
-//! use roa::{App, Context, Error};
+//! use roa::{App, Context, Status};
 //! use roa::tls::{TlsIncoming, ServerConfig, NoClientAuth};
 //! use roa::tls::internal::pemfile::{certs, rsa_private_keys};
 //! use std::fs::File;
 //! use std::io::BufReader;
 //!
-//! async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+//! async fn end(_ctx: &mut Context<()>) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
@@ -31,13 +31,13 @@
 //! ### TlsListener
 //!
 //! ```rust
-//! use roa::{App, Context, Error};
+//! use roa::{App, Context, Status};
 //! use roa::tls::{TlsIncoming, ServerConfig, NoClientAuth, TlsListener};
 //! use roa::tls::internal::pemfile::{certs, rsa_private_keys};
 //! use std::fs::File;
 //! use std::io::BufReader;
 //!
-//! async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+//! async fn end(_ctx: &mut Context<()>) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
@@ -293,7 +293,7 @@ pub trait TlsListener {
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
     /// ```rust
-    /// use roa::{App, Context, Error};
+    /// use roa::{App, Context, Status};
     /// use roa::tls::{TlsIncoming, ServerConfig, NoClientAuth, TlsListener};
     /// use roa::tls::internal::pemfile::{certs, rsa_private_keys};
     /// use roa_core::http::StatusCode;
@@ -302,7 +302,7 @@ pub trait TlsListener {
     /// use std::fs::File;
     /// use std::io::BufReader;
     ///
-    /// async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+    /// async fn end(_ctx: &mut Context<()>) -> Result<(), Status> {
     ///     Ok(())
     /// }
     ///
@@ -366,7 +366,7 @@ where
 mod tests {
     use crate::http::StatusCode;
     use crate::tls::TlsListener;
-    use crate::{App, Context, Error};
+    use crate::{App, Context, Status};
     use async_std::task::spawn;
     use hyper::client::{Client, HttpConnector};
     use hyper::Body;
@@ -380,7 +380,7 @@ mod tests {
     use std::io::{self, BufReader};
     use tokio_tls::TlsConnector;
 
-    async fn end(ctx: &mut Context<()>) -> Result<(), Error> {
+    async fn end(ctx: &mut Context<()>) -> Result<(), Status> {
         ctx.resp.write("Hello, World!");
         Ok(())
     }

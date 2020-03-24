@@ -4,23 +4,22 @@ mod runtime;
 mod future;
 mod stream;
 use crate::{
-    Chain, Context, Endpoint, Error, Middleware, MiddlewareExt, Request, Response,
-    Result, State,
+    Chain, Context, Endpoint, Middleware, MiddlewareExt, Request, Response, State,
 };
 use future::SendFuture;
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
 use hyper::Server;
-use std::error::Error as StdError;
+use std::error::Error;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::result::Result as StdResult;
 use std::sync::Arc;
 use std::task::Poll;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::err::StatusError;
 use crate::Accept;
 use crate::{Executor, Spawn};
 pub use stream::AddrStream;
@@ -155,7 +154,7 @@ where
         S: State,
         IO: 'static + Send + Sync + Unpin + AsyncRead + AsyncWrite,
         I: Accept<Conn = AddrStream<IO>>,
-        I::Error: Into<Box<dyn StdError + Send + Sync>>,
+        I::Error: Into<Box<dyn Error + Send + Sync>>,
     {
         Server::builder(incoming)
             .executor(self.exec.clone())
@@ -179,7 +178,7 @@ where
 macro_rules! impl_poll_ready {
     () => {
         #[inline]
-        fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<StdResult<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
     };
@@ -209,8 +208,13 @@ where
     }
 }
 
-type HttpFuture =
-    Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>>> + Send>>;
+type HttpFuture = Pin<
+    Box<
+        dyn 'static
+            + Future<Output = Result<HttpResponse<HyperBody>, StatusError>>
+            + Send,
+    >,
+>;
 
 impl<S, E> Service<HttpRequest<HyperBody>> for HttpService<S, E>
 where
@@ -218,7 +222,7 @@ where
     E: for<'a> Endpoint<'a, S>,
 {
     type Response = HttpResponse<HyperBody>;
-    type Error = Error;
+    type Error = StatusError;
     type Future = HttpFuture;
     impl_poll_ready!();
 
@@ -249,7 +253,7 @@ impl<S, E> HttpService<S, E> {
 
     /// Receive a request then return a response.
     /// The entry point of http service.
-    pub async fn serve(self, req: Request) -> Result<Response>
+    pub async fn serve(self, req: Request) -> Result<Response, StatusError>
     where
         S: 'static,
         E: for<'a> Endpoint<'a, S>,
@@ -260,19 +264,19 @@ impl<S, E> HttpService<S, E> {
             exec,
             state,
         } = self;
-        let mut context = Context::new(req, state, exec, remote_addr);
-        if let Err(err) = endpoint.call(&mut context).await {
-            context.resp.status = err.status_code;
-            if err.expose && !err.need_throw() {
-                context.resp.write(err.message);
-            } else if err.expose && err.need_throw() {
-                context.resp.write(err.message.clone());
-                return Err(err);
-            } else if err.need_throw() {
-                return Err(err);
+        let mut ctx = Context::new(req, state, exec, remote_addr);
+        if let Err(status) = endpoint.call(&mut ctx).await {
+            ctx.resp.status = status.status_code;
+            if status.expose && !status.need_throw() {
+                ctx.resp.write(status.message);
+            } else if status.expose && status.need_throw() {
+                ctx.resp.write(status.message.clone());
+                Err(status)?;
+            } else if status.need_throw() {
+                Err(status)?;
             }
         }
-        Ok(context.resp)
+        Ok(ctx.resp)
     }
 }
 

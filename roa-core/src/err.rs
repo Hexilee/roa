@@ -8,7 +8,7 @@ use std::result::Result as StdResult;
 pub type ResultFuture<'a, R = ()> = Pin<Box<dyn 'a + Future<Output = Result<R>>>>;
 
 /// Type alias for `StdResult<R, Error>`.
-pub type Result<R = ()> = StdResult<R, Error>;
+pub type Result<R = ()> = StdResult<R, Status>;
 
 /// Throw an `Err(Error)`.
 ///
@@ -18,7 +18,7 @@ pub type Result<R = ()> = StdResult<R, Error>;
 ///
 /// ### Example
 /// ```rust
-/// use roa_core::{App, Context, Next, Result, MiddlewareExt, throw};
+/// use roa_core::{App, Context, Next, Result, throw};
 /// use roa_core::http::StatusCode;
 ///
 /// let app = App::new(()).gate(gate).end(end);
@@ -43,16 +43,14 @@ macro_rules! throw {
         $crate::throw!($status_code, $message, true);
     };
     ($status_code:expr, $message:expr, $expose:expr) => {
-        return Err($crate::Error::new($status_code, $message, $expose));
+        return Err($crate::Status::new($status_code, $message, $expose));
     };
 }
 
-/// The `Error` of roa.
+/// The `Status` of roa.
 #[derive(Debug, Clone)]
-pub struct Error {
+pub struct Status {
     /// StatusCode will be responded to client if Error is thrown by the top middleware.
-    /// ### Range
-    /// 1xx/3xx/4xx/5xx
     ///
     /// ### Example
     /// ```rust
@@ -72,21 +70,18 @@ pub struct Error {
     /// ```
     pub status_code: StatusCode,
 
-    /// Error kind, is inferred automatically by status code.
-    pub kind: ErrorKind,
-
     /// Data will be written to response body if self.expose is true.
     /// StatusCode will be responded to client if Error is thrown by the top middleware.
     ///
     /// ### Example
     /// ```rust
-    /// use roa_core::{App, Context, Result, Error};
+    /// use roa_core::{App, Context, Result, Status};
     /// use roa_core::http::StatusCode;
     ///
     /// let app = App::new(()).end(end);
     ///
     /// async fn end(ctx: &mut Context<()>) -> Result {
-    ///     Err(Error::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // message won't be exposed to user.
+    ///     Err(Status::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // message won't be exposed to user.
     /// }
     ///
     /// ```
@@ -96,49 +91,16 @@ pub struct Error {
     pub expose: bool,
 }
 
-/// Kind of Error.
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub enum ErrorKind {
-    /// [[RFC7231, Section 6.2](https://tools.ietf.org/html/rfc7231#section-6.2)]
-    Informational,
+/// A error wrapper for status.
+#[derive(Debug)]
+pub struct StatusError(Status);
 
-    /// [[RFC7231, Section 6.4](https://tools.ietf.org/html/rfc7231#section-6.4)]
-    Redirection,
-
-    /// [[RFC7231, Section 6.5](https://tools.ietf.org/html/rfc7231#section-6.5)]
-    ClientError,
-
-    /// [[RFC7231, Section 6.6](https://tools.ietf.org/html/rfc7231#section-6.6)]
-    ServerError,
-}
-
-impl ErrorKind {
-    #[inline]
-    fn infer(status_code: StatusCode) -> Self {
-        use ErrorKind::*;
-        match status_code.as_u16() / 100 {
-            1 => Informational,
-            3 => Redirection,
-            4 => ClientError,
-            5 => ServerError,
-            _ => panic!(
-                r"status {} cannot be thrown.
-                  Please use `ctx.resp.status = {}` to set it.
-               ",
-                status_code,
-                status_code.as_u16()
-            ),
-        }
-    }
-}
-
-impl Error {
+impl Status {
     /// Construct an error.
     #[inline]
     pub fn new(status_code: StatusCode, message: impl ToString, expose: bool) -> Self {
         Self {
             status_code,
-            kind: ErrorKind::infer(status_code),
             message: message.to_string(),
             expose,
         }
@@ -146,29 +108,39 @@ impl Error {
 
     #[inline]
     pub(crate) fn need_throw(&self) -> bool {
-        self.kind == ErrorKind::ServerError
+        self.status_code.as_u16() / 100 == 5
     }
 }
 
-macro_rules! internal_server_error {
-    ($error:ty) => {
-        impl From<$error> for Error {
-            #[inline]
-            fn from(err: $error) -> Self {
-                Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
-            }
-        }
-    };
+impl<E> From<E> for Status
+where
+    E: std::error::Error,
+{
+    #[inline]
+    fn from(err: E) -> Self {
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
+    }
 }
 
-internal_server_error!(std::io::Error);
-internal_server_error!(http::Error);
+impl From<Status> for StatusError {
+    #[inline]
+    fn from(status: Status) -> Self {
+        StatusError(status)
+    }
+}
 
-impl Display for Error {
+impl Display for Status {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> StdResult<(), std::fmt::Error> {
         f.write_str(&format!("{}: {}", self.status_code, self.message))
     }
 }
 
-impl std::error::Error for Error {}
+impl Display for StatusError {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> StdResult<(), std::fmt::Error> {
+        self.0.fmt(f)
+    }
+}
+
+impl std::error::Error for StatusError {}

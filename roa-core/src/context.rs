@@ -323,12 +323,12 @@ impl<S: Clone> Clone for Context<S> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests_with_runtime {
-    use crate::{App, Context, Error, Next, Request};
+    use crate::{App, Context, Next, Request, Status};
     use http::{StatusCode, Version};
 
     #[async_std::test]
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
             assert_eq!(Version::HTTP_11, ctx.version());
             assert_eq!(StatusCode::OK, ctx.status());
             Ok(())
@@ -345,12 +345,12 @@ mod tests_with_runtime {
 
     #[async_std::test]
     async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
-        async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result<(), Error> {
+        async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result<(), Status> {
             ctx.data = 1;
             next.await
         }
 
-        async fn test(ctx: &mut Context<State>) -> Result<(), Error> {
+        async fn test(ctx: &mut Context<State>) -> Result<(), Status> {
             assert_eq!(1, ctx.data);
             Ok(())
         }

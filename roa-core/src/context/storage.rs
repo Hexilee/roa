@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::Status;
 use http::StatusCode;
 use std::any::{Any, TypeId};
 use std::borrow::Cow;
@@ -53,13 +53,13 @@ where
 {
     /// A wrapper of `str::parse`. Converts `T::FromStr::Err` to `roa_core::Error` automatically.
     #[inline]
-    pub fn parse<T>(&self) -> Result<T, Error>
+    pub fn parse<T>(&self) -> Result<T, Status>
     where
         T: FromStr,
         T::Err: Display,
     {
         self.as_ref().parse().map_err(|err| {
-            Error::new(
+            Status::new(
                 StatusCode::BAD_REQUEST,
                 format!(
                     "{}\ntype of variable `{}` should be {}",

@@ -29,7 +29,7 @@
 //! ```
 
 use crate::http::StatusCode;
-use crate::{Context, Error, Next, Result, Variable};
+use crate::{Context, Next, Result, Status, Variable};
 use url::form_urlencoded::parse;
 
 /// A scope to store and load variables in Context::storage.
@@ -151,7 +151,7 @@ impl<S> Query for Context<S> {
     #[inline]
     fn must_query<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.query(name).ok_or_else(|| {
-            Error::new(
+            Status::new(
                 StatusCode::BAD_REQUEST,
                 format!("query `{}` is required", name),
                 true,

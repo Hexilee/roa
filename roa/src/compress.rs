@@ -24,7 +24,7 @@
 pub use async_compression::Level;
 
 use crate::http::{header::CONTENT_ENCODING, StatusCode};
-use crate::{async_trait, Context, Error, Middleware, Next, Result};
+use crate::{async_trait, Context, Middleware, Next, Result, Status};
 use accept_encoding::{parse, Encoding};
 use async_compression::stream::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 
@@ -47,7 +47,7 @@ impl<'a, S> Middleware<'a, S> for Compress {
         next.await?;
         let level = self.0;
         let best_encoding = parse(&ctx.req.headers)
-            .map_err(|err| Error::new(StatusCode::BAD_REQUEST, err, true))?;
+            .map_err(|err| Status::new(StatusCode::BAD_REQUEST, err, true))?;
         let body = std::mem::take(&mut ctx.resp.body);
         let content_encoding = match best_encoding {
             None | Some(Encoding::Gzip) => {

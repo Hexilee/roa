@@ -166,7 +166,7 @@ impl<'a, S> Endpoint<'a, S> for () {
 /// ### Example
 ///
 /// ```rust
-/// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next};
+/// use roa_core::{App, Context, Result, Status, MiddlewareExt, Next};
 /// use roa_core::http::StatusCode;
 ///
 /// let app = App::new(())
@@ -205,7 +205,7 @@ impl<'a, S> Endpoint<'a, S> for () {
 /// You can catch or straightly throw a Error returned by next.
 ///
 /// ```rust
-/// use roa_core::{App, Context, Result, Error, MiddlewareExt, Next, throw};
+/// use roa_core::{App, Context, Result, Status, MiddlewareExt, Next, throw};
 /// use roa_core::http::StatusCode;
 ///         
 /// let app = App::new(())
@@ -218,7 +218,7 @@ impl<'a, S> Endpoint<'a, S> for () {
 ///     if let Err(err) = next.await {
 ///         // teapot is ok
 ///         if err.status_code != StatusCode::IM_A_TEAPOT {
-///             return Err(err)
+///             return Err(err);
 ///         }
 ///     }
 ///     Ok(())

@@ -19,7 +19,7 @@
 //! The obligatory hello world application:
 //!
 //! ```rust
-//! use roa_core::{App, Context, Result, Error};
+//! use roa_core::{App, Context, Result, Status};
 //!
 //! let app = App::new(()).end(end);
 //! async fn end(ctx: &mut Context<()>) -> Result {
@@ -38,7 +38,7 @@
 //! its upstream behaviour.
 //!
 //! ```rust
-//! use roa_core::{App, Context, Result, Error, MiddlewareExt, Next};
+//! use roa_core::{App, Context, Result, Status, MiddlewareExt, Next};
 //! use std::time::Instant;
 //! use log::info;
 //!
@@ -62,7 +62,7 @@
 //! You can catch or straightly throw an Error returned by next.
 //!
 //! ```rust
-//! use roa_core::{App, Context, Result, Error, MiddlewareExt, Next, throw};
+//! use roa_core::{App, Context, Result, Status, MiddlewareExt, Next, throw};
 //! use roa_core::http::StatusCode;
 //!         
 //! let app = App::new(()).gate(catch).gate(gate).end(end);
@@ -72,7 +72,7 @@
 //!     if let Err(err) = next.await {
 //!         // teapot is ok
 //!         if err.status_code != StatusCode::IM_A_TEAPOT {
-//!             return Err(err)
+//!             return Err(err);
 //!         }
 //!     }
 //!     Ok(())
@@ -92,8 +92,8 @@
 //! This is the error_handler:
 //!
 //! ```rust
-//! use roa_core::{Context, Error, Result, ErrorKind, State};
-//! pub async fn error_handler<S: State>(context: &mut Context<S>, err: Error) -> Result {
+//! use roa_core::{Context, Status, Result, ErrorKind, State};
+//! pub async fn error_handler<S: State>(context: &mut Context<S>, err: Status) -> Result {
 //!     context.resp.status = err.status_code;
 //!     if err.expose {
 //!         context.resp.write(err.message.clone());
@@ -139,7 +139,7 @@ pub use executor::{Executor, JoinHandle, Spawn};
 pub use context::{Context, Variable};
 
 #[doc(inline)]
-pub use err::{Error, ErrorKind, Result, ResultFuture};
+pub use err::{Result, ResultFuture, Status};
 
 #[doc(inline)]
 pub use middleware::{Endpoint, Middleware, Next};

@@ -7,14 +7,14 @@
 //! but you have to transfer value type between HeaderValue and string then
 //! deal with other errors(not `roa::Error`) by yourself.
 //! ```rust
-//! use roa::{Context, Result, Error};
+//! use roa::{Context, Result, Status};
 //! use roa::http::header::{ORIGIN, CONTENT_TYPE};
 //! use roa::http::StatusCode;
 //!
 //! async fn get(ctx: &mut Context<()>) -> Result {
 //!     if let Some(value) = ctx.req.headers.get(ORIGIN) {
 //!         // handle `ToStrError`
-//!         let origin = value.to_str().map_err(|_err| Error::new(StatusCode::BAD_REQUEST, "", true))?;
+//!         let origin = value.to_str().map_err(|_err| Status::new(StatusCode::BAD_REQUEST, "", true))?;
 //!         println!("origin: {}", origin);
 //!     }
 //!     // handle `InvalidHeaderValue`
@@ -22,7 +22,7 @@
 //!        .headers
 //!        .insert(
 //!            CONTENT_TYPE,
-//!            "text/plain".parse().map_err(|_err| Error::new(StatusCode::BAD_REQUEST, "", true))?
+//!            "text/plain".parse().map_err(|_err| Status::new(StatusCode::BAD_REQUEST, "", true))?
 //!        );
 //!     Ok(())
 //! }
@@ -48,13 +48,13 @@ use crate::http::header::{
     AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, ToStrError,
 };
 use crate::http::StatusCode;
-use crate::{Error, Request, Response, Result};
+use crate::{Request, Response, Result, Status};
 use std::convert::TryInto;
 use std::fmt::Display;
 
 /// Handle errors occur in converting from other value to header value.
-fn handle_invalid_header_value(err: impl Display) -> Error {
-    Error::new(
+fn handle_invalid_header_value(err: impl Display) -> Status {
+    Status::new(
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("{}\nInvalid header value", err),
         false,
@@ -85,8 +85,8 @@ pub trait FriendlyHeaders {
     /// then fails to be transferred to string.
     /// Throw `Self::GENERAL_ERROR_CODE`.
     #[inline]
-    fn handle_to_str_error(err: ToStrError, value: &HeaderValue) -> Error {
-        Error::new(
+    fn handle_to_str_error(err: ToStrError, value: &HeaderValue) -> Status {
+        Status::new(
             Self::GENERAL_ERROR_CODE,
             format!("{}\n{:?} is not a valid string", err, value),
             Self::GENERAL_ERROR_EXPOSE,
@@ -96,11 +96,11 @@ pub trait FriendlyHeaders {
     /// Deal with None, usually invoked when a header value is not gotten.
     /// Throw `Self::GENERAL_ERROR_CODE`.
     #[inline]
-    fn handle_none<K>(key: K) -> Error
+    fn handle_none<K>(key: K) -> Status
     where
         K: Display,
     {
-        Error::new(
+        Status::new(
             Self::GENERAL_ERROR_CODE,
             format!("header `{}` is required", key),
             Self::GENERAL_ERROR_EXPOSE,

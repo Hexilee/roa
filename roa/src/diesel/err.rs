@@ -1,5 +1,5 @@
 use crate::http::StatusCode;
-use crate::Error;
+use crate::Status;
 use diesel::r2d2::PoolError;
 use diesel::result::Error as DieselError;
 use std::fmt::{self, Display, Formatter};
@@ -39,10 +39,10 @@ impl From<PoolError> for WrapError {
     }
 }
 
-impl From<WrapError> for Error {
+impl From<WrapError> for Status {
     #[inline]
     fn from(err: WrapError) -> Self {
-        Error::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
+        Status::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
     }
 }
 

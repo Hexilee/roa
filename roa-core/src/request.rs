@@ -69,12 +69,12 @@ impl Default for Request {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Context, Error, Request};
+    use crate::{App, Context, Request, Status};
     use futures::AsyncReadExt;
     use http::StatusCode;
     use hyper::Body;
 
-    async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+    async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
         let mut data = String::new();
         ctx.req.reader().read_to_string(&mut data).await?;
         assert_eq!("Hello, World!", data);

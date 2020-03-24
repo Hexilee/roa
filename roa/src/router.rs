@@ -5,25 +5,25 @@
 //!
 //! ```rust
 //! use roa::router::{Router, RouterParam, get, allow};
-//! use roa::{App, Context, Error, MiddlewareExt, Next};
+//! use roa::{App, Context, Status, MiddlewareExt, Next};
 //! use roa::http::{StatusCode, Method};
 //! use roa::tcp::Listener;
 //! use async_std::task::spawn;
 //!
 //!
-//! async fn gate(_ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {
+//! async fn gate(_ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Status> {
 //!     next.await
 //! }
 //!
-//! async fn query(ctx: &mut Context<()>) -> Result<(), Error> {
+//! async fn query(ctx: &mut Context<()>) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
-//! async fn create(ctx: &mut Context<()>) -> Result<(), Error> {
+//! async fn create(ctx: &mut Context<()>) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
-//! async fn graphql(ctx: &mut Context<()>) -> Result<(), Error> {
+//! async fn graphql(ctx: &mut Context<()>) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
@@ -59,8 +59,8 @@ pub use err::RouterError;
 
 use crate::http::StatusCode;
 use crate::{
-    async_trait, throw, Boxed, Context, Endpoint, EndpointExt, Error, Middleware,
-    MiddlewareExt, Result, Shared, Variable,
+    async_trait, throw, Boxed, Context, Endpoint, EndpointExt, Middleware,
+    MiddlewareExt, Result, Shared, Status, Variable,
 };
 use err::Conflict;
 use path::{join_path, standardize_path, Path, RegexPath};
@@ -80,12 +80,12 @@ struct RouterScope;
 ///
 /// ```rust
 /// use roa::router::{Router, RouterParam};
-/// use roa::{App, Context, Error};
+/// use roa::{App, Context, Status};
 /// use roa::http::StatusCode;
 /// use roa::tcp::Listener;
 /// use async_std::task::spawn;
 ///
-/// async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+/// async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
 ///     let id: u64 = ctx.must_param("id")?.parse()?;
 ///     assert_eq!(0, id);
 ///     Ok(())
@@ -113,12 +113,12 @@ pub trait RouterParam {
     ///
     /// ```rust
     /// use roa::router::{Router, RouterParam};
-    /// use roa::{App, Context, Error};
+    /// use roa::{App, Context, Status};
     /// use roa::http::StatusCode;
     /// use roa::tcp::Listener;
     /// use async_std::task::spawn;
     ///
-    /// async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+    /// async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
     ///     assert!(ctx.param("name").is_none());
     ///     Ok(())
     /// }
@@ -269,7 +269,7 @@ where
         let path =
             standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
                 |err| {
-                    Error::new(
+                    Status::new(
                         StatusCode::BAD_REQUEST,
                         format!(
                             "{}\npath `{}` is not a valid utf-8 string",
@@ -309,7 +309,7 @@ impl<S> RouterParam for Context<S> {
     #[inline]
     fn must_param<'a>(&self, name: &'a str) -> Result<Variable<'a, String>> {
         self.param(name).ok_or_else(|| {
-            Error::new(
+            Status::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("router variable `{}` is required", name),
                 false,
@@ -327,17 +327,17 @@ mod tests {
     use super::Router;
     use crate::http::StatusCode;
     use crate::tcp::Listener;
-    use crate::{App, Context, Error, Next};
+    use crate::{App, Context, Next, Status};
     use async_std::task::spawn;
     use encoding::EncoderTrap;
     use percent_encoding::NON_ALPHANUMERIC;
 
-    async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Error> {
+    async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Status> {
         ctx.store("id", "0".to_string());
         next.await
     }
 
-    async fn test(ctx: &mut Context<()>) -> Result<(), Error> {
+    async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
         let id: u64 = ctx.load::<String>("id").unwrap().parse()?;
         assert_eq!(0, id);
         Ok(())

@@ -1,5 +1,5 @@
 use super::WrapError;
-use crate::{async_trait, Context, Error, State};
+use crate::{async_trait, Context, State, Status};
 use diesel::r2d2::{ConnectionManager, PoolError};
 use diesel::Connection;
 use r2d2::{Builder, PooledConnection};
@@ -71,7 +71,7 @@ where
     ///     Ok(())
     /// }
     /// ```
-    async fn get_conn(&self) -> Result<WrapConnection<Conn>, Error>;
+    async fn get_conn(&self) -> Result<WrapConnection<Conn>, Status>;
 
     /// Retrieves a connection from the pool, waiting for at most `timeout`
     ///
@@ -80,7 +80,7 @@ where
     async fn get_timeout(
         &self,
         timeout: Duration,
-    ) -> Result<WrapConnection<Conn>, Error>;
+    ) -> Result<WrapConnection<Conn>, Status>;
 
     /// Returns information about the current state of the pool.
     async fn pool_state(&self) -> r2d2::State;
@@ -93,7 +93,7 @@ where
     Conn: Connection + 'static,
 {
     #[inline]
-    async fn get_conn(&self) -> Result<WrapConnection<Conn>, Error> {
+    async fn get_conn(&self) -> Result<WrapConnection<Conn>, Status> {
         let pool = self.as_ref().clone();
         self.exec
             .spawn_blocking(move || pool.get())
@@ -105,7 +105,7 @@ where
     async fn get_timeout(
         &self,
         timeout: Duration,
-    ) -> Result<WrapConnection<Conn>, Error> {
+    ) -> Result<WrapConnection<Conn>, Status> {
         let pool = self.as_ref().clone();
         self.exec
             .spawn_blocking(move || pool.get_timeout(timeout))

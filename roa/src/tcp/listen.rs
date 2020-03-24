@@ -24,13 +24,13 @@ pub trait Listener {
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
     /// ```rust
-    /// use roa::{App, Context, Error};
+    /// use roa::{App, Context, Status};
     /// use roa::tcp::Listener;
     /// use roa::http::StatusCode;
     /// use async_std::task::spawn;
     /// use std::time::Instant;
     ///
-    /// async fn end(_ctx: &mut Context<()>) -> Result<(), Error> {
+    /// async fn end(_ctx: &mut Context<()>) -> Result<(), Status> {
     ///     Ok(())
     /// }
     ///

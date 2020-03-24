@@ -74,7 +74,7 @@ pub use jsonwebtoken::{DecodingKey, Validation};
 
 use crate::http::header::{HeaderValue, WWW_AUTHENTICATE};
 use crate::http::StatusCode;
-use crate::{async_trait, Context, Error, Middleware, MiddlewareExt, Next, Result};
+use crate::{async_trait, Context, Middleware, MiddlewareExt, Next, Result, Status};
 use headers::{authorization::Bearer, Authorization, HeaderMapExt};
 use jsonwebtoken::decode;
 use serde::de::DeserializeOwned;
@@ -155,13 +155,13 @@ struct JwtGuard {
 }
 
 #[inline]
-fn unauthorized(_err: impl ToString) -> Error {
-    Error::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
+fn unauthorized(_err: impl ToString) -> Status {
+    Status::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
 }
 
 #[inline]
-fn guard_not_set() -> Error {
-    Error::new(
+fn guard_not_set() -> Status {
+    Status::new(
         StatusCode::INTERNAL_SERVER_ERROR,
         "middleware `JwtGuard` is not set correctly",
         false,
@@ -178,7 +178,7 @@ impl<S> JwtVerifier<S> for Context<S> {
         match value {
             Some(claims) => serde_json::from_value((*claims).clone())
                 .map_err(|err| {
-                    Error::new(
+                    Status::new(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!(
                             "{}\nClaims value deserialized fails, this may be a bug of JwtGuard.",

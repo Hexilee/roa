@@ -11,7 +11,7 @@ use headers::{
     AccessControlAllowOrigin, AccessControlExposeHeaders, AccessControlMaxAge,
     AccessControlRequestHeaders, AccessControlRequestMethod, Header, HeaderMapExt,
 };
-use roa_core::Error;
+use roa_core::Status;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt::Debug;
@@ -258,7 +258,7 @@ impl<'a, S> Middleware<'a, S> for Cors {
                 &mut Some(origin).into_iter(),
             )
             .map_err(|err| {
-                Error::new(
+                Status::new(
                     StatusCode::BAD_REQUEST,
                     format!("invalid origin: {}", err),
                     true,
