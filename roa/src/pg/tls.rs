@@ -1,3 +1,58 @@
+//! This submodule provides tls support for postgres.
+//!
+//! ### Example
+//!
+//! ```rust,no_run
+//! use roa::{App, Context, throw};
+//! use roa::http::StatusCode;
+//! use roa::pg::Client;
+//! use roa::pg::tls::connect_tls;
+//! use roa::tls::ClientConfig;
+//! use std::sync::Arc;
+//! use std::error::Error;
+//! use roa::query::query_parser;
+//! use roa::preload::*;
+//! use async_std::task::spawn;
+//!
+//! #[derive(Clone)]
+//! struct State {
+//!     pg: Arc<Client>
+//! }
+//!
+//! impl State {
+//!     pub async fn new(pg_url: &str) -> Result<Self, Box<dyn Error>> {
+//!         let (client, conn) = connect_tls(&pg_url.parse()?, ClientConfig::new()).await?;
+//!         spawn(conn);
+//!         Ok(Self {pg: Arc::new(client)})
+//!     }
+//! }
+//!
+//! async fn query(ctx: &mut Context<State>) -> roa::Result {
+//!     let id: u32 = ctx.must_query("id")?.parse()?;
+//!     match ctx.pg.query_opt("SELECT * FROM user WHERE id=$1", &[&id]).await? {
+//!         Some(row) => {
+//!             let value: String = row.get(0);
+//!             ctx.write_text(value);
+//!             Ok(())
+//!         }         
+//!         None => throw!(StatusCode::NOT_FOUND),
+//!     }
+//! }
+//!
+//! #[async_std::main]
+//! async fn main() -> Result<(), Box<dyn Error>> {
+//!     let url = "postgres://fred:secret@localhost/test";
+//!     let state = State::new(url).await?;
+//!     App::new(state)
+//!         .gate(query_parser)
+//!         .end(query)
+//!         .listen("127.0.0.1:0", |addr| {
+//!             println!("Server is listening on {}", addr)
+//!         })?.await?;
+//!     Ok(())
+//! }
+//! ```
+
 use super::*;
 use crate::tls::ClientConfig;
 use bytes::{Buf, BufMut};
@@ -150,6 +205,23 @@ where
 }
 
 /// Connect to postgres server with tls.
+///
+/// ```rust
+/// use roa::pg::tls::connect_tls;
+/// use roa::tls::ClientConfig;
+/// use std::error::Error;
+/// use async_std::task::spawn;
+///
+/// async fn play() -> Result<(), Box<dyn Error>> {
+///     let url = "host=localhost user=postgres";
+///     let (client, conn) = connect_tls(&url.parse()?, ClientConfig::new()).await?;
+///     spawn(conn);
+///     let row = client.query_one("SELECT * FROM user WHERE id=$1", &[&0]).await?;
+///     let value: &str = row.get(0);
+///     println!("value: {}", value);
+///     Ok(())
+/// }
+/// ```
 #[inline]
 pub async fn connect_tls(
     config: &Config,

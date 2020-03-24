@@ -39,7 +39,7 @@
 //!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn Error>> {
-//!     let url = "host=localhost user=postgres";
+//!     let url = "postgres://fred:secret@localhost/test";
 //!     let state = State::new(url).await?;
 //!     App::new(state)
 //!         .gate(query_parser)
@@ -105,6 +105,22 @@ async fn connect_stream(config: &Config) -> io::Result<TcpStream> {
 }
 
 /// Connect to postgres server.
+///
+/// ```rust
+/// use roa::pg::connect;
+/// use std::error::Error;
+/// use async_std::task::spawn;
+///
+/// async fn play() -> Result<(), Box<dyn Error>> {
+///     let url = "host=localhost user=postgres";
+///     let (client, conn) = connect(&url.parse()?).await?;
+///     spawn(conn);
+///     let row = client.query_one("SELECT * FROM user WHERE id=$1", &[&0]).await?;
+///     let value: &str = row.get(0);
+///     println!("value: {}", value);
+///     Ok(())
+/// }
+/// ```
 #[inline]
 pub async fn connect(
     config: &Config,
