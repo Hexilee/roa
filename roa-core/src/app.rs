@@ -271,9 +271,9 @@ impl<S, E> HttpService<S, E> {
                 ctx.resp.write(status.message);
             } else if status.expose && status.need_throw() {
                 ctx.resp.write(status.message.clone());
-                Err(status)?;
+                return Err(status.into());
             } else if status.need_throw() {
-                Err(status)?;
+                return Err(status.into());
             }
         }
         Ok(ctx.resp)

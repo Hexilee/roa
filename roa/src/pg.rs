@@ -72,7 +72,7 @@ const DEFAULT_PORT: u16 = 5432;
 fn try_tcp_host(config: &Config) -> io::Result<&str> {
     match config
         .get_hosts()
-        .into_iter()
+        .iter()
         .filter_map(|host| {
             if let Host::Tcp(value) = host {
                 Some(value)
@@ -96,8 +96,8 @@ async fn connect_stream(config: &Config) -> io::Result<TcpStream> {
     let host = try_tcp_host(&config)?;
     let port = config
         .get_ports()
-        .into_iter()
-        .map(|port| *port)
+        .iter()
+        .copied()
         .next()
         .unwrap_or(DEFAULT_PORT);
 
