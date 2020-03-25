@@ -1,4 +1,4 @@
-//! This crate provides a wrapper for `actix_multipart::Multipart`,
+//! This crate provides a context extension `MultipartForm` wrapped `actix_multipart::Multipart`,
 //! which may cause heavy dependencies.
 //!
 //! It won't be used as a module of crate `roa` until implementing a cleaner Multipart.  
@@ -14,11 +14,11 @@
 //! use roa::tcp::Listener;
 //! use roa::router::{Router, post};
 //! use roa::{throw, App, Context};
-//! use roa_multipart::Multipart;
+//! use roa_multipart::MultipartForm;
 //! use std::error::Error as StdError;
 //!
 //! async fn post_file(ctx: &mut Context<()>) -> roa::Result {
-//!     let mut form = Multipart::new(ctx);
+//!     let mut form = ctx.form();
 //!     while let Some(item) = form.next().await {
 //!         let field = item?;
 //!         match field.content_disposition() {
@@ -53,45 +53,49 @@ use actix_http::error::PayloadError;
 use actix_http::http::HeaderMap;
 use actix_multipart::Field as ActixField;
 use actix_multipart::Multipart as ActixMultipart;
-use actix_multipart::MultipartError;
+use actix_multipart::MultipartError as ActixMultipartError;
 use bytes::Bytes;
 use futures::Stream;
 use hyper::Body;
 use roa_core::http::{header::CONTENT_TYPE, StatusCode};
-use roa_core::{Context, State, Status};
+use roa_core::{Context, Status};
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{self, Poll};
 
+/// A context extensio nwrapped `actix_multipart::Multipart`.
+pub trait MultipartForm {
+    /// Read request body as multipart form.
+    fn form(&mut self) -> Multipart;
+}
+
+impl<S> MultipartForm for Context<S> {
+    fn form(&mut self) -> Multipart {
+        let mut map = HeaderMap::new();
+        if let Some(value) = self.req.headers.get(CONTENT_TYPE) {
+            map.insert(CONTENT_TYPE, value.clone())
+        }
+        Multipart(ActixMultipart::new(
+            &map,
+            WrapStream(Some(self.req.raw_body())),
+        ))
+    }
+}
+
 /// A wrapper for actix multipart.
 pub struct Multipart(ActixMultipart);
 
 /// A wrapper for actix multipart field.
 pub struct Field(ActixField);
-#[derive(Debug)]
 
 /// A wrapper for actix multipart field.
-pub struct WrapError(MultipartError);
+#[derive(Debug)]
+pub struct MultipartError(ActixMultipartError);
 
 /// A wrapper for hyper::Body.
 struct WrapStream(Option<Body>);
-
-impl Multipart {
-    /// Construct multipart from Context.
-    #[inline]
-    pub fn new<S: State>(ctx: &mut Context<S>) -> Self {
-        let mut map = HeaderMap::new();
-        if let Some(value) = ctx.req.headers.get(CONTENT_TYPE) {
-            map.insert(CONTENT_TYPE, value.clone())
-        }
-        Multipart(ActixMultipart::new(
-            &map,
-            WrapStream(Some(ctx.req.raw_body())),
-        ))
-    }
-}
 
 impl Stream for WrapStream {
     type Item = Result<Bytes, PayloadError>;
@@ -124,7 +128,7 @@ impl Stream for WrapStream {
 }
 
 impl Stream for Multipart {
-    type Item = Result<Field, WrapError>;
+    type Item = Result<Field, MultipartError>;
 
     #[inline]
     fn poll_next(
@@ -135,7 +139,7 @@ impl Stream for Multipart {
             None => Poll::Ready(None),
             Some(item) => Poll::Ready(Some(match item {
                 Ok(field) => Ok(Field(field)),
-                Err(err) => Err(WrapError(err)),
+                Err(err) => Err(MultipartError(err)),
             })),
         }
     }
@@ -153,14 +157,15 @@ impl Stream for Field {
             Some(item) => Poll::Ready(Some(match item {
                 Ok(bytes) => Ok(bytes),
                 Err(err) => Err(match err {
-                    MultipartError::Payload(PayloadError::Io(err)) => err,
+                    ActixMultipartError::Payload(PayloadError::Io(err)) => err,
                     err => io::Error::new(
                         io::ErrorKind::Other,
                         Status::new(
                             StatusCode::INTERNAL_SERVER_ERROR,
                             format!("{}\nread multipart field error.", err),
                             false,
-                        ),
+                        )
+                        .to_string(),
                     ),
                 }),
             })),
@@ -176,25 +181,23 @@ impl Deref for Field {
     }
 }
 
-impl From<WrapError> for Status {
+impl From<MultipartError> for Status {
     #[inline]
-    fn from(err: WrapError) -> Self {
+    fn from(err: MultipartError) -> Self {
         Status::new(StatusCode::BAD_REQUEST, err, true)
     }
 }
 
-impl Display for WrapError {
+impl Display for MultipartError {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{}\nmultipart form read error.", self.0))
     }
 }
 
-impl std::error::Error for WrapError {}
-
 #[cfg(test)]
 mod tests {
-    use super::Multipart;
+    use super::MultipartForm;
     use async_std::fs::{read, read_to_string};
     use futures::stream::TryStreamExt;
     use futures::{AsyncReadExt, StreamExt};
@@ -213,7 +216,7 @@ mod tests {
     const FIELD_NAME: &str = "file";
 
     async fn post_file(ctx: &mut Context<()>) -> roa::Result {
-        let mut form = Multipart::new(ctx);
+        let mut form = ctx.form();
         while let Some(item) = form.next().await {
             let field = item?;
             match field.content_disposition() {

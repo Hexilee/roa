@@ -34,7 +34,7 @@
 //!             let value: String = row.get(0);
 //!             ctx.write_text(value);
 //!             Ok(())
-//!         }         
+//!         }
 //!         None => throw!(StatusCode::NOT_FOUND),
 //!     }
 //! }

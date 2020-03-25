@@ -4,10 +4,11 @@ extern crate diesel;
 mod models;
 mod schema;
 use diesel::prelude::*;
+use diesel::result::Error;
 use diesel_example::{create_pool, State};
 use juniper::{graphql_value, FieldError, FieldResult, GraphQLInputObject, RootNode};
 use log::info;
-use roa::diesel::{AsyncPool, SqlQuery, WrapError};
+use roa::diesel::{AsyncPool, SqlQuery};
 use roa::http::{header, Method};
 use roa::logger::logger;
 use roa::preload::*;
@@ -71,7 +72,7 @@ impl Mutation {
         let post = ctx
             .exec
             .spawn_blocking(move || {
-                conn.transaction::<Post, WrapError, _>(|| {
+                conn.transaction::<Post, Error, _>(|| {
                     diesel::insert_into(crate::schema::posts::table)
                         .values(&new_post)
                         .execute(&conn)?;

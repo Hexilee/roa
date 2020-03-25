@@ -10,7 +10,7 @@ use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{get, post, Router};
 use roa::{throw, App, Context};
-use roa_multipart::Multipart;
+use roa_multipart::MultipartForm;
 use std::error::Error as StdError;
 
 async fn get_form(ctx: &mut Context<()>) -> roa::Result {
@@ -19,7 +19,7 @@ async fn get_form(ctx: &mut Context<()>) -> roa::Result {
 }
 
 async fn post_file(ctx: &mut Context<()>) -> roa::Result {
-    let mut form = Multipart::new(ctx);
+    let mut form = ctx.form();
     while let Some(item) = form.next().await {
         let field = item?;
         info!("{}", field.content_type());

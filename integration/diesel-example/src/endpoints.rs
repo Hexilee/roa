@@ -3,7 +3,7 @@ use crate::models::*;
 use crate::schema::posts::dsl::{self, posts};
 use crate::State;
 use diesel::prelude::*;
-use roa::diesel::WrapError;
+use diesel::result::Error;
 use roa::http::StatusCode;
 use roa::preload::*;
 use roa::router::{get, post, Router};
@@ -21,7 +21,7 @@ async fn create_post(ctx: &mut Context<State>) -> Result {
     let post = ctx
         .exec
         .spawn_blocking(move || {
-            conn.transaction::<Post, WrapError, _>(|| {
+            conn.transaction::<Post, Error, _>(|| {
                 diesel::insert_into(crate::schema::posts::table)
                     .values(&data)
                     .execute(&conn)?;
