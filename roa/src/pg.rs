@@ -54,7 +54,9 @@
 #[cfg(feature = "tls")]
 #[cfg_attr(feature = "docs", doc(cfg(tls)))]
 pub mod tls;
-pub use tokio_postgres::{Client, Config};
+
+#[doc(inline)]
+pub use tokio_postgres::*;
 
 use crate::tcp::WrapStream;
 use async_std::net::TcpStream;
