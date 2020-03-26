@@ -10,7 +10,7 @@ pub type ResultFuture<'a, R = ()> = Pin<Box<dyn 'a + Future<Output = Result<R>>>
 /// Type alias for `StdResult<R, Error>`.
 pub type Result<R = ()> = StdResult<R, Status>;
 
-/// Throw an `Err(Error)`.
+/// Throw an `Err(Status)`.
 ///
 /// - `throw!(status_code)` will be expanded to `throw!(status_code, "")`
 /// - `throw!(status_code, message)` will be expanded to `throw!(status_code, message, true)`

@@ -31,6 +31,7 @@ pub use middleware::{Endpoint, Middleware, Next};
 #[doc(inline)]
 pub use group::{Boxed, Chain, EndpointExt, MiddlewareExt, Shared};
 
+#[doc(inline)]
 pub use state::State;
 
 #[doc(inline)]

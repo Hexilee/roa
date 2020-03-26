@@ -77,7 +77,9 @@ where
 {
     #[inline]
     fn execute(&self, fut: F) {
-        self.spawn(fut);
+        self.0.spawn(Box::pin(async move {
+            let _ = fut.await;
+        }));
     }
 }
 

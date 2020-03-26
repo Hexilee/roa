@@ -15,8 +15,6 @@ use storage::{Storage, Value};
 
 /// A structure to share request, response and other data between middlewares.
 ///
-/// Type of the first parameter in a middleware.
-///
 /// ### Example
 ///
 /// ```rust

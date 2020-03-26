@@ -14,7 +14,7 @@ If you are new to roa, please go to the documentation of [roa framework](https:/
 
 ### Application
 
-A Roa application is a structure containing a middleware group which composes and executes middlewares in a stack-like manner.
+A Roa application is a structure composing and executing middlewares and an endpoint in a stack-like manner.
 
 The obligatory hello world application:
 
@@ -22,6 +22,8 @@ The obligatory hello world application:
 use roa_core::{App, Context, Result, Status};
 
 let app = App::new(()).end(end);
+
+// endpoint
 async fn end(ctx: &mut Context<()>) -> Result {
     ctx.resp.write("Hello, World");
     Ok(())
@@ -32,9 +34,9 @@ async fn end(ctx: &mut Context<()>) -> Result {
 
 The following example responds with "Hello World", however, the request flows through
 the `logging` middleware to mark when the request started, then continue
-to yield control through the response middleware. When a middleware invokes `next.await`
-the function suspends and passes control to the next middleware defined. After there are no more
-middleware to execute downstream, the stack will unwind and each middleware is resumed to perform
+to yield control through the response endpoint. When a middleware invokes `next.await`
+the function suspends and passes control to the next middleware or endpoint. After the endpoint is called,
+the stack will unwind and each middleware is resumed to perform
 its upstream behaviour.
 
 ```rust
@@ -42,14 +44,14 @@ use roa_core::{App, Context, Result, Status, MiddlewareExt, Next};
 use std::time::Instant;
 use log::info;
 
-let app = App::new(()).gate(gate).end(end);
+let app = App::new(()).gate(logging).end(response);
 
-async fn end(ctx: &mut Context<()>) -> Result {
+async fn response(ctx: &mut Context<()>) -> Result {
     ctx.resp.write("Hello, World");
     Ok(())
 }
 
-async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+async fn logging(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     let inbound = Instant::now();
     next.await?;
     info!("time elapsed: {} ms", inbound.elapsed().as_millis());
