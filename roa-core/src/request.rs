@@ -86,7 +86,7 @@ mod tests {
         let app = App::new(()).end(test);
         let service = app.http_service();
         let req = Request::from(http::Request::new(Body::from("Hello, World!")));
-        let resp = service.serve(req).await?;
+        let resp = service.serve(req).await;
         assert_eq!(StatusCode::OK, resp.status);
         Ok(())
     }

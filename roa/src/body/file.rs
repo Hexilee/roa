@@ -7,7 +7,9 @@ pub use content_disposition::DispositionType;
 
 use async_std::fs::File;
 use content_disposition::ContentDisposition;
+use std::convert::TryInto;
 
+/// Write file to response body then set "Content-Type" and "Context-Disposition".
 #[inline]
 pub async fn write_file<S: State>(
     ctx: &mut Context<S>,
@@ -28,10 +30,10 @@ pub async fn write_file<S: State>(
         );
 
         let name = filename.to_string_lossy();
-        let content_disposition = ContentDisposition::new(typ, Some(&*name));
+        let content_disposition = ContentDisposition::new(typ, Some(&name));
         ctx.resp.headers.insert(
             http::header::CONTENT_DISPOSITION,
-            content_disposition.value()?,
+            content_disposition.try_into()?,
         );
     }
     Ok(())

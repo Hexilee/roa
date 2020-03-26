@@ -332,7 +332,7 @@ mod tests_with_runtime {
             Ok(())
         }
         let service = App::new(()).end(test).http_service();
-        service.serve(Request::default()).await?;
+        service.serve(Request::default()).await;
         Ok(())
     }
 
@@ -356,7 +356,7 @@ mod tests_with_runtime {
             .gate(gate)
             .end(test)
             .http_service();
-        service.serve(Request::default()).await?;
+        service.serve(Request::default()).await;
         Ok(())
     }
 }

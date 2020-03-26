@@ -1,10 +1,9 @@
-//! The header module of roa.
 //! This module provides a Request/Response extension `FriendlyHeaders`.
 //!
 //! ### When should we use it?
 //!
 //! You can straightly use raw `http::header::HeaderMap` in roa,
-//! but you have to transfer value type between HeaderValue and string then
+//! but you have to transfer value type between HeaderValue and string and
 //! deal with other errors(not `roa::Error`) by yourself.
 //! ```rust
 //! use roa::{Context, Result, Status};
@@ -17,12 +16,11 @@
 //!         let origin = value.to_str().map_err(|_err| Status::new(StatusCode::BAD_REQUEST, "", true))?;
 //!         println!("origin: {}", origin);
 //!     }
-//!     // handle `InvalidHeaderValue`
 //!     ctx.resp
 //!        .headers
 //!        .insert(
 //!            CONTENT_TYPE,
-//!            "text/plain".parse().map_err(|_err| Status::new(StatusCode::BAD_REQUEST, "", true))?
+//!            "text/plain".parse().map_err(|_err| Status::new(StatusCode::INTERNAL_SERVER_ERROR, "", true))?
 //!        );
 //!     Ok(())
 //! }
@@ -200,7 +198,7 @@ pub trait FriendlyHeaders {
     /// Insert a header pair.
     ///
     /// - Return `Err(500 INTERNAL SERVER ERROR)` if value fails to header value.
-    /// - Return `Ok(Some(old_value))` if header name already exists.
+    /// - Return `Ok(Some(old_value))` if a valid header value already exists.
     ///
     /// ### Example
     ///
@@ -225,15 +223,9 @@ pub trait FriendlyHeaders {
         let old_value = self
             .raw_mut_header_map()
             .insert(key, val.try_into().map_err(handle_invalid_header_value)?);
-        Ok(match old_value {
-            Some(value) => Some(
-                value
-                    .to_str()
-                    .map(ToString::to_string)
-                    .map_err(|err| Self::handle_to_str_error(err, &value))?,
-            ),
-            None => None,
-        })
+        let value =
+            old_value.and_then(|value| value.to_str().map(ToOwned::to_owned).ok());
+        Ok(value)
     }
 
     /// Append a header pair.
@@ -261,9 +253,10 @@ pub trait FriendlyHeaders {
         V: TryInto<HeaderValue>,
         V::Error: Display,
     {
-        Ok(self
+        let exist = self
             .raw_mut_header_map()
-            .append(key, val.try_into().map_err(handle_invalid_header_value)?))
+            .append(key, val.try_into().map_err(handle_invalid_header_value)?);
+        Ok(exist)
     }
 }
 

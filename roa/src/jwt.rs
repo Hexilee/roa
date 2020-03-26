@@ -1,6 +1,4 @@
-//! The jwt module of roa.
-//! This module provides middlewares `guard` and `guard_by`
-//! and a context extension `JwtVerifier`.
+//! This module provides middleware `JwtGuard` and a context extension `JwtVerifier`.
 //!
 //! ### Example
 //!
@@ -74,15 +72,36 @@ pub use jsonwebtoken::{DecodingKey, Validation};
 
 use crate::http::header::{HeaderValue, WWW_AUTHENTICATE};
 use crate::http::StatusCode;
-use crate::{async_trait, Context, Middleware, MiddlewareExt, Next, Result, Status};
+use crate::{async_trait, throw, Context, Middleware, Next, Result, Status};
 use headers::{authorization::Bearer, Authorization, HeaderMapExt};
 use jsonwebtoken::decode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-const INVALID_TOKEN: &str = r#"Bearer realm="<jwt>", error="invalid_token""#;
-
+/// A private scope.
 struct JwtScope;
+
+lazy_static::lazy_static!(
+    static ref INVALID_TOKEN: HeaderValue = HeaderValue::from_static(r#"Bearer realm="<jwt>", error="invalid_token""#);
+);
+
+/// A function to set value of WWW_AUTHENTICATE.
+#[inline]
+fn set_www_authenticate<S>(ctx: &mut Context<S>) {
+    ctx.resp
+        .headers
+        .insert(WWW_AUTHENTICATE, INVALID_TOKEN.clone());
+}
+
+/// Throw a internal server error.
+#[inline]
+fn guard_not_set() -> Status {
+    Status::new(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "middleware `JwtGuard` is not set correctly",
+        false,
+    )
+}
 
 /// A context extension.
 /// This extension must be used in downstream of middleware `guard` or `guard_by`,
@@ -107,65 +126,66 @@ pub trait JwtVerifier<S> {
         C: 'static + DeserializeOwned;
 
     /// Verify token and deserialize claims with a validation.
-    /// Use this method if this validation is different from that one of guard or guard_by.
-    fn verify<C>(&self, validation: &Validation) -> Result<C>
+    /// Use this method if this validation is different from that one of `JwtGuard`.
+    fn verify<C>(&mut self, validation: &Validation) -> Result<C>
     where
         C: 'static + DeserializeOwned;
 }
 
 /// Guard by default validation.
-pub fn guard<S: 'static>(secret: DecodingKey) -> impl for<'a> Middleware<'a, S> {
-    guard_by(secret, Validation::default())
+pub fn guard(secret: DecodingKey) -> JwtGuard {
+    JwtGuard::new(secret, Validation::default())
 }
 
-/// Guard downstream.
+/// A middleware to deny unauthorized requests.
 ///
 /// The json web token should be deliver by request header "authorization",
 /// in format of `Authorization: Bearer <token>`.
 ///
-/// If request fails to pass verification, return 401 UNAUTHORIZED and set response header:
-///
-/// `WWW-Authenticate: Bearer realm="<jwt>", error="invalid_token"`.
-pub fn guard_by<S: 'static>(
-    secret: DecodingKey,
-    validation: Validation,
-) -> impl for<'a> Middleware<'a, S> {
-    catch_www_authenticate.chain(JwtGuard {
-        secret: secret.into_static(),
-        validation,
-    })
-}
-
-#[inline]
-async fn catch_www_authenticate<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
-    let result = next.await;
-    if let Err(ref err) = result {
-        if err.status_code == StatusCode::UNAUTHORIZED {
-            ctx.resp
-                .headers
-                .insert(WWW_AUTHENTICATE, HeaderValue::from_static(INVALID_TOKEN));
-        }
-    }
-    result
-}
-
-struct JwtGuard {
+/// If request fails to pass verification, return 401 UNAUTHORIZED and set response header "WWW-Authenticate".
+#[derive(Debug, Clone, PartialEq)]
+pub struct JwtGuard {
     secret: DecodingKey<'static>,
     validation: Validation,
 }
 
-#[inline]
-fn unauthorized(_err: impl ToString) -> Status {
-    Status::new(StatusCode::UNAUTHORIZED, "".to_string(), false)
+impl JwtGuard {
+    /// Construct guard.
+    pub fn new(secret: DecodingKey, validation: Validation) -> Self {
+        Self {
+            secret: secret.into_static(),
+            validation,
+        }
+    }
+
+    /// Verify token.
+    #[inline]
+    fn verify<S>(&self, ctx: &Context<S>) -> Option<(Bearer, Value)> {
+        let bearer = ctx.req.headers.typed_get::<Authorization<Bearer>>()?.0;
+        let value = decode::<Value>(bearer.token(), &self.secret, &self.validation)
+            .ok()?
+            .claims;
+        Some((bearer, value))
+    }
 }
 
-#[inline]
-fn guard_not_set() -> Status {
-    Status::new(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "middleware `JwtGuard` is not set correctly",
-        false,
-    )
+#[async_trait(? Send)]
+impl<'a, S> Middleware<'a, S> for JwtGuard {
+    #[inline]
+    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
+        match self.verify(ctx) {
+            None => {
+                set_www_authenticate(ctx);
+                throw!(StatusCode::UNAUTHORIZED)
+            }
+            Some((bearer, value)) => {
+                ctx.store_scoped(JwtScope, "secret", self.secret.clone());
+                ctx.store_scoped(JwtScope, "token", bearer);
+                ctx.store_scoped(JwtScope, "value", value);
+                next.await
+            }
+        }
+    }
 }
 
 impl<S> JwtVerifier<S> for Context<S> {
@@ -176,53 +196,30 @@ impl<S> JwtVerifier<S> for Context<S> {
     {
         let value = self.load_scoped::<JwtScope, Value>("value");
         match value {
-            Some(claims) => serde_json::from_value((*claims).clone())
-                .map_err(|err| {
-                    Status::new(
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        format!(
-                            "{}\nClaims value deserialized fails, this may be a bug of JwtGuard.",
-                            err
-                        ),
-                        false,
-                    )
-                }),
+            Some(claims) => Ok(serde_json::from_value((*claims).clone())?),
             None => Err(guard_not_set()),
         }
     }
 
     #[inline]
-    fn verify<C>(&self, validation: &Validation) -> Result<C>
+    fn verify<C>(&mut self, validation: &Validation) -> Result<C>
     where
         C: 'static + DeserializeOwned,
     {
         let secret = self.load_scoped::<JwtScope, DecodingKey<'static>>("secret");
         let token = self.load_scoped::<JwtScope, Bearer>("token");
         match (secret, token) {
-            (Some(secret), Some(token)) => decode(token.token(), &secret, validation)
-                .map(|data| data.claims)
-                .map_err(unauthorized),
+            (Some(secret), Some(token)) => {
+                match decode(token.token(), &secret, validation) {
+                    Ok(data) => Ok(data.claims),
+                    Err(_) => {
+                        set_www_authenticate(self);
+                        throw!(StatusCode::UNAUTHORIZED)
+                    }
+                }
+            }
             _ => Err(guard_not_set()),
         }
-    }
-}
-
-#[async_trait(? Send)]
-impl<'a, S> Middleware<'a, S> for JwtGuard {
-    #[inline]
-    async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
-        let bearer = ctx
-            .req
-            .headers
-            .typed_get::<Authorization<Bearer>>()
-            .ok_or_else(|| unauthorized(""))?
-            .0;
-        let value = decode::<Value>(bearer.token(), &self.secret, &self.validation)
-            .map_err(unauthorized)?;
-        ctx.store_scoped(JwtScope, "secret", self.secret.clone());
-        ctx.store_scoped(JwtScope, "token", bearer);
-        ctx.store_scoped(JwtScope, "value", value.claims);
-        next.await
     }
 }
 
@@ -264,7 +261,7 @@ mod tests {
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
+        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         // non-string header value
         let client = reqwest::Client::new();
@@ -274,7 +271,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
+        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         // non-Bearer header value
         let resp = client
@@ -283,7 +280,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
+        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         // invalid token
         let resp = client
@@ -292,7 +289,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
+        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         // expired token
         let mut user = User {
@@ -320,7 +317,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(INVALID_TOKEN, resp.headers()[WWW_AUTHENTICATE].to_str()?);
+        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         user.exp = (SystemTime::now() + Duration::from_millis(60))
             .duration_since(UNIX_EPOCH)?
@@ -344,20 +341,16 @@ mod tests {
         Ok(())
     }
 
-    // #[tokio::test]
-    // async fn jwt_verify_not_set() -> Result<(), Box<dyn std::error::Error>> {
-    //     async fn test(ctx: &mut Context<()>) -> crate::Result {
-    //         let _: User = ctx.claims()?;
-    //         Ok(())
-    //     }
-    //     let (addr, server) = App::new(()).end(test).run()?;
-    //     spawn(server);
-    //     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    //     assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, resp.status());
-    //     assert_eq!(
-    //         "middleware `JwtGuard` is not set correctly",
-    //         resp.text().await?
-    //     );
-    //     Ok(())
-    // }
+    #[tokio::test]
+    async fn jwt_verify_not_set() -> Result<(), Box<dyn std::error::Error>> {
+        async fn test(ctx: &mut Context<()>) -> crate::Result {
+            let _: User = ctx.claims()?;
+            Ok(())
+        }
+        let (addr, server) = App::new(()).end(test).run()?;
+        spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, resp.status());
+        Ok(())
+    }
 }

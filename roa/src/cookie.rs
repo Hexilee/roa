@@ -1,5 +1,4 @@
-//! The cookie module of roa.
-//! This module provides a middleware `cookie_parser` and a context extension `Cookier`.
+//! This module provides a middleware `cookie_parser` and context extensions `CookieGetter` and `CookieSetter`.
 //!
 //! ### Example
 //!

@@ -19,9 +19,9 @@ use std::sync::Arc;
 use std::task::Poll;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::err::StatusError;
 use crate::Accept;
 use crate::{Executor, Spawn};
+use std::convert::Infallible;
 pub use stream::AddrStream;
 
 /// The Application of roa.
@@ -211,7 +211,7 @@ where
 type HttpFuture = Pin<
     Box<
         dyn 'static
-            + Future<Output = Result<HttpResponse<HyperBody>, StatusError>>
+            + Future<Output = Result<HttpResponse<HyperBody>, Infallible>>
             + Send,
     >,
 >;
@@ -222,7 +222,7 @@ where
     E: for<'a> Endpoint<'a, S>,
 {
     type Response = HttpResponse<HyperBody>;
-    type Error = StatusError;
+    type Error = Infallible;
     type Future = HttpFuture;
     impl_poll_ready!();
 
@@ -231,7 +231,7 @@ where
         let service = self.clone();
         Box::pin(async move {
             let serve_future = SendFuture(Box::pin(service.serve(req.into())));
-            Ok(serve_future.await?.into())
+            Ok(serve_future.await.into())
         })
     }
 }
@@ -253,7 +253,7 @@ impl<S, E> HttpService<S, E> {
 
     /// Receive a request then return a response.
     /// The entry point of http service.
-    pub async fn serve(self, req: Request) -> Result<Response, StatusError>
+    pub async fn serve(self, req: Request) -> Response
     where
         S: 'static,
         E: for<'a> Endpoint<'a, S>,
@@ -267,16 +267,15 @@ impl<S, E> HttpService<S, E> {
         let mut ctx = Context::new(req, state, exec, remote_addr);
         if let Err(status) = endpoint.call(&mut ctx).await {
             ctx.resp.status = status.status_code;
-            if status.expose && !status.need_throw() {
+            if status.expose {
                 ctx.resp.write(status.message);
-            } else if status.expose && status.need_throw() {
-                ctx.resp.write(status.message.clone());
-                return Err(status.into());
-            } else if status.need_throw() {
-                return Err(status.into());
+            } else {
+                ctx.exec
+                    .spawn_blocking(move || log::error!("Uncaught status: {}", status))
+                    .await;
             }
         }
-        Ok(ctx.resp)
+        ctx.resp
     }
 }
 
@@ -309,7 +308,7 @@ mod tests {
     #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         let service = App::new(()).end(()).http_service();
-        let resp = service.serve(Request::default()).await?;
+        let resp = service.serve(Request::default()).await;
         assert_eq!(StatusCode::OK, resp.status);
         Ok(())
     }

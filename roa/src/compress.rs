@@ -1,4 +1,3 @@
-//! The compress module of roa.
 //! This module provides a middleware `Compress`.
 //!
 //! ### Example

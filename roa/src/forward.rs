@@ -1,6 +1,5 @@
-//! The forward module of roa.
 //! This module provides a context extension `Forward`,
-//! which is used to parse `X-Forwarded-*` request headers.
+//! which is used to parse `X-Forwarded-*` headers.
 
 use crate::http::{header::HOST, StatusCode};
 use crate::preload::*;

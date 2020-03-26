@@ -1,4 +1,3 @@
-//! An extension moddule for roa.
 //! This module provides a context extension `PowerBody`.
 //!
 //! ### Read/write body in a easier way.
@@ -24,14 +23,16 @@
 //!        .write_stream(stream)
 //!        // write object implementing futures::AsyncRead
 //!        .write_reader(File::open("assets/author.txt").await?)
+//!        // write reader with specific chunk size
+//!        .write_chunk(File::open("assets/author.txt").await?, 1024)
 //!        // write `Bytes`
 //!        .write("I am Roa.")
-//!        .write("Hey Roa.");
+//!        .write(vec![127u8, 255]);
 //!     Ok(())
 //! }
 //! ```
 //!
-//! These methods are useful, but they do not deal with headers, especially `Content-*` headers.
+//! These methods are useful, but they do not deal with headers and (de)serialization.
 //!
 //! The `PowerBody` provides more powerful methods to handle it.
 //!
@@ -81,8 +82,8 @@
 //! ```
 
 use crate::{async_trait, http, Context, Result, State, Status};
-use bytes::{Bytes, BytesMut};
-use futures::{AsyncRead, StreamExt};
+use bytes::Bytes;
+use futures::{AsyncRead, AsyncReadExt};
 use lazy_static::lazy_static;
 use std::fmt::Display;
 
@@ -105,14 +106,14 @@ use serde::Serialize;
 #[async_trait(?Send)]
 pub trait PowerBody {
     /// read request body as Bytes.
-    async fn body(&mut self) -> Result<Bytes>;
+    async fn body(&mut self) -> Result<Vec<u8>>;
 
-    /// read request body as "application/json".
+    /// read request body as "json".
     #[cfg(feature = "json")]
     #[cfg_attr(feature = "docs", doc(cfg(json)))]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B>;
 
-    /// read request body as "application/x-www-form-urlencoded".
+    /// read request body as "urlencoded form".
     #[cfg(feature = "urlencoded")]
     #[cfg_attr(feature = "docs", doc(cfg(urlencoded)))]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B>;
@@ -157,45 +158,37 @@ lazy_static! {
 #[async_trait(?Send)]
 impl<S: State> PowerBody for Context<S> {
     #[inline]
-    async fn body(&mut self) -> Result<Bytes> {
-        let mut vector = Vec::<Bytes>::new();
-        let mut size = 0usize;
-        let mut stream = self.req.stream();
-        while let Some(item) = stream.next().await {
-            let data = item?;
-            size += data.len();
-            vector.push(data);
-        }
-        let mut bytes = BytesMut::with_capacity(size);
-        for data in vector.iter() {
-            bytes.extend_from_slice(data)
-        }
-        Ok(bytes.freeze())
+    async fn body(&mut self) -> Result<Vec<u8>> {
+        let size_hint = self
+            .header(header::CONTENT_LENGTH)
+            .and_then(|result| result.ok())
+            .and_then(|value| value.parse().ok());
+        let mut data = match size_hint {
+            Some(hint) => Vec::with_capacity(hint),
+            None => Vec::new(),
+        };
+        self.req.reader().read_to_end(&mut data).await?;
+        Ok(data)
     }
 
     #[cfg(feature = "json")]
     #[inline]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B> {
         let data = self.body().await?;
-        serde_json::from_slice(&*data).map_err(handle_invalid_body)
+        serde_json::from_slice(&data).map_err(handle_invalid_body)
     }
 
     #[cfg(feature = "urlencoded")]
     #[inline]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B> {
         let data = self.body().await?;
-        serde_urlencoded::from_bytes(&*data).map_err(handle_invalid_body)
+        serde_urlencoded::from_bytes(&data).map_err(handle_invalid_body)
     }
 
     #[cfg(feature = "json")]
     #[inline]
     fn write_json<B: Serialize>(&mut self, data: &B) -> Result {
-        self.resp.write(serde_json::to_vec(data).map_err(|err| {
-            handle_internal_server_error(format!(
-                "{}\nObject cannot be serialized to json",
-                err
-            ))
-        })?);
+        self.resp.write(serde_json::to_vec(data)?);
         self.resp
             .headers
             .insert(header::CONTENT_TYPE, APPLICATION_JSON.clone());
@@ -205,9 +198,7 @@ impl<S: State> PowerBody for Context<S> {
     #[cfg(feature = "template")]
     #[inline]
     fn render<B: Template>(&mut self, data: &B) -> Result {
-        self.resp.write(data.render().map_err(|err| {
-            handle_internal_server_error(format!("{}\nFails to render template", err))
-        })?);
+        self.resp.write(data.render()?);
         self.resp
             .headers
             .insert(header::CONTENT_TYPE, TEXT_HTML.clone());
@@ -249,12 +240,6 @@ fn handle_invalid_body(err: impl Display) -> Status {
         format!("Invalid Body:\n{}", err),
         true,
     )
-}
-
-#[allow(dead_code)]
-#[inline]
-fn handle_internal_server_error(err: impl ToString) -> Status {
-    Status::new(StatusCode::INTERNAL_SERVER_ERROR, err, false)
 }
 
 #[cfg(all(test, feature = "tcp"))]

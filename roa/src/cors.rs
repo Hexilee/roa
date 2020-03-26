@@ -1,4 +1,3 @@
-//! The cors module of roa.
 //! This module provides a middleware `Cors`.
 
 use crate::http::header::{HeaderName, HeaderValue, ORIGIN, VARY};

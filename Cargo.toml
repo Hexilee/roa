@@ -42,5 +42,3 @@ log = "0.4"
 futures = "0.3"
 doc-comment = "0.3.3"
 
-[features]
-nightly = []

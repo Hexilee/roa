@@ -91,10 +91,6 @@ pub struct Status {
     pub expose: bool,
 }
 
-/// A error wrapper for status.
-#[derive(Debug)]
-pub struct StatusError(Status);
-
 impl Status {
     /// Construct an error.
     #[inline]
@@ -104,11 +100,6 @@ impl Status {
             message: message.to_string(),
             expose,
         }
-    }
-
-    #[inline]
-    pub(crate) fn need_throw(&self) -> bool {
-        self.status_code.as_u16() / 100 == 5
     }
 }
 
@@ -122,25 +113,9 @@ where
     }
 }
 
-impl From<Status> for StatusError {
-    #[inline]
-    fn from(status: Status) -> Self {
-        StatusError(status)
-    }
-}
-
 impl Display for Status {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> StdResult<(), std::fmt::Error> {
         f.write_str(&format!("{}: {}", self.status_code, self.message))
     }
 }
-
-impl Display for StatusError {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> StdResult<(), std::fmt::Error> {
-        self.0.fmt(f)
-    }
-}
-
-impl std::error::Error for StatusError {}

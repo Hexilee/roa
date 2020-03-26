@@ -1,7 +1,8 @@
 use super::help::bug_report;
 use crate::http::header::HeaderValue;
-use crate::Result;
+use crate::Status;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display, Formatter};
 
 // This encode set is used for HTTP header values and is defined at
@@ -38,12 +39,14 @@ pub enum DispositionType {
     Attachment,
 }
 
+/// A structure to generate value of "Content-Disposition"
 pub struct ContentDisposition {
     typ: DispositionType,
     encoded_filename: Option<String>,
 }
 
 impl ContentDisposition {
+    /// Construct by disposition type and optional filename.
     #[inline]
     pub(crate) fn new(typ: DispositionType, filename: Option<&str>) -> Self {
         Self {
@@ -52,16 +55,16 @@ impl ContentDisposition {
                 .map(|name| utf8_percent_encode(name, HTTP_VALUE).to_string()),
         }
     }
+}
 
+impl TryFrom<ContentDisposition> for HeaderValue {
+    type Error = Status;
     #[inline]
-    pub fn value(&self) -> Result<HeaderValue> {
-        let value_str = self.to_string();
-        value_str.parse().map_err(|err| {
-            bug_report(format!(
-                "{}\n{} is not a valid header value",
-                err, value_str
-            ))
-        })
+    fn try_from(value: ContentDisposition) -> Result<Self, Self::Error> {
+        value
+            .to_string()
+            .try_into()
+            .map_err(|err| bug_report(format!("{}\nNot a valid header value", err)))
     }
 }
 

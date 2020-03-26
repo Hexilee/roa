@@ -90,26 +90,20 @@ async fn end(ctx: &mut Context<()>) -> Result {
 ```
 
 #### status_handler
-App has an status_handler to handle `Error` thrown by the top middleware.
+App has an status_handler to handle `Status` thrown by the top middleware.
 This is the status_handler:
 
 ```rust
 use roa_core::{Context, Status, Result, State};
-pub async fn status_handler<S: State>(ctx: &mut Context<S>, status: Status) -> Result {
+pub fn status_handler<S: State>(ctx: &mut Context<S>, status: Status) {
     ctx.resp.status = status.status_code;
     if status.expose {
-        ctx.resp.write(status.message.clone());
-    }
-    if status.status_code.as_u16() / 100 == 5 {
-        // internal server error
-        Err(status)
+        ctx.resp.write(status.message);
     } else {
-        Ok(())
+        log::error!("{}", status);
     }
 }
 ```
-
-The Status thrown by this status_handler will be handled by hyper.
 
 ### HTTP Server.
 

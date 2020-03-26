@@ -157,7 +157,7 @@ mod tests {
             .gate(Pusher::new(9, vector.clone()))
             .end(())
             .http_service();
-        let resp = service.serve(Request::default()).await?;
+        let resp = service.serve(Request::default()).await;
         assert_eq!(StatusCode::OK, resp.status);
         for i in 0..10 {
             assert_eq!(i, vector.lock().await[i]);
