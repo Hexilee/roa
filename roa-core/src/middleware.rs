@@ -51,6 +51,7 @@ use std::future::Future;
 ///
 /// is_middleware(Logger);
 /// ```
+#[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
 pub trait Middleware<'a, S>: 'static + Sync + Send {
     /// Handle context and next, then return a future to get status.
@@ -118,6 +119,7 @@ where
 ///
 /// is_endpoint(Logger);
 /// ```
+#[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
 pub trait Endpoint<'a, S>: 'static + Sync + Send {
     /// Call this endpoint.

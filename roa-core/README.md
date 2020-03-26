@@ -10,11 +10,11 @@
 
 Core components of Roa framework.
 
-If you are new to roa, please go to the documentation of roa framework.
+If you are new to roa, please go to the documentation of [roa framework](https://docs.rs/roa).
 
 ### Application
 
-A Roa application is a structure containing a middleware group which composes and executes middleware functions in a stack-like manner.
+A Roa application is a structure containing a middleware group which composes and executes middlewares in a stack-like manner.
 
 The obligatory hello world application:
 

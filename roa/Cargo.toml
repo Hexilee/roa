@@ -111,7 +111,7 @@ full = [
     "pg",
     "tokio_rt"
 ]
-docs = ["full"]
+docs = ["full", "roa-core/docs"]
 runtime = ["roa-core/runtime"]
 json = ["serde", "serde_json"]
 urlencoded = ["serde", "serde_urlencoded"]
