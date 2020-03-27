@@ -8,6 +8,7 @@ use roa::http::StatusCode;
 use roa::preload::*;
 use roa::router::{get, post, Router};
 use roa::{throw, Context, Result};
+use roa_diesel::preload::*;
 
 pub fn post_router() -> Router<State> {
     Router::new()

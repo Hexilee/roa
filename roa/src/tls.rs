@@ -367,18 +367,17 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::internal::pemfile::{certs, rsa_private_keys};
+    use super::{NoClientAuth, ServerConfig};
     use crate::http::StatusCode;
     use crate::tls::TlsListener;
     use crate::{App, Context, Status};
     use async_std::task::spawn;
+    use futures::{AsyncReadExt, TryStreamExt};
     use hyper::client::{Client, HttpConnector};
     use hyper::Body;
     use hyper_tls::native_tls;
     use hyper_tls::HttpsConnector;
-
-    use futures::{AsyncReadExt, TryStreamExt};
-    use rustls::internal::pemfile::{certs, rsa_private_keys};
-    use rustls::{NoClientAuth, ServerConfig};
     use std::fs::File;
     use std::io::{self, BufReader};
     use tokio_tls::TlsConnector;

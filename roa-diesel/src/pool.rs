@@ -53,7 +53,8 @@ where
     /// ```
     /// use roa::{Context, Result};
     /// use diesel::sqlite::SqliteConnection;
-    /// use roa_diesel::{Pool, AsyncPool};
+    /// use roa_diesel::preload::AsyncPool;
+    /// use roa_diesel::Pool;
     /// use diesel::r2d2::ConnectionManager;
     ///
     /// #[derive(Clone)]

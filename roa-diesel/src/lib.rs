@@ -6,10 +6,16 @@ mod async_ext;
 mod pool;
 
 #[doc(inline)]
-pub use async_ext::SqlQuery;
-
-#[doc(inline)]
-pub use pool::{builder, make_pool, AsyncPool, Pool, WrapConnection};
+pub use pool::{builder, make_pool, Pool, WrapConnection};
 
 #[doc(inline)]
 pub use diesel::r2d2::ConnectionManager;
+
+/// preload ext traits.
+pub mod preload {
+    #[doc(inline)]
+    pub use crate::async_ext::SqlQuery;
+
+    #[doc(inline)]
+    pub use crate::pool::AsyncPool;
+}

@@ -1,4 +1,4 @@
-use super::{AsyncPool, Pool};
+use crate::pool::{AsyncPool, Pool};
 use diesel::connection::Connection;
 use diesel::helper_types::Limit;
 use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, LoadQuery};
