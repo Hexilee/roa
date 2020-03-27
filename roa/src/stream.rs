@@ -1,6 +1,6 @@
 //! this module provides a stream adaptor `AsyncStream`
 
-use futures::io::{AsyncRead as Read, AsyncWrite as Write, IoSliceMut};
+use futures::io::{AsyncRead as Read, AsyncWrite as Write};
 use std::io;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
@@ -59,24 +59,46 @@ where
     }
 }
 
-// TODO: implement <IO> Read for AsyncStream<IO>.
 impl<IO> Read for AsyncStream<IO>
 where
     IO: Unpin + AsyncRead,
 {
+    #[inline]
     fn poll_read(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        unimplemented!()
+        Pin::new(&mut self.0).poll_read(cx, buf)
+    }
+}
+
+impl<IO> Write for AsyncStream<IO>
+where
+    IO: Unpin + AsyncWrite,
+{
+    #[inline]
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.0).poll_write(cx, buf)
     }
 
-    fn poll_read_vectored(
-        self: Pin<&mut Self>,
+    #[inline]
+    fn poll_flush(
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        bufs: &mut [IoSliceMut<'_>],
-    ) -> Poll<io::Result<usize>> {
-        unimplemented!()
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_flush(cx)
+    }
+
+    #[inline]
+    fn poll_close(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_shutdown(cx)
     }
 }
