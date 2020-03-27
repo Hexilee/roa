@@ -9,7 +9,7 @@
 //! use roa::http::StatusCode;
 //! use async_std::task::spawn;
 //!
-//! async fn end(ctx: &mut Context<()>) -> roa::Result {
+//! async fn end(ctx: &mut Context) -> roa::Result {
 //!     ctx.write_text("Hello, World");
 //!     Ok(())
 //! }

@@ -7,7 +7,7 @@
 //! use roa::tcp::TcpIncoming;
 //! use std::io;
 //!
-//! async fn end(_ctx: &mut Context<()>) -> Result {
+//! async fn end(_ctx: &mut Context) -> Result {
 //!     Ok(())
 //! }
 //!
@@ -27,7 +27,7 @@
 //! use roa::tcp::Listener;
 //! use std::io;
 //!
-//! async fn end(_ctx: &mut Context<()>) -> Result {
+//! async fn end(_ctx: &mut Context) -> Result {
 //!     Ok(())
 //! }
 //!

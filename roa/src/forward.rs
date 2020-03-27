@@ -18,7 +18,7 @@ pub trait Forward {
     /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     println!("host: {}", ctx.host()?);
     ///     Ok(())
     /// }
@@ -34,7 +34,7 @@ pub trait Forward {
     /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     println!("client ip: {}", ctx.client_ip());
     ///     Ok(())
     /// }
@@ -50,7 +50,7 @@ pub trait Forward {
     /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     println!("forwarded ips: {:?}", ctx.forwarded_ips());
     ///     Ok(())
     /// }
@@ -66,7 +66,7 @@ pub trait Forward {
     /// use roa::{Context, Result};
     /// use roa::forward::Forward;
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     if let Some(result) = ctx.forwarded_proto() {
     ///         println!("forwarded proto: {}", result?);
     ///     }
@@ -133,7 +133,7 @@ mod tests {
 
     #[tokio::test]
     async fn host() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             assert_eq!("github.com", ctx.host()?);
             Ok(())
         }
@@ -159,7 +159,7 @@ mod tests {
 
     #[tokio::test]
     async fn host_err() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             ctx.req.headers.remove(HOST);
             assert_eq!("", ctx.host()?);
             Ok(())
@@ -177,7 +177,7 @@ mod tests {
 
     #[tokio::test]
     async fn client_ip() -> Result<(), Box<dyn std::error::Error>> {
-        async fn remote_addr(ctx: &mut Context<()>) -> crate::Result {
+        async fn remote_addr(ctx: &mut Context) -> crate::Result {
             assert_eq!(ctx.remote_addr.ip(), ctx.client_ip());
             Ok(())
         }
@@ -185,7 +185,7 @@ mod tests {
         spawn(server);
         reqwest::get(&format!("http://{}", addr)).await?;
 
-        async fn forward_addr(ctx: &mut Context<()>) -> crate::Result {
+        async fn forward_addr(ctx: &mut Context) -> crate::Result {
             assert_eq!("192.168.0.1", ctx.client_ip().to_string());
             Ok(())
         }
@@ -203,7 +203,7 @@ mod tests {
 
     #[tokio::test]
     async fn forwarded_proto() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             assert_eq!("https", ctx.forwarded_proto().unwrap()?);
             Ok(())
         }

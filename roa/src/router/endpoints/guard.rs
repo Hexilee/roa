@@ -37,7 +37,7 @@ fn hash_set(methods: impl AsRef<[Method]>) -> HashSet<Method> {
 /// use roa::http::Method;
 /// use roa::router::allow;
 ///
-/// async fn foo(ctx: &mut Context<()>) -> Result {
+/// async fn foo(ctx: &mut Context) -> Result {
 ///     Ok(())
 /// }
 ///
@@ -59,7 +59,7 @@ pub fn allow<E>(methods: impl AsRef<[Method]>, endpoint: E) -> Guard<E> {
 /// use roa::http::Method;
 /// use roa::router::deny;
 ///
-/// async fn foo(ctx: &mut Context<()>) -> Result {
+/// async fn foo(ctx: &mut Context) -> Result {
 ///     Ok(())
 /// }
 ///

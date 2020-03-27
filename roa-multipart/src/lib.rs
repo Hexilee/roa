@@ -17,7 +17,7 @@
 //! use roa_multipart::MultipartForm;
 //! use std::error::Error as StdError;
 //!
-//! async fn post_file(ctx: &mut Context<()>) -> roa::Result {
+//! async fn post_file(ctx: &mut Context) -> roa::Result {
 //!     let mut form = ctx.form();
 //!     while let Some(item) = form.next().await {
 //!         let field = item?;
@@ -215,7 +215,7 @@ mod tests {
     const FILE_NAME: &str = "author.txt";
     const FIELD_NAME: &str = "file";
 
-    async fn post_file(ctx: &mut Context<()>) -> roa::Result {
+    async fn post_file(ctx: &mut Context) -> roa::Result {
         let mut form = ctx.form();
         while let Some(item) = form.next().await {
             let field = item?;

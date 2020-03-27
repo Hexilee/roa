@@ -49,7 +49,7 @@ impl<'a> Dir<'a> {
     }
 }
 
-async fn path_checker(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+async fn path_checker(ctx: &mut Context, next: Next<'_>) -> Result {
     if ctx.must_param("path")?.contains("..") {
         throw!(StatusCode::BAD_REQUEST, "invalid path")
     } else {
@@ -57,7 +57,7 @@ async fn path_checker(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     }
 }
 
-async fn serve_path(ctx: &mut Context<()>) -> Result {
+async fn serve_path(ctx: &mut Context) -> Result {
     let path_value = ctx.must_param("path")?;
     let path = path_value.as_ref();
     let file_path = Path::new(".").join(path);
@@ -70,11 +70,11 @@ async fn serve_path(ctx: &mut Context<()>) -> Result {
     }
 }
 
-async fn serve_root(ctx: &mut Context<()>) -> Result {
+async fn serve_root(ctx: &mut Context) -> Result {
     serve_dir(ctx, "").await
 }
 
-async fn serve_dir(ctx: &mut Context<()>, path: &str) -> Result {
+async fn serve_dir(ctx: &mut Context, path: &str) -> Result {
     let uri_path = Path::new("/").join(path);
     let mut entries = Path::new(".").join(path).read_dir().await?;
     let title = uri_path

@@ -1,17 +1,15 @@
 pub use http::StatusCode;
 use std::fmt::{Display, Formatter};
-use std::future::Future;
-use std::pin::Pin;
 use std::result::Result as StdResult;
 
 /// Type alias for `StdResult`.
-pub type Result<R = (), E = Status> = StdResult<R, E>;
+pub type Result<R = ()> = StdResult<R, Status>;
 
 /// Throw an `Err(Status)`.
 ///
 /// - `throw!(status_code)` will be expanded to `throw!(status_code, "")`
 /// - `throw!(status_code, message)` will be expanded to `throw!(status_code, message, true)`
-/// - `throw!(status_code, message, expose)` will be expanded to `return Err(Error::new(status_code, message, expose));`
+/// - `throw!(status_code, message, expose)` will be expanded to `return Err(Status::new(status_code, message, expose));`
 ///
 /// ### Example
 /// ```rust
@@ -19,14 +17,14 @@ pub type Result<R = (), E = Status> = StdResult<R, E>;
 /// use roa_core::http::StatusCode;
 ///
 /// let app = App::new(()).gate(gate).end(end);
-/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+/// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
 ///     next.await?; // throw
 ///     unreachable!();
 ///     ctx.resp.status = StatusCode::OK;
 ///     Ok(())
 /// }
 ///
-/// async fn end(ctx: &mut Context<()>) -> Result {
+/// async fn end(ctx: &mut Context) -> Result {
 ///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"); // throw
 ///     unreachable!()
 /// }
@@ -55,12 +53,12 @@ pub struct Status {
     /// use roa_core::http::StatusCode;
     ///
     /// let app = App::new(()).gate(gate).end(end);
-    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
     ///     ctx.resp.status = StatusCode::OK;
     ///     next.await // not caught
     /// }
     ///
-    /// async fn end(ctx: &mut Context<()>) -> Result {
+    /// async fn end(ctx: &mut Context) -> Result {
     ///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"); // throw
     ///     unreachable!()
     /// }
@@ -77,7 +75,7 @@ pub struct Status {
     ///
     /// let app = App::new(()).end(end);
     ///
-    /// async fn end(ctx: &mut Context<()>) -> Result {
+    /// async fn end(ctx: &mut Context) -> Result {
     ///     Err(Status::new(StatusCode::IM_A_TEAPOT, "I'm a teapot!", false)) // message won't be exposed to user.
     /// }
     ///

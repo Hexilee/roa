@@ -27,7 +27,7 @@ use roa::{throw, App, Context};
 use roa_multipart::MultipartForm;
 use std::error::Error as StdError;
 
-async fn post_file(ctx: &mut Context<()>) -> roa::Result {
+async fn post_file(ctx: &mut Context) -> roa::Result {
     let mut form = ctx.form();
     while let Some(item) = form.next().await {
         let field = item?;

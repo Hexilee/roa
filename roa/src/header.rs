@@ -10,7 +10,7 @@
 //! use roa::http::header::{ORIGIN, CONTENT_TYPE};
 //! use roa::http::StatusCode;
 //!
-//! async fn get(ctx: &mut Context<()>) -> Result {
+//! async fn get(ctx: &mut Context) -> Result {
 //!     if let Some(value) = ctx.req.headers.get(ORIGIN) {
 //!         // handle `ToStrError`
 //!         let origin = value.to_str().map_err(|_err| Status::new(StatusCode::BAD_REQUEST, "", true))?;
@@ -36,7 +36,7 @@
 //! use roa::http::StatusCode;
 //! use roa::header::FriendlyHeaders;
 //!
-//! async fn get(ctx: &mut Context<()>) -> Result {
+//! async fn get(ctx: &mut Context) -> Result {
 //!     println!("origin: {}", ctx.req.must_get(ORIGIN)?);
 //!     ctx.resp.insert(CONTENT_TYPE, "text/plain")?;
 //!     Ok(())

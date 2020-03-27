@@ -14,7 +14,7 @@ use roa::{App, Context};
 use roa_tokio::{TcpIncoming, Exec};
 use std::error::Error;
 
-async fn end(_ctx: &mut Context<()>) -> roa::Result {
+async fn end(_ctx: &mut Context) -> roa::Result {
     Ok(())
 }
 

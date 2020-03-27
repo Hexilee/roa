@@ -24,7 +24,7 @@ use roa_core::{App, Context, Result, Status};
 let app = App::new(()).end(end);
 
 // endpoint
-async fn end(ctx: &mut Context<()>) -> Result {
+async fn end(ctx: &mut Context) -> Result {
     ctx.resp.write("Hello, World");
     Ok(())
 }
@@ -46,12 +46,12 @@ use log::info;
 
 let app = App::new(()).gate(logging).end(response);
 
-async fn response(ctx: &mut Context<()>) -> Result {
+async fn response(ctx: &mut Context) -> Result {
     ctx.resp.write("Hello, World");
     Ok(())
 }
 
-async fn logging(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+async fn logging(ctx: &mut Context, next: Next<'_>) -> Result {
     let inbound = Instant::now();
     next.await?;
     info!("time elapsed: {} ms", inbound.elapsed().as_millis());
@@ -69,7 +69,7 @@ use roa_core::http::StatusCode;
         
 let app = App::new(()).gate(catch).gate(gate).end(end);
 
-async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+async fn catch(ctx: &mut Context, next: Next<'_>) -> Result {
     // catch
     if let Err(status) = next.await {
         // teapot is ok
@@ -79,12 +79,12 @@ async fn catch(ctx: &mut Context<()>, next: Next<'_>) -> Result {
     }
     Ok(())
 }
-async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
     next.await?; // just throw
     unreachable!()
 }
 
-async fn end(ctx: &mut Context<()>) -> Result {
+async fn end(ctx: &mut Context) -> Result {
     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 }
 ```

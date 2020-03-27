@@ -15,11 +15,11 @@ You can use it as follow:
 use roa::{App, Context, Result};
 use roa::router::get;
 
-async fn foo(ctx: &mut Context<()>) -> Result {
+async fn foo(ctx: &mut Context) -> Result {
     Ok(())
 }
 
-async fn bar(ctx: &mut Context<()>) -> Result {
+async fn bar(ctx: &mut Context) -> Result {
     Ok(())
 }
 
@@ -44,7 +44,7 @@ You can use it as follow:
 use roa::{App, Context, Result};
 use roa::router::", stringify!($end), ";
 
-async fn end(ctx: &mut Context<()>) -> Result {
+async fn end(ctx: &mut Context) -> Result {
     Ok(())
 }
 

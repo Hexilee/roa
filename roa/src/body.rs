@@ -110,22 +110,22 @@ pub trait PowerBody {
 
     /// read request body as "json".
     #[cfg(feature = "json")]
-    #[cfg_attr(feature = "docs", doc(cfg(json)))]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "json")))]
     async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B>;
 
     /// read request body as "urlencoded form".
     #[cfg(feature = "urlencoded")]
-    #[cfg_attr(feature = "docs", doc(cfg(urlencoded)))]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "urlencoded")))]
     async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B>;
 
     /// write object to response body as "application/json"
     #[cfg(feature = "json")]
-    #[cfg_attr(feature = "docs", doc(cfg(json)))]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "json")))]
     fn write_json<B: Serialize>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/html; charset=utf-8"
     #[cfg(feature = "template")]
-    #[cfg_attr(feature = "docs", doc(cfg(template)))]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "template")))]
     fn render<B: Template>(&mut self, data: &B) -> Result;
 
     /// write object to response body as "text/plain"
@@ -136,7 +136,7 @@ pub trait PowerBody {
 
     /// write object to response body as extension name of file
     #[cfg(feature = "file")]
-    #[cfg_attr(feature = "docs", doc(cfg(file)))]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "file")))]
     async fn write_file<P: 'static + AsRef<Path>>(
         &mut self,
         path: P,
@@ -247,13 +247,14 @@ mod tests {
     use super::PowerBody;
     use crate::http;
     use crate::tcp::Listener;
-    use crate::{App, Context, Status};
+    use crate::{App, Context};
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
     use serde::{Deserialize, Serialize};
+    use std::error::Error;
 
     #[derive(Debug, Deserialize)]
     struct UserDto {
@@ -282,8 +283,8 @@ mod tests {
 
     #[cfg(feature = "json")]
     #[tokio::test]
-    async fn read_json() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+    async fn read_json() -> Result<(), Box<dyn Error>> {
+        async fn test(ctx: &mut Context) -> crate::Result {
             let user: UserDto = ctx.read_json().await?;
             assert_eq!(USER, user);
             Ok(())
@@ -303,8 +304,8 @@ mod tests {
 
     #[cfg(feature = "urlencoded")]
     #[tokio::test]
-    async fn read_form() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+    async fn read_form() -> Result<(), Box<dyn Error>> {
+        async fn test(ctx: &mut Context) -> crate::Result {
             let user: UserDto = ctx.read_form().await?;
             assert_eq!(USER, user);
             Ok(())
@@ -324,8 +325,8 @@ mod tests {
 
     #[cfg(feature = "template")]
     #[tokio::test]
-    async fn render() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+    async fn render() -> Result<(), Box<dyn Error>> {
+        async fn test(ctx: &mut Context) -> crate::Result {
             ctx.render(&USER)
         }
         let (addr, server) = App::new(()).end(test).run()?;
@@ -337,8 +338,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn write_text() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+    async fn write_text() -> Result<(), Box<dyn Error>> {
+        async fn test(ctx: &mut Context) -> crate::Result {
             ctx.write_text("Hello, World!");
             Ok(())
         }
@@ -352,8 +353,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn write_octet() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+    async fn write_octet() -> Result<(), Box<dyn Error>> {
+        async fn test(ctx: &mut Context) -> crate::Result {
             ctx.write_octet(File::open("../assets/author.txt").await?);
             Ok(())
         }

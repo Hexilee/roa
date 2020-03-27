@@ -24,7 +24,7 @@
 //!
 //! const SECRET: &[u8] = b"123456";
 //!
-//! async fn test(ctx: &mut Context<()>) -> roa::Result {
+//! async fn test(ctx: &mut Context) -> roa::Result {
 //!     let user: User = ctx.claims()?;
 //!     assert_eq!(0, user.id);
 //!     assert_eq!("Hexilee", &user.name);
@@ -114,7 +114,7 @@ fn guard_not_set() -> Status {
 /// use roa::jwt::JwtVerifier;
 /// use serde_json::Value;
 ///
-/// async fn get(ctx: &mut Context<()>) -> Result {
+/// async fn get(ctx: &mut Context) -> Result {
 ///     let claims: Value = ctx.claims()?;
 ///     Ok(())
 /// }
@@ -248,7 +248,7 @@ mod tests {
 
     #[tokio::test]
     async fn claims() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             let user: User = ctx.claims()?;
             assert_eq!(0, user.id);
             assert_eq!("Hexilee", &user.name);
@@ -343,7 +343,7 @@ mod tests {
 
     #[tokio::test]
     async fn jwt_verify_not_set() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             let _: User = ctx.claims()?;
             Ok(())
         }

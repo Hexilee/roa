@@ -3,7 +3,7 @@ use roa::preload::*;
 use roa::{App, Context};
 use std::error::Error as StdError;
 
-async fn echo(ctx: &mut Context<()>) -> roa::Result {
+async fn echo(ctx: &mut Context) -> roa::Result {
     let stream = ctx.req.stream();
     ctx.resp.write_stream(stream);
     Ok(())

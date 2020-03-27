@@ -10,7 +10,7 @@
 //! use roa::preload::*;
 //! use async_std::task::spawn;
 //!
-//! async fn must(ctx: &mut Context<()>) -> roa::Result {
+//! async fn must(ctx: &mut Context) -> roa::Result {
 //!     assert_eq!("Hexilee", &*ctx.must_query("name")?);
 //!     Ok(())
 //! }
@@ -48,7 +48,7 @@ struct QueryScope;
 /// use roa::preload::*;
 /// use async_std::task::spawn;
 ///
-/// async fn must(ctx: &mut Context<()>) -> roa::Result {
+/// async fn must(ctx: &mut Context) -> roa::Result {
 ///     assert_eq!("Hexilee", &*ctx.must_query("name")?);
 ///     Ok(())
 /// }
@@ -84,7 +84,7 @@ pub trait Query {
     /// use roa::preload::*;
     /// use async_std::task::spawn;
     ///
-    /// async fn must(ctx: &mut Context<()>) -> roa::Result {
+    /// async fn must(ctx: &mut Context) -> roa::Result {
     ///     assert_eq!("Hexilee", &*ctx.must_query("name")?);
     ///     Ok(())
     /// }
@@ -114,7 +114,7 @@ pub trait Query {
     /// use roa::preload::*;
     /// use async_std::task::spawn;
     ///
-    /// async fn test(ctx: &mut Context<()>) -> roa::Result {
+    /// async fn test(ctx: &mut Context) -> roa::Result {
     ///     assert!(ctx.query("name").is_none());
     ///     Ok(())
     /// }
@@ -174,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn query() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             assert_eq!("Hexilee", &*ctx.must_query("name")?);
             Ok(())
         }
@@ -195,7 +195,7 @@ mod tests {
 
     #[tokio::test]
     async fn query_parse() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             assert_eq!(120, ctx.must_query("age")?.parse::<u64>()?);
             Ok(())
         }
@@ -214,7 +214,7 @@ mod tests {
 
     #[tokio::test]
     async fn query_action() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             assert_eq!("Hexilee", &*ctx.must_query("name")?);
             assert_eq!("rust", &*ctx.must_query("lang")?);
             Ok(())

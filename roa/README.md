@@ -23,7 +23,7 @@ use roa::preload::*;
 use log::info;
 use std::error::Error as StdError;
 
-async fn end(ctx: &mut Context<()>) -> roa::Result {
+async fn end(ctx: &mut Context) -> roa::Result {
     ctx.write_text("Hello, World");
     Ok(())
 }
@@ -70,14 +70,14 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     Ok(())
 }
 
-async fn logger(ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
+async fn logger(ctx: &mut Context, next: Next<'_>) -> roa::Result {
     next.await?;
     let rt = ctx.resp.must_get("x-response-time")?;
     info!("{} {} - {}", ctx.method(), ctx.uri(), rt);
     Ok(())
 }
 
-async fn x_response_time(ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
+async fn x_response_time(ctx: &mut Context, next: Next<'_>) -> roa::Result {
     let start = Instant::now();
     next.await?;
     let ms = start.elapsed().as_millis();
@@ -85,7 +85,7 @@ async fn x_response_time(ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
     Ok(())
 }
 
-async fn response(ctx: &mut Context<()>) -> roa::Result {
+async fn response(ctx: &mut Context) -> roa::Result {
     ctx.write_text("Hello, World");
     Ok(())
 }
@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn catch(_ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
+async fn catch(_ctx: &mut Context, next: Next<'_>) -> roa::Result {
     // catch
     if let Err(status) = next.await {
         // teapot is ok
@@ -127,12 +127,12 @@ async fn catch(_ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
     Ok(())
 }
 
-async fn not_catch(ctx: &mut Context<()>, next: Next<'_>) -> roa::Result {
+async fn not_catch(ctx: &mut Context, next: Next<'_>) -> roa::Result {
     next.await?; // just throw
     unreachable!()
 }
 
-async fn error(ctx: &mut Context<()>) -> roa::Result {
+async fn error(ctx: &mut Context) -> roa::Result {
     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 }
 
@@ -178,7 +178,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn end(ctx: &mut Context<()>) -> roa::Result {
+async fn end(ctx: &mut Context) -> roa::Result {
     // get "/user/1", then id == 1.
     let id: u64 = ctx.must_param("id")?.parse()?;
     // do something
@@ -197,7 +197,7 @@ use roa::{App, Context};
 use async_std::task::spawn;
 use log::info;
 
-async fn must(ctx: &mut Context<()>) -> roa::Result {
+async fn must(ctx: &mut Context) -> roa::Result {
     // request "/?id=1", then id == 1.
     let id: u64 = ctx.must_query("id")?.parse()?;
     Ok(())

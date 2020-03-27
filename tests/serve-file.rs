@@ -9,7 +9,7 @@ use roa::{App, Context};
 
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
-    async fn test(ctx: &mut Context<()>) -> roa::Result {
+    async fn test(ctx: &mut Context) -> roa::Result {
         ctx.write_file("assets/author.txt", DispositionType::Inline)
             .await
     }
@@ -23,7 +23,7 @@ async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
-    async fn test(ctx: &mut Context<()>) -> roa::Result {
+    async fn test(ctx: &mut Context) -> roa::Result {
         let filename = ctx.must_param("filename")?;
         ctx.write_file(format!("assets/{}", &*filename), DispositionType::Inline)
             .await
@@ -39,7 +39,7 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
-    async fn test(ctx: &mut Context<()>) -> roa::Result {
+    async fn test(ctx: &mut Context) -> roa::Result {
         let path = ctx.must_param("path")?;
         ctx.write_file(format!("./{}", &*path), DispositionType::Inline)
             .await
@@ -55,7 +55,7 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
-    async fn test(ctx: &mut Context<()>) -> roa::Result {
+    async fn test(ctx: &mut Context) -> roa::Result {
         ctx.write_file("assets/welcome.html", DispositionType::Inline)
             .await
     }

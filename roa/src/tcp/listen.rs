@@ -30,7 +30,7 @@ pub trait Listener {
     /// use async_std::task::spawn;
     /// use std::time::Instant;
     ///
-    /// async fn end(_ctx: &mut Context<()>) -> Result<(), Status> {
+    /// async fn end(_ctx: &mut Context) -> Result<(), Status> {
     ///     Ok(())
     /// }
     ///

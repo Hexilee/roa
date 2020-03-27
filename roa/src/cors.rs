@@ -245,6 +245,7 @@ impl Builder {
 
 #[async_trait(?Send)]
 impl<'a, S> Middleware<'a, S> for Cors {
+    #[inline]
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         // Always set Vary header
         // https://github.com/rs/cors/issues/10
@@ -353,7 +354,7 @@ mod tests {
         AccessControlExposeHeaders, HeaderMapExt, HeaderName,
     };
 
-    async fn end(ctx: &mut Context<()>) -> crate::Result {
+    async fn end(ctx: &mut Context) -> crate::Result {
         ctx.resp.write("Hello, World");
         Ok(())
     }

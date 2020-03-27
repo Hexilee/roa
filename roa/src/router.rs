@@ -11,19 +11,19 @@
 //! use async_std::task::spawn;
 //!
 //!
-//! async fn gate(_ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Status> {
+//! async fn gate(_ctx: &mut Context, next: Next<'_>) -> Result<(), Status> {
 //!     next.await
 //! }
 //!
-//! async fn query(ctx: &mut Context<()>) -> Result<(), Status> {
+//! async fn query(ctx: &mut Context) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
-//! async fn create(ctx: &mut Context<()>) -> Result<(), Status> {
+//! async fn create(ctx: &mut Context) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
-//! async fn graphql(ctx: &mut Context<()>) -> Result<(), Status> {
+//! async fn graphql(ctx: &mut Context) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
@@ -85,7 +85,7 @@ struct RouterScope;
 /// use roa::tcp::Listener;
 /// use async_std::task::spawn;
 ///
-/// async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+/// async fn test(ctx: &mut Context) -> Result<(), Status> {
 ///     let id: u64 = ctx.must_param("id")?.parse()?;
 ///     assert_eq!(0, id);
 ///     Ok(())
@@ -118,7 +118,7 @@ pub trait RouterParam {
     /// use roa::tcp::Listener;
     /// use async_std::task::spawn;
     ///
-    /// async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+    /// async fn test(ctx: &mut Context) -> Result<(), Status> {
     ///     assert!(ctx.param("name").is_none());
     ///     Ok(())
     /// }
@@ -332,12 +332,12 @@ mod tests {
     use encoding::EncoderTrap;
     use percent_encoding::NON_ALPHANUMERIC;
 
-    async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result<(), Status> {
+    async fn gate(ctx: &mut Context, next: Next<'_>) -> Result<(), Status> {
         ctx.store("id", "0".to_string());
         next.await
     }
 
-    async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+    async fn test(ctx: &mut Context) -> Result<(), Status> {
         let id: u64 = ctx.load::<String>("id").unwrap().parse()?;
         assert_eq!(0, id);
         Ok(())

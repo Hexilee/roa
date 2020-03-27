@@ -32,12 +32,12 @@ pub use stream::AddrStream;
 /// use async_std::fs::File;
 ///
 /// let app = App::new(()).gate(gate).end(end);
-/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+/// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
 ///     info!("{} {}", ctx.method(), ctx.uri());
 ///     next.await
 /// }
 ///
-/// async fn end(ctx: &mut Context<()>) -> Result {
+/// async fn end(ctx: &mut Context) -> Result {
 ///     ctx.resp.write_reader(File::open("assets/welcome.html").await?);
 ///     Ok(())
 /// }
@@ -48,7 +48,7 @@ pub use stream::AddrStream;
 /// The only one type implemented `State` by this crate is `()`, you can implement your custom state if neccassary.
 ///
 /// ```rust
-/// use roa_core::{App, Context, Next, Result, MiddlewareExt};
+/// use roa_core::{App, Context, Next, Result};
 /// use log::info;
 /// use futures::lock::Mutex;
 /// use std::sync::Arc;

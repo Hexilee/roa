@@ -9,7 +9,7 @@
 //! use std::fs::File;
 //! use std::io::BufReader;
 //!
-//! async fn end(_ctx: &mut Context<()>) -> Result<(), Status> {
+//! async fn end(_ctx: &mut Context) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
@@ -37,7 +37,7 @@
 //! use std::fs::File;
 //! use std::io::BufReader;
 //!
-//! async fn end(_ctx: &mut Context<()>) -> Result<(), Status> {
+//! async fn end(_ctx: &mut Context) -> Result<(), Status> {
 //!     Ok(())
 //! }
 //!
@@ -304,7 +304,7 @@ pub trait TlsListener {
     /// use std::fs::File;
     /// use std::io::BufReader;
     ///
-    /// async fn end(_ctx: &mut Context<()>) -> Result<(), Status> {
+    /// async fn end(_ctx: &mut Context) -> Result<(), Status> {
     ///     Ok(())
     /// }
     ///
@@ -382,7 +382,7 @@ mod tests {
     use std::io::{self, BufReader};
     use tokio_tls::TlsConnector;
 
-    async fn end(ctx: &mut Context<()>) -> Result<(), Status> {
+    async fn end(ctx: &mut Context) -> Result<(), Status> {
         ctx.resp.write("Hello, World!");
         Ok(())
     }

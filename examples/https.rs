@@ -9,7 +9,7 @@ use std::error::Error as StdError;
 use std::fs::File;
 use std::io::BufReader;
 
-async fn serve_file(ctx: &mut Context<()>) -> roa::Result {
+async fn serve_file(ctx: &mut Context) -> roa::Result {
     ctx.write_file("assets/welcome.html", DispositionType::Inline)
         .await
 }

@@ -23,17 +23,17 @@ use storage::{Storage, Value};
 /// use async_std::fs::File;
 ///
 /// let app = App::new(()).gate(gate).end(end);
-/// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+/// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
 ///     info!("{} {}", ctx.method(), ctx.uri());
 ///     next.await
 /// }
 ///
-/// async fn end(ctx: &mut Context<()>) -> Result {
+/// async fn end(ctx: &mut Context) -> Result {
 ///     ctx.resp.write_reader(File::open("assets/welcome.html").await?);
 ///     Ok(())
 /// }
 /// ```
-pub struct Context<S> {
+pub struct Context<S = ()> {
     /// The request, to read http method, uri, version, headers and body.
     pub req: Request,
 
@@ -77,7 +77,7 @@ impl<S> Context<S> {
     ///
     /// let app = App::new(()).end(get);
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!("/", ctx.uri().to_string());
     ///     Ok(())
     /// }
@@ -96,7 +96,7 @@ impl<S> Context<S> {
     ///
     /// let app = App::new(()).end(get);
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(Method::GET, ctx.method());
     ///     Ok(())
     /// }
@@ -115,7 +115,7 @@ impl<S> Context<S> {
     ///
     /// let app = App::new(()).end(get);
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(
     ///         "text/plain",
     ///         ctx.header(&CONTENT_TYPE).unwrap().unwrap()
@@ -137,7 +137,7 @@ impl<S> Context<S> {
     ///
     /// let app = App::new(()).end(get);
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(StatusCode::OK, ctx.status());
     ///     Ok(())
     /// }
@@ -156,7 +156,7 @@ impl<S> Context<S> {
     ///
     /// let app = App::new(()).end(get);
     ///
-    /// async fn get(ctx: &mut Context<()>) -> Result {
+    /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(Version::HTTP_11, ctx.version());
     ///     Ok(())
     /// }
@@ -175,12 +175,12 @@ impl<S> Context<S> {
     /// struct Scope;
     /// struct AnotherScope;
     ///
-    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
     ///     ctx.store_scoped(Scope, "id", "1".to_string());
     ///     next.await
     /// }
     ///
-    /// async fn end(ctx: &mut Context<()>) -> Result {
+    /// async fn end(ctx: &mut Context) -> Result {
     ///     assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
     ///     assert!(ctx.load_scoped::<AnotherScope, String>("id").is_none());
     ///     Ok(())
@@ -209,12 +209,12 @@ impl<S> Context<S> {
     /// ```rust
     /// use roa_core::{App, Context, Result, Next};
     ///
-    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
     ///     ctx.store("id", "1".to_string());
     ///     next.await
     /// }
     ///
-    /// async fn end(ctx: &mut Context<()>) -> Result {
+    /// async fn end(ctx: &mut Context) -> Result {
     ///     assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
     /// }
@@ -239,12 +239,12 @@ impl<S> Context<S> {
     ///
     /// struct Scope;
     ///
-    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
     ///     ctx.store_scoped(Scope, "id", "1".to_owned());
     ///     next.await
     /// }
     ///
-    /// async fn end(ctx: &mut Context<()>) -> Result {
+    /// async fn end(ctx: &mut Context) -> Result {
     ///     assert_eq!(1, ctx.load_scoped::<Scope, String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
     /// }
@@ -266,12 +266,12 @@ impl<S> Context<S> {
     /// ```rust
     /// use roa_core::{App, Context, Result, Next};
     ///
-    /// async fn gate(ctx: &mut Context<()>, next: Next<'_>) -> Result {
+    /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
     ///     ctx.store("id", "1".to_string());
     ///     next.await
     /// }
     ///
-    /// async fn end(ctx: &mut Context<()>) -> Result {
+    /// async fn end(ctx: &mut Context) -> Result {
     ///     assert_eq!(1, ctx.load::<String>("id").unwrap().parse::<i32>()?);
     ///     Ok(())
     /// }
@@ -326,7 +326,7 @@ mod tests_with_runtime {
 
     #[async_std::test]
     async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> Result<(), Status> {
+        async fn test(ctx: &mut Context) -> Result<(), Status> {
             assert_eq!(Version::HTTP_11, ctx.version());
             assert_eq!(StatusCode::OK, ctx.status());
             Ok(())

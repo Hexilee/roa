@@ -5,14 +5,15 @@
 //! ```rust
 //! use roa::compress::{Compress, Level};
 //! use roa::body::DispositionType::*;
-//! use roa::{App, Context, Result};
+//! use roa::{App, Context};
 //! use roa::preload::*;
+//! use std::error::Error;
 //!
-//! async fn end(ctx: &mut Context<()>) -> Result {
+//! async fn end(ctx: &mut Context) -> roa::Result {
 //!     ctx.write_file("../assets/welcome.html", Inline).await
 //! }
 //!
-//! # fn main() -> std::io::Result<()> {
+//! # fn main() -> Result<(), Box<dyn Error>> {
 //! let mut app = App::new(()).gate(Compress(Level::Fastest)).end(end);
 //! let (addr, server) = app.run()?;
 //! // server.await
@@ -141,7 +142,7 @@ mod tests {
         }
     }
 
-    async fn end(ctx: &mut Context<()>) -> crate::Result {
+    async fn end(ctx: &mut Context) -> crate::Result {
         ctx.write_file("../assets/welcome.html", Inline).await
     }
 

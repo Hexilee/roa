@@ -6,13 +6,14 @@
 //! use roa::cookie::cookie_parser;
 //! use roa::preload::*;
 //! use roa::{App, Context};
+//! use std::error::Error;
 //!
-//! async fn end(ctx: &mut Context<()>) -> roa::Result {
+//! async fn end(ctx: &mut Context) -> roa::Result {
 //!     assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
 //!     Ok(())
 //! }
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn main() -> Result<(), Box<dyn Error>> {
 //! let app = App::new(()).gate(cookie_parser).end(end);
 //! let (addr, server) = app.run()?;
 //! // server.await
@@ -41,13 +42,14 @@ struct CookieScope;
 /// use roa::cookie::cookie_parser;
 /// use roa::preload::*;
 /// use roa::{App, Context};
+/// use std::error::Error;
 ///
-/// async fn end(ctx: &mut Context<()>) -> roa::Result {
+/// async fn end(ctx: &mut Context) -> roa::Result {
 ///     assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
 ///     Ok(())
 /// }
 ///
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn main() -> Result<(), Box<dyn Error>> {
 /// let app = App::new(()).gate(cookie_parser).end(end);
 /// let (addr, server) = app.run()?;
 /// // server.await
@@ -66,13 +68,14 @@ pub trait CookieGetter {
     /// use roa::cookie::cookie_parser;
     /// use roa::preload::*;
     /// use roa::{App, Context};
+    /// use std::error::Error;
     ///
-    /// async fn end(ctx: &mut Context<()>) -> roa::Result {
+    /// async fn end(ctx: &mut Context) -> roa::Result {
     ///     assert!(ctx.cookie("name").is_none());
     ///     Ok(())
     /// }
     ///
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let app = App::new(()).gate(cookie_parser).end(end);
     /// let (addr, server) = app.run()?;
     /// // server.await
@@ -91,13 +94,14 @@ pub trait CookieSetter {
     /// use roa::cookie::{cookie_parser, Cookie};
     /// use roa::preload::*;
     /// use roa::{App, Context};
+    /// use std::error::Error;
     ///
-    /// async fn end(ctx: &mut Context<()>) -> roa::Result {
+    /// async fn end(ctx: &mut Context) -> roa::Result {
     ///     ctx.set_cookie(Cookie::new("name", "Hexilee"));
     ///     Ok(())
     /// }
     ///
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let app = App::new(()).gate(cookie_parser).end(end);
     /// let (addr, server) = app.run()?;
     /// // server.await
@@ -171,12 +175,12 @@ mod tests {
     use crate::{App, Context};
     use async_std::task::spawn;
 
-    async fn must(ctx: &mut Context<()>) -> crate::Result {
+    async fn must(ctx: &mut Context) -> crate::Result {
         assert_eq!("Hexi Lee", ctx.must_cookie("nick name")?.value());
         Ok(())
     }
 
-    async fn none(ctx: &mut Context<()>) -> crate::Result {
+    async fn none(ctx: &mut Context) -> crate::Result {
         assert!(ctx.cookie("nick name").is_none());
         Ok(())
     }
@@ -242,7 +246,7 @@ mod tests {
 
     #[tokio::test]
     async fn cookie_action() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             assert_eq!("bar baz", ctx.must_cookie("bar baz")?.value());
             assert_eq!("bar foo", ctx.must_cookie("foo baz")?.value());
             Ok(())
@@ -262,7 +266,7 @@ mod tests {
 
     #[tokio::test]
     async fn set_cookie() -> Result<(), Box<dyn std::error::Error>> {
-        async fn test(ctx: &mut Context<()>) -> crate::Result {
+        async fn test(ctx: &mut Context) -> crate::Result {
             ctx.set_cookie(Cookie::new("bar baz", "bar baz"))?;
             ctx.set_cookie(Cookie::new("bar foo", "foo baz"))?;
             Ok(())

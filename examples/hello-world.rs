@@ -3,7 +3,7 @@ use roa::preload::*;
 use roa::{App, Context};
 use std::error::Error as StdError;
 
-async fn hello(ctx: &mut Context<()>) -> roa::Result {
+async fn hello(ctx: &mut Context) -> roa::Result {
     ctx.write_text("Hello, World");
     Ok(())
 }

@@ -37,7 +37,7 @@ fn init() -> Result<(), SetLoggerError> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init()?;
-    async fn bytes_info(ctx: &mut Context<()>) -> roa::Result {
+    async fn bytes_info(ctx: &mut Context) -> roa::Result {
         ctx.resp.write("Hello, World.");
         Ok(())
     }
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(records[1].1.ends_with("200 OK"));
 
     // error
-    async fn err(_ctx: &mut Context<()>) -> roa::Result {
+    async fn err(_ctx: &mut Context) -> roa::Result {
         throw!(StatusCode::BAD_REQUEST, "Hello, World!")
     }
     let (addr, server) = App::new(()).gate(logger).end(err).run()?;
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(records[3].1.ends_with("Hello, World!"));
 
     // stream info
-    async fn stream_info(ctx: &mut Context<()>) -> roa::Result {
+    async fn stream_info(ctx: &mut Context) -> roa::Result {
         ctx.resp
             .write_reader(File::open("../assets/welcome.html").await?);
         Ok(())

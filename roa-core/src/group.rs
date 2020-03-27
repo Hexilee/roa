@@ -131,7 +131,7 @@ mod tests {
     impl<'a> Middleware<'a, ()> for Pusher {
         async fn handle(
             &'a self,
-            _ctx: &'a mut Context<()>,
+            _ctx: &'a mut Context,
             next: Next<'a>,
         ) -> Result<(), Status> {
             self.vector.lock().await.push(self.data);
