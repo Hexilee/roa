@@ -143,22 +143,16 @@ App has an status_handler to handle status thrown by the top middleware.
 This is the status_handler:
 
 ```rust,no_run
-use roa::{Context, Status, Result, State};
-pub async fn status_handler<S: State>(ctx: &mut Context<S>, status: Status) -> Result {
+use roa::{Context, Status};
+pub fn status_handler<S>(ctx: &mut Context<S>, status: Status) {
     ctx.resp.status = status.status_code;
     if status.expose {
-        ctx.resp.write(status.message.clone());
-    }
-    if status.status_code.as_u16() / 100 == 5 {
-        // internal server error, throw to hyper
-        Err(status)
+        ctx.resp.write(status.message);
     } else {
-        Ok(())
+        log::error!("{}", status);
     }
 }
 ```
-
-The status thrown by this status_handler will be handled by hyper.
 
 ### Router.
 Roa provides a configurable and nestable router.

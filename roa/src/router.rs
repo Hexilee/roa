@@ -1,5 +1,5 @@
-//! The router module of roa.
-//! This crate provides many endpoint wrappers like `Router`, `Dispatcher` and a context extension `RouterParam`.
+//! This module provides a context extension `RouterParam` and
+//! many endpoint wrappers like `Router`, `Dispatcher` and `Guard`.
 //!
 //! ### Example
 //!
@@ -69,7 +69,7 @@ use radix_trie::Trie;
 use std::convert::AsRef;
 use std::result::Result as StdResult;
 
-/// A scope to store and load variables in Context::storage.
+/// A private scope to store and load variables in Context::storage.
 struct RouterScope;
 
 /// A context extension.
