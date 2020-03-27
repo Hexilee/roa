@@ -41,7 +41,7 @@ use std::mem;
 use std::pin::Pin;
 use std::time::Instant;
 
-/// A finite-state machine to log success information in each streaming response.
+/// A finite-state machine to log success information in each successful response.
 enum StreamLogger<S> {
     /// Polling state, as a body stream.
     Polling { stream: S, task: LogTask },

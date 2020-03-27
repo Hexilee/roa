@@ -18,7 +18,28 @@ pub struct Storage(
     HashMap<TypeId, HashMap<Cow<'static, str>, Arc<dyn Any + Send + Sync>>>,
 );
 
-/// A variable.
+/// A wrapper of Arc.
+///
+/// ### Deref
+///
+/// ```rust
+/// use roa_core::Variable;
+///
+/// fn consume<V>(var: Variable<V>) {
+///     let value: &V = &var;
+/// }
+/// ```
+///
+/// ### Parse
+///
+/// ```rust
+/// use roa_core::{Variable, Result};
+///
+/// fn consume<V: AsRef<str>>(var: Variable<V>) -> Result {
+///     let value: i32 = var.parse()?;
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct Variable<'a, V> {
     key: &'a str,

@@ -1,4 +1,3 @@
-//! The query module of roa.
 //! This module provides a middleware `query_parser` and a context extension `Query`.
 //!
 //! ### Example
