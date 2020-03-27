@@ -109,14 +109,9 @@ where
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         match &mut *self {
-            Streaming(stream) => {
-                println!("read poll stream");
-                Pin::new(stream).poll_read(cx, buf)
-            }
+            Streaming(stream) => Pin::new(stream).poll_read(cx, buf),
             Handshaking(handshake) => {
-                println!("try read handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
-                println!("complete handshake");
                 self.poll_read(cx, buf)
             }
         }
@@ -128,14 +123,9 @@ where
         bufs: &mut [IoSliceMut<'_>],
     ) -> Poll<io::Result<usize>> {
         match &mut *self {
-            Streaming(stream) => {
-                println!("read poll stream");
-                Pin::new(stream).poll_read_vectored(cx, bufs)
-            }
+            Streaming(stream) => Pin::new(stream).poll_read_vectored(cx, bufs),
             Handshaking(handshake) => {
-                println!("try read handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
-                println!("complete handshake");
                 self.poll_read_vectored(cx, bufs)
             }
         }
@@ -152,12 +142,8 @@ where
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         match &mut *self {
-            Streaming(stream) => {
-                println!("write poll stream");
-                Pin::new(stream).poll_write(cx, buf)
-            }
+            Streaming(stream) => Pin::new(stream).poll_write(cx, buf),
             Handshaking(handshake) => {
-                println!("write handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
                 self.poll_write(cx, buf)
             }
@@ -170,12 +156,8 @@ where
         bufs: &[IoSlice<'_>],
     ) -> Poll<io::Result<usize>> {
         match &mut *self {
-            Streaming(stream) => {
-                println!("write poll stream");
-                Pin::new(stream).poll_write_vectored(cx, bufs)
-            }
+            Streaming(stream) => Pin::new(stream).poll_write_vectored(cx, bufs),
             Handshaking(handshake) => {
-                println!("write handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
                 self.poll_write_vectored(cx, bufs)
             }
@@ -187,14 +169,9 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<()>> {
         match &mut *self {
-            Streaming(stream) => {
-                println!("flush poll stream");
-                Pin::new(stream).poll_flush(cx)
-            }
+            Streaming(stream) => Pin::new(stream).poll_flush(cx),
             Handshaking(handshake) => {
-                println!("try flush handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
-                println!("complete handshake");
                 self.poll_flush(cx)
             }
         }
@@ -205,12 +182,8 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<()>> {
         match &mut *self {
-            Streaming(stream) => {
-                println!("shutdown poll stream");
-                Pin::new(stream).poll_close(cx)
-            }
+            Streaming(stream) => Pin::new(stream).poll_close(cx),
             Handshaking(handshake) => {
-                println!("shutdown handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
                 self.poll_close(cx)
             }

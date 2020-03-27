@@ -8,7 +8,8 @@ use std::future::Future;
 ///
 /// #### Functional Middlewares
 ///
-/// A normal functional middleware is an object implements `Fn` trait:
+/// A normal functional middleware is an async function with signature:
+/// `async fn(&mut Context, Next<'_>) -> Result`.
 ///
 /// ```rust
 /// use roa_core::{Context, Next, Result, Middleware};
@@ -78,10 +79,11 @@ where
 ///
 /// #### Functional Endpoints
 ///
-/// A normal functional endpoint is an object implements `Fn` trait:
+/// A normal functional endpoint is an async function with signature:
+/// `async fn(&mut Context) -> Result`.
 ///
 /// ```rust
-/// use roa_core::{Context, Next, Result, Endpoint};
+/// use roa_core::{Context, Result, Endpoint};
 /// use std::future::Future;
 ///
 /// fn is_endpoint<S>(endpoint: impl for<'a> Endpoint<'a, S>) {
@@ -159,9 +161,8 @@ impl<'a, S> Endpoint<'a, S> for () {
     }
 }
 
-/// Type of the second parameter in a middleware.
-///
-/// `Next` is usually a closure capturing the next middleware, context and the next `Next`.
+/// Type of the second parameter in a middleware,
+/// an alias for `&mut (dyn Unpin + Future<Output = Result>)`
 ///
 /// Developer of middleware can jump to next middleware by calling `next.await`.
 ///
@@ -235,4 +236,4 @@ impl<'a, S> Endpoint<'a, S> for () {
 /// }
 /// ```
 ///
-pub type Next<'a> = &'a mut (dyn Unpin + Future<Output = Result<()>>);
+pub type Next<'a> = &'a mut (dyn Unpin + Future<Output = Result>);

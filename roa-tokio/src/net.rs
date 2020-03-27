@@ -1,5 +1,6 @@
 use futures::FutureExt as _;
 use log::{debug, error, trace};
+use roa::stream::AsyncStream;
 use roa::{Accept, AddrStream};
 use std::fmt;
 use std::future::Future;
@@ -149,7 +150,7 @@ impl TcpIncoming {
 }
 
 impl Accept for TcpIncoming {
-    type Conn = AddrStream<TcpStream>;
+    type Conn = AddrStream<AsyncStream<TcpStream>>;
     type Error = io::Error;
 
     #[inline]
@@ -158,7 +159,8 @@ impl Accept for TcpIncoming {
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let (stream, addr) = futures::ready!(self.poll_stream(cx))?;
-        Poll::Ready(Some(Ok(AddrStream::new(addr, stream))))
+        let addr_stream = AddrStream::new(addr, AsyncStream(stream));
+        Poll::Ready(Some(Ok(addr_stream)))
     }
 }
 

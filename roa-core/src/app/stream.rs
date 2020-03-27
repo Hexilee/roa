@@ -1,10 +1,10 @@
-use futures::io::{AsyncRead as Read, AsyncWrite as Write};
+use futures::io::{AsyncRead, AsyncWrite};
 use std::io;
 use std::mem::MaybeUninit;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::task::{self, Poll};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead as TokioRead, AsyncWrite as TokioWrite};
 
 /// A transport returned yieled by `AddrIncoming`.
 pub struct AddrStream<IO> {
@@ -26,9 +26,9 @@ impl<IO> AddrStream<IO> {
     }
 }
 
-impl<IO> AsyncRead for AddrStream<IO>
+impl<IO> TokioRead for AddrStream<IO>
 where
-    IO: Unpin + Read,
+    IO: Unpin + AsyncRead,
 {
     #[inline]
     unsafe fn prepare_uninitialized_buffer(&self, _buf: &mut [MaybeUninit<u8>]) -> bool {
@@ -45,9 +45,9 @@ where
     }
 }
 
-impl<IO> AsyncWrite for AddrStream<IO>
+impl<IO> TokioWrite for AddrStream<IO>
 where
-    IO: Unpin + Write,
+    IO: Unpin + AsyncWrite,
 {
     #[inline]
     fn poll_write(
