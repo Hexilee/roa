@@ -23,7 +23,7 @@ pub use executor::{Executor, JoinHandle, Spawn};
 pub use context::{Context, Variable};
 
 #[doc(inline)]
-pub use err::{Result, ResultFuture, Status};
+pub use err::{Result, Status};
 
 #[doc(inline)]
 pub use middleware::{Endpoint, Middleware, Next};
