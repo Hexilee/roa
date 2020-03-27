@@ -1,4 +1,4 @@
-use async_std::io::{Read, Write};
+use crate::stream::AsyncStream;
 use async_std::net::{SocketAddr, TcpListener, TcpStream};
 use futures::FutureExt as _;
 use futures_timer::Delay;
@@ -7,12 +7,10 @@ use roa_core::{Accept, AddrStream};
 use std::fmt;
 use std::future::Future;
 use std::io;
-use std::mem::MaybeUninit;
 use std::net::{TcpListener as StdListener, ToSocketAddrs};
 use std::pin::Pin;
-use std::task::{self, Context, Poll};
+use std::task::{self, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncWrite};
 
 /// A stream of connections from binding to an address.
 /// As an implementation of roa_core::Accept.
@@ -24,11 +22,6 @@ pub struct TcpIncoming {
     tcp_nodelay: bool,
     timeout: Option<Delay>,
 }
-
-/// A wrapper for async_std::io::{Read, Write}.
-///
-/// An implementation of tokio::io::{AsyncRead, AsyncWrite}.
-pub struct AsyncStream<IO>(pub IO);
 
 impl TcpIncoming {
     /// Creates a new `TcpIncoming` binding to provided socket address.
@@ -175,54 +168,5 @@ impl fmt::Debug for TcpIncoming {
             .field("sleep_on_errors", &self.sleep_on_errors)
             .field("tcp_nodelay", &self.tcp_nodelay)
             .finish()
-    }
-}
-
-impl<IO> AsyncRead for AsyncStream<IO>
-where
-    IO: Unpin + Read,
-{
-    #[inline]
-    unsafe fn prepare_uninitialized_buffer(&self, _buf: &mut [MaybeUninit<u8>]) -> bool {
-        false
-    }
-
-    #[inline]
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.0).poll_read(cx, buf)
-    }
-}
-
-impl<IO> AsyncWrite for AsyncStream<IO>
-where
-    IO: Unpin + Write,
-{
-    #[inline]
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.0).poll_write(cx, buf)
-    }
-
-    #[inline]
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.0).poll_flush(cx)
-    }
-
-    #[inline]
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.0).poll_close(cx)
     }
 }

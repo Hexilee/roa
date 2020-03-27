@@ -56,7 +56,7 @@ pub use tokio_rustls::rustls::ClientConfig;
 
 use async_std::net::TcpStream;
 use bytes::{Buf, BufMut};
-use roa::tcp::AsyncStream;
+use roa::stream::AsyncStream;
 use std::future::Future;
 use std::io;
 use std::mem::MaybeUninit;

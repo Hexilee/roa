@@ -43,7 +43,7 @@ mod incoming;
 mod listen;
 
 #[doc(inline)]
-pub use incoming::{AsyncStream, TcpIncoming};
+pub use incoming::TcpIncoming;
 
 #[doc(inline)]
 pub use listen::Listener;

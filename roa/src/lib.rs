@@ -9,6 +9,7 @@ pub use roa_core::*;
 pub mod router;
 
 #[cfg(feature = "tcp")]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "tcp")))]
 pub mod tcp;
 
 #[cfg(feature = "tls")]
@@ -37,6 +38,7 @@ pub mod forward;
 pub mod header;
 pub mod logger;
 pub mod query;
+pub mod stream;
 
 /// Reexport all extensional traits.
 pub mod preload {

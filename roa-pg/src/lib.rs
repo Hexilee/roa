@@ -9,7 +9,7 @@ pub use tls::{connect_tls, ClientConfig, TlsStream};
 pub use tokio_postgres::*;
 
 use async_std::net::TcpStream;
-use roa::tcp::AsyncStream;
+use roa::stream::AsyncStream;
 use std::io;
 
 /// Connect to postgres server.

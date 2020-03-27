@@ -121,9 +121,14 @@ where
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_read(cx, buf),
+            Streaming(stream) => {
+                println!("read poll stream");
+                Pin::new(stream).poll_read(cx, buf)
+            }
             Handshaking(handshake) => {
+                println!("try read handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                println!("complete handshake");
                 self.poll_read(cx, buf)
             }
         }
@@ -138,9 +143,14 @@ where
         Self: Sized,
     {
         match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_read_buf(cx, buf),
+            Streaming(stream) => {
+                println!("read buf poll stream");
+                Pin::new(stream).poll_read_buf(cx, buf)
+            }
             Handshaking(handshake) => {
+                println!("try read buf handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                println!("complete handshake");
                 self.poll_read_buf(cx, buf)
             }
         }
@@ -157,8 +167,12 @@ where
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_write(cx, buf),
+            Streaming(stream) => {
+                println!("write poll stream");
+                Pin::new(stream).poll_write(cx, buf)
+            }
             Handshaking(handshake) => {
+                println!("write handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
                 self.poll_write(cx, buf)
             }
@@ -170,9 +184,14 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<()>> {
         match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_flush(cx),
+            Streaming(stream) => {
+                println!("flush poll stream");
+                Pin::new(stream).poll_flush(cx)
+            }
             Handshaking(handshake) => {
+                println!("try flush handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                println!("complete handshake");
                 self.poll_flush(cx)
             }
         }
@@ -183,8 +202,12 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<()>> {
         match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_shutdown(cx),
+            Streaming(stream) => {
+                println!("shutdown poll stream");
+                Pin::new(stream).poll_shutdown(cx)
+            }
             Handshaking(handshake) => {
+                println!("shutdown handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
                 self.poll_shutdown(cx)
             }
@@ -200,8 +223,12 @@ where
         Self: Sized,
     {
         match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_write_buf(cx, buf),
+            Streaming(stream) => {
+                println!("write buf poll stream");
+                Pin::new(stream).poll_write_buf(cx, buf)
+            }
             Handshaking(handshake) => {
+                println!("write buf handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
                 self.poll_write_buf(cx, buf)
             }
@@ -330,6 +357,7 @@ pub trait TlsListener {
 }
 
 #[cfg(feature = "tcp")]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "tcp")))]
 impl<S, E> TlsListener for App<S, Arc<E>>
 where
     S: State,
