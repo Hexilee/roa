@@ -1,0 +1,29 @@
+[package]
+name = "roa-diesel"
+version = "0.5.0-rc.2"
+authors = ["Hexilee <i@hexilee.me>"]
+edition = "2018"
+license = "MIT"
+readme = "./README.md"
+repository = "https://github.com/Hexilee/roa"
+documentation = "https://docs.rs/roa-diesel"
+homepage = "https://github.com/Hexilee/roa/wiki"
+description = "diesel integration of roa framework"
+keywords = ["http", "web", "framework", "orm"]
+categories = ["database"]
+
+[package.metadata.docs.rs]
+features = ["docs"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+roa = { path = "../roa", version = "0.5.0-rc", default-features = false }
+diesel = { version = "1.4", features = ["extras"] }
+r2d2 = "0.8"
+
+[dev-dependencies]
+diesel = { version = "1.4", features = ["extras", "sqlite"] }
+
+[features]
+docs = []

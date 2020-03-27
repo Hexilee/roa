@@ -11,6 +11,10 @@ publish = false
 members = [
     "roa",
     "roa-core",
+    "roa-diesel",
+    "roa-pg",
+    "roa-sqlx",
+    "roa-tokio",
     "roa-multipart",
     "roa-juniper",
     "integration/diesel-example",

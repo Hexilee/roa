@@ -3,7 +3,7 @@ use crate::{App, Spawn};
 
 impl<S> App<S, ()> {
     /// Construct app with default runtime.
-    #[cfg_attr(feature = "docs", doc(cfg(runtime)))]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "runtime")))]
     #[inline]
     pub fn new(state: S) -> Self {
         Self::with_exec(state, Exec)

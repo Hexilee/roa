@@ -1,7 +1,7 @@
-use crate::{async_trait, Context, State, Status};
 use diesel::r2d2::{ConnectionManager, PoolError};
 use diesel::Connection;
 use r2d2::{Builder, PooledConnection};
+use roa::{async_trait, Context, State, Status};
 use std::time::Duration;
 
 /// An alias for r2d2::Pool<diesel::r2d2::ConnectionManager<Conn>>.
@@ -15,7 +15,7 @@ pub type WrapConnection<Conn> = PooledConnection<ConnectionManager<Conn>>;
 /// ### Example
 ///
 /// ```
-/// use roa::diesel::{make_pool, Pool};
+/// use roa_diesel::{make_pool, Pool};
 /// use diesel::sqlite::SqliteConnection;
 /// use std::error::Error;
 ///
@@ -53,7 +53,7 @@ where
     /// ```
     /// use roa::{Context, Result};
     /// use diesel::sqlite::SqliteConnection;
-    /// use roa::diesel::{Pool, AsyncPool};
+    /// use roa_diesel::{Pool, AsyncPool};
     /// use diesel::r2d2::ConnectionManager;
     ///
     /// #[derive(Clone)]

@@ -252,10 +252,6 @@ pub mod tls;
 #[cfg_attr(feature = "docs", doc(cfg(websocket)))]
 pub mod websocket;
 
-#[cfg(feature = "orm")]
-#[cfg_attr(feature = "docs", doc(cfg(orm)))]
-pub mod diesel;
-
 #[cfg(feature = "pg")]
 #[cfg_attr(feature = "docs", doc(cfg(pg)))]
 pub mod pg;
