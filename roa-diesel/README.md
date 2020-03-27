@@ -6,7 +6,7 @@
 [![Version](https://img.shields.io/badge/rustc-1.40+-lightgray.svg)](https://blog.rust-lang.org/2019/12/19/Rust-1.40.0.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Hexilee/roa/blob/master/LICENSE)
 
-This crate provides two context extensions.
+This crate provides diesel integration with roa framework.
 
 ### AsyncPool
 A context extension to access r2d2 pool asynchronously.

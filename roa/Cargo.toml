@@ -63,12 +63,7 @@ tokio-tungstenite = { version = "0.10.1", optional = true }
 futures-timer = { version = "3.0", optional = true }
 
 # tls
-rustls = { version = "0.17.0", optional = true }
 tokio-rustls = { version = "0.13.0", features = ["unstable"], optional = true }
-webpki = { version = "0.21.2", optional = true }
-
-# pg
-tokio-postgres = { version = "0.5.2", default-features = false, optional = true }
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["full"] }
@@ -101,9 +96,9 @@ full = [
     "cookies",
     "compress",
     "websocket",
-    "pg",
     "tokio_rt"
 ]
+
 docs = ["full", "roa-core/docs"]
 runtime = ["roa-core/runtime"]
 json = ["serde", "serde_json"]
@@ -111,13 +106,12 @@ urlencoded = ["serde", "serde_urlencoded"]
 file = ["mime_guess", "async-std"]
 template = ["askama"]
 tcp = ["async-std", "futures-timer"]
-tls = ["rustls", "tokio-rustls", "webpki"]
+tls = ["tokio-rustls"]
 cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde", "serde_json"]
 router = ["radix_trie", "regex", "doc-comment"]
 websocket = ["tokio-tungstenite"]
 compress = ["async-compression", "accept-encoding"]
-pg = ["tokio-postgres", "tcp"]
 
 async_rt = ["runtime", "tcp"]
 tokio_rt = ["tokio/full"]

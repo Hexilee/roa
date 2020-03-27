@@ -54,6 +54,7 @@
 //! # }
 //! ```
 
+#[cfg(feature = "tcp")]
 use crate::tcp::TcpIncoming;
 use crate::{Accept, AddrStream, App, Endpoint, Executor, Server, State};
 use bytes::{Buf, BufMut};
@@ -68,9 +69,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-pub use rustls::*;
+pub use tokio_rustls::rustls::*;
 
-/// A stream of connections from a TcpIncoming.
+/// A stream of connections based on another stream.
 /// As an implementation of roa_core::Accept.
 pub struct TlsIncoming<I> {
     incoming: I,
@@ -220,6 +221,7 @@ impl<I> TlsIncoming<I> {
 
 impl TlsIncoming<TcpIncoming> {
     /// Bind a socket addr.
+    #[cfg(feature = "tcp")]
     pub fn bind(addr: impl ToSocketAddrs, config: ServerConfig) -> io::Result<Self> {
         Ok(Self::new(TcpIncoming::bind(addr)?, config))
     }
@@ -327,6 +329,7 @@ pub trait TlsListener {
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
+#[cfg(feature = "tcp")]
 impl<S, E> TlsListener for App<S, Arc<E>>
 where
     S: State,

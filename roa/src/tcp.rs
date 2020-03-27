@@ -48,4 +48,5 @@ pub use incoming::TcpIncoming;
 #[doc(inline)]
 pub use listen::Listener;
 
-pub(crate) use incoming::WrapStream;
+#[doc(inline)]
+pub use incoming::WrapStream;

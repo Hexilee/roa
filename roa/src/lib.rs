@@ -238,38 +238,34 @@
 pub use roa_core::*;
 
 #[cfg(feature = "router")]
-#[cfg_attr(feature = "docs", doc(cfg(router)))]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "router")))]
 pub mod router;
 
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
 #[cfg(feature = "tls")]
-#[cfg_attr(feature = "docs", doc(cfg(tls)))]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "tls")))]
 pub mod tls;
 
 #[cfg(feature = "websocket")]
-#[cfg_attr(feature = "docs", doc(cfg(websocket)))]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "websocket")))]
 pub mod websocket;
-
-#[cfg(feature = "pg")]
-#[cfg_attr(feature = "docs", doc(cfg(pg)))]
-pub mod pg;
 
 #[cfg(feature = "tokio_rt")]
 #[cfg_attr(feature = "docs", doc(cfg(tokio_rt)))]
 pub mod tokio;
 
 #[cfg(feature = "cookies")]
-#[cfg_attr(feature = "docs", doc(cfg(cookies)))]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "cookies")))]
 pub mod cookie;
 
 #[cfg(feature = "jwt")]
-#[cfg_attr(feature = "docs", doc(cfg(jwt)))]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "jwt")))]
 pub mod jwt;
 
 #[cfg(feature = "compress")]
-#[cfg_attr(feature = "docs", doc(cfg(compress)))]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "compress")))]
 pub mod compress;
 
 pub mod body;
@@ -301,8 +297,4 @@ pub mod preload {
 
     #[cfg(feature = "router")]
     pub use crate::router::RouterParam;
-
-    #[cfg(feature = "orm")]
-    #[doc(no_inline)]
-    pub use crate::diesel::{AsyncPool, SqlQuery};
 }
