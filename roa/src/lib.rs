@@ -252,10 +252,6 @@ pub mod tls;
 #[cfg_attr(feature = "docs", doc(cfg(feature = "websocket")))]
 pub mod websocket;
 
-#[cfg(feature = "tokio_rt")]
-#[cfg_attr(feature = "docs", doc(cfg(tokio_rt)))]
-pub mod tokio;
-
 #[cfg(feature = "cookies")]
 #[cfg_attr(feature = "docs", doc(cfg(feature = "cookies")))]
 pub mod cookie;

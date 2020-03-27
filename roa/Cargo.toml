@@ -96,7 +96,6 @@ full = [
     "cookies",
     "compress",
     "websocket",
-    "tokio_rt"
 ]
 
 docs = ["full", "roa-core/docs"]
@@ -112,6 +111,4 @@ jwt = ["jsonwebtoken", "serde", "serde_json"]
 router = ["radix_trie", "regex", "doc-comment"]
 websocket = ["tokio-tungstenite"]
 compress = ["async-compression", "accept-encoding"]
-
 async_rt = ["runtime", "tcp"]
-tokio_rt = ["tokio/full"]
