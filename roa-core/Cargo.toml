@@ -16,6 +16,7 @@ categories = ["network-programming", "asynchronous",
 
 [package.metadata.docs.rs]
 features = ["docs"]
+rustdoc-args = ["--cfg", "feature=\"docs\""]
 
 [badges]
 codecov = { repository = "Hexilee/roa" }

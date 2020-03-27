@@ -15,6 +15,7 @@ categories = ["network-programming", "asynchronous",
 
 [package.metadata.docs.rs]
 features = ["docs"]
+rustdoc-args = ["--cfg", "feature=\"docs\""]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -28,5 +29,5 @@ roa = { path = "../roa", version = "0.5.0-rc" }
 reqwest = "0.10"
 
 [features]
-docs = []
+docs = ["roa/docs"]
 
