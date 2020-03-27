@@ -1,4 +1,3 @@
-use crate::stream::AsyncStream;
 use async_std::net::{SocketAddr, TcpListener, TcpStream};
 use futures::FutureExt as _;
 use futures_timer::Delay;
@@ -76,7 +75,7 @@ impl TcpIncoming {
     fn poll_stream(
         &mut self,
         cx: &mut task::Context<'_>,
-    ) -> Poll<io::Result<(AsyncStream<TcpStream>, SocketAddr)>> {
+    ) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
             match Pin::new(to).poll(cx) {
@@ -95,7 +94,7 @@ impl TcpIncoming {
                     if let Err(e) = stream.set_nodelay(self.tcp_nodelay) {
                         trace!("error trying to set TCP nodelay: {}", e);
                     }
-                    return Poll::Ready(Ok((AsyncStream(stream), addr)));
+                    return Poll::Ready(Ok((stream, addr)));
                 }
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(e)) => {
@@ -132,7 +131,7 @@ impl TcpIncoming {
 }
 
 impl Accept for TcpIncoming {
-    type Conn = AddrStream<AsyncStream<TcpStream>>;
+    type Conn = AddrStream<TcpStream>;
     type Error = io::Error;
 
     #[inline]

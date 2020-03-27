@@ -54,10 +54,10 @@
 //! # }
 //! ```
 
-#[cfg(feature = "tcp")]
-use crate::tcp::TcpIncoming;
 use crate::{Accept, AddrStream, App, Endpoint, Executor, Server, State};
-use bytes::{Buf, BufMut};
+use async_tls::server::TlsStream;
+use async_tls::TlsAcceptor;
+use futures::io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
 use futures::Future;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -65,11 +65,8 @@ use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{self, Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_rustls::server::TlsStream;
-use tokio_rustls::TlsAcceptor;
 
-pub use tokio_rustls::rustls::*;
+pub use rustls::*;
 
 /// A stream of connections based on another stream.
 /// As an implementation of roa_core::Accept.
@@ -89,7 +86,6 @@ pub enum WrapTlsStream<IO> {
     Streaming(Box<TlsStream<IO>>),
 }
 
-use std::mem::MaybeUninit;
 use WrapTlsStream::*;
 
 impl<IO> WrapTlsStream<IO> {
@@ -107,14 +103,6 @@ impl<IO> AsyncRead for WrapTlsStream<IO>
 where
     IO: 'static + Unpin + AsyncRead + AsyncWrite,
 {
-    #[inline]
-    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [MaybeUninit<u8>]) -> bool {
-        match self {
-            Streaming(stream) => stream.prepare_uninitialized_buffer(buf),
-            _ => false,
-        }
-    }
-
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -134,24 +122,21 @@ where
         }
     }
 
-    fn poll_read_buf<B: BufMut>(
+    fn poll_read_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-    {
+        bufs: &mut [IoSliceMut<'_>],
+    ) -> Poll<io::Result<usize>> {
         match &mut *self {
             Streaming(stream) => {
-                println!("read buf poll stream");
-                Pin::new(stream).poll_read_buf(cx, buf)
+                println!("read poll stream");
+                Pin::new(stream).poll_read_vectored(cx, bufs)
             }
             Handshaking(handshake) => {
-                println!("try read buf handshake");
+                println!("try read handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
                 println!("complete handshake");
-                self.poll_read_buf(cx, buf)
+                self.poll_read_vectored(cx, bufs)
             }
         }
     }
@@ -179,6 +164,24 @@ where
         }
     }
 
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        match &mut *self {
+            Streaming(stream) => {
+                println!("write poll stream");
+                Pin::new(stream).poll_write_vectored(cx, bufs)
+            }
+            Handshaking(handshake) => {
+                println!("write handshake");
+                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
+                self.poll_write_vectored(cx, bufs)
+            }
+        }
+    }
+
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -197,40 +200,19 @@ where
         }
     }
 
-    fn poll_shutdown(
+    fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<()>> {
         match &mut *self {
             Streaming(stream) => {
                 println!("shutdown poll stream");
-                Pin::new(stream).poll_shutdown(cx)
+                Pin::new(stream).poll_close(cx)
             }
             Handshaking(handshake) => {
                 println!("shutdown handshake");
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
-                self.poll_shutdown(cx)
-            }
-        }
-    }
-
-    fn poll_write_buf<B: Buf>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-    {
-        match &mut *self {
-            Streaming(stream) => {
-                println!("write buf poll stream");
-                Pin::new(stream).poll_write_buf(cx, buf)
-            }
-            Handshaking(handshake) => {
-                println!("write buf handshake");
-                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
-                self.poll_write_buf(cx, buf)
+                self.poll_close(cx)
             }
         }
     }
@@ -249,6 +231,7 @@ impl<I> TlsIncoming<I> {
 impl TlsIncoming<TcpIncoming> {
     /// Bind a socket addr.
     #[cfg(feature = "tcp")]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "tcp")))]
     pub fn bind(addr: impl ToSocketAddrs, config: ServerConfig) -> io::Result<Self> {
         Ok(Self::new(TcpIncoming::bind(addr)?, config))
     }
@@ -355,6 +338,9 @@ pub trait TlsListener {
         config: ServerConfig,
     ) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
+
+#[cfg(feature = "tcp")]
+use crate::tcp::TcpIncoming;
 
 #[cfg(feature = "tcp")]
 #[cfg_attr(feature = "docs", doc(cfg(feature = "tcp")))]

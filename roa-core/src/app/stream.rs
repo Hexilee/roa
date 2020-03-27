@@ -1,9 +1,8 @@
-use bytes::{Buf, BufMut};
+use futures::io::{AsyncRead as Read, AsyncWrite as Write};
 use std::io;
 use std::mem::MaybeUninit;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::task::Context;
 use std::task::{self, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 
@@ -29,11 +28,11 @@ impl<IO> AddrStream<IO> {
 
 impl<IO> AsyncRead for AddrStream<IO>
 where
-    IO: Unpin + AsyncRead,
+    IO: Unpin + Read,
 {
     #[inline]
-    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [MaybeUninit<u8>]) -> bool {
-        self.stream.prepare_uninitialized_buffer(buf)
+    unsafe fn prepare_uninitialized_buffer(&self, _buf: &mut [MaybeUninit<u8>]) -> bool {
+        false
     }
 
     #[inline]
@@ -44,23 +43,11 @@ where
     ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.stream).poll_read(cx, buf)
     }
-
-    #[inline]
-    fn poll_read_buf<B: BufMut>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-    {
-        Pin::new(&mut self.stream).poll_read_buf(cx, buf)
-    }
 }
 
 impl<IO> AsyncWrite for AddrStream<IO>
 where
-    IO: Unpin + AsyncWrite,
+    IO: Unpin + Write,
 {
     #[inline]
     fn poll_write(
@@ -84,18 +71,6 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.stream).poll_shutdown(cx)
-    }
-
-    #[inline]
-    fn poll_write_buf<B: Buf>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-    {
-        Pin::new(&mut self.stream).poll_write_buf(cx, buf)
+        Pin::new(&mut self.stream).poll_close(cx)
     }
 }

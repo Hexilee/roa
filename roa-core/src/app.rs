@@ -7,6 +7,7 @@ use crate::{
     Chain, Context, Endpoint, Middleware, MiddlewareExt, Request, Response, State,
 };
 use future::SendFuture;
+use futures::io::{AsyncRead, AsyncWrite};
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::Body as HyperBody;
@@ -17,7 +18,6 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
-use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::Accept;
 use crate::{Executor, Spawn};

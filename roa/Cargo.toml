@@ -63,8 +63,8 @@ tokio-tungstenite = { version = "0.10.1", default-features = false, optional = t
 futures-timer = { version = "3.0", optional = true }
 
 # tls
-tokio-rustls = { version = "0.13.0", features = ["unstable"], optional = true }
-async-tls = { version = "0.6.0", optional = true }
+rustls = { version = "0.16", optional = true }
+async-tls = { version = "0.6", optional = true }
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["full"] }
@@ -106,7 +106,7 @@ urlencoded = ["serde", "serde_urlencoded"]
 file = ["mime_guess", "async-std"]
 template = ["askama"]
 tcp = ["async-std", "futures-timer"]
-tls = ["tokio-rustls"]
+tls = ["rustls", "async-tls"]
 cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde", "serde_json"]
 router = ["radix_trie", "regex", "doc-comment"]
