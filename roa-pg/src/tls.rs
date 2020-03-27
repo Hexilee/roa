@@ -56,7 +56,7 @@ pub use tokio_rustls::rustls::ClientConfig;
 
 use async_std::net::TcpStream;
 use bytes::{Buf, BufMut};
-use roa::tcp::WrapStream;
+use roa::tcp::AsyncStream;
 use std::future::Future;
 use std::io;
 use std::mem::MaybeUninit;
@@ -272,14 +272,14 @@ pub async fn connect_tls(
     tls_config: ClientConfig,
 ) -> io::Result<(
     Client,
-    Connection<WrapStream<TcpStream>, TlsStream<WrapStream<TcpStream>>>,
+    Connection<AsyncStream<TcpStream>, TlsStream<AsyncStream<TcpStream>>>,
 )> {
     let stream = connect_stream(config).await?;
     let dns_name_ref = DNSNameRef::try_from_ascii_str(try_tcp_host(config)?)
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
     let connector = TlsConnector::from(Arc::new(tls_config));
     config
-        .connect_raw(WrapStream(stream), Connector::new(connector, dns_name_ref))
+        .connect_raw(AsyncStream(stream), Connector::new(connector, dns_name_ref))
         .await
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
 }

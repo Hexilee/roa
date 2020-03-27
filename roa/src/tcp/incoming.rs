@@ -28,7 +28,7 @@ pub struct TcpIncoming {
 /// A wrapper for async_std::io::{Read, Write}.
 ///
 /// An implementation of tokio::io::{AsyncRead, AsyncWrite}.
-pub struct WrapStream<IO>(pub IO);
+pub struct AsyncStream<IO>(pub IO);
 
 impl TcpIncoming {
     /// Creates a new `TcpIncoming` binding to provided socket address.
@@ -83,7 +83,7 @@ impl TcpIncoming {
     fn poll_stream(
         &mut self,
         cx: &mut task::Context<'_>,
-    ) -> Poll<io::Result<(WrapStream<TcpStream>, SocketAddr)>> {
+    ) -> Poll<io::Result<(AsyncStream<TcpStream>, SocketAddr)>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
             match Pin::new(to).poll(cx) {
@@ -102,7 +102,7 @@ impl TcpIncoming {
                     if let Err(e) = stream.set_nodelay(self.tcp_nodelay) {
                         trace!("error trying to set TCP nodelay: {}", e);
                     }
-                    return Poll::Ready(Ok((WrapStream(stream), addr)));
+                    return Poll::Ready(Ok((AsyncStream(stream), addr)));
                 }
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(e)) => {
@@ -139,7 +139,7 @@ impl TcpIncoming {
 }
 
 impl Accept for TcpIncoming {
-    type Conn = AddrStream<WrapStream<TcpStream>>;
+    type Conn = AddrStream<AsyncStream<TcpStream>>;
     type Error = io::Error;
 
     #[inline]
@@ -178,7 +178,7 @@ impl fmt::Debug for TcpIncoming {
     }
 }
 
-impl<IO> AsyncRead for WrapStream<IO>
+impl<IO> AsyncRead for AsyncStream<IO>
 where
     IO: Unpin + Read,
 {
@@ -197,7 +197,7 @@ where
     }
 }
 
-impl<IO> AsyncWrite for WrapStream<IO>
+impl<IO> AsyncWrite for AsyncStream<IO>
 where
     IO: Unpin + Write,
 {
