@@ -32,18 +32,22 @@
     - Full streaming.
     - Highly extensible middleware system.
     - Based on [`hyper`](https://github.com/hyperium/hyper), runtime-independent, you can chose async runtime as you like.
-- Many useful extensions and middlewares.
+- Many useful extensions.
+    - Official runtime schemes:
+        - [async-std](https://github.com/async-rs/async-std) runtime and TcpStream;
+        - [tokio](https://github.com/tokio-rs/tokio) runtime and TcpStream.
     - Transparent content compression (br, gzip, deflate, zstd).
     - Configurable and nestable router.
     - Named uri parameters(query and router parameter).
     - Cookie and jwt support.
-    - Integration with [serde](https://github.com/serde-rs/serde) and [askama](https://github.com/djc/askama). JSON, urlencoded form, html template support.
-    - ORM integration (with [diesel](https://github.com/diesel-rs/diesel)).
     - HTTPS support.
     - WebSocket support.
-    - GraphQL support(based on [juniper](https://github.com/graphql-rust/juniper)).
     - Asynchronous multipart form support.
     - Other middlewares(logger, CORS .etc).
+- Integrations
+    - roa-diesel, integration with [diesel](https://github.com/diesel-rs/diesel).
+    - roa-juniper, integration with [juniper](https://github.com/graphql-rust/juniper).
+    - roa-pg, integration with [tokio-postgres](https://crates.io/crates/tokio-postgres).
 - Works on stable Rust.
 
 #### Get start
