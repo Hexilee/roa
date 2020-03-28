@@ -27,6 +27,18 @@ jobs:
             registryName: roa
             path: roa
             publishPath: /target/package
+          - name: roa-diesel
+            registryName: roa-diesel
+            path: roa-diesel
+            publishPath: /target/package
+          - name: roa-pg
+            registryName: roa-pg
+            path: roa-pg
+            publishPath: /target/package
+          - name: roa-tokio
+            registryName: roa-tokio
+            path: roa-tokio
+            publishPath: /target/package
     steps:
       - uses: actions/checkout@v2
         with:
