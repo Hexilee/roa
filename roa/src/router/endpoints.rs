@@ -4,6 +4,7 @@ mod guard;
 use crate::http::{Method, StatusCode};
 use crate::{throw, Result};
 
+#[inline]
 fn method_not_allowed(method: &Method) -> Result {
     throw!(
         StatusCode::METHOD_NOT_ALLOWED,

@@ -6,7 +6,7 @@ use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{allow, Router};
 use roa::websocket::Websocket;
-use roa::{App, Context};
+use roa::App;
 use std::error::Error as StdError;
 
 #[async_std::main]
@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         "/chat",
         allow(
             [Method::GET],
-            Websocket::new(|_ctx: Context<()>, stream| async move {
+            Websocket::new(|_ctx, stream| async move {
                 let (write, read) = stream.split();
                 if let Err(err) = read.forward(write).await {
                     error!("forward err: {}", err);

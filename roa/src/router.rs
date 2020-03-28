@@ -73,7 +73,7 @@ use std::result::Result as StdResult;
 struct RouterScope;
 
 /// A context extension.
-/// This extension must be used in downstream of middleware `RouteTable`,
+/// This extension must be used in `Router`,
 /// otherwise you cannot get expected router parameters.
 ///
 /// ### Example
@@ -94,7 +94,7 @@ struct RouterScope;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let router = Router::new().on("/:id", test);
-///     let app = App::new(()).end(router.routes("user")?);
+///     let app = App::new(()).end(router.routes("/user")?);
 ///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
@@ -174,12 +174,12 @@ where
         self
     }
 
-    /// Chain an endpoint to self.middleware.
+    /// Chain an endpoint to Router::middleware.
     fn register(&self, endpoint: impl for<'a> Endpoint<'a, S>) -> Boxed<S> {
         self.middleware.clone().end(endpoint).boxed()
     }
 
-    /// Include another router with prefix, only allowing method in parameter methods.
+    /// Include another router with prefix.
     pub fn include(mut self, prefix: &'static str, router: Router<S>) -> Self {
         for (path, endpoint) in router.endpoints {
             self.endpoints

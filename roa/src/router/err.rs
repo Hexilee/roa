@@ -11,6 +11,7 @@ pub enum RouterError {
     Conflict(Conflict),
 }
 
+/// Router conflict.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Conflict {
     Path(String),

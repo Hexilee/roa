@@ -9,7 +9,7 @@
 //! use roa::http::Method;
 //!
 //! # fn main() -> Result<(), RouterError> {
-//! let router = Router::new().on("/chat", Websocket::new(|_ctx: Context<()>, stream| async move {
+//! let router = Router::new().on("/chat", Websocket::new(|_ctx, stream| async move {
 //!     let (write, read) = stream.split();
 //!     // echo
 //!     if let Err(err) = read.forward(write).await {
@@ -52,7 +52,7 @@ pub type SocketStream = WebSocketStream<Upgraded>;
 /// use roa::http::Method;
 ///
 /// # fn main() -> Result<(), RouterError> {
-/// let router = Router::new().on("/chat", Websocket::new(|_ctx: Context<()>, stream| async move {
+/// let router = Router::new().on("/chat", Websocket::new(|_ctx, stream| async move {
 ///     let (write, read) = stream.split();
 ///     // echo
 ///     if let Err(err) = read.forward(write).await {
@@ -63,6 +63,21 @@ pub type SocketStream = WebSocketStream<Upgraded>;
 /// Ok(())
 /// # }
 /// ```
+///
+/// ### Parameter
+///
+/// - Context<S>
+///
+/// The context is the same with roa context,
+/// however, neither read body from request or write anything to response is unavailing.
+///
+/// - SocketStream
+///
+/// The websocket stream, implementing `Stream` and `Sink`.
+///
+/// ### Return
+///
+/// Must be `()`, as roa cannot deal with errors occurring in websocket.
 pub struct Websocket<F, S, Fut>
 where
     F: Fn(Context<S>, SocketStream) -> Fut,
@@ -112,7 +127,7 @@ where
     /// # fn main() -> Result<(), RouterError> {
     /// let router = Router::new().on("/chat", Websocket::with_config(
     ///     WebSocketConfig::default(),
-    ///     |_ctx: Context<()>, stream| async move {
+    ///     |_ctx, stream| async move {
     ///         let (write, read) = stream.split();
     ///         // echo
     ///         if let Err(err) = read.forward(write).await {
@@ -136,6 +151,7 @@ where
     F: 'static + Sync + Send + Fn(Context<S>, SocketStream) -> Fut,
     Fut: 'static + Send + Future<Output = ()>,
 {
+    #[inline]
     async fn call(&'a self, ctx: &'a mut Context<S>) -> Result<(), Status> {
         let header_map = &ctx.req.headers;
         let key = header_map
