@@ -19,13 +19,13 @@ jobs:
             registryName: roa-core
             path: roa-core
             publishPath: /target/package
-          - name: roa-multipart
-            registryName: roa-multipart
-            path: roa-multipart
-            publishPath: /target/package
           - name: roa
             registryName: roa
             path: roa
+            publishPath: /target/package
+          - name: roa-multipart
+            registryName: roa-multipart
+            path: roa-multipart
             publishPath: /target/package
           - name: roa-diesel
             registryName: roa-diesel
