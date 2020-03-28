@@ -12,8 +12,7 @@ Roa is an async web framework inspired by koajs, lightweight but powerful.
 
 ### Application
 
-A Roa application is a structure containing a middleware group
-which composes and executes middleware functions in a stack-like manner.
+A Roa application is a structure composing and executing middlewares and an endpoint in a stack-like manner.
 
 The obligatory hello world application:
 
@@ -45,10 +44,11 @@ Then control flows back "upstream" when `next.await` returns.
 
 The following example responds with "Hello World",
 however first the request flows through the x-response-time and logging middleware to mark
-when the request started, then continue to yield control through the response middleware.
-When a middleware invokes next the function suspends and passes control to the next middleware defined.
-After there are no more middleware to execute downstream,
-the stack will unwind and each middleware is resumed to perform its upstream behaviour.
+when the request started, then continue to yield control through the response endpoint.
+When a middleware invokes next the function suspends and passes control to the next middleware or endpoint.
+After the endpoint is called,
+the stack will unwind and each middleware is resumed to perform
+its upstream behaviour.
 
 ```rust,no_run
 use roa::{App, Context, Next};
@@ -92,9 +92,9 @@ async fn response(ctx: &mut Context) -> roa::Result {
 
 ```
 
-### Error Handling
+### Status Handling
 
-You can catch or straightly throw an error returned by next.
+You can catch or straightly throw a status returned by next.
 
 ```rust,no_run
 use roa::{App, Context, Next, throw};
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = App::new(())
         .gate(catch)
         .gate(not_catch)
-        .end(error);
+        .end(status);
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
@@ -132,7 +132,7 @@ async fn not_catch(ctx: &mut Context, next: Next<'_>) -> roa::Result {
     unreachable!()
 }
 
-async fn error(ctx: &mut Context) -> roa::Result {
+async fn status(ctx: &mut Context) -> roa::Result {
     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 }
 
@@ -218,10 +218,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Other modules
 
-- body: dealing with body more conviniently.
+- body: dealing with body more conveniently.
 - compress: supports transparent content compression.
+- cookie: cookies getter or setter.
 - cors: CORS support.
 - forward: "X-Forwarded-*" parser.
-- header: dealing with headers more conviniently.
+- header: dealing with headers more conveniently.
 - jwt: json web token support.
 - logger: a logger middleware.
+- tls: https supports.
+- websocket: websocket supports.

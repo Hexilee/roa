@@ -61,7 +61,7 @@ async fn logging(ctx: &mut Context, next: Next<'_>) -> Result {
 
 ### Status Handling
 
-You can catch or straightly throw an status returned by next.
+You can catch or straightly throw a status returned by next.
 
 ```rust
 use roa_core::{App, Context, Result, Status, MiddlewareExt, Next, throw};
