@@ -40,10 +40,10 @@
 //! ```
 
 mod incoming;
-mod listen;
+mod listener;
 
 #[doc(inline)]
 pub use incoming::TcpIncoming;
 
 #[doc(inline)]
-pub use listen::Listener;
+pub use listener::Listener;

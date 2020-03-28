@@ -40,7 +40,7 @@ pub mod logger;
 pub mod query;
 pub mod stream;
 
-/// Reexport all extensional traits.
+/// Reexport all extension traits.
 pub mod preload {
     pub use crate::body::PowerBody;
     pub use crate::forward::Forward;
@@ -51,7 +51,8 @@ pub mod preload {
     #[doc(no_inline)]
     pub use crate::tcp::Listener;
 
-    #[cfg(feature = "tls")]
+    #[cfg(all(feature = "tcp", feature = "tls"))]
+    #[doc(no_inline)]
     pub use crate::tls::TlsListener;
 
     #[cfg(feature = "cookies")]

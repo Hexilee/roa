@@ -3,10 +3,10 @@ use std::future::Future;
 
 /// ### Middleware
 ///
-/// There are two kinds of middlewares,
-/// the one is functional middlewares, the another is trait middlewares.
+/// There are two kinds of middleware,
+/// the one is functional middleware, the another is trait middleware.
 ///
-/// #### Functional Middlewares
+/// #### Functional Middleware
 ///
 /// A normal functional middleware is an async function with signature:
 /// `async fn(&mut Context, Next<'_>) -> Result`.
@@ -25,9 +25,7 @@ use std::future::Future;
 /// is_middleware(middleware);
 /// ```
 ///
-/// Closures are also supported, but feature(async_closure) is required:
-///
-/// #### Trait Middlewares
+/// #### Trait Middleware
 ///
 /// A trait middleware is an object implementing trait `Middleware`.
 ///
@@ -55,7 +53,7 @@ use std::future::Future;
 #[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
 pub trait Middleware<'a, S>: 'static + Sync + Send {
-    /// Handle context and next, then return a future to get status.
+    /// Handle context and next, return status.
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result;
 }
 
@@ -74,10 +72,10 @@ where
 
 /// ### Endpoint
 ///
-/// There are two kinds of endpoints,
-/// the one is functional endpoints, the another is trait endpoints.
+/// There are two kinds of endpoint,
+/// the one is functional endpoint, the another is trait endpoint.
 ///
-/// #### Functional Endpoints
+/// #### Functional Endpoint
 ///
 /// A normal functional endpoint is an async function with signature:
 /// `async fn(&mut Context) -> Result`.
@@ -96,9 +94,7 @@ where
 /// is_endpoint(endpoint);
 /// ```
 ///
-/// Closures are also supported, but feature(async_closure) is required:
-///
-/// #### Trait Endpoints
+/// #### Trait Endpoint
 ///
 /// A trait endpoint is an object implementing trait `Endpoint`.
 ///
