@@ -23,7 +23,7 @@ use log::info;
 use std::error::Error as StdError;
 
 async fn end(ctx: &mut Context) -> roa::Result {
-    ctx.write_text("Hello, World");
+    ctx.write("Hello, World");
     Ok(())
 }
 
@@ -86,7 +86,7 @@ async fn x_response_time(ctx: &mut Context, next: Next<'_>) -> roa::Result {
 }
 
 async fn response(ctx: &mut Context) -> roa::Result {
-    ctx.write_text("Hello, World");
+    ctx.write("Hello, World");
     Ok(())
 }
 

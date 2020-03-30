@@ -38,7 +38,7 @@ async fn query(ctx: &mut Context<State>) -> roa::Result {
     match ctx.pg.query_opt("SELECT * FROM user WHERE id=$1", &[&id]).await? {
         Some(row) => {
             let value: String = row.get(0);
-            ctx.write_text(value);
+            ctx.write(value);
             Ok(())
         }
         None => throw!(StatusCode::NOT_FOUND),

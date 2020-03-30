@@ -25,9 +25,9 @@
 //!        .write_reader(File::open("assets/author.txt").await?)
 //!        // write reader with specific chunk size
 //!        .write_chunk(File::open("assets/author.txt").await?, 1024)
-//!        // write `Bytes`
+//!        // write text
 //!        .write("I am Roa.")
-//!        .write(vec![127u8, 255]);
+//!        .write(b"I am Roa.".as_ref());
 //!     Ok(())
 //! }
 //! ```
@@ -52,11 +52,14 @@
 //! }
 //!
 //! async fn get(mut ctx: Context<()>) -> Result {
+//!     // read as bytes.
+//!     let data = ctx.read().await?;
+//!
 //!     // deserialize as json.
-//!     let mut user: User = ctx.read_json().await?;
+//!     let user: User = ctx.read_json().await?;
 //!
 //!     // deserialize as x-form-urlencoded.
-//!     user = ctx.read_form().await?;
+//!     let user: User = ctx.read_form().await?;
 //!
 //!     // serialize object and write it to body,
 //!     // set "Content-Type"
@@ -68,11 +71,11 @@
 //!
 //!     // write text,
 //!     // set "Content-Type"
-//!     ctx.write_text("Hello, World!");
+//!     ctx.write("Hello, World!");
 //!
 //!     // write object implementing AsyncRead,
 //!     // set "Content-Type"
-//!     ctx.write_octet(File::open("assets/author.txt").await?);
+//!     ctx.write_reader(File::open("assets/author.txt").await?);
 //!
 //!     // render html template, based on [askama](https://github.com/djc/askama).
 //!     // set "Content-Type"
@@ -106,42 +109,52 @@ use serde::Serialize;
 #[async_trait(?Send)]
 pub trait PowerBody {
     /// read request body as Bytes.
-    async fn body(&mut self) -> Result<Vec<u8>>;
+    async fn read(&mut self) -> Result<Vec<u8>>;
 
     /// read request body as "json".
     #[cfg(feature = "json")]
     #[cfg_attr(feature = "docs", doc(cfg(feature = "json")))]
-    async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B>;
+    async fn read_json<B>(&mut self) -> Result<B>
+    where
+        B: DeserializeOwned;
 
     /// read request body as "urlencoded form".
     #[cfg(feature = "urlencoded")]
     #[cfg_attr(feature = "docs", doc(cfg(feature = "urlencoded")))]
-    async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B>;
+    async fn read_form<B>(&mut self) -> Result<B>
+    where
+        B: DeserializeOwned;
 
     /// write object to response body as "application/json"
     #[cfg(feature = "json")]
     #[cfg_attr(feature = "docs", doc(cfg(feature = "json")))]
-    fn write_json<B: Serialize>(&mut self, data: &B) -> Result;
+    fn write_json<B>(&mut self, data: &B) -> Result
+    where
+        B: Serialize;
 
     /// write object to response body as "text/html; charset=utf-8"
     #[cfg(feature = "template")]
     #[cfg_attr(feature = "docs", doc(cfg(feature = "template")))]
-    fn render<B: Template>(&mut self, data: &B) -> Result;
+    fn render<B>(&mut self, data: &B) -> Result
+    where
+        B: Template;
 
     /// write object to response body as "text/plain"
-    fn write_text<B: Into<Bytes>>(&mut self, data: B);
+    fn write<B>(&mut self, data: B)
+    where
+        B: Into<Bytes>;
 
     /// write object to response body as "application/octet-stream"
-    fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(&mut self, reader: B);
+    fn write_reader<B>(&mut self, reader: B)
+    where
+        B: 'static + AsyncRead + Unpin + Sync + Send;
 
     /// write object to response body as extension name of file
     #[cfg(feature = "file")]
     #[cfg_attr(feature = "docs", doc(cfg(feature = "file")))]
-    async fn write_file<P: 'static + AsRef<Path>>(
-        &mut self,
-        path: P,
-        typ: DispositionType,
-    ) -> Result;
+    async fn write_file<P>(&mut self, path: P, typ: DispositionType) -> Result
+    where
+        P: AsRef<Path>;
 }
 
 // Static header value.
@@ -158,7 +171,7 @@ lazy_static! {
 #[async_trait(?Send)]
 impl<S: State> PowerBody for Context<S> {
     #[inline]
-    async fn body(&mut self) -> Result<Vec<u8>> {
+    async fn read(&mut self) -> Result<Vec<u8>> {
         let size_hint = self
             .header(header::CONTENT_LENGTH)
             .and_then(|result| result.ok())
@@ -173,21 +186,30 @@ impl<S: State> PowerBody for Context<S> {
 
     #[cfg(feature = "json")]
     #[inline]
-    async fn read_json<B: DeserializeOwned>(&mut self) -> Result<B> {
-        let data = self.body().await?;
+    async fn read_json<B>(&mut self) -> Result<B>
+    where
+        B: DeserializeOwned,
+    {
+        let data = self.read().await?;
         serde_json::from_slice(&data).map_err(handle_invalid_body)
     }
 
     #[cfg(feature = "urlencoded")]
     #[inline]
-    async fn read_form<B: DeserializeOwned>(&mut self) -> Result<B> {
-        let data = self.body().await?;
+    async fn read_form<B>(&mut self) -> Result<B>
+    where
+        B: DeserializeOwned,
+    {
+        let data = self.read().await?;
         serde_urlencoded::from_bytes(&data).map_err(handle_invalid_body)
     }
 
     #[cfg(feature = "json")]
     #[inline]
-    fn write_json<B: Serialize>(&mut self, data: &B) -> Result {
+    fn write_json<B>(&mut self, data: &B) -> Result
+    where
+        B: Serialize,
+    {
         self.resp.write(serde_json::to_vec(data)?);
         self.resp
             .headers
@@ -197,7 +219,10 @@ impl<S: State> PowerBody for Context<S> {
 
     #[cfg(feature = "template")]
     #[inline]
-    fn render<B: Template>(&mut self, data: &B) -> Result {
+    fn render<B>(&mut self, data: &B) -> Result
+    where
+        B: Template,
+    {
         self.resp.write(data.render()?);
         self.resp
             .headers
@@ -206,7 +231,10 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[inline]
-    fn write_text<B: Into<Bytes>>(&mut self, data: B) {
+    fn write<B>(&mut self, data: B)
+    where
+        B: Into<Bytes>,
+    {
         self.resp.write(data);
         self.resp
             .headers
@@ -214,7 +242,10 @@ impl<S: State> PowerBody for Context<S> {
     }
 
     #[inline]
-    fn write_octet<B: 'static + AsyncRead + Unpin + Sync + Send>(&mut self, reader: B) {
+    fn write_reader<B>(&mut self, reader: B)
+    where
+        B: 'static + AsyncRead + Unpin + Sync + Send,
+    {
         self.resp.write_reader(reader);
         self.resp
             .headers
@@ -223,11 +254,10 @@ impl<S: State> PowerBody for Context<S> {
 
     #[cfg(feature = "file")]
     #[inline]
-    async fn write_file<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        typ: DispositionType,
-    ) -> Result {
+    async fn write_file<P>(&mut self, path: P, typ: DispositionType) -> Result
+    where
+        P: AsRef<Path>,
+    {
         write_file(self, path, typ).await
     }
 }
@@ -338,9 +368,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn write_text() -> Result<(), Box<dyn Error>> {
+    async fn write() -> Result<(), Box<dyn Error>> {
         async fn test(ctx: &mut Context) -> crate::Result {
-            ctx.write_text("Hello, World!");
+            ctx.write("Hello, World!");
             Ok(())
         }
         let (addr, server) = App::new(()).end(test).run()?;
@@ -355,7 +385,7 @@ mod tests {
     #[tokio::test]
     async fn write_octet() -> Result<(), Box<dyn Error>> {
         async fn test(ctx: &mut Context) -> crate::Result {
-            ctx.write_octet(File::open("../assets/author.txt").await?);
+            ctx.write_reader(File::open("../assets/author.txt").await?);
             Ok(())
         }
         let (addr, server) = App::new(()).end(test).run()?;

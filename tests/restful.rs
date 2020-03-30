@@ -88,24 +88,62 @@ impl DB {
     }
 }
 
-type State = Arc<RwLock<DB>>;
+#[derive(Clone)]
+struct State(Arc<RwLock<DB>>);
+
+impl State {
+    fn new(db: DB) -> Self {
+        Self(Arc::new(RwLock::new(db)))
+    }
+
+    async fn add(&mut self, user: User) -> usize {
+        self.0.write().await.add(user)
+    }
+
+    async fn delete(&mut self, id: usize) -> Option<User> {
+        self.0.write().await.delete(id)
+    }
+
+    async fn get(&self, id: usize) -> Option<User> {
+        self.0.read().await.get(id).cloned()
+    }
+
+    async fn get_by_name(&self, name: &str) -> Vec<(usize, User)> {
+        self.0
+            .read()
+            .await
+            .get_by_name(name)
+            .into_iter()
+            .map(|(id, user)| (id, user.clone()))
+            .collect()
+    }
+
+    async fn get_all(&self) -> Vec<(usize, User)> {
+        self.0
+            .read()
+            .await
+            .main_table
+            .iter()
+            .map(|(id, user)| (id, user.clone()))
+            .collect()
+    }
+
+    async fn update(&mut self, id: usize, new_user: &mut User) -> bool {
+        self.0.write().await.update(id, new_user)
+    }
+}
 
 async fn create_user(ctx: &mut Context<State>) -> roa::Result {
     let user = ctx.read_json().await?;
-    let id = ctx.write().await.add(user);
+    let id = ctx.add(user).await;
     ctx.resp.status = StatusCode::CREATED;
     ctx.write_json(&json!({ "id": id }))
 }
 
 async fn query_user(ctx: &mut Context<State>) -> roa::Result {
     let id = ctx.must_param("id")?.parse()?;
-    let db = ctx.read().await;
-    match db.get(id) {
-        Some(user) => {
-            let data = user.clone();
-            drop(db);
-            ctx.write_json(&data)
-        }
+    match ctx.get(id).await {
+        Some(user) => ctx.write_json(&user),
         None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
     }
 }
@@ -113,7 +151,7 @@ async fn query_user(ctx: &mut Context<State>) -> roa::Result {
 async fn update_user(ctx: &mut Context<State>) -> roa::Result {
     let id = ctx.must_param("id")?.parse()?;
     let mut user = ctx.read_json().await?;
-    if ctx.write().await.update(id, &mut user) {
+    if ctx.update(id, &mut user).await {
         ctx.write_json(&user)
     } else {
         throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id))
@@ -122,12 +160,8 @@ async fn update_user(ctx: &mut Context<State>) -> roa::Result {
 
 async fn delete_user(ctx: &mut Context<State>) -> roa::Result {
     let id = ctx.must_param("id")?.parse()?;
-    let mut db = ctx.write().await;
-    match db.delete(id) {
-        Some(user) => {
-            drop(db);
-            ctx.write_json(&user)
-        }
+    match ctx.delete(id).await {
+        Some(user) => ctx.write_json(&user),
         None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
     }
 }
@@ -140,8 +174,7 @@ fn crud_router() -> Router<State> {
 
 #[tokio::test]
 async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
-    let app =
-        App::new(Arc::new(RwLock::new(DB::new()))).end(crud_router().routes("/user")?);
+    let app = App::new(State::new(DB::new())).end(crud_router().routes("/user")?);
     let (addr, server) = app.run()?;
     spawn(server);
     // first get, 404 Not Found
@@ -221,7 +254,7 @@ async fn create_batch(ctx: &mut Context<State>) -> roa::Result {
     let users: Vec<User> = ctx.read_json().await?;
     let mut ids = Vec::new();
     for user in users {
-        ids.push(ctx.write().await.add(user))
+        ids.push(ctx.add(user).await)
     }
     ctx.resp.status = StatusCode::CREATED;
     ctx.write_json(&ids)
@@ -229,22 +262,9 @@ async fn create_batch(ctx: &mut Context<State>) -> roa::Result {
 
 async fn query_batch(ctx: &mut Context<State>) -> roa::Result {
     let users = match ctx.query("name") {
-        Some(name) => ctx
-            .read()
-            .await
-            .get_by_name(&name)
-            .into_iter()
-            .map(|(id, user)| (id, user.clone()))
-            .collect::<Vec<(usize, User)>>(),
-        None => ctx
-            .read()
-            .await
-            .main_table
-            .iter()
-            .map(|(id, user)| (id, user.clone()))
-            .collect::<Vec<(usize, User)>>(),
+        Some(name) => ctx.get_by_name(&name).await,
+        None => ctx.get_all().await,
     };
-
     ctx.write_json(&users)
 }
 
@@ -254,7 +274,7 @@ fn batch_router() -> Router<State> {
 
 #[tokio::test]
 async fn batch() -> Result<(), Box<dyn std::error::Error>> {
-    let app = App::new(Arc::new(RwLock::new(DB::new())))
+    let app = App::new(State::new(DB::new()))
         .gate(query_parser)
         .end(batch_router().routes("/")?);
     let (addr, server) = app.run()?;
