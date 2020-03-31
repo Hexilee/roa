@@ -48,7 +48,7 @@ async fn post_file(ctx: &mut Context) -> roa::Result {
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    let router = Router::new().on("file", post(post_file));
+    let router = Router::new().on("/file", post(post_file));
     let (addr, server) = App::new(()).end(router.routes("/")?).run()?;
     server.await?;
     Ok(())

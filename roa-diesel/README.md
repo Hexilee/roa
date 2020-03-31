@@ -37,4 +37,4 @@ async fn get(ctx: Context<State>) -> Result {
 A context extension to execute diesel query asynchronously.
 
 Refer to [integration example](https://github.com/Hexilee/roa/tree/master/integration/diesel-example)
-for more usages.
+for more use cases.
