@@ -106,7 +106,7 @@ use http::{header, HeaderValue, StatusCode};
 use serde::Serialize;
 
 /// A context extension to read/write body more simply.
-#[async_trait(?Send)]
+#[async_trait]
 pub trait PowerBody {
     /// read request body as Bytes.
     async fn read(&mut self) -> Result<Vec<u8>>;
@@ -154,7 +154,7 @@ pub trait PowerBody {
     #[cfg_attr(feature = "docs", doc(cfg(feature = "file")))]
     async fn write_file<P>(&mut self, path: P, typ: DispositionType) -> Result
     where
-        P: AsRef<Path>;
+        P: Send + AsRef<Path>;
 }
 
 // Static header value.
@@ -168,7 +168,7 @@ lazy_static! {
         HeaderValue::from_static("application/octet-stream");
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl<S: State> PowerBody for Context<S> {
     #[inline]
     async fn read(&mut self) -> Result<Vec<u8>> {
@@ -256,7 +256,7 @@ impl<S: State> PowerBody for Context<S> {
     #[inline]
     async fn write_file<P>(&mut self, path: P, typ: DispositionType) -> Result
     where
-        P: AsRef<Path>,
+        P: Send + AsRef<Path>,
     {
         write_file(self, path, typ).await
     }
