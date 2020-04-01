@@ -84,7 +84,7 @@
 //! }
 //! ```
 
-use crate::{async_trait, http, Context, Result, State, Status};
+use crate::{async_trait, http, status, Context, Result, State};
 use bytes::Bytes;
 use futures::{AsyncRead, AsyncReadExt};
 use lazy_static::lazy_static;
@@ -191,7 +191,8 @@ impl<S: State> PowerBody for Context<S> {
         B: DeserializeOwned,
     {
         let data = self.read().await?;
-        serde_json::from_slice(&data).map_err(handle_invalid_body)
+        serde_json::from_slice(&data)
+            .map_err(|err| status!(StatusCode::BAD_REQUEST, err))
     }
 
     #[cfg(feature = "urlencoded")]
@@ -201,7 +202,8 @@ impl<S: State> PowerBody for Context<S> {
         B: DeserializeOwned,
     {
         let data = self.read().await?;
-        serde_urlencoded::from_bytes(&data).map_err(handle_invalid_body)
+        serde_urlencoded::from_bytes(&data)
+            .map_err(|err| status!(StatusCode::BAD_REQUEST, err))
     }
 
     #[cfg(feature = "json")]
@@ -260,16 +262,6 @@ impl<S: State> PowerBody for Context<S> {
     {
         write_file(self, path, typ).await
     }
-}
-
-#[allow(dead_code)]
-#[inline]
-fn handle_invalid_body(err: impl Display) -> Status {
-    Status::new(
-        StatusCode::BAD_REQUEST,
-        format!("Invalid Body:\n{}", err),
-        true,
-    )
 }
 
 #[cfg(all(test, feature = "tcp"))]

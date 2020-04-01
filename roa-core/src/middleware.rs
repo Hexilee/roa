@@ -1,4 +1,6 @@
-use crate::{async_trait, Context, Result, Status};
+use crate::{async_trait, throw, Context, Result, Status};
+use http::header::LOCATION;
+use http::{StatusCode, Uri};
 use std::future::Future;
 
 /// ### Middleware
@@ -131,9 +133,34 @@ where
 /// is_endpoint(status!(StatusCode::BAD_REQUEST));
 /// ```
 ///
+/// - String endpoint
+///
+/// ```rust
+/// use roa_core::Endpoint;
+///
+/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
+/// }
+///
+/// is_endpoint("Hello, world"); // static slice
+/// is_endpoint("Hello, world".to_string()); // string
+/// ```
+///
+/// - Redirect endpoint
+///
+/// ```rust
+/// use roa_core::Endpoint;
+/// use roa_core::http::Uri;
+/// use std::convert::TryFrom;
+///
+/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
+/// }
+///
+/// is_endpoint(Uri::try_from("/target").unwrap());
+/// ```
+///
 /// #### Custom endpoint
 ///
-/// You can implement custom `Endpoint` for other types.
+/// You can implement custom `Endpoint` for your types.
 ///
 /// ```rust
 /// use roa_core::{Endpoint, Context, Next, Result, async_trait};
@@ -200,6 +227,36 @@ impl<'a, S> Endpoint<'a, S> for Status {
     #[inline]
     async fn call(&'a self, _ctx: &'a mut Context<S>) -> Result {
         Err(self.clone())
+    }
+}
+
+/// String endpoint.
+#[async_trait(?Send)]
+impl<'a, S> Endpoint<'a, S> for String {
+    #[inline]
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
+        ctx.resp.write(self.clone());
+        Ok(())
+    }
+}
+
+/// Static slice endpoint.
+#[async_trait(?Send)]
+impl<'a, S> Endpoint<'a, S> for &'static str {
+    #[inline]
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
+        ctx.resp.write(*self);
+        Ok(())
+    }
+}
+
+/// Redirect endpoint.
+#[async_trait(?Send)]
+impl<'a, S> Endpoint<'a, S> for Uri {
+    #[inline]
+    async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
+        ctx.resp.headers.insert(LOCATION, self.to_string().parse()?);
+        throw!(StatusCode::PERMANENT_REDIRECT)
     }
 }
 
