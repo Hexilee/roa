@@ -1,6 +1,6 @@
 [package]
 name = "roa-pg"
-version = "0.5.0-rc.2"
+version = "0.5.0-rc.3"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "feature=\"docs\""]
 [dependencies]
 bytes = "0.5.3"
 futures = "0.3.4"
-roa = { path = "../roa", version = "0.5.0-rc.3", default-features = false }
+roa = { path = "../roa", version = "0.5.0-rc.7", default-features = false }
 tokio-postgres = { version = "0.5.2", default-features = false }
 tokio = "0.2.13"
 async-std = "1.5"
@@ -29,7 +29,7 @@ webpki = "0.21.2"
 
 [dev-dependencies]
 async-std = { version = "1.5", features = ["attributes"] }
-roa = { path = "../roa", version = "0.5.0-rc.3" }
+roa = { path = "../roa", version = "0.5.0-rc.7" }
 
 [features]
 docs = ["roa/docs"]

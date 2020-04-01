@@ -1,6 +1,6 @@
 [package]
 name = "roa-diesel"
-version = "0.5.0-rc.2"
+version = "0.5.0-rc.3"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "feature=\"docs\""]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-roa = { path = "../roa", version = "0.5.0-rc.3", default-features = false }
+roa = { path = "../roa", version = "0.5.0-rc.7", default-features = false }
 diesel = { version = "1.4", features = ["extras"] }
 r2d2 = "0.8"
 

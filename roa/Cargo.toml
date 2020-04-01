@@ -1,6 +1,6 @@
 [package]
 name = "roa"
-version = "0.5.0-rc.6"
+version = "0.5.0-rc.7"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -36,7 +36,7 @@ headers = "0.3.1"
 tokio = "0.2.11"
 lazy_static = "1.4.0"
 hyper = { version = "0.13", default-features = false, features = ["stream"] }
-roa-core = { path = "../roa-core", version = "0.5.0-rc.3" }
+roa-core = { path = "../roa-core", version = "0.5.0-rc.5" }
 
 async-std = { version = "1.5", optional = true }
 cookie = { version = "0.13", features = ["percent-encode"], optional = true }

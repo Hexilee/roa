@@ -1,6 +1,6 @@
 [package]
 name = "roa-tokio"
-version = "0.5.0-rc.1"
+version = "0.5.0-rc.2"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -20,12 +20,12 @@ rustdoc-args = ["--cfg", "feature=\"docs\""]
 
 [dependencies]
 tokio = { version = "0.2", features = ["full"] }
-roa = { path = "../roa", version = "0.5.0-rc.3", default-features = false }
+roa = { path = "../roa", version = "0.5.0-rc.7", default-features = false }
 log = "0.4"
 futures = "0.3"
 
 [dev-dependencies]
-roa = { path = "../roa", version = "0.5.0-rc.3" }
+roa = { path = "../roa", version = "0.5.0-rc.7" }
 reqwest = "0.10"
 
 [features]
