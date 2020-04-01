@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
             GraphQL(RootNode::new(Query, Mutation)),
         ),
     );
-    let app = App::new(create_pool()?)
+    let app = App::state(create_pool()?)
         .gate(logger)
         .end(router.routes("/")?);
     app.listen("127.0.0.1:8000", |addr| {

@@ -58,7 +58,7 @@ pub trait TlsListener {
     /// let mut keys = rsa_private_keys(&mut key_file).unwrap();
     /// config.set_single_cert(cert_chain, keys.remove(0))?;
     ///
-    /// let server = App::new(()).end(end).listen_tls("127.0.0.1:8000", config, |addr| {
+    /// let server = App::new().end(end).listen_tls("127.0.0.1:8000", config, |addr| {
     ///     println!("Server is listening on https://localhost:{}", addr.port());
     /// })?;
     /// // server.await
@@ -137,7 +137,7 @@ mod tests {
         let mut keys = rsa_private_keys(&mut key_file).unwrap();
         config.set_single_cert(cert_chain, keys.remove(0))?;
 
-        let app = App::new(()).end(end);
+        let app = App::new().end(end);
         let (addr, server) = app.run_tls(config)?;
         spawn(server);
 

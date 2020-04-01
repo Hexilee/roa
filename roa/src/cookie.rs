@@ -14,7 +14,7 @@
 //! }
 //!
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! let app = App::new(()).gate(cookie_parser).end(end);
+//! let app = App::new().gate(cookie_parser).end(end);
 //! let (addr, server) = app.run()?;
 //! // server.await
 //! Ok(())
@@ -50,7 +50,7 @@ struct CookieScope;
 /// }
 ///
 /// # fn main() -> Result<(), Box<dyn Error>> {
-/// let app = App::new(()).gate(cookie_parser).end(end);
+/// let app = App::new().gate(cookie_parser).end(end);
 /// let (addr, server) = app.run()?;
 /// // server.await
 /// Ok(())
@@ -76,7 +76,7 @@ pub trait CookieGetter {
     /// }
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// let app = App::new(()).gate(cookie_parser).end(end);
+    /// let app = App::new().gate(cookie_parser).end(end);
     /// let (addr, server) = app.run()?;
     /// // server.await
     /// Ok(())
@@ -102,7 +102,7 @@ pub trait CookieSetter {
     /// }
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// let app = App::new(()).gate(cookie_parser).end(end);
+    /// let app = App::new().gate(cookie_parser).end(end);
     /// let (addr, server) = app.run()?;
     /// // server.await
     /// Ok(())
@@ -188,7 +188,7 @@ mod tests {
     #[tokio::test]
     async fn parser() -> Result<(), Box<dyn std::error::Error>> {
         // downstream of `cookie_parser`
-        let (addr, server) = App::new(()).gate(cookie_parser).end(must).run()?;
+        let (addr, server) = App::new().gate(cookie_parser).end(must).run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -199,7 +199,7 @@ mod tests {
         assert_eq!(StatusCode::OK, resp.status());
 
         // miss `cookie_parser`
-        let (addr, server) = App::new(()).end(must).run()?;
+        let (addr, server) = App::new().end(must).run()?;
         spawn(server);
         let resp = client
             .get(&format!("http://{}", addr))
@@ -213,12 +213,12 @@ mod tests {
     #[tokio::test]
     async fn cookie() -> Result<(), Box<dyn std::error::Error>> {
         // miss cookie
-        let (addr, server) = App::new(()).end(none).run()?;
+        let (addr, server) = App::new().end(none).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
 
-        let (addr, server) = App::new(()).gate(cookie_parser).end(must).run()?;
+        let (addr, server) = App::new().gate(cookie_parser).end(must).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
@@ -232,7 +232,7 @@ mod tests {
         );
 
         // string value
-        let (addr, server) = App::new(()).gate(cookie_parser).end(must).run()?;
+        let (addr, server) = App::new().gate(cookie_parser).end(must).run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -252,7 +252,7 @@ mod tests {
             Ok(())
         }
 
-        let (addr, server) = App::new(()).gate(cookie_parser).end(test).run()?;
+        let (addr, server) = App::new().gate(cookie_parser).end(test).run()?;
         spawn(server);
         let client = reqwest::Client::new();
         let resp = client
@@ -271,7 +271,7 @@ mod tests {
             ctx.set_cookie(Cookie::new("bar foo", "foo baz"))?;
             Ok(())
         }
-        let (addr, server) = App::new(()).end(test).run()?;
+        let (addr, server) = App::new().end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

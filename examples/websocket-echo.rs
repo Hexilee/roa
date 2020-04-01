@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
             }),
         ),
     );
-    let app = App::new(())
+    let app = App::new()
         .gate(logger)
         .gate(Cors::new())
         .end(router.routes("/")?);

@@ -31,7 +31,7 @@ pub use stream::AddrStream;
 /// use log::info;
 /// use async_std::fs::File;
 ///
-/// let app = App::new(()).gate(gate).end(end);
+/// let app = App::new().gate(gate).end(end);
 /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
 ///     info!("{} {}", ctx.method(), ctx.uri());
 ///     next.await
@@ -69,7 +69,7 @@ pub use stream::AddrStream;
 ///     }
 /// }
 ///
-/// let app = App::new(State::new()).gate(gate).end(end);
+/// let app = App::state(State::new()).gate(gate).end(end);
 /// async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result {
 ///     ctx.id = 1;
 ///     next.await
@@ -307,7 +307,7 @@ mod tests {
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
-        let service = App::new(()).end(()).http_service();
+        let service = App::new().end(()).http_service();
         let resp = service.serve(Request::default()).await;
         assert_eq!(StatusCode::OK, resp.status);
         Ok(())

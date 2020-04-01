@@ -33,7 +33,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let (addr, server) = App::new(())
+//!     let (addr, server) = App::new()
 //!         .gate(guard(DecodingKey::from_secret(SECRET)))
 //!         .end(test).run()?;
 //!     spawn(server);
@@ -254,7 +254,7 @@ mod tests {
             assert_eq!("Hexilee", &user.name);
             Ok(())
         }
-        let (addr, server) = App::new(())
+        let (addr, server) = App::new()
             .gate(guard(DecodingKey::from_secret(SECRET)))
             .end(test)
             .run()?;
@@ -347,7 +347,7 @@ mod tests {
             let _: User = ctx.claims()?;
             Ok(())
         }
-        let (addr, server) = App::new(()).end(test).run()?;
+        let (addr, server) = App::new().end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, resp.status());

@@ -23,7 +23,7 @@ async fn bar(ctx: &mut Context) -> Result {
     Ok(())
 }
 
-let app = App::new(()).end(get(foo).", stringify!($end), "(bar));
+let app = App::new().end(get(foo).", stringify!($end), "(bar));
 ```"),
             pub fn $end(mut self, endpoint: impl for<'a> Endpoint<'a, S>) -> Self {
                 self.0.insert($method, Box::new(endpoint));
@@ -48,7 +48,7 @@ async fn end(ctx: &mut Context) -> Result {
     Ok(())
 }
 
-let app = App::new(()).end(", stringify!($end), "(end));
+let app = App::new().end(", stringify!($end), "(end));
 ```"),
             pub fn $end<S>(endpoint: impl for<'a> Endpoint<'a, S>) -> Dispatcher<S> {
                     Dispatcher::<S>::default().$end(endpoint)

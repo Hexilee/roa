@@ -88,7 +88,6 @@ use crate::{async_trait, http, status, Context, Result, State};
 use bytes::Bytes;
 use futures::{AsyncRead, AsyncReadExt};
 use lazy_static::lazy_static;
-use std::fmt::Display;
 
 #[cfg(feature = "template")]
 use askama::Template;
@@ -311,7 +310,7 @@ mod tests {
             assert_eq!(USER, user);
             Ok(())
         }
-        let (addr, server) = App::new(()).end(test).run()?;
+        let (addr, server) = App::new().end(test).run()?;
         spawn(server);
 
         let client = reqwest::Client::new();
@@ -332,7 +331,7 @@ mod tests {
             assert_eq!(USER, user);
             Ok(())
         }
-        let (addr, server) = App::new(()).end(test).run()?;
+        let (addr, server) = App::new().end(test).run()?;
         spawn(server);
 
         let client = reqwest::Client::new();
@@ -351,7 +350,7 @@ mod tests {
         async fn test(ctx: &mut Context) -> crate::Result {
             ctx.render(&USER)
         }
-        let (addr, server) = App::new(()).end(test).run()?;
+        let (addr, server) = App::new().end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -365,7 +364,7 @@ mod tests {
             ctx.write("Hello, World!");
             Ok(())
         }
-        let (addr, server) = App::new(()).end(test).run()?;
+        let (addr, server) = App::new().end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
@@ -380,7 +379,7 @@ mod tests {
             ctx.write_reader(File::open("../assets/author.txt").await?);
             Ok(())
         }
-        let (addr, server) = App::new(()).end(test).run()?;
+        let (addr, server) = App::new().end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());

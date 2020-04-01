@@ -83,7 +83,7 @@ mod tests {
 
     #[async_std::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
-        let app = App::new(()).end(test);
+        let app = App::new().end(test);
         let service = app.http_service();
         let req = Request::from(http::Request::new(Body::from("Hello, World!")));
         let resp = service.serve(req).await;

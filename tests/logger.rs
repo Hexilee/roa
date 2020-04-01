@@ -42,7 +42,7 @@ async fn log() -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
     // bytes info
-    let (addr, server) = App::new(()).gate(logger).end(bytes_info).run()?;
+    let (addr, server) = App::new().gate(logger).end(bytes_info).run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     assert_eq!(StatusCode::OK, resp.status());
@@ -60,7 +60,7 @@ async fn log() -> Result<(), Box<dyn std::error::Error>> {
     async fn err(_ctx: &mut Context) -> roa::Result {
         throw!(StatusCode::BAD_REQUEST, "Hello, World!")
     }
-    let (addr, server) = App::new(()).gate(logger).end(err).run()?;
+    let (addr, server) = App::new().gate(logger).end(err).run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     assert_eq!(StatusCode::BAD_REQUEST, resp.status());
@@ -81,7 +81,7 @@ async fn log() -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
     // bytes info
-    let (addr, server) = App::new(()).gate(logger).end(stream_info).run()?;
+    let (addr, server) = App::new().gate(logger).end(stream_info).run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     assert_eq!(StatusCode::OK, resp.status());

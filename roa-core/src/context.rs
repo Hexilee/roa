@@ -22,7 +22,7 @@ use storage::{Storage, Value};
 /// use log::info;
 /// use async_std::fs::File;
 ///
-/// let app = App::new(()).gate(gate).end(end);
+/// let app = App::new().gate(gate).end(end);
 /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
 ///     info!("{} {}", ctx.method(), ctx.uri());
 ///     next.await
@@ -75,7 +75,7 @@ impl<S> Context<S> {
     /// ```rust
     /// use roa_core::{App, Context, Result};
     ///
-    /// let app = App::new(()).end(get);
+    /// let app = App::new().end(get);
     ///
     /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!("/", ctx.uri().to_string());
@@ -94,7 +94,7 @@ impl<S> Context<S> {
     /// use roa_core::{App, Context, Result};
     /// use roa_core::http::Method;
     ///
-    /// let app = App::new(()).end(get);
+    /// let app = App::new().end(get);
     ///
     /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(Method::GET, ctx.method());
@@ -113,7 +113,7 @@ impl<S> Context<S> {
     /// use roa_core::{App, Context, Result};
     /// use roa_core::http::header::CONTENT_TYPE;
     ///
-    /// let app = App::new(()).end(get);
+    /// let app = App::new().end(get);
     ///
     /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(
@@ -135,7 +135,7 @@ impl<S> Context<S> {
     /// use roa_core::{App, Context, Result};
     /// use roa_core::http::StatusCode;
     ///
-    /// let app = App::new(()).end(get);
+    /// let app = App::new().end(get);
     ///
     /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(StatusCode::OK, ctx.status());
@@ -154,7 +154,7 @@ impl<S> Context<S> {
     /// use roa_core::{App, Context, Result};
     /// use roa_core::http::Version;
     ///
-    /// let app = App::new(()).end(get);
+    /// let app = App::new().end(get);
     ///
     /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(Version::HTTP_11, ctx.version());
@@ -186,7 +186,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     ///
-    /// let app = App::new(()).gate(gate).end(end);
+    /// let app = App::new().gate(gate).end(end);
     /// ```
     #[inline]
     pub fn store_scoped<SC, K, V>(
@@ -219,7 +219,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     ///
-    /// let app = App::new(()).gate(gate).end(end);
+    /// let app = App::new().gate(gate).end(end);
     /// ```
     #[inline]
     pub fn store<K, V>(&mut self, key: K, value: V) -> Option<Arc<V>>
@@ -249,7 +249,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     ///
-    /// let app = App::new(()).gate(gate).end(end);
+    /// let app = App::new().gate(gate).end(end);
     /// ```
     #[inline]
     pub fn load_scoped<'a, SC, V>(&self, key: &'a str) -> Option<Variable<'a, V>>
@@ -276,7 +276,7 @@ impl<S> Context<S> {
     ///     Ok(())
     /// }
     ///
-    /// let app = App::new(()).gate(gate).end(end);
+    /// let app = App::new().gate(gate).end(end);
     /// ```
     #[inline]
     pub fn load<'a, V>(&self, key: &'a str) -> Option<Variable<'a, V>>
@@ -331,7 +331,7 @@ mod tests_with_runtime {
             assert_eq!(StatusCode::OK, ctx.status());
             Ok(())
         }
-        let service = App::new(()).end(test).http_service();
+        let service = App::new().end(test).http_service();
         service.serve(Request::default()).await;
         Ok(())
     }
@@ -352,7 +352,7 @@ mod tests_with_runtime {
             assert_eq!(1, ctx.data);
             Ok(())
         }
-        let service = App::new(State { data: 1 })
+        let service = App::state(State { data: 1 })
             .gate(gate)
             .end(test)
             .http_service();

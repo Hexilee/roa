@@ -123,7 +123,7 @@ async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     let router = Router::new()
         .on("/", serve_root)
         .include("/*{path}", wildcard_router);
-    let app = App::new(())
+    let app = App::new()
         .gate(logger)
         .gate(Compress::default())
         .end(router.routes("/")?);

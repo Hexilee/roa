@@ -144,7 +144,7 @@ mod tests {
     #[async_std::test]
     async fn middleware_order() -> Result<(), Box<dyn std::error::Error>> {
         let vector = Arc::new(Mutex::new(Vec::new()));
-        let service = App::new(())
+        let service = App::new()
             .gate(Pusher::new(0, vector.clone()))
             .gate(Pusher::new(1, vector.clone()))
             .gate(Pusher::new(2, vector.clone()))

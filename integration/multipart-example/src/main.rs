@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     let router = Router::new()
         .on("/", get(get_form))
         .on("/file", post(post_file));
-    let app = App::new(()).gate(logger).end(router.routes("/")?);
+    let app = App::new().gate(logger).end(router.routes("/")?);
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?

@@ -14,7 +14,7 @@
 //! }
 //!
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! let mut app = App::new(()).gate(Compress(Level::Fastest)).end(end);
+//! let mut app = App::new().gate(Compress(Level::Fastest)).end(end);
 //! let (addr, server) = app.run()?;
 //! // server.await
 //! Ok(())
@@ -148,7 +148,7 @@ mod tests {
 
     #[tokio::test]
     async fn compress() -> Result<(), Box<dyn std::error::Error>> {
-        let app = App::new(())
+        let app = App::new()
             .gate(Assert(202)) // compressed to 202 bytes
             .gate(Compress(Level::Fastest))
             .gate(Assert(236)) // the size of assets/welcome.html is 236 bytes.

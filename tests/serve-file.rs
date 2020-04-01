@@ -13,7 +13,7 @@ async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {
         ctx.write_file("assets/author.txt", DispositionType::Inline)
             .await
     }
-    let app = App::new(()).end(get(test));
+    let app = App::new().end(get(test));
     let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -29,7 +29,7 @@ async fn serve_router_variable() -> Result<(), Box<dyn std::error::Error>> {
             .await
     }
     let router = Router::new().on("/:filename", get(test));
-    let app = App::new(()).end(router.routes("/")?);
+    let app = App::new().end(router.routes("/")?);
     let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/author.txt", addr)).await?;
@@ -45,7 +45,7 @@ async fn serve_router_wildcard() -> Result<(), Box<dyn std::error::Error>> {
             .await
     }
     let router = Router::new().on("/*{path}", get(test));
-    let app = App::new(()).end(router.routes("/")?);
+    let app = App::new().end(router.routes("/")?);
     let (addr, server) = app.run()?;
     spawn(server);
     let resp = reqwest::get(&format!("http://{}/assets/author.txt", addr)).await?;
@@ -59,7 +59,7 @@ async fn serve_gzip() -> Result<(), Box<dyn std::error::Error>> {
         ctx.write_file("assets/welcome.html", DispositionType::Inline)
             .await
     }
-    let app = App::new(()).gate(Compress::default()).end(get(test));
+    let app = App::new().gate(Compress::default()).end(get(test));
     let (addr, server) = app.run()?;
     spawn(server);
     let client = reqwest::Client::builder().gzip(true).build()?;

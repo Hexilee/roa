@@ -195,7 +195,7 @@ mod tests {
     #[tokio::test]
     async fn upload() -> Result<(), Box<dyn StdError>> {
         let router = Router::new().on("/file", post(post_file));
-        let app = App::new(()).end(router.routes("/")?);
+        let app = App::new().end(router.routes("/")?);
         let (addr, server) = app.run()?;
         async_std::task::spawn(server);
 

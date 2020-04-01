@@ -41,7 +41,7 @@ fn hash_set(methods: impl AsRef<[Method]>) -> HashSet<Method> {
 ///     Ok(())
 /// }
 ///
-/// let app = App::new(()).end(allow([Method::GET, Method::POST], foo));
+/// let app = App::new().end(allow([Method::GET, Method::POST], foo));
 /// ```
 pub fn allow<E>(methods: impl AsRef<[Method]>, endpoint: E) -> Guard<E> {
     Guard {
@@ -63,7 +63,7 @@ pub fn allow<E>(methods: impl AsRef<[Method]>, endpoint: E) -> Guard<E> {
 ///     Ok(())
 /// }
 ///
-/// let app = App::new(()).end(deny([Method::PUT, Method::DELETE], foo));
+/// let app = App::new().end(deny([Method::PUT, Method::DELETE], foo));
 /// ```
 pub fn deny<E>(methods: impl AsRef<[Method]>, endpoint: E) -> Guard<E> {
     let white_list = hash_set(ALL_METHODS);

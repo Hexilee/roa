@@ -13,17 +13,13 @@ use std::future::Future;
 /// `async fn(&mut Context, Next<'_>) -> Result`.
 ///
 /// ```rust
-/// use roa_core::{Context, Next, Result, Middleware};
-/// use std::future::Future;
-///
-/// fn is_middleware(middleware: impl for<'a> Middleware<'a>) {
-/// }
+/// use roa_core::{App, Context, Next, Result};
 ///
 /// async fn middleware(ctx: &mut Context, next: Next<'_>) -> Result {
 ///     Ok(())
 /// }
 ///
-/// is_middleware(middleware);
+/// let app = App::new().gate(middleware);
 /// ```
 ///
 /// - Blank middleware
@@ -271,7 +267,7 @@ impl<'a, S> Endpoint<'a, S> for Uri {
 /// use roa_core::{App, Context, Result, Status, MiddlewareExt, Next};
 /// use roa_core::http::StatusCode;
 ///
-/// let app = App::new(())
+/// let app = App::new()
 ///     .gate(first)
 ///     .gate(second)
 ///     .gate(third)
@@ -310,7 +306,7 @@ impl<'a, S> Endpoint<'a, S> for Uri {
 /// use roa_core::{App, Context, Result, Status, MiddlewareExt, Next, status};
 /// use roa_core::http::StatusCode;
 ///         
-/// let app = App::new(())
+/// let app = App::new()
 ///     .gate(catch)
 ///     .gate(gate)
 ///     .end(status!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"));

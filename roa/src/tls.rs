@@ -22,7 +22,7 @@
 //! config.set_single_cert(cert_chain, keys.remove(0))?;
 //!
 //! let incoming = TlsIncoming::bind("127.0.0.1:0", config)?;
-//! let server = App::new(()).end(end).accept(incoming);
+//! let server = App::new().end(end).accept(incoming);
 //! // server.await
 //! Ok(())
 //! # }
@@ -48,7 +48,7 @@
 //! let cert_chain = certs(&mut cert_file).unwrap();
 //! let mut keys = rsa_private_keys(&mut key_file).unwrap();
 //! config.set_single_cert(cert_chain, keys.remove(0))?;
-//! let (addr, server) = App::new(()).end(end).bind_tls("127.0.0.1:0", config)?;
+//! let (addr, server) = App::new().end(end).bind_tls("127.0.0.1:0", config)?;
 //! // server.await
 //! Ok(())
 //! # }

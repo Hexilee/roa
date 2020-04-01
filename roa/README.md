@@ -17,19 +17,14 @@ A Roa application is a structure composing and executing middlewares and an endp
 The obligatory hello world application:
 
 ```rust,no_run
-use roa::{App, Context};
+use roa::App;
 use roa::preload::*;
 use log::info;
 use std::error::Error as StdError;
 
-async fn end(ctx: &mut Context) -> roa::Result {
-    ctx.write("Hello, World");
-    Ok(())
-}
-
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    let app = App::new(()).end(end);
+    let app = App::new().end("Hello, World");
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
@@ -44,7 +39,7 @@ Then control flows back "upstream" when `next.await` returns.
 
 The following example responds with "Hello World",
 however first the request flows through the x-response-time and logging middleware to mark
-when the request started, then continue to yield control through the response endpoint.
+when the request started, then continue to yield control through the endpoint.
 When a middleware invokes next the function suspends and passes control to the next middleware or endpoint.
 After the endpoint is called,
 the stack will unwind and each middleware is resumed to perform
@@ -59,10 +54,10 @@ use std::time::Instant;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    let app = App::new(())
+    let app = App::new()
         .gate(logger)
         .gate(x_response_time)
-        .end(response);
+        .end("Hello, World");
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
@@ -85,11 +80,6 @@ async fn x_response_time(ctx: &mut Context, next: Next<'_>) -> roa::Result {
     Ok(())
 }
 
-async fn response(ctx: &mut Context) -> roa::Result {
-    ctx.write("Hello, World");
-    Ok(())
-}
-
 ```
 
 ### Status Handling
@@ -105,7 +95,7 @@ use log::info;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let app = App::new(())
+    let app = App::new()
         .gate(catch)
         .gate(not_catch)
         .end(status);
@@ -168,7 +158,7 @@ use log::info;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let router = Router::new()
         .on("/:id", get(end)); // get dynamic "/:id"
-    let app = App::new(())
+    let app = App::new()
         .end(router.routes("/user")?); // route with prefix "/user"
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
@@ -205,7 +195,7 @@ async fn must(ctx: &mut Context) -> roa::Result {
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let app = App::new(())
+    let app = App::new()
         .gate(query_parser)
         .end(must);
     app.listen("127.0.0.1:8080", |addr| {

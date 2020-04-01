@@ -19,22 +19,85 @@ A Roa application is a structure composing and executing middlewares and an endp
 The obligatory hello world application:
 
 ```rust
-use roa_core::{App, Context, Result, Status};
-
-let app = App::new(()).end(end);
-
-// endpoint
-async fn end(ctx: &mut Context) -> Result {
-    ctx.resp.write("Hello, World");
-    Ok(())
-}
+use roa_core::App;
+let app = App::new().end("Hello, World");
 ```
+
+#### Endpoint
+
+- Functional endpoint
+
+    A normal functional endpoint is an async function with signature:
+    `async fn(&mut Context) -> Result`.
+    
+    ```rust
+    use roa_core::{Context, Result};
+    
+    async fn endpoint(ctx: &mut Context) -> Result {
+        Ok(())
+    }
+    
+    is_endpoint(endpoint);
+    ```
+  
+- Ok endpoint
+
+`()` is an endpoint always return `Ok(())`
+
+```rust
+use roa_core::Endpoint;
+
+fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
+}
+
+is_endpoint(());
+```
+
+- Status endpoint
+
+`Status` is an endpoint always return `Err(Status)`
+
+```rust
+use roa_core::{Endpoint, status};
+use roa_core::http::StatusCode;
+
+fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
+}
+
+is_endpoint(status!(StatusCode::BAD_REQUEST));
+```
+
+- String endpoint
+
+```rust
+use roa_core::Endpoint;
+
+fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
+}
+
+is_endpoint("Hello, world"); // static slice
+is_endpoint("Hello, world".to_string()); // string
+```
+
+- Redirect endpoint
+
+```rust
+use roa_core::Endpoint;
+use roa_core::http::Uri;
+use std::convert::TryFrom;
+
+fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
+}
+
+is_endpoint(Uri::try_from("/target").unwrap());
+```
+
 
 #### Cascading
 
 The following example responds with "Hello World", however, the request flows through
 the `logging` middleware to mark when the request started, then continue
-to yield control through the response endpoint. When a middleware invokes `next.await`
+to yield control through the endpoint. When a middleware invokes `next.await`
 the function suspends and passes control to the next middleware or endpoint. After the endpoint is called,
 the stack will unwind and each middleware is resumed to perform
 its upstream behaviour.
@@ -44,12 +107,7 @@ use roa_core::{App, Context, Result, Status, MiddlewareExt, Next};
 use std::time::Instant;
 use log::info;
 
-let app = App::new(()).gate(logging).end(response);
-
-async fn response(ctx: &mut Context) -> Result {
-    ctx.resp.write("Hello, World");
-    Ok(())
-}
+let app = App::new().gate(logging).end("Hello, World");
 
 async fn logging(ctx: &mut Context, next: Next<'_>) -> Result {
     let inbound = Instant::now();
@@ -67,7 +125,7 @@ You can catch or straightly throw a status returned by next.
 use roa_core::{App, Context, Result, Status, MiddlewareExt, Next, throw};
 use roa_core::http::StatusCode;
         
-let app = App::new(()).gate(catch).gate(gate).end(end);
+let app = App::new().gate(catch).gate(gate).end(end);
 
 async fn catch(ctx: &mut Context, next: Next<'_>) -> Result {
     // catch

@@ -174,7 +174,7 @@ fn crud_router() -> Router<State> {
 
 #[tokio::test]
 async fn restful_crud() -> Result<(), Box<dyn std::error::Error>> {
-    let app = App::new(State::new(DB::new())).end(crud_router().routes("/user")?);
+    let app = App::state(State::new(DB::new())).end(crud_router().routes("/user")?);
     let (addr, server) = app.run()?;
     spawn(server);
     // first get, 404 Not Found
@@ -274,7 +274,7 @@ fn batch_router() -> Router<State> {
 
 #[tokio::test]
 async fn batch() -> Result<(), Box<dyn std::error::Error>> {
-    let app = App::new(State::new(DB::new()))
+    let app = App::state(State::new(DB::new()))
         .gate(query_parser)
         .end(batch_router().routes("/")?);
     let (addr, server) = app.run()?;

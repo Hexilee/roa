@@ -17,7 +17,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     pretty_env_logger::init();
-//!     let app = App::new(())
+//!     let app = App::new()
 //!         .gate(logger)
 //!         .end(end);
 //!     let (addr, server) = app.run()?;

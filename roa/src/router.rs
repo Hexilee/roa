@@ -33,7 +33,7 @@
 //!         .gate(gate)
 //!         .on("/restful", get(query).post(create))
 //!         .on("/graphql", allow([Method::GET, Method::POST], graphql));
-//!     let app = App::new(())
+//!     let app = App::new()
 //!         .end(router.routes("/api")?);
 //!     let (addr, server) = app.run()?;
 //!     spawn(server);
@@ -94,7 +94,7 @@ struct RouterScope;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let router = Router::new().on("/:id", test);
-///     let app = App::new(()).end(router.routes("/user")?);
+///     let app = App::new().end(router.routes("/user")?);
 ///     let (addr, server) = app.run()?;
 ///     spawn(server);
 ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
@@ -126,7 +126,7 @@ pub trait RouterParam {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let router = Router::new().on("/:id", test);
-    ///     let app = App::new(()).end(router.routes("/user")?);
+    ///     let app = App::new().end(router.routes("/user")?);
     ///     let (addr, server) = app.run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}/user/0", addr)).await?;
@@ -346,7 +346,7 @@ mod tests {
     #[tokio::test]
     async fn gate_test() -> Result<(), Box<dyn std::error::Error>> {
         let router = Router::new().gate(gate).on("/", test);
-        let app = App::new(()).end(router.routes("/route")?);
+        let app = App::new().end(router.routes("/route")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route", addr)).await?;
@@ -358,7 +358,7 @@ mod tests {
     async fn route() -> Result<(), Box<dyn std::error::Error>> {
         let user_router = Router::new().on("/", test);
         let router = Router::new().gate(gate).include("/user", user_router);
-        let app = App::new(()).end(router.routes("/route")?);
+        let app = App::new().end(router.routes("/route")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}/route/user", addr)).await?;
@@ -379,7 +379,7 @@ mod tests {
 
     #[tokio::test]
     async fn route_not_found() -> Result<(), Box<dyn std::error::Error>> {
-        let app = App::new(()).end(Router::default().routes("/")?);
+        let app = App::new().end(Router::default().routes("/")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
@@ -389,7 +389,7 @@ mod tests {
 
     #[tokio::test]
     async fn non_utf8_uri() -> Result<(), Box<dyn std::error::Error>> {
-        let app = App::new(()).end(Router::default().routes("/")?);
+        let app = App::new().end(Router::default().routes("/")?);
         let (addr, server) = app.run()?;
         spawn(server);
         let gbk_path = encoding::label::encoding_from_whatwg_label("gbk")

@@ -87,7 +87,7 @@ async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     let router = Router::new()
         .on("/", post(create_user))
         .on("/:id", get(get_user).put(update_user).delete(delete_user));
-    let app = App::new(Database::new()).end(router.routes("/user")?);
+    let app = App::state(Database::new()).end(router.routes("/user")?);
     app.listen("127.0.0.1:8000", |addr| {
         println!("Server is listening on {}", addr)
     })?

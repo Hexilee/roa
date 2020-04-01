@@ -7,7 +7,7 @@ use roa::App;
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
-    let app = App::new(create_pool()?)
+    let app = App::state(create_pool()?)
         .gate(logger)
         .end(post_router().routes("/post")?);
     app.listen("127.0.0.1:8000", |addr| {

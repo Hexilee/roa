@@ -42,7 +42,7 @@
 //! async fn main() -> Result<(), Box<dyn Error>> {
 //!     let url = "postgres://fred:secret@localhost/test";
 //!     let state = State::new(url).await?;
-//!     App::new(state)
+//!     App::state(state)
 //!         .gate(query_parser)
 //!         .end(query)
 //!         .listen("127.0.0.1:0", |addr| {

@@ -36,7 +36,7 @@ pub trait Listener {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new(()).end(end).run()?;
+    ///     let (addr, server) = App::new().end(end).run()?;
     ///     spawn(server);
     ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
     ///     assert_eq!(StatusCode::OK, resp.status());

@@ -72,7 +72,7 @@ async fn hello(ctx: &mut Context) -> roa::Result {
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    let app = App::new(()).end(hello);
+    let app = App::new().end(hello);
     app.listen("127.0.0.1:8000", |addr| {
         println!("Server is listening on {}", addr)
     })?

@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     let mut keys = rsa_private_keys(&mut key_file).unwrap();
     config.set_single_cert(cert_chain, keys.remove(0))?;
 
-    let app = App::new(()).gate(logger).end(serve_file);
+    let app = App::new().gate(logger).end(serve_file);
     app.listen_tls("127.0.0.1:8000", config, |addr| {
         info!("Server is listening on https://localhost:{}", addr.port())
     })?
