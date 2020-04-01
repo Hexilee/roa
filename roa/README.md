@@ -33,6 +33,68 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 }
 ```
 
+#### Endpoint
+
+An endpoint it an object to handle request.
+
+There are some build-in endpoints in roa.
+
+- Functional endpoint
+
+    A normal functional endpoint is an async function with signature:
+    `async fn(&mut Context) -> Result`.
+    
+    ```rust
+    use roa::{App, Context, Result};
+    
+    async fn endpoint(ctx: &mut Context) -> Result {
+        Ok(())
+    }
+    
+    let app = App::new().end(endpoint);
+    ```
+  
+- Ok endpoint
+
+    `()` is an endpoint always return `Ok(())`
+    
+    ```rust
+    let app = roa::App::new().end(());
+    ```
+
+- Status endpoint
+
+    `Status` is an endpoint always return `Err(Status)`
+    
+    ```rust
+    use roa::{App, status};
+    use roa::http::StatusCode;
+    let app = App::new().end(status!(StatusCode::BAD_REQUEST));
+    ```
+
+- String endpoint
+
+    Write string to body.
+    
+    ```rust
+    use roa::App;
+    
+    let app = App::new().end("Hello, world"); // static slice
+    let app = App::new().end("Hello, world".to_owned()); // string
+    ```
+
+- Redirect endpoint
+
+    Redirect to an uri.
+    
+    ```rust
+    use roa::App;
+    use roa::http::Uri;
+    
+    let app = App::new().end("/target".parse::<Uri>().unwrap());
+    ```
+
+
 #### Cascading
 Like koajs, middleware suspends and passes control to "downstream" by invoking `next.await`.
 Then control flows back "upstream" when `next.await` returns.

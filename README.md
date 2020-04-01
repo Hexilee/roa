@@ -61,18 +61,13 @@ async-std = { version = "1.5", features = ["attributes"] }
 ```
 
 ```rust,no_run
-use roa::{App, Context};
+use roa::App;
 use roa::preload::*;
 use std::error::Error as StdError;
 
-async fn hello(ctx: &mut Context) -> roa::Result {
-    ctx.write("Hello, World");
-    Ok(())
-}
-
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    let app = App::new().end(hello);
+    let app = App::new().end("Hello, World");
     app.listen("127.0.0.1:8000", |addr| {
         println!("Server is listening on {}", addr)
     })?

@@ -124,14 +124,13 @@ where
 ///
 /// - Redirect endpoint
 ///
-/// Redirect to a uri.
+/// Redirect to an uri.
 ///
 /// ```rust
 /// use roa_core::App;
 /// use roa_core::http::Uri;
-/// use std::convert::TryFrom;
 ///
-/// let app = App::new().end(Uri::try_from("/target").unwrap());
+/// let app = App::new().end("/target".parse::<Uri>().unwrap());
 /// ```
 ///
 /// #### Custom endpoint

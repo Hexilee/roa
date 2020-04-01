@@ -5,21 +5,16 @@
 //! ```rust
 //! use roa::logger::logger;
 //! use roa::preload::*;
-//! use roa::{App, Context};
+//! use roa::App;
 //! use roa::http::StatusCode;
 //! use async_std::task::spawn;
-//!
-//! async fn end(ctx: &mut Context) -> roa::Result {
-//!     ctx.write("Hello, World");
-//!     Ok(())
-//! }
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     pretty_env_logger::init();
 //!     let app = App::new()
 //!         .gate(logger)
-//!         .end(end);
+//!         .end("Hello, World");
 //!     let (addr, server) = app.run()?;
 //!     spawn(server);
 //!     let resp = reqwest::get(&format!("http://{}", addr)).await?;
