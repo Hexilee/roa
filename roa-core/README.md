@@ -31,66 +31,55 @@ let app = App::new().end("Hello, World");
     `async fn(&mut Context) -> Result`.
     
     ```rust
-    use roa_core::{Context, Result};
+    use roa_core::{App, Context, Result};
     
     async fn endpoint(ctx: &mut Context) -> Result {
         Ok(())
     }
     
-    is_endpoint(endpoint);
+    let app = App::new().end(endpoint);
     ```
   
 - Ok endpoint
 
-`()` is an endpoint always return `Ok(())`
-
-```rust
-use roa_core::Endpoint;
-
-fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
-}
-
-is_endpoint(());
-```
+    `()` is an endpoint always return `Ok(())`
+    
+    ```rust
+    let app = roa_core::App::new().end(());
+    ```
 
 - Status endpoint
 
-`Status` is an endpoint always return `Err(Status)`
-
-```rust
-use roa_core::{Endpoint, status};
-use roa_core::http::StatusCode;
-
-fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
-}
-
-is_endpoint(status!(StatusCode::BAD_REQUEST));
-```
+    `Status` is an endpoint always return `Err(Status)`
+    
+    ```rust
+    use roa_core::{App, status};
+    use roa_core::http::StatusCode;
+    let app = App::new().end(status!(StatusCode::BAD_REQUEST));
+    ```
 
 - String endpoint
 
-```rust
-use roa_core::Endpoint;
-
-fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
-}
-
-is_endpoint("Hello, world"); // static slice
-is_endpoint("Hello, world".to_string()); // string
-```
+    Write string to body.
+    
+    ```rust
+    use roa_core::App;
+    
+    let app = App::new().end("Hello, world"); // static slice
+    let app = App::new().end("Hello, world".to_owned()); // string
+    ```
 
 - Redirect endpoint
 
-```rust
-use roa_core::Endpoint;
-use roa_core::http::Uri;
-use std::convert::TryFrom;
-
-fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
-}
-
-is_endpoint(Uri::try_from("/target").unwrap());
-```
+    Redirect to a uri.
+    
+    ```rust
+    use roa_core::App;
+    use roa_core::http::Uri;
+    use std::convert::TryFrom;
+    
+    let app = App::new().end(Uri::try_from("/target").unwrap());
+    ```
 
 
 #### Cascading

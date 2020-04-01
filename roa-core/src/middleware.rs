@@ -27,11 +27,7 @@ use std::future::Future;
 /// `()` is a blank middleware, it just calls the next middleware or endpoint.
 ///
 /// ```rust
-/// use roa_core::Middleware;
-/// fn is_middleware(middleware: impl for<'a> Middleware<'a>) {
-/// }
-///
-/// is_middleware(());
+/// let app = roa_core::App::new().gate(());
 /// ```
 ///
 /// #### Custom middleware
@@ -39,11 +35,10 @@ use std::future::Future;
 /// You can implement custom `Middleware` for other types.
 ///
 /// ```rust
-/// use roa_core::{Middleware, Context, Next, Result, async_trait};
+/// use roa_core::{App, Middleware, Context, Next, Result, async_trait};
 /// use async_std::sync::Arc;
 /// use std::time::Instant;
 ///
-/// fn is_middleware(middleware: impl for<'a> Middleware<'a>) {}
 ///
 /// struct Logger;
 ///
@@ -57,7 +52,7 @@ use std::future::Future;
 ///     }
 /// }
 ///
-/// is_middleware(Logger);
+/// let app = roa_core::App::new().gate(Logger);
 /// ```
 #[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
@@ -90,29 +85,20 @@ where
 /// `async fn(&mut Context) -> Result`.
 ///
 /// ```rust
-/// use roa_core::{Context, Result, Endpoint};
-/// use std::future::Future;
-///
-/// fn is_endpoint<S>(endpoint: impl for<'a> Endpoint<'a, S>) {
-/// }
+/// use roa_core::{App, Context, Result};
 ///
 /// async fn endpoint(ctx: &mut Context) -> Result {
 ///     Ok(())
 /// }
 ///
-/// is_endpoint(endpoint);
+/// let app = App::new().end(endpoint);
 /// ```
 /// - Ok endpoint
 ///
 /// `()` is an endpoint always return `Ok(())`
 ///
 /// ```rust
-/// use roa_core::Endpoint;
-///
-/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
-/// }
-///
-/// is_endpoint(());
+/// let app = roa_core::App::new().end(());
 /// ```
 ///
 /// - Status endpoint
@@ -120,38 +106,32 @@ where
 /// `Status` is an endpoint always return `Err(Status)`
 ///
 /// ```rust
-/// use roa_core::{Endpoint, status};
+/// use roa_core::{App, status};
 /// use roa_core::http::StatusCode;
-///
-/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
-/// }
-///
-/// is_endpoint(status!(StatusCode::BAD_REQUEST));
+/// let app = App::new().end(status!(StatusCode::BAD_REQUEST));
 /// ```
 ///
 /// - String endpoint
 ///
+/// Write string to body.
+///
 /// ```rust
-/// use roa_core::Endpoint;
+/// use roa_core::App;
 ///
-/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
-/// }
-///
-/// is_endpoint("Hello, world"); // static slice
-/// is_endpoint("Hello, world".to_string()); // string
+/// let app = App::new().end("Hello, world"); // static slice
+/// let app = App::new().end("Hello, world".to_owned()); // string
 /// ```
 ///
 /// - Redirect endpoint
 ///
+/// Redirect to a uri.
+///
 /// ```rust
-/// use roa_core::Endpoint;
+/// use roa_core::App;
 /// use roa_core::http::Uri;
 /// use std::convert::TryFrom;
 ///
-/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
-/// }
-///
-/// is_endpoint(Uri::try_from("/target").unwrap());
+/// let app = App::new().end(Uri::try_from("/target").unwrap());
 /// ```
 ///
 /// #### Custom endpoint
@@ -159,7 +139,7 @@ where
 /// You can implement custom `Endpoint` for your types.
 ///
 /// ```rust
-/// use roa_core::{Endpoint, Context, Next, Result, async_trait};
+/// use roa_core::{App, Endpoint, Context, Next, Result, async_trait};
 /// use async_std::sync::Arc;
 /// use std::time::Instant;
 ///
@@ -175,7 +155,7 @@ where
 ///     }
 /// }
 ///
-/// is_endpoint(Logger);
+/// let app = App::new().end(Logger);
 /// ```
 #[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
