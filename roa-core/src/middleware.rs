@@ -14,7 +14,7 @@ use std::future::Future;
 /// use roa_core::{Context, Next, Result, Middleware};
 /// use std::future::Future;
 ///
-/// fn is_middleware<S>(middleware: impl for<'a> Middleware<'a, S>) {
+/// fn is_middleware(middleware: impl for<'a> Middleware<'a>) {
 /// }
 ///
 /// async fn middleware(ctx: &mut Context, next: Next<'_>) -> Result {
@@ -45,12 +45,12 @@ use std::future::Future;
 /// use async_std::sync::Arc;
 /// use std::time::Instant;
 ///
-/// fn is_middleware<S>(middleware: impl for<'a> Middleware<'a, S>) {}
+/// fn is_middleware(middleware: impl for<'a> Middleware<'a>) {}
 ///
 /// struct Logger;
 ///
 /// #[async_trait(?Send)]
-/// impl <'a> Middleware<'a, ()> for Logger {
+/// impl <'a> Middleware<'a> for Logger {
 ///     async fn handle(&'a self, ctx: &'a mut Context, next: Next<'a>) -> Result {
 ///         let start = Instant::now();
 ///         let result = next.await;
@@ -140,13 +140,13 @@ where
 /// use async_std::sync::Arc;
 /// use std::time::Instant;
 ///
-/// fn is_endpoint<S>(endpoint: impl for<'a> Endpoint<'a, S>) {
+/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
 /// }
 ///
 /// struct Logger;
 ///
 /// #[async_trait(?Send)]
-/// impl <'a> Endpoint<'a, ()> for Logger {
+/// impl <'a> Endpoint<'a> for Logger {
 ///     async fn call(&'a self, ctx: &'a mut Context) -> Result {
 ///         Ok(())
 ///     }
