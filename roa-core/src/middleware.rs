@@ -1,14 +1,13 @@
-use crate::{async_trait, Context, Result};
+use crate::{async_trait, Context, Result, Status};
 use std::future::Future;
 
 /// ### Middleware
 ///
-/// There are two kinds of middleware,
-/// the one is functional middleware, the another is trait middleware.
+/// #### Build-in middlewares
 ///
-/// #### Functional Middleware
+/// - Functional middleware
 ///
-/// A normal functional middleware is an async function with signature:
+/// A functional middleware is an async function with signature:
 /// `async fn(&mut Context, Next<'_>) -> Result`.
 ///
 /// ```rust
@@ -25,9 +24,21 @@ use std::future::Future;
 /// is_middleware(middleware);
 /// ```
 ///
-/// #### Trait Middleware
+/// - Blank middleware
 ///
-/// A trait middleware is an object implementing trait `Middleware`.
+/// `()` is a blank middleware, it just calls the next middleware or endpoint.
+///
+/// ```rust
+/// use roa_core::Middleware;
+/// fn is_middleware(middleware: impl for<'a> Middleware<'a>) {
+/// }
+///
+/// is_middleware(());
+/// ```
+///
+/// #### Custom middleware
+///
+/// You can implement custom `Middleware` for other types.
 ///
 /// ```rust
 /// use roa_core::{Middleware, Context, Next, Result, async_trait};
@@ -52,7 +63,7 @@ use std::future::Future;
 /// ```
 #[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
-pub trait Middleware<'a, S>: 'static + Sync + Send {
+pub trait Middleware<'a, S = ()>: 'static + Sync + Send {
     /// Handle context and next, return status.
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result;
 }
@@ -72,10 +83,10 @@ where
 
 /// ### Endpoint
 ///
-/// There are two kinds of endpoint,
-/// the one is functional endpoint, the another is trait endpoint.
 ///
-/// #### Functional Endpoint
+/// #### Build-in endpoint
+///
+/// - Functional endpoint
 ///
 /// A normal functional endpoint is an async function with signature:
 /// `async fn(&mut Context) -> Result`.
@@ -93,10 +104,36 @@ where
 ///
 /// is_endpoint(endpoint);
 /// ```
+/// - Ok endpoint
 ///
-/// #### Trait Endpoint
+/// `()` is an endpoint always return `Ok(())`
 ///
-/// A trait endpoint is an object implementing trait `Endpoint`.
+/// ```rust
+/// use roa_core::Endpoint;
+///
+/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
+/// }
+///
+/// is_endpoint(());
+/// ```
+///
+/// - Status endpoint
+///
+/// `Status` is an endpoint always return `Err(Status)`
+///
+/// ```rust
+/// use roa_core::{Endpoint, status};
+/// use roa_core::http::StatusCode;
+///
+/// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
+/// }
+///
+/// is_endpoint(status!(StatusCode::BAD_REQUEST));
+/// ```
+///
+/// #### Custom endpoint
+///
+/// You can implement custom `Endpoint` for other types.
 ///
 /// ```rust
 /// use roa_core::{Endpoint, Context, Next, Result, async_trait};
@@ -119,7 +156,7 @@ where
 /// ```
 #[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
-pub trait Endpoint<'a, S>: 'static + Sync + Send {
+pub trait Endpoint<'a, S = ()>: 'static + Sync + Send {
     /// Call this endpoint.
     async fn call(&'a self, ctx: &'a mut Context<S>) -> Result;
 }
@@ -137,23 +174,32 @@ where
     }
 }
 
-/// Fake middleware.
+/// blank middleware.
 #[async_trait(?Send)]
 impl<'a, S> Middleware<'a, S> for () {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     #[inline]
-    async fn handle(&'a self, _ctx: &'a mut Context<S>, next: Next<'a>) -> Result<()> {
+    async fn handle(&'a self, _ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         next.await
     }
 }
 
-/// Fake endpoint.
+/// ok endpoint, always return Ok(())
 #[async_trait(?Send)]
 impl<'a, S> Endpoint<'a, S> for () {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     #[inline]
-    async fn call(&'a self, _ctx: &'a mut Context<S>) -> Result<()> {
+    async fn call(&'a self, _ctx: &'a mut Context<S>) -> Result {
         Ok(())
+    }
+}
+
+/// status endpoint.
+#[async_trait(?Send)]
+impl<'a, S> Endpoint<'a, S> for Status {
+    #[inline]
+    async fn call(&'a self, _ctx: &'a mut Context<S>) -> Result {
+        Err(self.clone())
     }
 }
 
@@ -204,13 +250,13 @@ impl<'a, S> Endpoint<'a, S> for () {
 /// You can catch or straightly throw a Error returned by next.
 ///
 /// ```rust
-/// use roa_core::{App, Context, Result, Status, MiddlewareExt, Next, throw};
+/// use roa_core::{App, Context, Result, Status, MiddlewareExt, Next, status};
 /// use roa_core::http::StatusCode;
 ///         
 /// let app = App::new(())
 ///     .gate(catch)
 ///     .gate(gate)
-///     .end(end);
+///     .end(status!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"));
 ///
 /// async fn catch(ctx: &mut Context, next: Next<'_>) -> Result {
 ///     // catch
@@ -225,10 +271,6 @@ impl<'a, S> Endpoint<'a, S> for () {
 /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
 ///     next.await?; // just throw
 ///     unreachable!()
-/// }
-///
-/// async fn end(ctx: &mut Context) -> Result {
-///     throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
 /// }
 /// ```
 ///

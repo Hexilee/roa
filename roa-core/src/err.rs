@@ -5,6 +5,40 @@ use std::result::Result as StdResult;
 /// Type alias for `StdResult`.
 pub type Result<R = ()> = StdResult<R, Status>;
 
+/// Construct a `Status`.
+///
+/// - `status!(status_code)` will be expanded to `status!(status_code, "")`
+/// - `status!(status_code, message)` will be expanded to `status!(status_code, message, true)`
+/// - `status!(status_code, message, expose)` will be expanded to `Status::new(status_code, message, expose)`
+///
+/// ### Example
+/// ```rust
+/// use roa_core::{App, Context, Next, Result, status};
+/// use roa_core::http::StatusCode;
+///
+/// let app = App::new(())
+///     .gate(gate)
+///     .end(status!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"));
+/// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
+///     next.await?; // throw
+///     unreachable!();
+///     ctx.resp.status = StatusCode::OK;
+///     Ok(())
+/// }
+/// ```
+#[macro_export]
+macro_rules! status {
+    ($status_code:expr) => {
+        $crate::status!($status_code, "");
+    };
+    ($status_code:expr, $message:expr) => {
+        $crate::status!($status_code, $message, true);
+    };
+    ($status_code:expr, $message:expr, $expose:expr) => {
+        $crate::Status::new($status_code, $message, $expose)
+    };
+}
+
 /// Throw an `Err(Status)`.
 ///
 /// - `throw!(status_code)` will be expanded to `throw!(status_code, "")`
@@ -32,13 +66,17 @@ pub type Result<R = ()> = StdResult<R, Status>;
 #[macro_export]
 macro_rules! throw {
     ($status_code:expr) => {
-        $crate::throw!($status_code, "");
+        return core::result::Result::Err($crate::status!($status_code));
     };
     ($status_code:expr, $message:expr) => {
-        $crate::throw!($status_code, $message, true);
+        return core::result::Result::Err($crate::status!($status_code, $message));
     };
     ($status_code:expr, $message:expr, $expose:expr) => {
-        return Err($crate::Status::new($status_code, $message, $expose));
+        return core::result::Result::Err($crate::status!(
+            $status_code,
+            $message,
+            $expose
+        ));
     };
 }
 
