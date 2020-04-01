@@ -137,10 +137,10 @@ pub async fn logger<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
     let method = ctx.method().clone();
     let uri = ctx.uri().clone();
     let exec = ctx.exec.clone();
-    let status_code = ctx.status();
 
     match &mut result {
         Err(status) => {
+            let status_code = status.status_code;
             let message = if status.expose {
                 status.message.clone()
             } else {
@@ -152,18 +152,12 @@ pub async fn logger<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
             };
             ctx.exec
                 .spawn_blocking(move || {
-                    error!(
-                        "<-- {} {} {}ms {}\n{}",
-                        method,
-                        uri,
-                        start.elapsed().as_millis(),
-                        status_code,
-                        message,
-                    );
+                    error!("<-- {} {} {}\n{}", method, uri, status_code, message,);
                 })
                 .await
         }
         Ok(_) => {
+            let status_code = ctx.status();
             // logging when body polling complete.
             let logger = StreamLogger::Polling {
                 stream: mem::take(&mut ctx.resp.body),

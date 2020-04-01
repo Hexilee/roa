@@ -34,8 +34,8 @@ fn init() -> Result<(), SetLoggerError> {
     log::set_logger(&*LOGGER).map(|()| log::set_max_level(LevelFilter::Info))
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::test]
+async fn log() -> Result<(), Box<dyn std::error::Error>> {
     init()?;
     async fn bytes_info(ctx: &mut Context) -> roa::Result {
         ctx.resp.write("Hello, World.");
@@ -71,12 +71,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!("--> GET /", records[2].1);
     assert_eq!("ERROR", records[3].0);
     assert!(records[3].1.starts_with("<-- GET /"));
+    assert!(records[3].1.contains(&StatusCode::BAD_REQUEST.to_string()));
     assert!(records[3].1.ends_with("Hello, World!"));
 
     // stream info
     async fn stream_info(ctx: &mut Context) -> roa::Result {
         ctx.resp
-            .write_reader(File::open("../assets/welcome.html").await?);
+            .write_reader(File::open("assets/welcome.html").await?);
         Ok(())
     }
     // bytes info
