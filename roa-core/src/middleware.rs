@@ -76,8 +76,11 @@ where
 
 /// ### Endpoint
 ///
+/// An endpoint is a request handler.
 ///
 /// #### Build-in endpoint
+///
+/// There are some build-in endpoints.
 ///
 /// - Functional endpoint
 ///

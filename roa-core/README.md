@@ -25,6 +25,10 @@ let app = App::new().end("Hello, World");
 
 #### Endpoint
 
+An endpoint is a request handler.
+
+There are some build-in endpoints in roa_core.
+
 - Functional endpoint
 
     A normal functional endpoint is an async function with signature:

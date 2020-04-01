@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 
 #### Endpoint
 
-An endpoint it an object to handle request.
+An endpoint is a request handler.
 
 There are some build-in endpoints in roa.
 
