@@ -6,13 +6,14 @@ mod schema;
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel_example::{create_pool, State};
+use juniper::http::playground::playground_source;
 use juniper::{graphql_value, FieldError, FieldResult, GraphQLInputObject, RootNode};
 use log::info;
-use roa::http::{header, Method};
+use roa::http::Method;
 use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{allow, get, Router};
-use roa::{App, Context};
+use roa::App;
 use roa_diesel::preload::*;
 use roa_juniper::{GraphQL, JuniperContext};
 use serde::Serialize;
@@ -131,17 +132,10 @@ impl Mutation {
     }
 }
 
-async fn play_ground(ctx: &mut Context<State>) -> roa::Result {
-    ctx.write(juniper::http::playground::playground_source("/api"));
-    ctx.resp
-        .insert(header::CONTENT_TYPE, "text/html; charset=utf8")?;
-    Ok(())
-}
-
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     pretty_env_logger::init();
-    let router = Router::new().on("/", get(play_ground)).on(
+    let router = Router::new().on("/", get(playground_source("/api"))).on(
         "/api",
         allow(
             [Method::GET, Method::POST],

@@ -1,9 +1,8 @@
 //! This module provides a context extension `Forward`,
 //! which is used to parse `X-Forwarded-*` headers.
 
-use crate::http::{header::HOST, StatusCode};
-use crate::preload::*;
-use crate::{throw, Context, Result, State};
+use crate::http::header::HOST;
+use crate::{Context, State};
 use std::net::IpAddr;
 
 /// A context extension `Forward` used to parse `X-Forwarded-*` request headers.
@@ -19,11 +18,13 @@ pub trait Forward {
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: &mut Context) -> Result {
-    ///     println!("host: {}", ctx.host()?);
+    ///     if let Some(host) = ctx.host() {
+    ///         println!("host: {}", host);
+    ///     }
     ///     Ok(())
     /// }
     /// ```
-    fn host(&self) -> Result<String>;
+    fn host(&self) -> Option<&str>;
 
     /// Get true client ip.
     /// - If "x-forwarded-for" is set and valid, use the first ip.
@@ -67,28 +68,19 @@ pub trait Forward {
     /// use roa::forward::Forward;
     ///
     /// async fn get(ctx: &mut Context) -> Result {
-    ///     if let Some(result) = ctx.forwarded_proto() {
-    ///         println!("forwarded proto: {}", result?);
+    ///     if let Some(proto) = ctx.forwarded_proto() {
+    ///         println!("forwarded proto: {}", proto);
     ///     }
     ///     Ok(())
     /// }
     /// ```
-    fn forwarded_proto(&self) -> Option<Result<String>>;
+    fn forwarded_proto(&self) -> Option<&str>;
 }
 
 impl<S: State> Forward for Context<S> {
     #[inline]
-    fn host(&self) -> Result<String> {
-        if let Some(Ok(value)) = self.req.get("x-forwarded-host") {
-            Ok(value.to_string())
-        } else if let Some(Ok(value)) = self.req.get(HOST) {
-            Ok(value.to_string())
-        } else {
-            throw!(
-                StatusCode::BAD_REQUEST,
-                "header `host` and `x-forwarded-host` are both not set"
-            )
-        }
+    fn host(&self) -> Option<&str> {
+        self.get("x-forwarded-host").or(self.get(HOST))
     }
 
     #[inline]
@@ -104,7 +96,7 @@ impl<S: State> Forward for Context<S> {
     #[inline]
     fn forwarded_ips(&self) -> Vec<IpAddr> {
         let mut addrs = Vec::new();
-        if let Some(Ok(value)) = self.req.get("x-forwarded-for") {
+        if let Some(value) = self.get("x-forwarded-for") {
             for addr_str in value.split(',') {
                 if let Ok(addr) = addr_str.trim().parse() {
                     addrs.push(addr)
@@ -115,10 +107,8 @@ impl<S: State> Forward for Context<S> {
     }
 
     #[inline]
-    fn forwarded_proto(&self) -> Option<Result<String>> {
-        self.req
-            .get("x-forwarded-proto")
-            .map(|result| result.map(|value| value.to_string()))
+    fn forwarded_proto(&self) -> Option<&str> {
+        self.get("x-forwarded-proto")
     }
 }
 
@@ -134,7 +124,7 @@ mod tests {
     #[tokio::test]
     async fn host() -> Result<(), Box<dyn std::error::Error>> {
         async fn test(ctx: &mut Context) -> crate::Result {
-            assert_eq!("github.com", ctx.host()?);
+            assert_eq!(Some("github.com"), ctx.host());
             Ok(())
         }
         let (addr, server) = App::new().end(test).run()?;
@@ -161,17 +151,13 @@ mod tests {
     async fn host_err() -> Result<(), Box<dyn std::error::Error>> {
         async fn test(ctx: &mut Context) -> crate::Result {
             ctx.req.headers.remove(HOST);
-            assert_eq!("", ctx.host()?);
+            assert_eq!(None, ctx.host());
             Ok(())
         }
         let (addr, server) = App::new().end(test).run()?;
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
-        assert_eq!(StatusCode::BAD_REQUEST, resp.status());
-        assert_eq!(
-            "header `host` and `x-forwarded-host` are both not set",
-            resp.text().await?
-        );
+        assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }
 
@@ -204,7 +190,7 @@ mod tests {
     #[tokio::test]
     async fn forwarded_proto() -> Result<(), Box<dyn std::error::Error>> {
         async fn test(ctx: &mut Context) -> crate::Result {
-            assert_eq!("https", ctx.forwarded_proto().unwrap()?);
+            assert_eq!(Some("https"), ctx.forwarded_proto());
             Ok(())
         }
         let (addr, server) = App::new().end(test).run()?;

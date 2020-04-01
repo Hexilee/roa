@@ -35,7 +35,6 @@ pub mod compress;
 pub mod body;
 pub mod cors;
 pub mod forward;
-pub mod header;
 pub mod logger;
 pub mod query;
 pub mod stream;
@@ -44,7 +43,6 @@ pub mod stream;
 pub mod preload {
     pub use crate::body::PowerBody;
     pub use crate::forward::Forward;
-    pub use crate::header::FriendlyHeaders;
     pub use crate::query::Query;
 
     #[cfg(feature = "tcp")]

@@ -10,7 +10,7 @@
 //! use futures::io::BufReader;
 //! use async_std::fs::File;
 //!
-//! async fn get(mut ctx: Context<()>) -> Result {
+//! async fn get(ctx: &mut Context) -> Result {
 //!     let mut data = String::new();
 //!     // implements futures::AsyncRead.
 //!     ctx.req.reader().read_to_string(&mut data).await?;
@@ -51,7 +51,7 @@
 //!     name: String,
 //! }
 //!
-//! async fn get(mut ctx: Context<()>) -> Result {
+//! async fn get(ctx: &mut Context) -> Result {
 //!     // read as bytes.
 //!     let data = ctx.read().await?;
 //!
@@ -172,8 +172,7 @@ impl<S: State> PowerBody for Context<S> {
     #[inline]
     async fn read(&mut self) -> Result<Vec<u8>> {
         let size_hint = self
-            .header(header::CONTENT_LENGTH)
-            .and_then(|result| result.ok())
+            .get(header::CONTENT_LENGTH)
             .and_then(|value| value.parse().ok());
         let mut data = match size_hint {
             Some(hint) => Vec::with_capacity(hint),

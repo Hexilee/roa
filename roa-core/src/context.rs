@@ -1,7 +1,7 @@
 mod storage;
 
-use crate::{Executor, Request, Response};
-use http::header::{AsHeaderName, ToStrError};
+use crate::{status, Executor, Request, Response};
+use http::header::AsHeaderName;
 use http::StatusCode;
 use http::{Method, Uri, Version};
 use std::any::Any;
@@ -106,7 +106,34 @@ impl<S> Context<S> {
         &self.req.method
     }
 
-    /// Search for a header value and try to get its string copy.
+    /// Search for a header value and try to get its string reference.
+    ///
+    /// ### Example
+    /// ```rust
+    /// use roa_core::{App, Context, Result};
+    /// use roa_core::http::header::CONTENT_TYPE;
+    ///
+    /// let app = App::new().end(get);
+    ///
+    /// async fn get(ctx: &mut Context) -> Result {
+    ///     assert_eq!(
+    ///         Some("text/plain"),
+    ///         ctx.get(CONTENT_TYPE),
+    ///     );
+    ///     Ok(())
+    /// }
+    /// ```
+    #[inline]
+    pub fn get(&self, name: impl AsHeaderName) -> Option<&str> {
+        self.req
+            .headers
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+    }
+
+    /// Search for a header value and get its string reference.
+    ///
+    /// Otherwise return a 400 BAD REQUEST.
     ///
     /// ### Example
     /// ```rust
@@ -118,16 +145,20 @@ impl<S> Context<S> {
     /// async fn get(ctx: &mut Context) -> Result {
     ///     assert_eq!(
     ///         "text/plain",
-    ///         ctx.header(&CONTENT_TYPE).unwrap().unwrap()
+    ///         ctx.must_get(CONTENT_TYPE)?,
     ///     );
     ///     Ok(())
     /// }
     /// ```
     #[inline]
-    pub fn header(&self, name: impl AsHeaderName) -> Option<Result<&str, ToStrError>> {
-        self.req.headers.get(name).map(|value| value.to_str())
+    pub fn must_get(&self, name: impl AsHeaderName) -> crate::Result<&str> {
+        let value = self
+            .req
+            .headers
+            .get(name)
+            .ok_or_else(|| status!(StatusCode::BAD_REQUEST))?;
+        Ok(value.to_str()?)
     }
-
     /// Clone response::status.
     ///
     /// ### Example

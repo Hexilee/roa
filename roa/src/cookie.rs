@@ -21,7 +21,6 @@
 //! # }
 //! ```
 
-use crate::header::FriendlyHeaders;
 use crate::http::{header, StatusCode};
 use crate::{throw, Context, Next, Result};
 pub use cookie::Cookie;
@@ -114,7 +113,7 @@ pub trait CookieSetter {
 /// A middleware to parse cookie.
 #[inline]
 pub async fn cookie_parser<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
-    if let Some(Ok(cookies)) = ctx.header(header::COOKIE) {
+    if let Some(cookies) = ctx.get(header::COOKIE) {
         for cookie in cookies
             .split(';')
             .map(|cookie| cookie.trim())
@@ -137,13 +136,14 @@ impl<S> CookieGetter for Context<S> {
         match self.cookie(name) {
             Some(value) => Ok(value),
             None => {
-                self.resp.insert(
+                self.resp.headers.insert(
                     header::WWW_AUTHENTICATE,
                     format!(
                         r#"Cookie name="{}""#,
                         utf8_percent_encode(name, NON_ALPHANUMERIC)
-                    ),
-                )?;
+                    )
+                    .parse()?,
+                );
                 throw!(StatusCode::UNAUTHORIZED)
             }
         }
@@ -159,7 +159,9 @@ impl<S> CookieSetter for Context<S> {
     #[inline]
     fn set_cookie(&mut self, cookie: Cookie<'_>) -> Result {
         let cookie_value = cookie.encoded().to_string();
-        self.resp.append(header::SET_COOKIE, cookie_value)?;
+        self.resp
+            .headers
+            .append(header::SET_COOKIE, cookie_value.parse()?);
         Ok(())
     }
 }

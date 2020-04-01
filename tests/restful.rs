@@ -104,7 +104,7 @@ impl State {
         self.0.write().await.delete(id)
     }
 
-    async fn get(&self, id: usize) -> Option<User> {
+    async fn get_user(&self, id: usize) -> Option<User> {
         self.0.read().await.get(id).cloned()
     }
 
@@ -142,7 +142,7 @@ async fn create_user(ctx: &mut Context<State>) -> roa::Result {
 
 async fn query_user(ctx: &mut Context<State>) -> roa::Result {
     let id = ctx.must_param("id")?.parse()?;
-    match ctx.get(id).await {
+    match ctx.get_user(id).await {
         Some(user) => ctx.write_json(&user),
         None => throw!(StatusCode::NOT_FOUND, format!("id({}) not found", id)),
     }

@@ -3,7 +3,6 @@
 use crate::http::header::{HeaderName, HeaderValue, ORIGIN, VARY};
 
 use crate::http::{Method, StatusCode};
-use crate::preload::*;
 use crate::{async_trait, Context, Middleware, Next, Result};
 use headers::{
     AccessControlAllowCredentials, AccessControlAllowHeaders, AccessControlAllowMethods,
@@ -249,7 +248,7 @@ impl<'a, S> Middleware<'a, S> for Cors {
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         // Always set Vary header
         // https://github.com/rs/cors/issues/10
-        ctx.resp.append(VARY, ORIGIN)?;
+        ctx.resp.headers.append(VARY, ORIGIN.into());
 
         let origin = match ctx.req.headers.get(ORIGIN) {
             // If there is no Origin header, skip this middleware.

@@ -1,6 +1,6 @@
 [package]
 name = "roa-core"
-version = "0.5.0-rc.5"
+version = "0.5.0-rc.6"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"

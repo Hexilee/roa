@@ -275,7 +275,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - cookie: cookies getter or setter.
 - cors: CORS support.
 - forward: "X-Forwarded-*" parser.
-- header: dealing with headers more conveniently.
 - jwt: json web token support.
 - logger: a logger middleware.
 - tls: https supports.
