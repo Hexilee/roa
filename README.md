@@ -56,7 +56,7 @@
 # Cargo.toml
 
 [dependencies]
-roa = "0.5.0-rc"
+roa = "0.5.0"
 async-std = { version = "1.5", features = ["attributes"] }
 ```
 
