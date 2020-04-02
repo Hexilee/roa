@@ -1,3 +1,14 @@
+//! RUST_LOG=info Cargo run --example restful-api,
+//! then:
+//! - `curl 127.0.0.1:8000/user/0`
+//!     query user where id=0
+//! - `curl -H "Content-type: application/json" -d '{"name":"Hexilee", "age": 20}' -X POST 127.0.0.1:8000/user`
+//!     create a new user
+//! - `curl -H "Content-type: application/json" -d '{"name":"Alice", "age": 20}' -X PUT 127.0.0.1:8000/user/0`
+//!     update user where id=0, return the old data
+//! - `curl 127.0.0.1:8000/user/0 -X DELETE`
+//!     delete user where id=0
+
 use async_std::sync::{Arc, RwLock};
 use roa::http::StatusCode;
 use roa::preload::*;

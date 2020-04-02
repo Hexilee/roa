@@ -1,3 +1,6 @@
+//! RUST_LOG=info cargo run --example serve-file,
+//! then request http://127.0.0.1:8000.
+
 use askama::Template;
 use async_std::path::Path;
 use async_std::prelude::*;

@@ -1,3 +1,6 @@
+//! RUST_LOG=info cargo run --example websocket-echo,
+//! then request ws://127.0.0.1:8000/chat.
+
 use futures::StreamExt;
 use http::Method;
 use log::{error, info};

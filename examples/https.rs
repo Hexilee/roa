@@ -1,3 +1,6 @@
+//! RUST_LOG=info Cargo run --example https,
+//! then request https://127.0.0.1:8000.
+
 use log::info;
 use roa::body::DispositionType;
 use roa::logger::logger;

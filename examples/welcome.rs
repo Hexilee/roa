@@ -1,3 +1,6 @@
+//! RUST_LOG=info Cargo run --example welcome,
+//! then request http://127.0.0.1:8000 with some payload.
+
 use log::info;
 use roa::logger::logger;
 use roa::preload::*;
