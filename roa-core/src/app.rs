@@ -290,16 +290,6 @@ impl<S: Clone, E> Clone for HttpService<S, E> {
     }
 }
 
-impl<S: Clone> Clone for App<S, Arc<dyn for<'a> Endpoint<'a, S>>> {
-    fn clone(&self) -> Self {
-        Self {
-            service: self.service.clone(),
-            state: self.state.clone(),
-            exec: self.exec.clone(),
-        }
-    }
-}
-
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
     use crate::{App, Request};

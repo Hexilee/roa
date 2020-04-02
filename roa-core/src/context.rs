@@ -61,10 +61,10 @@ impl<S> Context<S> {
     ) -> Self {
         Self {
             req: request,
-            resp: Response::new(),
+            resp: Response::default(),
             state,
             exec,
-            storage: Storage::new(),
+            storage: Storage::default(),
             remote_addr,
         }
     }
@@ -157,7 +157,9 @@ impl<S> Context<S> {
             .headers
             .get(name)
             .ok_or_else(|| status!(StatusCode::BAD_REQUEST))?;
-        Ok(value.to_str()?)
+        value
+            .to_str()
+            .map_err(|err| status!(StatusCode::BAD_REQUEST, err))
     }
     /// Clone response::status.
     ///
@@ -353,10 +355,11 @@ impl<S: Clone> Clone for Context<S> {
 #[cfg(all(test, feature = "runtime"))]
 mod tests_with_runtime {
     use crate::{App, Context, Next, Request, Status};
-    use http::{StatusCode, Version};
+    use http::{HeaderValue, StatusCode, Version};
+    use std::error::Error;
 
     #[async_std::test]
-    async fn status_and_version() -> Result<(), Box<dyn std::error::Error>> {
+    async fn status_and_version() -> Result<(), Box<dyn Error>> {
         async fn test(ctx: &mut Context) -> Result<(), Status> {
             assert_eq!(Version::HTTP_11, ctx.version());
             assert_eq!(StatusCode::OK, ctx.status());
@@ -373,7 +376,7 @@ mod tests_with_runtime {
     }
 
     #[async_std::test]
-    async fn state_mut() -> Result<(), Box<dyn std::error::Error>> {
+    async fn state() -> Result<(), Box<dyn Error>> {
         async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result<(), Status> {
             ctx.data = 1;
             next.await
@@ -388,6 +391,23 @@ mod tests_with_runtime {
             .end(test)
             .http_service();
         service.serve(Request::default()).await;
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn must_get() -> Result<(), Box<dyn Error>> {
+        use http::header::{CONTENT_TYPE, HOST};
+        async fn test(ctx: &mut Context) -> Result<(), Status> {
+            assert_eq!(Ok("github.com"), ctx.must_get(HOST));
+            ctx.must_get(CONTENT_TYPE)?;
+            unreachable!()
+        }
+        let service = App::new().end(test).http_service();
+        let mut req = Request::default();
+        req.headers
+            .insert(HOST, HeaderValue::from_static("github.com"));
+        let resp = service.serve(req).await;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status);
         Ok(())
     }
 }

@@ -81,7 +81,7 @@ macro_rules! throw {
 }
 
 /// The `Status` of roa.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Status {
     /// StatusCode will be responded to client if Error is thrown by the top middleware.
     ///

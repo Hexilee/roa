@@ -149,7 +149,7 @@ async fn x_response_time(ctx: &mut Context, next: Next<'_>) -> roa::Result {
 You can catch or straightly throw a status returned by next.
 
 ```rust,no_run
-use roa::{App, Context, Next, throw};
+use roa::{App, Context, Next, status};
 use roa::preload::*;
 use roa::http::StatusCode;
 use async_std::task::spawn;
@@ -160,7 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = App::new()
         .gate(catch)
         .gate(not_catch)
-        .end(status);
+        .end(status!(StatusCode::IM_A_TEAPOT, "I'm a teapot!");
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
@@ -183,11 +183,6 @@ async fn not_catch(ctx: &mut Context, next: Next<'_>) -> roa::Result {
     next.await?; // just throw
     unreachable!()
 }
-
-async fn status(ctx: &mut Context) -> roa::Result {
-    throw!(StatusCode::IM_A_TEAPOT, "I'm a teapot!")
-}
-
 ```
 
 #### status_handler

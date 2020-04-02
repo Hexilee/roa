@@ -20,12 +20,7 @@ use std::time::Duration;
 ///
 /// ### Default
 ///
-/// The default Cors middleware works well,
-/// it will use value of "origin" as value of response header "access-control-allow-origin",
-///
-/// And in preflight request,
-/// it will use value of "access-control-request-method" as value of "access-control-allow-methods"
-/// and use "access-control-request-headers" as "access-control-allow-headers".
+/// The default Cors middleware will satisfy all needs of a request.
 ///
 /// Build a default Cors middleware:
 ///
@@ -44,7 +39,7 @@ use std::time::Duration;
 /// use roa::http::header::{CONTENT_DISPOSITION, AUTHORIZATION, WWW_AUTHENTICATE};
 /// use roa::http::Method;
 ///
-/// let configured_cors = Cors::builder()
+/// let cors = Cors::builder()
 ///     .allow_credentials(true)
 ///     .max_age(86400)
 ///     .allow_origin("https://github.com")

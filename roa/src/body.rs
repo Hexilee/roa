@@ -83,7 +83,7 @@
 //! }
 //! ```
 
-use crate::{async_trait, http, status, Context, Result, State};
+use crate::{async_trait, http, Context, Result, State};
 use bytes::Bytes;
 use futures::{AsyncRead, AsyncReadExt};
 use lazy_static::lazy_static;
@@ -99,7 +99,7 @@ use file::{write_file, Path};
 #[cfg(any(feature = "json", feature = "urlencoded"))]
 use serde::de::DeserializeOwned;
 
-use http::{header, HeaderValue, StatusCode};
+use http::{header, HeaderValue};
 #[cfg(feature = "json")]
 use serde::Serialize;
 
@@ -187,6 +187,8 @@ impl<S: State> PowerBody for Context<S> {
     where
         B: DeserializeOwned,
     {
+        use crate::status;
+        use http::StatusCode;
         let data = self.read().await?;
         serde_json::from_slice(&data)
             .map_err(|err| status!(StatusCode::BAD_REQUEST, err))
@@ -198,6 +200,8 @@ impl<S: State> PowerBody for Context<S> {
     where
         B: DeserializeOwned,
     {
+        use crate::status;
+        use http::StatusCode;
         let data = self.read().await?;
         serde_urlencoded::from_bytes(&data)
             .map_err(|err| status!(StatusCode::BAD_REQUEST, err))

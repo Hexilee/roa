@@ -16,7 +16,7 @@ use std::future::Future;
 /// use roa_core::{App, Context, Next, Result};
 ///
 /// async fn middleware(ctx: &mut Context, next: Next<'_>) -> Result {
-///     Ok(())
+///     next.await
 /// }
 ///
 /// let app = App::new().gate(middleware);
@@ -36,7 +36,7 @@ use std::future::Future;
 ///
 /// ```rust
 /// use roa_core::{App, Middleware, Context, Next, Result, async_trait};
-/// use async_std::sync::Arc;
+/// use std::sync::Arc;
 /// use std::time::Instant;
 ///
 ///
@@ -52,7 +52,7 @@ use std::future::Future;
 ///     }
 /// }
 ///
-/// let app = roa_core::App::new().gate(Logger);
+/// let app = App::new().gate(Logger);
 /// ```
 #[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
@@ -310,3 +310,60 @@ impl<'a, S> Endpoint<'a, S> for Uri {
 /// ```
 ///
 pub type Next<'a> = &'a mut (dyn Unpin + Future<Output = Result>);
+
+#[cfg(test)]
+mod tests {
+    use crate::{status, App, Request};
+    use futures::{AsyncReadExt, TryStreamExt};
+    use http::header::LOCATION;
+    use http::{StatusCode, Uri};
+
+    const HELLO: &str = "Hello, world";
+
+    #[async_std::test]
+    async fn status_endpoint() {
+        let app = App::new().end(status!(StatusCode::BAD_REQUEST));
+        let service = app.http_service();
+        let resp = service.serve(Request::default()).await;
+        assert_eq!(StatusCode::BAD_REQUEST, resp.status);
+    }
+
+    #[async_std::test]
+    async fn string_endpoint() {
+        let app = App::new().end(HELLO.to_owned());
+        let service = app.http_service();
+        let mut data = String::new();
+        service
+            .serve(Request::default())
+            .await
+            .body
+            .into_async_read()
+            .read_to_string(&mut data)
+            .await
+            .unwrap();
+        assert_eq!(HELLO, data);
+    }
+    #[async_std::test]
+    async fn static_slice_endpoint() {
+        let app = App::new().end(HELLO);
+        let service = app.http_service();
+        let mut data = String::new();
+        service
+            .serve(Request::default())
+            .await
+            .body
+            .into_async_read()
+            .read_to_string(&mut data)
+            .await
+            .unwrap();
+        assert_eq!(HELLO, data);
+    }
+    #[async_std::test]
+    async fn redirect_endpoint() {
+        let app = App::new().end("/target".parse::<Uri>().unwrap());
+        let service = app.http_service();
+        let resp = service.serve(Request::default()).await;
+        assert_eq!(StatusCode::PERMANENT_REDIRECT, resp.status);
+        assert_eq!("/target", resp.headers[LOCATION].to_str().unwrap())
+    }
+}
