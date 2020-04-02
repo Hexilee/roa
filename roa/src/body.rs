@@ -42,7 +42,6 @@
 //! use serde::{Serialize, Deserialize};
 //! use askama::Template;
 //! use async_std::fs::File;
-//! use futures::io::BufReader;
 //!
 //! #[derive(Debug, Serialize, Deserialize, Template)]
 //! #[template(path = "user.html")]
