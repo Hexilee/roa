@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
             Websocket::new(|_ctx, stream| async move {
                 let (write, read) = stream.split();
                 if let Err(err) = read.forward(write).await {
-                    error!("forward err: {}", err);
+                    error!("{}", err);
                 }
             }),
         ),
