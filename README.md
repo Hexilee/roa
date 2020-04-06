@@ -56,7 +56,7 @@
 # Cargo.toml
 
 [dependencies]
-roa = "0.5.0-rc"
+roa = "0.5.0"
 async-std = { version = "1.5", features = ["attributes"] }
 ```
 
@@ -75,4 +75,4 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     Ok(())
 }
 ```
-
+Refer to [wiki](https://github.com/Hexilee/roa/wiki) for more details.
