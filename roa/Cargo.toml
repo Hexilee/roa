@@ -1,6 +1,6 @@
 [package]
 name = "roa"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -63,8 +63,8 @@ tokio-tungstenite = { version = "0.10.1", default-features = false, optional = t
 futures-timer = { version = "3.0", optional = true }
 
 # tls
-rustls = { version = "0.16", optional = true }
-async-tls = { version = "0.6", optional = true }
+rustls = { version = "0.17", optional = true }
+async-tls = { version = "0.7", optional = true }
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["full"] }
