@@ -158,7 +158,7 @@ pub trait PowerBody {
 // Static header value.
 lazy_static! {
     static ref APPLICATION_JSON: HeaderValue =
-        HeaderValue::from_static("application/json");
+        HeaderValue::from_static("application/json; charset=utf-8");
     static ref TEXT_HTML: HeaderValue =
         HeaderValue::from_static("text/html; charset=utf-8");
     static ref TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
