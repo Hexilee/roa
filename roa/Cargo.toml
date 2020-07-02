@@ -72,7 +72,7 @@ tokio-tls = "0.3.0"
 hyper-tls = "0.4.1"
 reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
 async-std = { version = "1.5.0", features = ["attributes"] }
-pretty_env_logger = "0.3"
+pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }
 test-case = "1.0.0"
 slab = "0.4.2"

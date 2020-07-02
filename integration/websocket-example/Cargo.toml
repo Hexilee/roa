@@ -10,7 +10,7 @@ edition = "2018"
 roa = { path = "../../roa", features = ["router", "file", "websocket"] }
 async-std = { version = "1.5", features = ["attributes"] }
 log = "0.4"
-pretty_env_logger = "0.3"
+pretty_env_logger = "0.4"
 futures = "0.3"
 http = "0.2"
 slab = "0.4.2"
