@@ -26,7 +26,7 @@ members = [
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
 async-std = { version = "1.5.0", features = ["attributes"] }
-pretty_env_logger = "0.3"
+pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }
 roa = { path = "./roa", features = ["full"] }
 test-case = "1.0.0"
