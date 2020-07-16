@@ -6,6 +6,7 @@ use bytes::Bytes;
 use roa::preload::*;
 use roa::{async_trait, Context, Endpoint, Result, State};
 
+#[doc(no_inline)]
 pub use jsonrpc_v2::*;
 
 /// A wrapper for [`jsonrpc_v2::Server`], implemented [`roa::Endpoint`].
