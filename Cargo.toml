@@ -16,6 +16,7 @@ members = [
     "roa-tokio",
     "roa-multipart",
     "roa-juniper",
+    "roa-jsonrpc",
     "integration/diesel-example",
     "integration/multipart-example",
     "integration/websocket-example",
