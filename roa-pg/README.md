@@ -1,3 +1,7 @@
+## Warn!
+
+This crate is deprecated, use [async-postgres](https://github.com/Hexilee/async-postgres) instead.
+
 [![Stable Test](https://github.com/Hexilee/roa/workflows/Stable%20Test/badge.svg)](https://github.com/Hexilee/roa/actions)
 [![codecov](https://codecov.io/gh/Hexilee/roa/branch/master/graph/badge.svg)](https://codecov.io/gh/Hexilee/roa)
 [![Rust Docs](https://docs.rs/roa-pg/badge.svg)](https://docs.rs/roa-pg)
