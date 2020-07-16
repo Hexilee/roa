@@ -212,6 +212,7 @@ impl<'a, S> Endpoint<'a, S> for Status {
 #[async_trait(?Send)]
 impl<'a, S> Endpoint<'a, S> for String {
     #[inline]
+    #[allow(clippy::ptr_arg)]
     async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
         ctx.resp.write(self.clone());
         Ok(())
