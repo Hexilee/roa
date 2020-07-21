@@ -129,8 +129,8 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 
 async fn logger(ctx: &mut Context, next: Next<'_>) -> roa::Result {
     next.await?;
-    let rt = ctx.resp.must_get("x-response-time")?;
-    info!("{} {} - {}", ctx.method(), ctx.uri(), rt);
+    let rt = ctx.load::<String>("x-response-time").unwrap();
+    info!("{} {} - {}", ctx.method(), ctx.uri(), rt.as_str());
     Ok(())
 }
 
@@ -138,7 +138,7 @@ async fn x_response_time(ctx: &mut Context, next: Next<'_>) -> roa::Result {
     let start = Instant::now();
     next.await?;
     let ms = start.elapsed().as_millis();
-    ctx.resp.insert("x-response-time", format!("{}ms", ms))?;
+    ctx.store("x-response-time", format!("{}ms", ms));
     Ok(())
 }
 
@@ -160,7 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = App::new()
         .gate(catch)
         .gate(not_catch)
-        .end(status!(StatusCode::IM_A_TEAPOT, "I'm a teapot!");
+        .end(status!(StatusCode::IM_A_TEAPOT, "I'm a teapot!"));
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
     })?
