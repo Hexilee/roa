@@ -45,9 +45,11 @@ jobs:
             publishPath: /target/package
     steps:
       - uses: actions/checkout@v2
+      - name: Install Toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          ref: master
           toolchain: stable
+          override: true
       - name: install libsqlite3-dev
         run: |
           sudo apt-get update
