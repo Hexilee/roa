@@ -54,7 +54,6 @@ use std::future::Future;
 ///
 /// let app = App::new().gate(Logger);
 /// ```
-#[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
 pub trait Middleware<'a, S = ()>: 'static + Sync + Send {
     /// Handle context and next, return status.
@@ -159,7 +158,6 @@ where
 ///
 /// let app = App::new().end(Logger);
 /// ```
-#[cfg_attr(feature = "docs", doc(spotlight))]
 #[async_trait(?Send)]
 pub trait Endpoint<'a, S = ()>: 'static + Sync + Send {
     /// Call this endpoint.
@@ -212,6 +210,7 @@ impl<'a, S> Endpoint<'a, S> for Status {
 #[async_trait(?Send)]
 impl<'a, S> Endpoint<'a, S> for String {
     #[inline]
+    #[allow(clippy::ptr_arg)]
     async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
         ctx.resp.write(self.clone());
         Ok(())

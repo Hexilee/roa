@@ -1,9 +1,13 @@
+## Warn!
+
+This crate is deprecated, use [async-postgres](https://github.com/Hexilee/async-postgres) instead.
+
 [![Stable Test](https://github.com/Hexilee/roa/workflows/Stable%20Test/badge.svg)](https://github.com/Hexilee/roa/actions)
 [![codecov](https://codecov.io/gh/Hexilee/roa/branch/master/graph/badge.svg)](https://codecov.io/gh/Hexilee/roa)
 [![Rust Docs](https://docs.rs/roa-pg/badge.svg)](https://docs.rs/roa-pg)
 [![Crate version](https://img.shields.io/crates/v/roa-pg.svg)](https://crates.io/crates/roa-pg)
 [![Download](https://img.shields.io/crates/d/roa-pg.svg)](https://crates.io/crates/roa-pg)
-[![Version](https://img.shields.io/badge/rustc-1.40+-lightgray.svg)](https://blog.rust-lang.org/2019/12/19/Rust-1.40.0.html)
+[![MSRV-1.40](https://img.shields.io/badge/MSRV-1.40-blue.svg)](https://blog.rust-lang.org/2019/12/19/Rust-1.40.0.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Hexilee/roa/blob/master/LICENSE)
 
 This crate provides integration with tokio-postgres.
@@ -49,7 +53,7 @@ async fn query(ctx: &mut Context<State>) -> roa::Result {
 async fn main() -> Result<(), Box<dyn Error>> {
     let url = "postgres://fred:secret@localhost/test";
     let state = State::new(url).await?;
-    App::new(state)
+    App::state(state)
         .gate(query_parser)
         .end(query)
         .listen("127.0.0.1:0", |addr| {

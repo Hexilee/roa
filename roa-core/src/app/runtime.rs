@@ -19,6 +19,13 @@ impl App<(), ()> {
     }
 }
 
+impl Default for App<(), ()> {
+    /// Construct app with default runtime.
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct Exec;
 
 impl Spawn for Exec {

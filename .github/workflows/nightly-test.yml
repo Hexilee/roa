@@ -1,0 +1,41 @@
+name: Nightly Test
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - name: Check all
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all --all-features
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install libsqlite3-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libsqlite3-dev
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - name: Run all tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all --all-features --no-fail-fast
+

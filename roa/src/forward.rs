@@ -80,7 +80,7 @@ pub trait Forward {
 impl<S: State> Forward for Context<S> {
     #[inline]
     fn host(&self) -> Option<&str> {
-        self.get("x-forwarded-host").or(self.get(HOST))
+        self.get("x-forwarded-host").or_else(|| self.get(HOST))
     }
 
     #[inline]
