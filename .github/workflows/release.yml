@@ -39,6 +39,10 @@ jobs:
             registryName: roa-tokio
             path: roa-tokio
             publishPath: /target/package
+          - name: roa-jsonrpc
+            registryName: roa-jsonrpc
+            path: roa-jsonrpc
+            publishPath: /target/package
     steps:
       - uses: actions/checkout@v2
         with:
