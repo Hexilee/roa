@@ -1,6 +1,6 @@
 [package]
 name = "roa-core"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -30,11 +30,11 @@ hyper = { version = "0.13", default-features = false, features = ["stream"] }
 log = "0.4"
 tokio = "0.2"
 async-trait = "0.1.24"
-async-std = { version = "1.5.0", features = ["unstable"], optional = true }
+async-std = { version = "1.6", features = ["unstable"], optional = true }
 crossbeam-queue = "0.2.1"
 
 [dev-dependencies]
-async-std = { version = "1.5.0", features = ["attributes", "unstable"] }
+async-std = { version = "1.6", features = ["attributes", "unstable"] }
 
 [features]
 runtime = ["async-std"]

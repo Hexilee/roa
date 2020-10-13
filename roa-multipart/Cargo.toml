@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "feature=\"docs\""]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-roa-core = { path = "../roa-core", version = "0.5.0" }
+roa-core = { path = "../roa-core", version = "0.5" }
 hyper = { version = "0.13", default-features = false, features = ["stream"] }
 bytes = "0.5"
 actix-http = "1.0"
@@ -27,7 +27,7 @@ actix-multipart = "0.2"
 futures = "0.3"
 
 [dev-dependencies]
-roa = { path = "../roa", version = "0.5.0", features = ["router"] }
+roa = { path = "../roa", version = "0.5", features = ["router"] }
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { git = "https://github.com/Hexilee/reqwest.git", version = "0.10" }
 async-std = "1.5"

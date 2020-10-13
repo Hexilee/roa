@@ -36,9 +36,9 @@ headers = "0.3.1"
 tokio = "0.2.11"
 lazy_static = "1.4.0"
 hyper = { version = "0.13", default-features = false, features = ["stream"] }
-roa-core = { path = "../roa-core", version = "0.5.0" }
+roa-core = { path = "../roa-core", version = "0.5" }
 
-async-std = { version = "1.5", optional = true }
+async-std = { version = "1.6", optional = true }
 cookie = { version = "0.13", features = ["percent-encode"], optional = true }
 jsonwebtoken = { version = "7.1", optional = true }
 serde = { version = "1", optional = true }
@@ -70,7 +70,7 @@ tokio = { version = "0.2", features = ["full"] }
 tokio-tls = "0.3.0"
 hyper-tls = "0.4.1"
 reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
-async-std = { version = "1.5.0", features = ["attributes"] }
+async-std = { version = "1.6", features = ["attributes"] }
 pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }
 test-case = "1.0.0"
