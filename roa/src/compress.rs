@@ -23,15 +23,120 @@
 
 pub use async_compression::Level;
 
-use crate::http::{header::CONTENT_ENCODING, StatusCode};
-use crate::{async_trait, Context, Middleware, Next, Result, Status};
-use accept_encoding::{parse, Encoding};
+use crate::http::header::{HeaderMap, ACCEPT_ENCODING, CONTENT_ENCODING};
+use crate::http::{HeaderValue, StatusCode};
+use crate::{async_trait, status, Context, Middleware, Next, Result};
+
 use async_compression::stream::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 
 /// A middleware to negotiate with client and compress response body automatically,
 /// supports gzip, deflate, brotli, zstd and identity.
 #[derive(Debug, Copy, Clone)]
 pub struct Compress(pub Level);
+
+/// Encodings to use.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum Encoding {
+    /// The Gzip encoding.
+    Gzip,
+    /// The Deflate encoding.
+    Deflate,
+    /// The Brotli encoding.
+    Brotli,
+    /// The Zstd encoding.
+    Zstd,
+    /// No encoding.
+    Identity,
+}
+
+impl Encoding {
+    /// Parses a given string into its corresponding encoding.
+    fn parse(s: &str) -> Result<Option<Encoding>> {
+        match s {
+            "gzip" => Ok(Some(Encoding::Gzip)),
+            "deflate" => Ok(Some(Encoding::Deflate)),
+            "br" => Ok(Some(Encoding::Brotli)),
+            "zstd" => Ok(Some(Encoding::Zstd)),
+            "identity" => Ok(Some(Encoding::Identity)),
+            "*" => Ok(None),
+            _ => Err(status!(
+                StatusCode::BAD_REQUEST,
+                format!("unknown encoding: {}", s),
+                true
+            )),
+        }
+    }
+
+    /// Converts the encoding into its' corresponding header value.
+    fn to_header_value(self) -> HeaderValue {
+        match self {
+            Encoding::Gzip => HeaderValue::from_str("gzip").unwrap(),
+            Encoding::Deflate => HeaderValue::from_str("deflate").unwrap(),
+            Encoding::Brotli => HeaderValue::from_str("br").unwrap(),
+            Encoding::Zstd => HeaderValue::from_str("zstd").unwrap(),
+            Encoding::Identity => HeaderValue::from_str("identity").unwrap(),
+        }
+    }
+}
+
+fn select_encoding(headers: &HeaderMap) -> Result<Option<Encoding>> {
+    let mut preferred_encoding = None;
+    let mut max_qval = 0.0;
+
+    for (encoding, qval) in accept_encodings(headers)? {
+        if qval == 1.0 {
+            preferred_encoding = encoding;
+            break;
+        } else if qval > max_qval {
+            preferred_encoding = encoding;
+            max_qval = qval;
+        }
+    }
+    Ok(preferred_encoding)
+}
+
+/// Parse a set of HTTP headers into a vector containing tuples of options containing encodings and their corresponding q-values.
+///
+/// If you're looking for more fine-grained control over what encoding to choose for the client, or if you don't support every [`Encoding`] listed, this is likely what you want.
+///
+/// Note that a result of `None` indicates there preference is expressed on which encoding to use.
+/// Either the `Accept-Encoding` header is not present, or `*` is set as the most preferred encoding.
+fn accept_encodings(headers: &HeaderMap) -> Result<Vec<(Option<Encoding>, f32)>> {
+    headers
+        .get_all(ACCEPT_ENCODING)
+        .iter()
+        .map(|hval| {
+            hval.to_str()
+                .map_err(|err| status!(StatusCode::BAD_REQUEST, err, true))
+        })
+        .collect::<Result<Vec<&str>>>()?
+        .iter()
+        .flat_map(|s| s.split(',').map(str::trim))
+        .filter_map(|v| {
+            let pair: Vec<&str> = v.splitn(2, ";q=").collect();
+            if pair.len() == 0 {
+                return None;
+            }
+
+            let encoding = match Encoding::parse(pair[0]) {
+                Ok(encoding) => encoding,
+                Err(_) => return None, // ignore unknown encodings
+            };
+
+            let qval = if pair.len() == 1 {
+                1.0
+            } else {
+                match pair[1].parse::<f32>() {
+                    Ok(f) => f,
+                    Err(err) => {
+                        return Some(Err(status!(StatusCode::BAD_REQUEST, err, true)))
+                    }
+                }
+            };
+            Some(Ok((encoding, qval)))
+        })
+        .collect::<Result<Vec<(Option<Encoding>, f32)>>>()
+}
 
 impl Default for Compress {
     fn default() -> Self {
@@ -46,8 +151,7 @@ impl<'a, S> Middleware<'a, S> for Compress {
     async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> Result {
         next.await?;
         let level = self.0;
-        let best_encoding = parse(&ctx.req.headers)
-            .map_err(|err| Status::new(StatusCode::BAD_REQUEST, err, true))?;
+        let best_encoding = select_encoding(&ctx.req.headers)?;
         let body = std::mem::take(&mut ctx.resp.body);
         let content_encoding = match best_encoding {
             None | Some(Encoding::Gzip) => {
