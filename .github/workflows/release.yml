@@ -31,10 +31,6 @@ jobs:
             registryName: roa-diesel
             path: roa-diesel
             publishPath: /target/package
-          - name: roa-pg
-            registryName: roa-pg
-            path: roa-pg
-            publishPath: /target/package
           - name: roa-tokio
             registryName: roa-tokio
             path: roa-tokio

@@ -47,7 +47,6 @@
 - Integrations
     - roa-diesel, integration with [diesel](https://github.com/diesel-rs/diesel).
     - roa-juniper, integration with [juniper](https://github.com/graphql-rust/juniper).
-    - roa-pg, integration with [tokio-postgres](https://crates.io/crates/tokio-postgres).
 - Works on stable Rust.
 
 #### Get start

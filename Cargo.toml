@@ -12,7 +12,6 @@ members = [
     "roa",
     "roa-core",
     "roa-diesel",
-    "roa-pg",
     "roa-tokio",
     "roa-multipart",
     "roa-juniper",
