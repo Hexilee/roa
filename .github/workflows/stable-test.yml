@@ -7,7 +7,7 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.40.0
+          - 1.42.0
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -26,10 +26,10 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.40.0
+          - 1.42.0
     steps:
       - name: Install libsqlite3-dev
-        run: |
+        run:
           sudo apt-get update
           sudo apt-get -y install libsqlite3-dev
       - uses: actions/checkout@v2
