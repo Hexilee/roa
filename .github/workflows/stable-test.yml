@@ -29,7 +29,7 @@ jobs:
           - 1.42.0
     steps:
       - name: Install libsqlite3-dev
-        run:
+        run: |
           sudo apt-get update
           sudo apt-get -y install libsqlite3-dev
       - uses: actions/checkout@v2
