@@ -95,7 +95,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
         // match wildcard patterns
         for cap in wildcards {
             let variable = &cap["var"];
-            if variable == r"" {
+            if variable.is_empty() {
                 return Err(RouterError::MissingVariable(path.to_string()));
             }
             let var = escape(variable);
@@ -109,7 +109,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
         // match segment variable patterns
         for cap in variables {
             let variable = &cap["var"];
-            if variable == "" {
+            if variable.is_empty() {
                 return Err(RouterError::MissingVariable(path.to_string()));
             }
             let var = escape(variable);

@@ -84,10 +84,7 @@ fn select_encoding(headers: &HeaderMap) -> Result<Option<Encoding>> {
     let mut max_qval = 0.0;
 
     for (encoding, qval) in accept_encodings(headers)? {
-        if qval == 1.0 {
-            preferred_encoding = encoding;
-            break;
-        } else if qval > max_qval {
+        if qval > max_qval {
             preferred_encoding = encoding;
             max_qval = qval;
         }
@@ -114,7 +111,7 @@ fn accept_encodings(headers: &HeaderMap) -> Result<Vec<(Option<Encoding>, f32)>>
         .flat_map(|s| s.split(',').map(str::trim))
         .filter_map(|v| {
             let pair: Vec<&str> = v.splitn(2, ";q=").collect();
-            if pair.len() == 0 {
+            if pair.is_empty() {
                 return None;
             }
 

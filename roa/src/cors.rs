@@ -317,7 +317,7 @@ impl<'a, S> Middleware<'a, S> for Cors {
                 ctx.req
                     .headers
                     .typed_get::<AccessControlRequestHeaders>()
-                    .map(|headers| AccessControlAllowHeaders::from_iter(headers.iter()))
+                    .map(|headers| headers.iter().collect())
             });
             if let Some(headers) = allow_headers {
                 ctx.resp.headers.typed_insert(headers);

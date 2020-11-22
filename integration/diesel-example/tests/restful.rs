@@ -1,5 +1,6 @@
 use diesel_example::models::Post;
 use diesel_example::{create_pool, post_router, StdError};
+use log::{debug, info};
 use roa::http::StatusCode;
 use roa::preload::*;
 use roa::App;
@@ -22,15 +23,19 @@ impl PartialEq<Post> for NewPost<'_> {
 
 #[tokio::test]
 async fn test() -> Result<(), Box<dyn StdError>> {
+    pretty_env_logger::init();
+
     let app = App::state(create_pool()?).end(post_router().routes("/post")?);
     let (addr, server) = app.run()?;
     async_std::task::spawn(server);
+    info!("server is running on {}", addr);
     let base_url = format!("http://{}/post", addr);
     let client = reqwest::Client::new();
 
     // Not Found
     let resp = client.get(&format!("{}/{}", &base_url, 0)).send().await?;
     assert_eq!(StatusCode::NOT_FOUND, resp.status());
+    debug!("{}/{} not found", &base_url, 0);
 
     // Create
     let first_post = NewPost {

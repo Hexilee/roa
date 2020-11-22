@@ -6,6 +6,7 @@ use roa_core::{Accept, AddrStream};
 use std::fmt;
 use std::future::Future;
 use std::io;
+use std::matches;
 use std::net::{TcpListener as StdListener, ToSocketAddrs};
 use std::pin::Pin;
 use std::task::{self, Poll};
@@ -152,12 +153,12 @@ impl Accept for TcpIncoming {
 /// The timeout is useful to handle resource exhaustion errors like ENFILE
 /// and EMFILE. Otherwise, could enter into tight loop.
 fn is_connection_error(e: &io::Error) -> bool {
-    match e.kind() {
+    matches!(
+        e.kind(),
         io::ErrorKind::ConnectionRefused
-        | io::ErrorKind::ConnectionAborted
-        | io::ErrorKind::ConnectionReset => true,
-        _ => false,
-    }
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::ConnectionReset
+    )
 }
 
 impl fmt::Debug for TcpIncoming {
