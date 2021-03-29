@@ -52,9 +52,9 @@ jobs:
           sudo apt-get install -y libsqlite3-dev
       - name: get version
         working-directory: ${{ matrix.package.path }}
-        run: echo ::set-env name=PACKAGE_VERSION::$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml)
+        run: echo "PACKAGE_VERSION=$(sed -nE 's/^\s*version = \"(.*?)\"/\1/p' Cargo.toml)" >> $GITHUB_ENV
       - name: check published version
-        run: echo ::set-env name=PUBLISHED_VERSION::$(cargo search ${{ matrix.package.registryName }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -)
+        run: echo "PUBLISHED_VERSION=$(cargo search ${{ matrix.package.registryName }} --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -)" >> $GITHUB_ENV
       - name: cargo login
         if: env.PACKAGE_VERSION != env.PUBLISHED_VERSION
         run: cargo login ${{ secrets.CRATE_TOKEN }}
