@@ -1,6 +1,7 @@
-use roa::Spawn;
 use std::future::Future;
 use std::pin::Pin;
+
+use roa::Spawn;
 
 /// Future Object
 pub type FutureObj = Pin<Box<dyn 'static + Send + Future<Output = ()>>>;
@@ -32,11 +33,13 @@ impl Spawn for Exec {
 
 #[cfg(test)]
 mod tests {
-    use super::Exec;
+    use std::error::Error;
+
     use roa::http::StatusCode;
     use roa::tcp::Listener;
     use roa::App;
-    use std::error::Error;
+
+    use super::Exec;
 
     #[tokio::test]
     async fn exec() -> Result<(), Box<dyn Error>> {

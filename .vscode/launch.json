@@ -1,0 +1,664 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'roa'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=roa"
+                ],
+                "filter": {
+                    "name": "roa",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'roa-core'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=roa-core"
+                ],
+                "filter": {
+                    "name": "roa-core",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'roa-diesel'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=roa-diesel"
+                ],
+                "filter": {
+                    "name": "roa-diesel",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'roa-tokio'",
+            "cargo": {
+                "args": [
+                    "+nightly",
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=roa-tokio",
+                    "--all-features",
+                ],
+                "filter": {
+                    "name": "roa-tokio",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'roa-multipart'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=roa-multipart"
+                ],
+                "filter": {
+                    "name": "roa-multipart",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'roa-juniper'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=roa-juniper"
+                ],
+                "filter": {
+                    "name": "roa-juniper",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'roa-jsonrpc'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=roa-jsonrpc"
+                ],
+                "filter": {
+                    "name": "roa-jsonrpc",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'diesel-example'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=diesel-example"
+                ],
+                "filter": {
+                    "name": "diesel-example",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'api'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=api",
+                    "--package=diesel-example"
+                ],
+                "filter": {
+                    "name": "api",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'api'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=api",
+                    "--package=diesel-example"
+                ],
+                "filter": {
+                    "name": "api",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'restful'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=restful",
+                    "--package=diesel-example"
+                ],
+                "filter": {
+                    "name": "restful",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'multipart-example'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=multipart-example",
+                    "--package=multipart-example"
+                ],
+                "filter": {
+                    "name": "multipart-example",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'multipart-example'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=multipart-example",
+                    "--package=multipart-example"
+                ],
+                "filter": {
+                    "name": "multipart-example",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'websocket-example'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=websocket-example",
+                    "--package=websocket-example"
+                ],
+                "filter": {
+                    "name": "websocket-example",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'websocket-example'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=websocket-example",
+                    "--package=websocket-example"
+                ],
+                "filter": {
+                    "name": "websocket-example",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'juniper-example'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=juniper-example",
+                    "--package=juniper-example"
+                ],
+                "filter": {
+                    "name": "juniper-example",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'juniper-example'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=juniper-example",
+                    "--package=juniper-example"
+                ],
+                "filter": {
+                    "name": "juniper-example",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'roa-root'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "roa-root",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'echo'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=echo",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "echo",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'echo'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=echo",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "echo",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'hello-world'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=hello-world",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "hello-world",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'hello-world'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=hello-world",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "hello-world",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'https'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=https",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "https",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'https'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=https",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "https",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'restful-api'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=restful-api",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "restful-api",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'restful-api'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=restful-api",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "restful-api",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'serve-file'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=serve-file",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "serve-file",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'serve-file'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=serve-file",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "serve-file",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'websocket-echo'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=websocket-echo",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "websocket-echo",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'websocket-echo'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=websocket-echo",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "websocket-echo",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'welcome'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=welcome",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "welcome",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'welcome'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=welcome",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "welcome",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'logger'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=logger",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "logger",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'restful'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=restful",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "restful",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'serve-file'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=serve-file",
+                    "--package=roa-root"
+                ],
+                "filter": {
+                    "name": "serve-file",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

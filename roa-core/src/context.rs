@@ -1,17 +1,17 @@
 mod storage;
 
-use crate::{status, Executor, Request, Response};
-use http::header::AsHeaderName;
-use http::StatusCode;
-use http::{Method, Uri, Version};
 use std::any::Any;
 use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
+use http::header::AsHeaderName;
+use http::{Method, StatusCode, Uri, Version};
 pub use storage::Variable;
 use storage::{Storage, Value};
+
+use crate::{status, Executor, Request, Response};
 
 /// A structure to share request, response and other data between middlewares.
 ///
@@ -53,12 +53,7 @@ pub struct Context<S = ()> {
 impl<S> Context<S> {
     /// Construct a context from a request, an app and a addr_stream.
     #[inline]
-    pub(crate) fn new(
-        request: Request,
-        state: S,
-        exec: Executor,
-        remote_addr: SocketAddr,
-    ) -> Self {
+    pub(crate) fn new(request: Request, state: S, exec: Executor, remote_addr: SocketAddr) -> Self {
         Self {
             req: request,
             resp: Response::default(),
@@ -222,12 +217,7 @@ impl<S> Context<S> {
     /// let app = App::new().gate(gate).end(end);
     /// ```
     #[inline]
-    pub fn store_scoped<SC, K, V>(
-        &mut self,
-        scope: SC,
-        key: K,
-        value: V,
-    ) -> Option<Arc<V>>
+    pub fn store_scoped<SC, K, V>(&mut self, scope: SC, key: K, value: V) -> Option<Arc<V>>
     where
         SC: Any,
         K: Into<Cow<'static, str>>,
@@ -354,9 +344,11 @@ impl<S: Clone> Clone for Context<S> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests_with_runtime {
-    use crate::{App, Context, Next, Request, Status};
-    use http::{HeaderValue, StatusCode, Version};
     use std::error::Error;
+
+    use http::{HeaderValue, StatusCode, Version};
+
+    use crate::{App, Context, Next, Request, Status};
 
     #[async_std::test]
     async fn status_and_version() -> Result<(), Box<dyn Error>> {

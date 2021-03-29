@@ -1,9 +1,10 @@
 //! This module provides a context extension `Forward`,
 //! which is used to parse `X-Forwarded-*` headers.
 
+use std::net::IpAddr;
+
 use crate::http::header::HOST;
 use crate::{Context, State};
-use std::net::IpAddr;
 
 /// A context extension `Forward` used to parse `X-Forwarded-*` request headers.
 pub trait Forward {
@@ -114,12 +115,13 @@ impl<S: State> Forward for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
+    use async_std::task::spawn;
+
     use super::Forward;
     use crate::http::header::HOST;
     use crate::http::{HeaderValue, StatusCode};
     use crate::preload::*;
     use crate::{App, Context};
-    use async_std::task::spawn;
 
     #[tokio::test]
     async fn host() -> Result<(), Box<dyn std::error::Error>> {

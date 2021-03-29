@@ -1,5 +1,6 @@
-use crate::schema::posts;
 use serde::Deserialize;
+
+use crate::schema::posts;
 
 // for both transfer and access
 #[derive(Debug, Insertable, Deserialize)]

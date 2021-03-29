@@ -42,23 +42,18 @@ pub mod stream;
 /// Reexport all extension traits.
 pub mod preload {
     pub use crate::body::PowerBody;
+    #[cfg(feature = "cookies")]
+    pub use crate::cookie::{CookieGetter, CookieSetter};
     pub use crate::forward::Forward;
+    #[cfg(feature = "jwt")]
+    pub use crate::jwt::JwtVerifier;
     pub use crate::query::Query;
-
+    #[cfg(feature = "router")]
+    pub use crate::router::RouterParam;
     #[cfg(feature = "tcp")]
     #[doc(no_inline)]
     pub use crate::tcp::Listener;
-
     #[cfg(all(feature = "tcp", feature = "tls"))]
     #[doc(no_inline)]
     pub use crate::tls::TlsListener;
-
-    #[cfg(feature = "cookies")]
-    pub use crate::cookie::{CookieGetter, CookieSetter};
-
-    #[cfg(feature = "jwt")]
-    pub use crate::jwt::JwtVerifier;
-
-    #[cfg(feature = "router")]
-    pub use crate::router::RouterParam;
 }

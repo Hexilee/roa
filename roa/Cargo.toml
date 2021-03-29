@@ -1,6 +1,6 @@
 [package]
 name = "roa"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -36,15 +36,14 @@ headers = "0.3.1"
 tokio = "0.2.11"
 lazy_static = "1.4.0"
 hyper = { version = "0.13", default-features = false, features = ["stream"] }
-roa-core = { path = "../roa-core", version = "0.5.0" }
+roa-core = { path = "../roa-core", version = "0.5" }
 
-async-std = { version = "1.5", optional = true }
+async-std = { version = "1.6", optional = true }
 cookie = { version = "0.13", features = ["percent-encode"], optional = true }
 jsonwebtoken = { version = "7.1", optional = true }
 serde = { version = "1", optional = true }
 serde_json = { version = "1.0", optional = true }
 async-compression = { version = "0.3", features = ["all-algorithms", "stream"], optional = true }
-accept-encoding = { package = "accept-encoding-fork", version = "=0.2.0-alpha.3", optional = true }
 
 # router
 radix_trie = { version = "0.1.6", optional = true }
@@ -71,7 +70,7 @@ tokio = { version = "0.2", features = ["full"] }
 tokio-tls = "0.3.0"
 hyper-tls = "0.4.1"
 reqwest = { version = "0.10", features = ["json", "cookies", "gzip"] }
-async-std = { version = "1.5.0", features = ["attributes"] }
+async-std = { version = "1.6", features = ["attributes"] }
 pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }
 test-case = "1.0.0"
@@ -111,5 +110,5 @@ cookies = ["cookie"]
 jwt = ["jsonwebtoken", "serde", "serde_json"]
 router = ["radix_trie", "regex", "doc-comment"]
 websocket = ["tokio-tungstenite"]
-compress = ["async-compression", "accept-encoding"]
+compress = ["async-compression"]
 async_rt = ["runtime", "tcp"]

@@ -1,9 +1,11 @@
+use std::convert::{TryFrom, TryInto};
+use std::fmt::{self, Display, Formatter};
+
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+
 use super::help::bug_report;
 use crate::http::header::HeaderValue;
 use crate::Status;
-use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
-use std::convert::{TryFrom, TryInto};
-use std::fmt::{self, Display, Formatter};
 
 // This encode set is used for HTTP header values and is defined at
 // https://tools.ietf.org/html/rfc5987#section-3.2

@@ -23,18 +23,19 @@
 //! }
 //! ```
 
-use crate::http::Uri;
-use crate::{Context, Executor, JoinHandle, Next, Result};
+use std::pin::Pin;
+use std::time::Instant;
+use std::{io, mem};
+
 use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};
 use futures::{Future, Stream};
 use log::{error, info};
 use roa_core::http::{Method, StatusCode};
-use std::io;
-use std::mem;
-use std::pin::Pin;
-use std::time::Instant;
+
+use crate::http::Uri;
+use crate::{Context, Executor, JoinHandle, Next, Result};
 
 /// A finite-state machine to log success information in each successful response.
 enum StreamLogger<S> {
@@ -89,10 +90,7 @@ where
 {
     type Item = io::Result<Bytes>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match &mut *self {
             StreamLogger::Polling { stream, task } => {
                 match futures::ready!(Pin::new(stream).poll_next(cx)) {

@@ -31,10 +31,6 @@ jobs:
             registryName: roa-diesel
             path: roa-diesel
             publishPath: /target/package
-          - name: roa-pg
-            registryName: roa-pg
-            path: roa-pg
-            publishPath: /target/package
           - name: roa-tokio
             registryName: roa-tokio
             path: roa-tokio
@@ -45,9 +41,11 @@ jobs:
             publishPath: /target/package
     steps:
       - uses: actions/checkout@v2
+      - name: Install Toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          ref: master
           toolchain: stable
+          override: true
       - name: install libsqlite3-dev
         run: |
           sudo apt-get update

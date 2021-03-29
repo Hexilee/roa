@@ -1,20 +1,21 @@
 //! This module provides a middleware `Cors`.
 
-use crate::http::header::{HeaderName, HeaderValue, ORIGIN, VARY};
+use std::collections::HashSet;
+use std::convert::TryInto;
+use std::fmt::Debug;
+use std::iter::FromIterator;
+use std::time::Duration;
 
-use crate::http::{Method, StatusCode};
-use crate::{async_trait, Context, Middleware, Next, Result};
 use headers::{
     AccessControlAllowCredentials, AccessControlAllowHeaders, AccessControlAllowMethods,
     AccessControlAllowOrigin, AccessControlExposeHeaders, AccessControlMaxAge,
     AccessControlRequestHeaders, AccessControlRequestMethod, Header, HeaderMapExt,
 };
 use roa_core::Status;
-use std::collections::HashSet;
-use std::convert::TryInto;
-use std::fmt::Debug;
-use std::iter::FromIterator;
-use std::time::Duration;
+
+use crate::http::header::{HeaderName, HeaderValue, ORIGIN, VARY};
+use crate::http::{Method, StatusCode};
+use crate::{async_trait, Context, Middleware, Next, Result};
 
 /// A middleware to deal with Cross-Origin Resource Sharing (CORS).
 ///
@@ -205,8 +206,7 @@ impl Builder {
         } = self;
         let mut cors = Cors::default();
         if !allowed_headers.is_empty() {
-            cors.allow_headers =
-                Some(AccessControlAllowHeaders::from_iter(allowed_headers))
+            cors.allow_headers = Some(AccessControlAllowHeaders::from_iter(allowed_headers))
         }
 
         if credentials {
@@ -214,8 +214,7 @@ impl Builder {
         }
 
         if !exposed_headers.is_empty() {
-            cors.expose_headers =
-                Some(AccessControlExposeHeaders::from_iter(exposed_headers))
+            cors.expose_headers = Some(AccessControlExposeHeaders::from_iter(exposed_headers))
         }
 
         if let Some(age) = max_age {
@@ -224,8 +223,7 @@ impl Builder {
 
         if origins.is_some() {
             cors.allow_origin = Some(
-                AccessControlAllowOrigin::decode(&mut origins.iter())
-                    .expect("invalid origins"),
+                AccessControlAllowOrigin::decode(&mut origins.iter()).expect("invalid origins"),
             );
         }
 
@@ -248,16 +246,14 @@ impl<'a, S> Middleware<'a, S> for Cors {
         let origin = match ctx.req.headers.get(ORIGIN) {
             // If there is no Origin header, skip this middleware.
             None => return next.await,
-            Some(origin) => AccessControlAllowOrigin::decode(
-                &mut Some(origin).into_iter(),
-            )
-            .map_err(|err| {
-                Status::new(
-                    StatusCode::BAD_REQUEST,
-                    format!("invalid origin: {}", err),
-                    true,
-                )
-            })?,
+            Some(origin) => AccessControlAllowOrigin::decode(&mut Some(origin).into_iter())
+                .map_err(|err| {
+                    Status::new(
+                        StatusCode::BAD_REQUEST,
+                        format!("invalid origin: {}", err),
+                        true,
+                    )
+                })?,
         };
 
         // If Options::allow_origin is None, `Access-Control-Allow-Origin` will be set to `Origin`.
@@ -287,19 +283,16 @@ impl<'a, S> Middleware<'a, S> for Cors {
         } else {
             // Preflight Request
 
-            let request_method =
-                match ctx.req.headers.typed_get::<AccessControlRequestMethod>() {
-                    // If there is no Origin header or if parsing failed, skip this middleware.
-                    None => return next.await,
-                    Some(request_method) => request_method,
-                };
+            let request_method = match ctx.req.headers.typed_get::<AccessControlRequestMethod>() {
+                // If there is no Origin header or if parsing failed, skip this middleware.
+                None => return next.await,
+                Some(request_method) => request_method,
+            };
 
             // If Options::allow_methods is None, `Access-Control-Allow-Methods` will be set to `Access-Control-Request-Method`.
             let allow_methods = match self.allow_methods {
                 Some(ref origin) => origin.clone(),
-                None => {
-                    AccessControlAllowMethods::from_iter(Some(request_method.into()))
-                }
+                None => AccessControlAllowMethods::from_iter(Some(request_method.into())),
             };
 
             // Try to set "Access-Control-Allow-Methods"
@@ -317,7 +310,7 @@ impl<'a, S> Middleware<'a, S> for Cors {
                 ctx.req
                     .headers
                     .typed_get::<AccessControlRequestHeaders>()
-                    .map(|headers| AccessControlAllowHeaders::from_iter(headers.iter()))
+                    .map(|headers| headers.iter().collect())
             });
             if let Some(headers) = allow_headers {
                 ctx.resp.headers.typed_insert(headers);
@@ -331,22 +324,22 @@ impl<'a, S> Middleware<'a, S> for Cors {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
+    use async_std::task::spawn;
+    use headers::{
+        AccessControlAllowCredentials, AccessControlAllowOrigin, AccessControlExposeHeaders,
+        HeaderMapExt, HeaderName,
+    };
+
     use super::Cors;
     use crate::http::header::{
         ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
-        ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
-        ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_REQUEST_HEADERS,
-        ACCESS_CONTROL_REQUEST_METHOD, AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_TYPE,
-        ORIGIN, VARY, WWW_AUTHENTICATE,
+        ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_MAX_AGE,
+        ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, AUTHORIZATION,
+        CONTENT_DISPOSITION, CONTENT_TYPE, ORIGIN, VARY, WWW_AUTHENTICATE,
     };
     use crate::http::{HeaderValue, Method, StatusCode};
     use crate::preload::*;
     use crate::{App, Context};
-    use async_std::task::spawn;
-    use headers::{
-        AccessControlAllowCredentials, AccessControlAllowOrigin,
-        AccessControlExposeHeaders, HeaderMapExt, HeaderName,
-    };
 
     async fn end(ctx: &mut Context) -> crate::Result {
         ctx.resp.write("Hello, World");

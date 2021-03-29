@@ -1,5 +1,6 @@
-use roa_core::http;
 use std::fmt::{self, Display, Formatter};
+
+use roa_core::http;
 
 /// Error occurring in building route table.
 #[derive(Debug)]
@@ -41,9 +42,7 @@ impl Display for Conflict {
 impl Display for RouterError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
-            RouterError::Conflict(conflict) => {
-                f.write_str(&format!("Conflict! {}", conflict))
-            }
+            RouterError::Conflict(conflict) => f.write_str(&format!("Conflict! {}", conflict)),
             RouterError::MissingVariable(path) => {
                 f.write_str(&format!("missing variable on path {}", path))
             }
@@ -62,8 +61,9 @@ impl std::error::Error for RouterError {}
 
 #[cfg(test)]
 mod tests {
-    use super::{Conflict, RouterError};
     use roa_core::http;
+
+    use super::{Conflict, RouterError};
 
     #[test]
     fn conflict_to_string() {

@@ -1,7 +1,3 @@
-use crate::data_object::NewPost;
-use crate::models::*;
-use crate::schema::posts::dsl::{self, posts};
-use crate::State;
 use diesel::prelude::*;
 use diesel::result::Error;
 use roa::http::StatusCode;
@@ -9,6 +5,11 @@ use roa::preload::*;
 use roa::router::{get, post, Router};
 use roa::{throw, Context, Result};
 use roa_diesel::preload::*;
+
+use crate::data_object::NewPost;
+use crate::models::*;
+use crate::schema::posts::dsl::{self, posts};
+use crate::State;
 
 pub fn post_router() -> Router<State> {
     Router::new()

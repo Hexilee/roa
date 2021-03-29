@@ -1,8 +1,10 @@
-use super::{Conflict, RouterError};
-use regex::{escape, Captures, Regex};
 use std::collections::HashSet;
 use std::convert::AsRef;
 use std::str::FromStr;
+
+use regex::{escape, Captures, Regex};
+
+use super::{Conflict, RouterError};
 
 /// Match pattern *{variable}
 const WILDCARD: &str = r"\*\{(?P<var>\w*)\}";
@@ -75,8 +77,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
     let variable_re = must_build(VARIABLE);
     let wildcards: Vec<Captures> = wildcard_re.captures_iter(path).collect();
     let variable_template = path.replace('/', "//"); // to match continuous variables like /:year/:month/:day/
-    let variables: Vec<Captures> =
-        variable_re.captures_iter(&variable_template).collect();
+    let variables: Vec<Captures> = variable_re.captures_iter(&variable_template).collect();
     if wildcards.is_empty() && variables.is_empty() {
         Ok(None)
     } else {
@@ -95,7 +96,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
         // match wildcard patterns
         for cap in wildcards {
             let variable = &cap["var"];
-            if variable == r"" {
+            if variable.is_empty() {
                 return Err(RouterError::MissingVariable(path.to_string()));
             }
             let var = escape(variable);
@@ -109,7 +110,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
         // match segment variable patterns
         for cap in variables {
             let variable = &cap["var"];
-            if variable == "" {
+            if variable.is_empty() {
                 return Err(RouterError::MissingVariable(path.to_string()));
             }
             let var = escape(variable);
@@ -125,9 +126,9 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
 
 #[cfg(test)]
 mod tests {
-    use super::Path;
-    use super::{must_build, path_to_regexp, VARIABLE, WILDCARD};
     use test_case::test_case;
+
+    use super::{must_build, path_to_regexp, Path, VARIABLE, WILDCARD};
 
     #[test_case("/:id/"; "pure dynamic")]
     #[test_case("/user/:id/"; "static prefix")]
@@ -192,7 +193,7 @@ mod tests {
     fn path_match(pattern: &str, path: &str) {
         let pattern: Path = pattern.parse().unwrap();
         match pattern {
-            Path::Static(pattern) => panic!(format!("`{}` should be dynamic", pattern)),
+            Path::Static(pattern) => panic!("`{}` should be dynamic", pattern),
             Path::Dynamic(re) => assert!(re.re.is_match(path)),
         }
     }
@@ -200,7 +201,7 @@ mod tests {
     fn path_not_match(pattern: &str, path: &str) {
         let pattern: Path = pattern.parse().unwrap();
         match pattern {
-            Path::Static(pattern) => panic!(format!("`{}` should be dynamic", pattern)),
+            Path::Static(pattern) => panic!("`{}` should be dynamic", pattern),
             Path::Dynamic(re) => {
                 println!("regex: {}", re.re.to_string());
                 assert!(!re.re.is_match(path))

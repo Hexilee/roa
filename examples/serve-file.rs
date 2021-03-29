@@ -1,6 +1,10 @@
 //! RUST_LOG=info cargo run --example serve-file,
 //! then request http://127.0.0.1:8000.
 
+use std::borrow::Cow;
+use std::result::Result as StdResult;
+use std::time::SystemTime;
+
 use askama::Template;
 use async_std::path::Path;
 use async_std::prelude::*;
@@ -15,9 +19,6 @@ use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{get, Router};
 use roa::{throw, App, Context, Next, Result};
-use std::borrow::Cow;
-use std::result::Result as StdResult;
-use std::time::SystemTime;
 
 #[derive(Template)]
 #[template(path = "directory.html")]

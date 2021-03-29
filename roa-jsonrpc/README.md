@@ -3,7 +3,6 @@
 [![Rust Docs](https://docs.rs/roa-jsonrpc/badge.svg)](https://docs.rs/roa-jsonrpc)
 [![Crate version](https://img.shields.io/crates/v/roa-jsonrpc.svg)](https://crates.io/crates/roa-jsonrpc)
 [![Download](https://img.shields.io/crates/d/roa-jsonrpc.svg)](https://crates.io/crates/roa-jsonrpc)
-[![MSRV-1.40](https://img.shields.io/badge/MSRV-1.40-blue.svg)](https://blog.rust-lang.org/2019/12/19/Rust-1.40.0.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Hexilee/roa/blob/master/LICENSE)
 
 ## roa-jsonrpc

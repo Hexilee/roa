@@ -1,3 +1,5 @@
+use std::sync::RwLock;
+
 use async_std::fs::File;
 use async_std::task::spawn;
 use lazy_static::lazy_static;
@@ -6,7 +8,6 @@ use roa::http::StatusCode;
 use roa::logger::logger;
 use roa::preload::*;
 use roa::{throw, App, Context};
-use std::sync::RwLock;
 
 struct TestLogger {
     records: RwLock<Vec<(String, String)>>,

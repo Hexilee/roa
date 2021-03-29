@@ -1,10 +1,11 @@
-use crate::pool::{AsyncPool, Pool};
 use diesel::connection::Connection;
 use diesel::helper_types::Limit;
 use diesel::query_dsl::methods::{ExecuteDsl, LimitDsl, LoadQuery};
 use diesel::query_dsl::RunQueryDsl;
 use diesel::result::{Error as DieselError, OptionalExtension};
 use roa::{async_trait, Context, Result, State};
+
+use crate::pool::{AsyncPool, Pool};
 
 /// A context extension to execute diesel dsl asynchronously.
 #[async_trait]

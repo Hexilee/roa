@@ -1,13 +1,13 @@
 mod content_disposition;
 mod help;
-use crate::{http, Context, Result, State};
-
-pub use async_std::path::Path;
-pub use content_disposition::DispositionType;
+use std::convert::TryInto;
 
 use async_std::fs::File;
+pub use async_std::path::Path;
 use content_disposition::ContentDisposition;
-use std::convert::TryInto;
+pub use content_disposition::DispositionType;
+
+use crate::{http, Context, Result, State};
 
 /// Write file to response body then set "Content-Type" and "Context-Disposition".
 #[inline]

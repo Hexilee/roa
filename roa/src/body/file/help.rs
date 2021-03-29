@@ -1,7 +1,8 @@
 use crate::http::StatusCode;
 use crate::Status;
 
-const BUG_HELP: &str = r"This is a bug of roa::body::file, please report it to https://github.com/Hexilee/roa.";
+const BUG_HELP: &str =
+    r"This is a bug of roa::body::file, please report it to https://github.com/Hexilee/roa.";
 
 #[inline]
 pub fn bug_report(message: impl ToString) -> Status {

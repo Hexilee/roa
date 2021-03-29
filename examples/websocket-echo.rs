@@ -1,6 +1,8 @@
 //! RUST_LOG=info cargo run --example websocket-echo,
 //! then request ws://127.0.0.1:8000/chat.
 
+use std::error::Error as StdError;
+
 use futures::StreamExt;
 use http::Method;
 use log::{error, info};
@@ -10,7 +12,6 @@ use roa::preload::*;
 use roa::router::{allow, Router};
 use roa::websocket::Websocket;
 use roa::App;
-use std::error::Error as StdError;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {

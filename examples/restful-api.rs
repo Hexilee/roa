@@ -9,6 +9,8 @@
 //! - `curl 127.0.0.1:8000/user/0 -X DELETE`
 //!     delete user where id=0
 
+use std::result::Result as StdResult;
+
 use async_std::sync::{Arc, RwLock};
 use roa::http::StatusCode;
 use roa::preload::*;
@@ -17,7 +19,6 @@ use roa::{throw, App, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use slab::Slab;
-use std::result::Result as StdResult;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct User {

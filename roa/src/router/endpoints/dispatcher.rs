@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
+use doc_comment::doc_comment;
+
 use super::method_not_allowed;
 use crate::http::Method;
 use crate::{async_trait, Context, Endpoint, Result};
-use doc_comment::doc_comment;
-use std::collections::HashMap;
 
 macro_rules! impl_http_methods {
     ($end:ident, $method:expr) => {

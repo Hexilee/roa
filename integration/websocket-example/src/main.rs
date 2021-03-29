@@ -1,17 +1,20 @@
+use std::borrow::Cow;
+use std::error::Error as StdError;
+
 use async_std::sync::{Arc, Mutex, RwLock};
-use futures::stream::SplitSink;
-use futures::{stream::SplitStream, SinkExt, StreamExt};
+use futures::stream::{SplitSink, SplitStream};
+use futures::{SinkExt, StreamExt};
 use http::Method;
 use log::{debug, error, info, warn};
 use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{allow, RouteTable, Router, RouterError};
-use roa::websocket::tungstenite::protocol::frame::{coding::CloseCode, CloseFrame};
-use roa::websocket::{tungstenite::Error as WsError, Message, SocketStream, Websocket};
+use roa::websocket::tungstenite::protocol::frame::coding::CloseCode;
+use roa::websocket::tungstenite::protocol::frame::CloseFrame;
+use roa::websocket::tungstenite::Error as WsError;
+use roa::websocket::{Message, SocketStream, Websocket};
 use roa::{App, Context};
 use slab::Slab;
-use std::borrow::Cow;
-use std::error::Error as StdError;
 
 type Sender = SplitSink<SocketStream, Message>;
 type Channel = Slab<Mutex<Sender>>;
@@ -108,10 +111,12 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{route, App, Message, SinkExt, StdError, StreamExt, SyncChannel};
+    use std::time::Duration;
+
     use async_tungstenite::async_std::connect_async;
     use roa::preload::*;
-    use std::time::Duration;
+
+    use super::{route, App, Message, SinkExt, StdError, StreamExt, SyncChannel};
 
     #[async_std::test]
     async fn echo() -> Result<(), Box<dyn StdError>> {

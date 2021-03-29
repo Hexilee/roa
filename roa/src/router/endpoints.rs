@@ -12,8 +12,5 @@ fn method_not_allowed(method: &Method) -> Result {
     )
 }
 
-pub use dispatcher::{
-    connect, delete, get, head, options, patch, post, put, trace, Dispatcher,
-};
-
+pub use dispatcher::{connect, delete, get, head, options, patch, post, put, trace, Dispatcher};
 pub use guard::{allow, deny, Guard};

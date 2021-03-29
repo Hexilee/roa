@@ -1,8 +1,9 @@
+use std::collections::HashSet;
+use std::iter::FromIterator;
+
 use super::method_not_allowed;
 use crate::http::Method;
 use crate::{async_trait, Context, Endpoint, Result};
-use std::collections::HashSet;
-use std::iter::FromIterator;
 
 /// Methods allowed in `Guard`.
 const ALL_METHODS: [Method; 9] = [

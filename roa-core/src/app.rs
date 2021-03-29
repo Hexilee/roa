@@ -3,15 +3,7 @@ mod runtime;
 
 mod future;
 mod stream;
-use crate::{
-    Chain, Context, Endpoint, Middleware, MiddlewareExt, Request, Response, State,
-};
-use future::SendFuture;
-use futures::io::{AsyncRead, AsyncWrite};
-use http::{Request as HttpRequest, Response as HttpResponse};
-use hyper::service::Service;
-use hyper::Body as HyperBody;
-use hyper::Server;
+use std::convert::Infallible;
 use std::error::Error;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -19,10 +11,17 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 
-use crate::Accept;
-use crate::{Executor, Spawn};
-use std::convert::Infallible;
+use future::SendFuture;
+use futures::io::{AsyncRead, AsyncWrite};
+use http::{Request as HttpRequest, Response as HttpResponse};
+use hyper::service::Service;
+use hyper::{Body as HyperBody, Server};
 pub use stream::AddrStream;
+
+use crate::{
+    Accept, Chain, Context, Endpoint, Executor, Middleware, MiddlewareExt, Request, Response,
+    Spawn, State,
+};
 
 /// The Application of roa.
 /// ### Example
@@ -211,13 +210,8 @@ where
     }
 }
 
-type HttpFuture = Pin<
-    Box<
-        dyn 'static
-            + Future<Output = Result<HttpResponse<HyperBody>, Infallible>>
-            + Send,
-    >,
->;
+type HttpFuture =
+    Pin<Box<dyn 'static + Future<Output = Result<HttpResponse<HyperBody>, Infallible>> + Send>>;
 
 impl<S, E> Service<HttpRequest<HyperBody>> for HttpService<S, E>
 where
@@ -240,12 +234,7 @@ where
 }
 
 impl<S, E> HttpService<S, E> {
-    pub fn new(
-        endpoint: Arc<E>,
-        remote_addr: SocketAddr,
-        exec: Executor,
-        state: S,
-    ) -> Self {
+    pub fn new(endpoint: Arc<E>, remote_addr: SocketAddr, exec: Executor, state: S) -> Self {
         Self {
             endpoint,
             remote_addr,
@@ -295,8 +284,9 @@ impl<S: Clone, E> Clone for HttpService<S, E> {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Request};
     use http::StatusCode;
+
+    use crate::{App, Request};
 
     #[async_std::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {

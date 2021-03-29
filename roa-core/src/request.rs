@@ -1,9 +1,10 @@
+use std::io;
+
 use bytes::Bytes;
 use futures::stream::TryStreamExt;
 use futures::{AsyncRead, Stream};
 use http::{HeaderMap, HeaderValue, Method, Uri, Version};
 use hyper::Body;
-use std::io;
 
 /// Http request type of roa.
 pub struct Request {
@@ -69,10 +70,11 @@ impl Default for Request {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{App, Context, Request, Status};
     use futures::AsyncReadExt;
     use http::StatusCode;
     use hyper::Body;
+
+    use crate::{App, Context, Request, Status};
 
     async fn test(ctx: &mut Context) -> Result<(), Status> {
         let mut data = String::new();

@@ -3,6 +3,8 @@ extern crate diesel;
 
 mod models;
 mod schema;
+use std::error::Error as StdError;
+
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel_example::{create_pool, State};
@@ -17,7 +19,6 @@ use roa::App;
 use roa_diesel::preload::*;
 use roa_juniper::{GraphQL, JuniperContext};
 use serde::Serialize;
-use std::error::Error as StdError;
 
 use crate::models::Post;
 use crate::schema::posts;
@@ -113,11 +114,7 @@ impl Mutation {
         }
     }
 
-    async fn delete_post(
-        &self,
-        ctx: &JuniperContext<State>,
-        id: i32,
-    ) -> FieldResult<Post> {
+    async fn delete_post(&self, ctx: &JuniperContext<State>, id: i32) -> FieldResult<Post> {
         use crate::schema::posts::dsl::posts;
         match ctx.first(posts.find(id)).await? {
             None => Err(FieldError::new(
