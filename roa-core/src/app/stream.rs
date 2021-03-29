@@ -36,7 +36,9 @@ where
         cx: &mut task::Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
-        futures::ready!(Pin::new(&mut self.stream).poll_read(cx, buf.initialized_mut()))?;
+        let bytes =
+            futures::ready!(Pin::new(&mut self.stream).poll_read(cx, buf.initialized_mut()))?;
+        buf.set_filled(bytes);
         Poll::Ready(Ok(()))
     }
 }

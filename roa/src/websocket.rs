@@ -165,7 +165,7 @@ where
         match key {
             None => throw!(StatusCode::BAD_REQUEST, "invalid websocket upgrade request"),
             Some(key) => {
-                let body = ctx.req.raw_body();
+                let on_upgrade = ctx.req.on_upgrade()?;
                 let context = ctx.clone();
                 let task = self.task.clone();
                 let config = self.config;
@@ -177,7 +177,7 @@ where
                 // is returned below, so it's better to spawn this future instead
                 // waiting for it to complete to then return a response.
                 ctx.exec.spawn(async move {
-                    match body.on_upgrade().await {
+                    match on_upgrade.await {
                         Err(err) => log::error!("websocket upgrade error: {}", err),
                         Ok(upgraded) => {
                             let websocket = WebSocketStream::from_raw_socket(

@@ -1,10 +1,14 @@
-use std::io;
+use std::{io, mem};
 
 use bytes::Bytes;
 use futures::stream::TryStreamExt;
 use futures::{AsyncRead, Stream};
-use http::{HeaderMap, HeaderValue, Method, Uri, Version};
+use http::request::Parts;
+use http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, Version};
+use hyper::upgrade::{self, OnUpgrade};
 use hyper::Body;
+
+use crate::throw;
 
 /// Http request type of roa.
 pub struct Request {
@@ -20,6 +24,9 @@ pub struct Request {
     /// The request's headers
     pub headers: HeaderMap<HeaderValue>,
 
+    // parts of origin request, for upgrade protocol
+    parts: Option<Parts>,
+
     body: Body,
 }
 
@@ -27,8 +34,23 @@ impl Request {
     /// Get raw hyper body.
     #[inline]
     pub fn raw_body(&mut self) -> Body {
-        std::mem::take(&mut self.body)
+        mem::take(&mut self.body)
     }
+
+    /// Upgrade protocol
+    #[inline]
+    pub fn on_upgrade(&mut self) -> crate::Result<OnUpgrade> {
+        let parts = match self.parts.take() {
+            None => throw!(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "each request can only be upgraded once",
+                false
+            ),
+            Some(p) => p,
+        };
+        Ok(upgrade::on(http::Request::from_parts(parts, Body::empty())))
+    }
+
     /// Get body as Stream.
     /// This method will consume inner body.
     #[inline]
@@ -52,10 +74,11 @@ impl From<http::Request<Body>> for Request {
     fn from(req: http::Request<Body>) -> Self {
         let (parts, body) = req.into_parts();
         Self {
-            method: parts.method,
-            uri: parts.uri,
+            method: parts.method.clone(),
+            uri: parts.uri.clone(),
             version: parts.version,
-            headers: parts.headers,
+            headers: parts.headers.clone(),
+            parts: Some(parts),
             body,
         }
     }

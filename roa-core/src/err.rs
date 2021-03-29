@@ -117,7 +117,7 @@ pub struct Status {
     /// ```
     pub message: String,
 
-    /// if message exposed.
+    /// if message is exposed to frontend user.
     pub expose: bool,
 }
 
