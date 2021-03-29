@@ -193,7 +193,7 @@ mod tests {
     fn path_match(pattern: &str, path: &str) {
         let pattern: Path = pattern.parse().unwrap();
         match pattern {
-            Path::Static(pattern) => panic!(format!("`{}` should be dynamic", pattern)),
+            Path::Static(pattern) => panic!("`{}` should be dynamic", pattern),
             Path::Dynamic(re) => assert!(re.re.is_match(path)),
         }
     }
@@ -201,7 +201,7 @@ mod tests {
     fn path_not_match(pattern: &str, path: &str) {
         let pattern: Path = pattern.parse().unwrap();
         match pattern {
-            Path::Static(pattern) => panic!(format!("`{}` should be dynamic", pattern)),
+            Path::Static(pattern) => panic!("`{}` should be dynamic", pattern),
             Path::Dynamic(re) => {
                 println!("regex: {}", re.re.to_string());
                 assert!(!re.re.is_match(path))

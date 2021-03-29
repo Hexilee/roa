@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::mem::transmute;
 use std::net::{TcpListener as StdListener, ToSocketAddrs};
 use std::pin::Pin;
 use std::task::{self, Poll};
@@ -6,7 +7,6 @@ use std::time::Duration;
 use std::{fmt, io, matches};
 
 use async_std::net::{SocketAddr, TcpListener, TcpStream};
-use futures::FutureExt as _;
 use futures_timer::Delay;
 use log::{debug, error, trace};
 use roa_core::{Accept, AddrStream};
@@ -16,11 +16,15 @@ use roa_core::{Accept, AddrStream};
 #[must_use = "streams do nothing unless polled"]
 pub struct TcpIncoming {
     addr: SocketAddr,
-    listener: TcpListener,
+    listener: Box<TcpListener>,
     sleep_on_errors: bool,
     tcp_nodelay: bool,
-    timeout: Option<Delay>,
+    timeout: Option<Pin<Box<Delay>>>,
+    accept: Option<Pin<BoxedAccept<'static>>>,
 }
+
+type BoxedAccept<'a> =
+    Box<dyn 'a + Future<Output = io::Result<(TcpStream, SocketAddr)>> + Send + Sync>;
 
 impl TcpIncoming {
     /// Creates a new `TcpIncoming` binding to provided socket address.
@@ -33,11 +37,12 @@ impl TcpIncoming {
     pub fn from_std(listener: StdListener) -> io::Result<Self> {
         let addr = listener.local_addr()?;
         Ok(TcpIncoming {
-            listener: listener.into(),
+            listener: Box::new(listener.into()),
             addr,
             sleep_on_errors: true,
             tcp_nodelay: false,
             timeout: None,
+            accept: None,
         })
     }
 
@@ -78,51 +83,52 @@ impl TcpIncoming {
     ) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
-            match Pin::new(to).poll(cx) {
-                Poll::Ready(()) => {}
-                Poll::Pending => return Poll::Pending,
-            }
+            futures::ready!(Pin::new(to).poll(cx));
         }
         self.timeout = None;
 
-        let accept = self.listener.accept();
-        futures::pin_mut!(accept);
-
         loop {
-            match accept.poll_unpin(cx) {
-                Poll::Ready(Ok((stream, addr))) => {
-                    if let Err(e) = stream.set_nodelay(self.tcp_nodelay) {
-                        trace!("error trying to set TCP nodelay: {}", e);
-                    }
-                    return Poll::Ready(Ok((stream, addr)));
-                }
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(Err(e)) => {
-                    // Connection errors can be ignored directly, continue by
-                    // accepting the next request.
-                    if is_connection_error(&e) {
-                        debug!("accepted connection already errored: {}", e);
-                        continue;
-                    }
+            if self.accept.is_none() {
+                let accept: Pin<BoxedAccept<'_>> = Box::pin(self.listener.accept());
+                self.accept = Some(unsafe { transmute(accept) });
+            }
 
-                    if self.sleep_on_errors {
-                        error!("accept error: {}", e);
-
-                        // Sleep 1s.
-                        let mut timeout = Delay::new(Duration::from_secs(1));
-
-                        match Pin::new(&mut timeout).poll(cx) {
-                            Poll::Ready(()) => {
-                                // Wow, it's been a second already? Ok then...
-                                continue;
-                            }
-                            Poll::Pending => {
-                                self.timeout = Some(timeout);
-                                return Poll::Pending;
-                            }
+            if let Some(f) = &mut self.accept {
+                match futures::ready!(f.as_mut().poll(cx)) {
+                    Ok((socket, addr)) => {
+                        if let Err(e) = socket.set_nodelay(self.tcp_nodelay) {
+                            trace!("error trying to set TCP nodelay: {}", e);
                         }
-                    } else {
-                        return Poll::Ready(Err(e));
+                        self.accept = None;
+                        return Poll::Ready(Ok((socket, addr)));
+                    }
+                    Err(e) => {
+                        // Connection errors can be ignored directly, continue by
+                        // accepting the next request.
+                        if is_connection_error(&e) {
+                            debug!("accepted connection already errored: {}", e);
+                            continue;
+                        }
+
+                        if self.sleep_on_errors {
+                            error!("accept error: {}", e);
+
+                            // Sleep 1s.
+                            let mut timeout = Box::pin(Delay::new(Duration::from_secs(1)));
+
+                            match timeout.as_mut().poll(cx) {
+                                Poll::Ready(()) => {
+                                    // Wow, it's been a second already? Ok then...
+                                    continue;
+                                }
+                                Poll::Pending => {
+                                    self.timeout = Some(timeout);
+                                    return Poll::Pending;
+                                }
+                            }
+                        } else {
+                            return Poll::Ready(Err(e));
+                        }
                     }
                 }
             }
