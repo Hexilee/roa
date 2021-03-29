@@ -55,8 +55,8 @@
 # Cargo.toml
 
 [dependencies]
-roa = "0.5.0"
-async-std = { version = "1.5", features = ["attributes"] }
+roa = "0.5"
+async-std = { version = "1.6", features = ["attributes"] }
 ```
 
 ```rust,no_run
