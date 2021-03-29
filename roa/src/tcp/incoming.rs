@@ -150,6 +150,12 @@ impl Accept for TcpIncoming {
     }
 }
 
+impl Drop for TcpIncoming {
+    fn drop(&mut self) {
+        self.accept = None;
+    }
+}
+
 /// This function defines errors that are per-connection. Which basically
 /// means that if we get this error from `accept()` system call it means
 /// next connection might be ready to be accepted.
