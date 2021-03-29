@@ -1,41 +1,42 @@
 [package]
-name = "roa-core"
-version = "0.5.1"
 authors = ["Hexilee <i@hexilee.me>"]
+categories = [
+  "network-programming",
+  "asynchronous",
+  "web-programming::http-server",
+]
+description = "core components of roa web framework"
+documentation = "https://docs.rs/roa-core"
 edition = "2018"
+homepage = "https://github.com/Hexilee/roa/wiki"
+keywords = ["http", "web", "framework", "async"]
 license = "MIT"
+name = "roa-core"
 readme = "./README.md"
 repository = "https://github.com/Hexilee/roa"
-documentation = "https://docs.rs/roa-core"
-homepage = "https://github.com/Hexilee/roa/wiki"
-description = "core components of roa web framework"
-keywords = ["http", "web", "framework", "async"]
-categories = ["network-programming", "asynchronous",
-              "web-programming::http-server"]
-
+version = "0.5.1"
 
 [package.metadata.docs.rs]
 features = ["docs"]
 rustdoc-args = ["--cfg", "feature=\"docs\""]
 
 [badges]
-codecov = { repository = "Hexilee/roa" }
+codecov = {repository = "Hexilee/roa"}
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-std = {version = "1.9", features = ["unstable"], optional = true}
+async-trait = "0.1"
+bytes = "1"
 futures = "0.3"
-bytes = "0.5"
 http = "0.2"
-hyper = { version = "0.13", default-features = false, features = ["stream"] }
+hyper = {version = "0.14", default-features = false, features = ["stream", "server", "http1", "http2"]}
 log = "0.4"
-tokio = "0.2"
-async-trait = "0.1.24"
-async-std = { version = "1.6", features = ["unstable"], optional = true }
-crossbeam-queue = "0.2.1"
+tokio = "1.4"
 
 [dev-dependencies]
-async-std = { version = "1.6", features = ["attributes", "unstable"] }
+async-std = {version = "1.9", features = ["attributes", "unstable"]}
 
 [features]
-runtime = ["async-std"]
 docs = ["runtime"]
+runtime = ["async-std"]

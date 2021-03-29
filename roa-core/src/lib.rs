@@ -28,7 +28,7 @@ pub use executor::{Executor, JoinHandle, Spawn};
 pub use group::{Boxed, Chain, EndpointExt, MiddlewareExt, Shared};
 pub use http;
 pub use hyper::server::accept::Accept;
-pub use hyper::server::Server;
+pub use hyper::Server;
 #[doc(inline)]
 pub use middleware::{Endpoint, Middleware, Next};
 #[doc(inline)]
