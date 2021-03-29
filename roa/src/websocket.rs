@@ -29,7 +29,7 @@ use headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion, Upgrade,
 };
 use hyper::upgrade::Upgraded;
-pub use tokio_tungstenite::tungstenite::self;
+pub use tokio_tungstenite::tungstenite;
 pub use tokio_tungstenite::tungstenite::protocol::{Message, WebSocketConfig};
 use tokio_tungstenite::WebSocketStream;
 
