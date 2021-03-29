@@ -1,8 +1,10 @@
-use super::{Conflict, RouterError};
-use regex::{escape, Captures, Regex};
 use std::collections::HashSet;
 use std::convert::AsRef;
 use std::str::FromStr;
+
+use regex::{escape, Captures, Regex};
+
+use super::{Conflict, RouterError};
 
 /// Match pattern *{variable}
 const WILDCARD: &str = r"\*\{(?P<var>\w*)\}";
@@ -75,8 +77,7 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
     let variable_re = must_build(VARIABLE);
     let wildcards: Vec<Captures> = wildcard_re.captures_iter(path).collect();
     let variable_template = path.replace('/', "//"); // to match continuous variables like /:year/:month/:day/
-    let variables: Vec<Captures> =
-        variable_re.captures_iter(&variable_template).collect();
+    let variables: Vec<Captures> = variable_re.captures_iter(&variable_template).collect();
     if wildcards.is_empty() && variables.is_empty() {
         Ok(None)
     } else {
@@ -125,9 +126,9 @@ fn path_to_regexp(path: &str) -> Result<Option<(String, HashSet<String>)>, Route
 
 #[cfg(test)]
 mod tests {
-    use super::Path;
-    use super::{must_build, path_to_regexp, VARIABLE, WILDCARD};
     use test_case::test_case;
+
+    use super::{must_build, path_to_regexp, Path, VARIABLE, WILDCARD};
 
     #[test_case("/:id/"; "pure dynamic")]
     #[test_case("/user/:id/"; "static prefix")]

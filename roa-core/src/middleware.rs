@@ -1,7 +1,9 @@
-use crate::{async_trait, throw, Context, Result, Status};
+use std::future::Future;
+
 use http::header::LOCATION;
 use http::{StatusCode, Uri};
-use std::future::Future;
+
+use crate::{async_trait, throw, Context, Result, Status};
 
 /// ### Middleware
 ///
@@ -312,10 +314,11 @@ pub type Next<'a> = &'a mut (dyn Unpin + Future<Output = Result>);
 
 #[cfg(test)]
 mod tests {
-    use crate::{status, App, Request};
     use futures::{AsyncReadExt, TryStreamExt};
     use http::header::LOCATION;
     use http::{StatusCode, Uri};
+
+    use crate::{status, App, Request};
 
     const HELLO: &str = "Hello, world";
 

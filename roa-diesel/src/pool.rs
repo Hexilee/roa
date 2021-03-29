@@ -1,8 +1,9 @@
+use std::time::Duration;
+
 use diesel::r2d2::{ConnectionManager, PoolError};
 use diesel::Connection;
 use r2d2::{Builder, PooledConnection};
 use roa::{async_trait, Context, State, Status};
-use std::time::Duration;
 
 /// An alias for r2d2::Pool<diesel::r2d2::ConnectionManager<Conn>>.
 pub type Pool<Conn> = r2d2::Pool<ConnectionManager<Conn>>;
@@ -78,10 +79,7 @@ where
     ///
     /// The given timeout will be used instead of the configured connection
     /// timeout.
-    async fn get_timeout(
-        &self,
-        timeout: Duration,
-    ) -> Result<WrapConnection<Conn>, Status>;
+    async fn get_timeout(&self, timeout: Duration) -> Result<WrapConnection<Conn>, Status>;
 
     /// Returns information about the current state of the pool.
     async fn pool_state(&self) -> r2d2::State;
@@ -100,10 +98,7 @@ where
     }
 
     #[inline]
-    async fn get_timeout(
-        &self,
-        timeout: Duration,
-    ) -> Result<WrapConnection<Conn>, Status> {
+    async fn get_timeout(&self, timeout: Duration) -> Result<WrapConnection<Conn>, Status> {
         let pool = self.as_ref().clone();
         Ok(self
             .exec

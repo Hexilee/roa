@@ -44,6 +44,5 @@ mod listener;
 
 #[doc(inline)]
 pub use incoming::TcpIncoming;
-
 #[doc(inline)]
 pub use listener::Listener;

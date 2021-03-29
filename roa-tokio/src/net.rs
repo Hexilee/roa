@@ -1,15 +1,14 @@
+use std::future::Future;
+use std::net::{SocketAddr, TcpListener as StdListener, ToSocketAddrs};
+use std::pin::Pin;
+use std::task::{self, Poll};
+use std::time::Duration;
+use std::{fmt, io};
+
 use futures::FutureExt as _;
 use log::{debug, error, trace};
 use roa::stream::AsyncStream;
 use roa::{Accept, AddrStream};
-use std::fmt;
-use std::future::Future;
-use std::io;
-use std::net::SocketAddr;
-use std::net::{TcpListener as StdListener, ToSocketAddrs};
-use std::pin::Pin;
-use std::task::{self, Poll};
-use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{delay_for, Delay};
 
@@ -193,11 +192,13 @@ impl fmt::Debug for TcpIncoming {
 
 #[cfg(test)]
 mod tests {
-    use super::TcpIncoming;
-    use crate::Exec;
+    use std::error::Error;
+
     use roa::http::StatusCode;
     use roa::App;
-    use std::error::Error;
+
+    use super::TcpIncoming;
+    use crate::Exec;
 
     #[tokio::test]
     async fn incoming() -> Result<(), Box<dyn Error>> {

@@ -1,6 +1,10 @@
 //! RUST_LOG=info Cargo run --example https,
 //! then request https://127.0.0.1:8000.
 
+use std::error::Error as StdError;
+use std::fs::File;
+use std::io::BufReader;
+
 use log::info;
 use roa::body::DispositionType;
 use roa::logger::logger;
@@ -8,9 +12,6 @@ use roa::preload::*;
 use roa::tls::internal::pemfile::{certs, rsa_private_keys};
 use roa::tls::{NoClientAuth, ServerConfig};
 use roa::{App, Context};
-use std::error::Error as StdError;
-use std::fs::File;
-use std::io::BufReader;
 
 async fn serve_file(ctx: &mut Context) -> roa::Result {
     ctx.write_file("assets/welcome.html", DispositionType::Inline)

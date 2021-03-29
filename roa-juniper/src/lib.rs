@@ -6,10 +6,12 @@
 
 #![warn(missing_docs)]
 
-use juniper::{http::GraphQLRequest, GraphQLTypeAsync, RootNode, ScalarValue};
+use std::ops::{Deref, DerefMut};
+
+use juniper::http::GraphQLRequest;
+use juniper::{GraphQLTypeAsync, RootNode, ScalarValue};
 use roa::preload::*;
 use roa::{async_trait, Context, Endpoint, Result, State};
-use std::ops::{Deref, DerefMut};
 
 /// A wrapper for `roa_core::SyncContext`.
 /// As an implementation of `juniper::Context`.
@@ -32,9 +34,7 @@ impl<S> DerefMut for JuniperContext<S> {
 }
 
 /// An endpoint.
-pub struct GraphQL<QueryT, MutationT, Sca>(
-    pub RootNode<'static, QueryT, MutationT, Sca>,
-)
+pub struct GraphQL<QueryT, MutationT, Sca>(pub RootNode<'static, QueryT, MutationT, Sca>)
 where
     Sca: 'static + ScalarValue + Send + Sync,
     QueryT: GraphQLTypeAsync<Sca> + Send + Sync + 'static,
@@ -50,8 +50,7 @@ where
     S: State,
     Sca: 'static + ScalarValue + Send + Sync,
     QueryT: GraphQLTypeAsync<Sca, Context = JuniperContext<S>> + Send + Sync + 'static,
-    MutationT:
-        GraphQLTypeAsync<Sca, Context = JuniperContext<S>> + Send + Sync + 'static,
+    MutationT: GraphQLTypeAsync<Sca, Context = JuniperContext<S>> + Send + Sync + 'static,
     QueryT::TypeInfo: Send + Sync,
     MutationT::TypeInfo: Send + Sync,
 {

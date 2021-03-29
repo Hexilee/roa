@@ -83,23 +83,22 @@
 //! }
 //! ```
 
-use crate::{async_trait, http, Context, Result, State};
+#[cfg(feature = "template")]
+use askama::Template;
 use bytes::Bytes;
 use futures::{AsyncRead, AsyncReadExt};
 use lazy_static::lazy_static;
 
-#[cfg(feature = "template")]
-use askama::Template;
+use crate::{async_trait, http, Context, Result, State};
 #[cfg(feature = "file")]
 mod file;
 #[cfg(feature = "file")]
 pub use file::DispositionType;
 #[cfg(feature = "file")]
 use file::{write_file, Path};
+use http::{header, HeaderValue};
 #[cfg(any(feature = "json", feature = "urlencoded"))]
 use serde::de::DeserializeOwned;
-
-use http::{header, HeaderValue};
 #[cfg(feature = "json")]
 use serde::Serialize;
 
@@ -159,8 +158,7 @@ pub trait PowerBody {
 lazy_static! {
     static ref APPLICATION_JSON: HeaderValue =
         HeaderValue::from_static("application/json; charset=utf-8");
-    static ref TEXT_HTML: HeaderValue =
-        HeaderValue::from_static("text/html; charset=utf-8");
+    static ref TEXT_HTML: HeaderValue = HeaderValue::from_static("text/html; charset=utf-8");
     static ref TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
     static ref APPLICATION_OCTET_STREM: HeaderValue =
         HeaderValue::from_static("application/octet-stream");
@@ -187,11 +185,11 @@ impl<S: State> PowerBody for Context<S> {
     where
         B: DeserializeOwned,
     {
-        use crate::status;
         use http::StatusCode;
+
+        use crate::status;
         let data = self.read().await?;
-        serde_json::from_slice(&data)
-            .map_err(|err| status!(StatusCode::BAD_REQUEST, err))
+        serde_json::from_slice(&data).map_err(|err| status!(StatusCode::BAD_REQUEST, err))
     }
 
     #[cfg(feature = "urlencoded")]
@@ -200,11 +198,11 @@ impl<S: State> PowerBody for Context<S> {
     where
         B: DeserializeOwned,
     {
-        use crate::status;
         use http::StatusCode;
+
+        use crate::status;
         let data = self.read().await?;
-        serde_urlencoded::from_bytes(&data)
-            .map_err(|err| status!(StatusCode::BAD_REQUEST, err))
+        serde_urlencoded::from_bytes(&data).map_err(|err| status!(StatusCode::BAD_REQUEST, err))
     }
 
     #[cfg(feature = "json")]
@@ -267,17 +265,18 @@ impl<S: State> PowerBody for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
-    use super::PowerBody;
-    use crate::http;
-    use crate::tcp::Listener;
-    use crate::{App, Context};
+    use std::error::Error;
+
     use askama::Template;
     use async_std::fs::File;
     use async_std::task::spawn;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
     use serde::{Deserialize, Serialize};
-    use std::error::Error;
+
+    use super::PowerBody;
+    use crate::tcp::Listener;
+    use crate::{http, App, Context};
 
     #[derive(Debug, Deserialize)]
     struct UserDto {

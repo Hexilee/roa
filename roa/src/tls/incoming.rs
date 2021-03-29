@@ -1,14 +1,16 @@
-use super::ServerConfig;
-use crate::{Accept, AddrStream};
-use async_tls::server::TlsStream;
-use async_tls::TlsAcceptor;
-use futures::io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
-use futures::Future;
 use std::io;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{self, Context, Poll};
+
+use async_tls::server::TlsStream;
+use async_tls::TlsAcceptor;
+use futures::io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
+use futures::Future;
+
+use super::ServerConfig;
+use crate::{Accept, AddrStream};
 
 /// A stream of connections based on another stream.
 /// As an implementation of roa_core::Accept.
@@ -106,10 +108,7 @@ where
         }
     }
 
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut *self {
             Streaming(stream) => Pin::new(stream).poll_flush(cx),
             Handshaking(handshake) => {
@@ -119,10 +118,7 @@ where
         }
     }
 
-    fn poll_close(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut *self {
             Streaming(stream) => Pin::new(stream).poll_close(cx),
             Handshaking(handshake) => {

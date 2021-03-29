@@ -1,6 +1,7 @@
-pub use http::StatusCode;
 use std::fmt::{Display, Formatter};
 use std::result::Result as StdResult;
+
+pub use http::StatusCode;
 
 /// Type alias for `StdResult`.
 pub type Result<R = ()> = StdResult<R, Status>;
@@ -72,11 +73,7 @@ macro_rules! throw {
         return core::result::Result::Err($crate::status!($status_code, $message));
     };
     ($status_code:expr, $message:expr, $expose:expr) => {
-        return core::result::Result::Err($crate::status!(
-            $status_code,
-            $message,
-            $expose
-        ));
+        return core::result::Result::Err($crate::status!($status_code, $message, $expose));
     };
 }
 

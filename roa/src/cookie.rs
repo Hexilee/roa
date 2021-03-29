@@ -21,11 +21,13 @@
 //! # }
 //! ```
 
-use crate::http::{header, StatusCode};
-use crate::{throw, Context, Next, Result};
+use std::sync::Arc;
+
 pub use cookie::Cookie;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use std::sync::Arc;
+
+use crate::http::{header, StatusCode};
+use crate::{throw, Context, Next, Result};
 
 /// A scope to store and load variables in Context::storage.
 struct CookieScope;
@@ -168,14 +170,13 @@ impl<S> CookieSetter for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
+    use async_std::task::spawn;
+
     use crate::cookie::{cookie_parser, Cookie};
-    use crate::http::{
-        header::{COOKIE, WWW_AUTHENTICATE},
-        StatusCode,
-    };
+    use crate::http::header::{COOKIE, WWW_AUTHENTICATE};
+    use crate::http::StatusCode;
     use crate::preload::*;
     use crate::{App, Context};
-    use async_std::task::spawn;
 
     async fn must(ctx: &mut Context) -> crate::Result {
         assert_eq!("Hexi Lee", ctx.must_cookie("nick name")?.value());

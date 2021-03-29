@@ -15,9 +15,7 @@ pub struct NewPost<'a> {
 
 impl PartialEq<Post> for NewPost<'_> {
     fn eq(&self, other: &Post) -> bool {
-        self.title == other.title
-            && self.body == other.body
-            && self.published == other.published
+        self.title == other.title && self.body == other.body && self.published == other.published
     }
 }
 

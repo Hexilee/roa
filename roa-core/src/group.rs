@@ -1,5 +1,6 @@
-use crate::{async_trait, Context, Endpoint, Middleware, Next, Result};
 use std::sync::Arc;
+
+use crate::{async_trait, Context, Endpoint, Middleware, Next, Result};
 
 /// A set of method to chain middleware/endpoint to middleware
 /// or make middleware shared.
@@ -111,10 +112,12 @@ where
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use crate::{async_trait, App, Context, Middleware, Next, Request, Status};
+    use std::sync::Arc;
+
     use futures::lock::Mutex;
     use http::StatusCode;
-    use std::sync::Arc;
+
+    use crate::{async_trait, App, Context, Middleware, Next, Request, Status};
 
     struct Pusher {
         data: usize,
@@ -129,11 +132,7 @@ mod tests {
 
     #[async_trait(?Send)]
     impl<'a> Middleware<'a, ()> for Pusher {
-        async fn handle(
-            &'a self,
-            _ctx: &'a mut Context,
-            next: Next<'a>,
-        ) -> Result<(), Status> {
+        async fn handle(&'a self, _ctx: &'a mut Context, next: Next<'a>) -> Result<(), Status> {
             self.vector.lock().await.push(self.data);
             next.await?;
             self.vector.lock().await.push(self.data);

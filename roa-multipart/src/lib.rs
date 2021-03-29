@@ -2,21 +2,23 @@
 #![cfg_attr(feature = "docs", doc(include = "../README.md"))]
 #![cfg_attr(feature = "docs", warn(missing_docs))]
 
-use actix_http::error::PayloadError;
-use actix_http::http::HeaderMap;
-use actix_multipart::Field as ActixField;
-use actix_multipart::Multipart as ActixMultipart;
-use actix_multipart::MultipartError as ActixMultipartError;
-use bytes::Bytes;
-use futures::Stream;
-use hyper::Body;
-use roa_core::http::{header::CONTENT_TYPE, StatusCode};
-use roa_core::{Context, Status};
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{self, Poll};
+
+use actix_http::error::PayloadError;
+use actix_http::http::HeaderMap;
+use actix_multipart::{
+    Field as ActixField, Multipart as ActixMultipart, MultipartError as ActixMultipartError,
+};
+use bytes::Bytes;
+use futures::Stream;
+use hyper::Body;
+use roa_core::http::header::CONTENT_TYPE;
+use roa_core::http::StatusCode;
+use roa_core::{Context, Status};
 
 /// A context extensio nwrapped `actix_multipart::Multipart`.
 pub trait MultipartForm {
@@ -53,10 +55,7 @@ struct WrapStream(Option<Body>);
 impl Stream for WrapStream {
     type Item = Result<Bytes, PayloadError>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match &mut self.0 {
             None => Poll::Ready(None),
             Some(body) => match futures::ready!(Pin::new(body).poll_next(cx)) {
@@ -84,10 +83,7 @@ impl Stream for Multipart {
     type Item = Result<Field, MultipartError>;
 
     #[inline]
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match futures::ready!(Pin::new(&mut self.0).poll_next(cx)) {
             None => Poll::Ready(None),
             Some(item) => Poll::Ready(Some(match item {
@@ -101,10 +97,7 @@ impl Stream for Multipart {
 impl Stream for Field {
     type Item = Result<Bytes, io::Error>;
     #[inline]
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match futures::ready!(Pin::new(&mut self.0).poll_next(cx)) {
             None => Poll::Ready(None),
             Some(item) => Poll::Ready(Some(match item {
@@ -150,19 +143,20 @@ impl Display for MultipartError {
 
 #[cfg(test)]
 mod tests {
-    use super::MultipartForm;
+    use std::error::Error as StdError;
+
     use async_std::fs::{read, read_to_string};
     use futures::stream::TryStreamExt;
     use futures::{AsyncReadExt, StreamExt};
-    use reqwest::{
-        multipart::{Form, Part},
-        Client,
-    };
-    use roa::http::{header::CONTENT_TYPE, StatusCode};
+    use reqwest::multipart::{Form, Part};
+    use reqwest::Client;
+    use roa::http::header::CONTENT_TYPE;
+    use roa::http::StatusCode;
     use roa::router::{post, Router};
     use roa::tcp::Listener;
     use roa::{throw, App, Context};
-    use std::error::Error as StdError;
+
+    use super::MultipartForm;
 
     const FILE_PATH: &str = "../assets/author.txt";
     const FILE_NAME: &str = "author.txt";
@@ -174,19 +168,17 @@ mod tests {
             let field = item?;
             match field.content_disposition() {
                 None => throw!(StatusCode::BAD_REQUEST, "content disposition not set"),
-                Some(disposition) => {
-                    match (disposition.get_filename(), disposition.get_name()) {
-                        (Some(filename), Some(name)) => {
-                            assert_eq!(FIELD_NAME, name);
-                            assert_eq!(FILE_NAME, filename);
-                            let mut content = String::new();
-                            field.into_async_read().read_to_string(&mut content).await?;
-                            let expected_content = read_to_string(FILE_PATH).await?;
-                            assert_eq!(&expected_content, &content);
-                        }
-                        _ => throw!(StatusCode::BAD_REQUEST, "invalid field"),
+                Some(disposition) => match (disposition.get_filename(), disposition.get_name()) {
+                    (Some(filename), Some(name)) => {
+                        assert_eq!(FIELD_NAME, name);
+                        assert_eq!(FILE_NAME, filename);
+                        let mut content = String::new();
+                        field.into_async_read().read_to_string(&mut content).await?;
+                        let expected_content = read_to_string(FILE_PATH).await?;
+                        assert_eq!(&expected_content, &content);
                     }
-                }
+                    _ => throw!(StatusCode::BAD_REQUEST, "invalid field"),
+                },
             }
         }
         Ok(())

@@ -1,5 +1,3 @@
-use crate::Status;
-use http::StatusCode;
 use std::any::{Any, TypeId};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -8,15 +6,17 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use http::StatusCode;
+
+use crate::Status;
+
 pub trait Value: Any + Send + Sync {}
 
 impl<V> Value for V where V: Any + Send + Sync {}
 
 /// A context scoped storage.
 #[derive(Clone)]
-pub struct Storage(
-    HashMap<TypeId, HashMap<Cow<'static, str>, Arc<dyn Any + Send + Sync>>>,
-);
+pub struct Storage(HashMap<TypeId, HashMap<Cow<'static, str>, Arc<dyn Any + Send + Sync>>>);
 
 /// A wrapper of Arc.
 ///
@@ -148,9 +148,11 @@ impl Default for Storage {
 
 #[cfg(test)]
 mod tests {
-    use super::{Storage, Variable};
-    use http::StatusCode;
     use std::sync::Arc;
+
+    use http::StatusCode;
+
+    use super::{Storage, Variable};
 
     #[test]
     fn storage() {

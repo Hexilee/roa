@@ -1,6 +1,7 @@
-use futures::task::{Context, Poll};
 use std::future::Future;
 use std::pin::Pin;
+
+use futures::task::{Context, Poll};
 
 /// A wrapper to make future `Send`. It's used to wrap future returned by top middleware.
 /// So the future returned by each middleware or endpoint can be `?Send`.

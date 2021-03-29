@@ -1,9 +1,10 @@
-use super::{ServerConfig, TlsIncoming};
-use crate::tcp::TcpIncoming;
-use crate::{App, Endpoint, Executor, Server, State};
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
+
+use super::{ServerConfig, TlsIncoming};
+use crate::tcp::TcpIncoming;
+use crate::{App, Endpoint, Executor, Server, State};
 
 impl TlsIncoming<TcpIncoming> {
     /// Bind a socket addr.
@@ -65,10 +66,7 @@ pub trait TlsListener {
     /// Ok(())
     /// # }
     /// ```
-    fn run_tls(
-        self,
-        config: ServerConfig,
-    ) -> std::io::Result<(SocketAddr, Self::Server)>;
+    fn run_tls(self, config: ServerConfig) -> std::io::Result<(SocketAddr, Self::Server)>;
 }
 
 impl<S, E> TlsListener for App<S, Arc<E>>
@@ -98,30 +96,27 @@ where
         Ok(server)
     }
 
-    fn run_tls(
-        self,
-        config: ServerConfig,
-    ) -> std::io::Result<(SocketAddr, Self::Server)> {
+    fn run_tls(self, config: ServerConfig) -> std::io::Result<(SocketAddr, Self::Server)> {
         self.bind_tls("127.0.0.1:0", config)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::http::StatusCode;
-    use crate::tls::internal::pemfile::{certs, rsa_private_keys};
-    use crate::tls::TlsListener;
-    use crate::tls::{NoClientAuth, ServerConfig};
-    use crate::{App, Context, Status};
+    use std::fs::File;
+    use std::io::{self, BufReader};
+
     use async_std::task::spawn;
     use futures::{AsyncReadExt, TryStreamExt};
     use hyper::client::{Client, HttpConnector};
     use hyper::Body;
-    use hyper_tls::native_tls;
-    use hyper_tls::HttpsConnector;
-    use std::fs::File;
-    use std::io::{self, BufReader};
+    use hyper_tls::{native_tls, HttpsConnector};
     use tokio_tls::TlsConnector;
+
+    use crate::http::StatusCode;
+    use crate::tls::internal::pemfile::{certs, rsa_private_keys};
+    use crate::tls::{NoClientAuth, ServerConfig, TlsListener};
+    use crate::{App, Context, Status};
 
     async fn end(ctx: &mut Context) -> Result<(), Status> {
         ctx.resp.write("Hello, World!");

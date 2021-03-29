@@ -1,9 +1,10 @@
-use futures::io::{AsyncRead, AsyncWrite};
 use std::io;
 use std::mem::MaybeUninit;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::task::{self, Poll};
+
+use futures::io::{AsyncRead, AsyncWrite};
 use tokio::io::{AsyncRead as TokioRead, AsyncWrite as TokioWrite};
 
 /// A transport returned yieled by `AddrIncoming`.
@@ -59,18 +60,12 @@ where
     }
 
     #[inline]
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.stream).poll_flush(cx)
     }
 
     #[inline]
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.stream).poll_close(cx)
     }
 }

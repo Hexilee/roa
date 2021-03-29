@@ -21,22 +21,21 @@
 //! # }
 //! ```
 
-use crate::http::header::UPGRADE;
-use crate::http::StatusCode;
-use crate::{async_trait, throw, Context, Endpoint, State, Status};
-use headers::{
-    Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion,
-    Upgrade,
-};
-use hyper::upgrade::Upgraded;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
-pub use tokio_tungstenite::tungstenite::{
-    self,
-    protocol::{Message, WebSocketConfig},
+
+use headers::{
+    Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion, Upgrade,
 };
+use hyper::upgrade::Upgraded;
+pub use tokio_tungstenite::tungstenite::self;
+pub use tokio_tungstenite::tungstenite::protocol::{Message, WebSocketConfig};
 use tokio_tungstenite::WebSocketStream;
+
+use crate::http::header::UPGRADE;
+use crate::http::StatusCode;
+use crate::{async_trait, throw, Context, Endpoint, State, Status};
 
 /// An alias for WebSocketStream<Upgraded>.
 pub type SocketStream = WebSocketStream<Upgraded>;

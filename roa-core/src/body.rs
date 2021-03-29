@@ -1,10 +1,11 @@
+use std::mem;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
 use bytes::{Buf, Bytes, BytesMut};
 use futures::future::ok;
 use futures::io::{self, AsyncRead};
 use futures::stream::{once, Stream, StreamExt};
-use std::mem;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
 const DEFAULT_CHUNK_SIZE: usize = 4096;
 
@@ -45,9 +46,7 @@ pub enum Body {
 
 /// A boxed stream.
 #[derive(Default)]
-pub struct Segment(
-    Option<Pin<Box<dyn Stream<Item = io::Result<Bytes>> + Sync + Send + 'static>>>,
-);
+pub struct Segment(Option<Pin<Box<dyn Stream<Item = io::Result<Bytes>> + Sync + Send + 'static>>>);
 
 impl Body {
     /// Construct an empty body.
@@ -126,9 +125,7 @@ impl Body {
 
 impl Segment {
     #[inline]
-    fn new(
-        stream: impl Stream<Item = io::Result<Bytes>> + Sync + Send + 'static,
-    ) -> Self {
+    fn new(stream: impl Stream<Item = io::Result<Bytes>> + Sync + Send + 'static) -> Self {
         Self(Some(Box::pin(stream)))
     }
 }
@@ -169,15 +166,11 @@ where
 {
     type Item = io::Result<Bytes>;
     #[inline]
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let chunk_size = self.chunk_size;
         let mut chunk = BytesMut::with_capacity(chunk_size);
         unsafe { chunk.set_len(chunk_size) };
-        let bytes =
-            futures::ready!(Pin::new(&mut self.reader).poll_read(cx, &mut *chunk))?;
+        let bytes = futures::ready!(Pin::new(&mut self.reader).poll_read(cx, &mut *chunk))?;
         if bytes == 0 {
             Poll::Ready(None)
         } else {
@@ -189,10 +182,7 @@ where
 impl Stream for Body {
     type Item = io::Result<Bytes>;
     #[inline]
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match &mut *self {
             Body::Empty => Poll::Ready(None),
             Body::Once(bytes) => {
@@ -208,10 +198,7 @@ impl Stream for Body {
 impl Stream for Segment {
     type Item = io::Result<Bytes>;
     #[inline]
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.0 {
             None => Poll::Ready(None),
             Some(ref mut stream) => stream.as_mut().poll_next(cx),
@@ -221,10 +208,12 @@ impl Stream for Segment {
 
 #[cfg(test)]
 mod tests {
-    use super::Body;
+    use std::io;
+
     use async_std::fs::File;
     use futures::{AsyncReadExt, TryStreamExt};
-    use std::io;
+
+    use super::Body;
 
     async fn read_body(body: Body) -> io::Result<String> {
         let mut data = String::new();

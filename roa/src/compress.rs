@@ -21,13 +21,12 @@
 //! # }
 //! ```
 
+use async_compression::stream::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 pub use async_compression::Level;
 
 use crate::http::header::{HeaderMap, ACCEPT_ENCODING, CONTENT_ENCODING};
 use crate::http::{HeaderValue, StatusCode};
 use crate::{async_trait, status, Context, Middleware, Next, Result};
-
-use async_compression::stream::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 
 /// A middleware to negotiate with client and compress response body automatically,
 /// supports gzip, deflate, brotli, zstd and identity.
@@ -125,9 +124,7 @@ fn accept_encodings(headers: &HeaderMap) -> Result<Vec<(Option<Encoding>, f32)>>
             } else {
                 match pair[1].parse::<f32>() {
                     Ok(f) => f,
-                    Err(err) => {
-                        return Some(Err(status!(StatusCode::BAD_REQUEST, err, true)))
-                    }
+                    Err(err) => return Some(Err(status!(StatusCode::BAD_REQUEST, err, true))),
                 }
             };
             Some(Ok((encoding, qval)))
@@ -183,17 +180,20 @@ impl<'a, S> Middleware<'a, S> for Compress {
 
 #[cfg(all(test, feature = "tcp", feature = "file"))]
 mod tests {
-    use crate::body::DispositionType::*;
-    use crate::compress::{Compress, Level};
-    use crate::http::{header::ACCEPT_ENCODING, StatusCode};
-    use crate::preload::*;
-    use crate::{async_trait, App, Context, Middleware, Next};
-    use async_std::task::spawn;
-    use bytes::Bytes;
-    use futures::Stream;
     use std::io;
     use std::pin::Pin;
     use std::task::{self, Poll};
+
+    use async_std::task::spawn;
+    use bytes::Bytes;
+    use futures::Stream;
+
+    use crate::body::DispositionType::*;
+    use crate::compress::{Compress, Level};
+    use crate::http::header::ACCEPT_ENCODING;
+    use crate::http::StatusCode;
+    use crate::preload::*;
+    use crate::{async_trait, App, Context, Middleware, Next};
 
     struct Consumer<S> {
         counter: usize,
@@ -227,11 +227,7 @@ mod tests {
 
     #[async_trait(?Send)]
     impl<'a, S> Middleware<'a, S> for Assert {
-        async fn handle(
-            &'a self,
-            ctx: &'a mut Context<S>,
-            next: Next<'a>,
-        ) -> crate::Result {
+        async fn handle(&'a self, ctx: &'a mut Context<S>, next: Next<'a>) -> crate::Result {
             next.await?;
             let body = std::mem::take(&mut ctx.resp.body);
             ctx.resp.write_stream(Consumer {

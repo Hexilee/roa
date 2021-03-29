@@ -68,15 +68,16 @@
 //! }
 //! ```
 
+use headers::authorization::Bearer;
+use headers::{Authorization, HeaderMapExt};
+use jsonwebtoken::decode;
 pub use jsonwebtoken::{DecodingKey, Validation};
+use serde::de::DeserializeOwned;
+use serde_json::Value;
 
 use crate::http::header::{HeaderValue, WWW_AUTHENTICATE};
 use crate::http::StatusCode;
 use crate::{async_trait, throw, Context, Middleware, Next, Result, Status};
-use headers::{authorization::Bearer, Authorization, HeaderMapExt};
-use jsonwebtoken::decode;
-use serde::de::DeserializeOwned;
-use serde_json::Value;
 
 /// A private scope.
 struct JwtScope;
@@ -209,15 +210,13 @@ impl<S> JwtVerifier<S> for Context<S> {
         let secret = self.load_scoped::<JwtScope, DecodingKey<'static>>("secret");
         let token = self.load_scoped::<JwtScope, Bearer>("token");
         match (secret, token) {
-            (Some(secret), Some(token)) => {
-                match decode(token.token(), &secret, validation) {
-                    Ok(data) => Ok(data.claims),
-                    Err(_) => {
-                        set_www_authenticate(self);
-                        throw!(StatusCode::UNAUTHORIZED)
-                    }
+            (Some(secret), Some(token)) => match decode(token.token(), &secret, validation) {
+                Ok(data) => Ok(data.claims),
+                Err(_) => {
+                    set_www_authenticate(self);
+                    throw!(StatusCode::UNAUTHORIZED)
                 }
-            }
+            },
             _ => Err(guard_not_set()),
         }
     }
@@ -225,15 +224,17 @@ impl<S> JwtVerifier<S> for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    use async_std::task::spawn;
+    use jsonwebtoken::{encode, EncodingKey, Header};
+    use serde::{Deserialize, Serialize};
+
     use super::{guard, DecodingKey, INVALID_TOKEN};
     use crate::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};
     use crate::http::StatusCode;
     use crate::preload::*;
     use crate::{App, Context};
-    use async_std::task::spawn;
-    use jsonwebtoken::{encode, EncodingKey, Header};
-    use serde::{Deserialize, Serialize};
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[derive(Debug, Serialize, Deserialize)]
     struct User {
@@ -307,11 +308,7 @@ mod tests {
                 AUTHORIZATION,
                 format!(
                     "Bearer {}",
-                    encode(
-                        &Header::default(),
-                        &user,
-                        &EncodingKey::from_secret(SECRET),
-                    )?
+                    encode(&Header::default(), &user, &EncodingKey::from_secret(SECRET),)?
                 ),
             )
             .send()
@@ -328,11 +325,7 @@ mod tests {
                 AUTHORIZATION,
                 format!(
                     "Bearer {}",
-                    encode(
-                        &Header::default(),
-                        &user,
-                        &EncodingKey::from_secret(SECRET),
-                    )?
+                    encode(&Header::default(), &user, &EncodingKey::from_secret(SECRET),)?
                 ),
             )
             .send()

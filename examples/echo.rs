@@ -1,11 +1,12 @@
 //! RUST_LOG=info Cargo run --example echo,
 //! then request http://127.0.0.1:8000 with some payload.
 
+use std::error::Error as StdError;
+
 use log::info;
 use roa::logger::logger;
 use roa::preload::*;
 use roa::{App, Context};
-use std::error::Error as StdError;
 
 async fn echo(ctx: &mut Context) -> roa::Result {
     let stream = ctx.req.stream();

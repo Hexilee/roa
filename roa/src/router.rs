@@ -51,23 +51,23 @@ mod endpoints;
 mod err;
 mod path;
 
+use std::convert::AsRef;
+use std::result::Result as StdResult;
+
 #[doc(inline)]
 pub use endpoints::*;
-
+use err::Conflict;
 #[doc(inline)]
 pub use err::RouterError;
-
-use crate::http::StatusCode;
-use crate::{
-    async_trait, throw, Boxed, Context, Endpoint, EndpointExt, Middleware,
-    MiddlewareExt, Result, Shared, Status, Variable,
-};
-use err::Conflict;
 use path::{join_path, standardize_path, Path, RegexPath};
 use percent_encoding::percent_decode_str;
 use radix_trie::Trie;
-use std::convert::AsRef;
-use std::result::Result as StdResult;
+
+use crate::http::StatusCode;
+use crate::{
+    async_trait, throw, Boxed, Context, Endpoint, EndpointExt, Middleware, MiddlewareExt, Result,
+    Shared, Status, Variable,
+};
 
 /// A private scope to store and load variables in Context::storage.
 struct RouterScope;
@@ -164,11 +164,7 @@ where
     }
 
     /// Register a new endpoint.
-    pub fn on(
-        mut self,
-        path: &'static str,
-        endpoint: impl for<'a> Endpoint<'a, S>,
-    ) -> Self {
+    pub fn on(mut self, path: &'static str, endpoint: impl for<'a> Endpoint<'a, S>) -> Self {
         self.endpoints
             .push((path.to_string(), self.register(endpoint)));
         self
@@ -266,20 +262,15 @@ where
     async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {
         let uri = ctx.uri();
         // standardize path
-        let path =
-            standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
-                |err| {
-                    Status::new(
-                        StatusCode::BAD_REQUEST,
-                        format!(
-                            "{}\npath `{}` is not a valid utf-8 string",
-                            err,
-                            uri.path()
-                        ),
-                        true,
-                    )
-                },
-            )?);
+        let path = standardize_path(&percent_decode_str(uri.path()).decode_utf8().map_err(
+            |err| {
+                Status::new(
+                    StatusCode::BAD_REQUEST,
+                    format!("{}\npath `{}` is not a valid utf-8 string", err, uri.path()),
+                    true,
+                )
+            },
+        )?);
 
         // search static routes
         if let Some(end) = self.static_route.get(&path) {
@@ -290,11 +281,7 @@ where
         for (regexp_path, end) in self.dynamic_route.iter() {
             if let Some(cap) = regexp_path.re.captures(&path) {
                 for var in regexp_path.vars.iter() {
-                    ctx.store_scoped(
-                        RouterScope,
-                        var.to_string(),
-                        cap[var.as_str()].to_string(),
-                    );
+                    ctx.store_scoped(RouterScope, var.to_string(), cap[var.as_str()].to_string());
                 }
                 return end.call(ctx).await;
             }
@@ -324,13 +311,14 @@ impl<S> RouterParam for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
+    use async_std::task::spawn;
+    use encoding::EncoderTrap;
+    use percent_encoding::NON_ALPHANUMERIC;
+
     use super::Router;
     use crate::http::StatusCode;
     use crate::tcp::Listener;
     use crate::{App, Context, Next, Status};
-    use async_std::task::spawn;
-    use encoding::EncoderTrap;
-    use percent_encoding::NON_ALPHANUMERIC;
 
     async fn gate(ctx: &mut Context, next: Next<'_>) -> Result<(), Status> {
         ctx.store("id", "0".to_string());

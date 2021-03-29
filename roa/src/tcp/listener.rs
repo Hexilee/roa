@@ -1,7 +1,9 @@
-use super::TcpIncoming;
+use std::net::{SocketAddr, ToSocketAddrs};
+
 use async_std::sync::Arc;
 use roa_core::{App, Endpoint, Executor, Server, State};
-use std::net::{SocketAddr, ToSocketAddrs};
+
+use super::TcpIncoming;
 
 /// An app extension.
 pub trait Listener {
@@ -9,10 +11,7 @@ pub trait Listener {
     type Server;
 
     /// Listen on a socket addr, return a server and the real addr it binds.
-    fn bind(
-        self,
-        addr: impl ToSocketAddrs,
-    ) -> std::io::Result<(SocketAddr, Self::Server)>;
+    fn bind(self, addr: impl ToSocketAddrs) -> std::io::Result<(SocketAddr, Self::Server)>;
 
     /// Listen on a socket addr, return a server, and pass real addr to the callback.
     fn listen(
@@ -52,10 +51,7 @@ where
     E: for<'a> Endpoint<'a, S>,
 {
     type Server = Server<TcpIncoming, Self, Executor>;
-    fn bind(
-        self,
-        addr: impl ToSocketAddrs,
-    ) -> std::io::Result<(SocketAddr, Self::Server)> {
+    fn bind(self, addr: impl ToSocketAddrs) -> std::io::Result<(SocketAddr, Self::Server)> {
         let incoming = TcpIncoming::bind(addr)?;
         let local_addr = incoming.local_addr();
         Ok((local_addr, self.accept(incoming)))

@@ -27,9 +27,10 @@
 //! }
 //! ```
 
+use url::form_urlencoded::parse;
+
 use crate::http::StatusCode;
 use crate::{Context, Next, Result, Status, Variable};
-use url::form_urlencoded::parse;
 
 /// A scope to store and load variables in Context::storage.
 struct QueryScope;
@@ -138,8 +139,7 @@ pub trait Query {
 #[inline]
 pub async fn query_parser<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
     let query_string = ctx.uri().query().unwrap_or("");
-    let pairs: Vec<(String, String)> =
-        parse(query_string.as_bytes()).into_owned().collect();
+    let pairs: Vec<(String, String)> = parse(query_string.as_bytes()).into_owned().collect();
     for (key, value) in pairs.into_iter() {
         ctx.store_scoped(QueryScope, key, value);
     }
@@ -165,11 +165,12 @@ impl<S> Query for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
+    use async_std::task::spawn;
+
     use crate::http::StatusCode;
     use crate::preload::*;
     use crate::query::query_parser;
     use crate::{App, Context};
-    use async_std::task::spawn;
 
     #[tokio::test]
     async fn query() -> Result<(), Box<dyn std::error::Error>> {
@@ -220,8 +221,7 @@ mod tests {
         }
         let (addr, server) = App::new().gate(query_parser).end(test).run()?;
         spawn(server);
-        let resp =
-            reqwest::get(&format!("http://{}?name=Hexilee&lang=rust", addr)).await?;
+        let resp = reqwest::get(&format!("http://{}?name=Hexilee&lang=rust", addr)).await?;
         assert_eq!(StatusCode::OK, resp.status());
         Ok(())
     }

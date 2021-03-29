@@ -1,16 +1,15 @@
+use std::future::Future;
+use std::net::{TcpListener as StdListener, ToSocketAddrs};
+use std::pin::Pin;
+use std::task::{self, Poll};
+use std::time::Duration;
+use std::{fmt, io, matches};
+
 use async_std::net::{SocketAddr, TcpListener, TcpStream};
 use futures::FutureExt as _;
 use futures_timer::Delay;
 use log::{debug, error, trace};
 use roa_core::{Accept, AddrStream};
-use std::fmt;
-use std::future::Future;
-use std::io;
-use std::matches;
-use std::net::{TcpListener as StdListener, ToSocketAddrs};
-use std::pin::Pin;
-use std::task::{self, Poll};
-use std::time::Duration;
 
 /// A stream of connections from binding to an address.
 /// As an implementation of roa_core::Accept.

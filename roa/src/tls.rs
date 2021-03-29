@@ -64,7 +64,6 @@ mod listener;
 
 #[doc(inline)]
 pub use incoming::TlsIncoming;
-
 #[doc(inline)]
 #[cfg(feature = "tcp")]
 pub use listener::TlsListener;

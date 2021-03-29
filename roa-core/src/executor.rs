@@ -1,9 +1,10 @@
-use futures::channel::oneshot::{channel, Receiver};
-use futures::task::{Context, Poll};
-use hyper::rt;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+
+use futures::channel::oneshot::{channel, Receiver};
+use futures::task::{Context, Poll};
+use hyper::rt;
 
 /// Future Object
 pub type FutureObj = Pin<Box<dyn 'static + Send + Future<Output = ()>>>;
@@ -85,8 +86,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{BlockingObj, Executor, FutureObj, Spawn};
     use async_std::sync::Arc;
+
+    use super::{BlockingObj, Executor, FutureObj, Spawn};
 
     pub struct Exec;
 
