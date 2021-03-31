@@ -28,7 +28,7 @@ pub mod cookie;
 #[cfg_attr(feature = "docs", doc(cfg(feature = "jwt")))]
 pub mod jwt;
 
-#[cfg(feature = "compress")]
+#[cfg(feature = "donnot-compile-me-until-async-compression-upgrade-bytes-version")]
 #[cfg_attr(feature = "docs", doc(cfg(feature = "compress")))]
 pub mod compress;
 

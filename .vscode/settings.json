@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.cargo.allFeatures": true,
+    "rust-analyzer.cargo.features": [
+        "roa-core/bytes-compat"
+    ]
+}
