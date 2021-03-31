@@ -5,7 +5,6 @@ use std::task::{self, Poll};
 use std::time::Duration;
 use std::{fmt, io};
 
-use futures::FutureExt as _;
 use log::{debug, error, trace};
 use roa::stream::AsyncStream;
 use roa::{Accept, AddrStream};
@@ -21,7 +20,7 @@ pub struct TcpIncoming {
     tcp_keepalive_timeout: Option<Duration>,
     sleep_on_errors: bool,
     tcp_nodelay: bool,
-    timeout: Option<Delay>,
+    timeout: Option<Pin<Box<Delay>>>,
 }
 
 impl TcpIncoming {
@@ -91,31 +90,19 @@ impl TcpIncoming {
     ) -> Poll<io::Result<(TcpStream, SocketAddr)>> {
         // Check if a previous timeout is active that was set by IO errors.
         if let Some(ref mut to) = self.timeout {
-            match Pin::new(to).poll(cx) {
-                Poll::Ready(()) => {}
-                Poll::Pending => return Poll::Pending,
-            }
+            futures::ready!(Pin::new(to).poll(cx));
         }
         self.timeout = None;
 
-        let accept = self.listener.accept();
-        futures::pin_mut!(accept);
-
         loop {
-            match accept.poll_unpin(cx) {
-                Poll::Ready(Ok((stream, addr))) => {
-                    if let Some(dur) = self.tcp_keepalive_timeout {
-                        if let Err(e) = stream.set_keepalive(Some(dur)) {
-                            trace!("error trying to set TCP keepalive: {}", e);
-                        }
-                    }
-                    if let Err(e) = stream.set_nodelay(self.tcp_nodelay) {
+            match futures::ready!(self.listener.poll_accept(cx)) {
+                Ok((socket, addr)) => {
+                    if let Err(e) = socket.set_nodelay(self.tcp_nodelay) {
                         trace!("error trying to set TCP nodelay: {}", e);
                     }
-                    return Poll::Ready(Ok((stream, addr)));
+                    return Poll::Ready(Ok((socket, addr)));
                 }
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(Err(e)) => {
+                Err(e) => {
                     // Connection errors can be ignored directly, continue by
                     // accepting the next request.
                     if is_connection_error(&e) {
@@ -127,9 +114,9 @@ impl TcpIncoming {
                         error!("accept error: {}", e);
 
                         // Sleep 1s.
-                        let mut timeout = delay_for(Duration::from_secs(1));
+                        let mut timeout = Box::pin(delay_for(Duration::from_secs(1)));
 
-                        match Pin::new(&mut timeout).poll(cx) {
+                        match timeout.as_mut().poll(cx) {
                             Poll::Ready(()) => {
                                 // Wow, it's been a second already? Ok then...
                                 continue;
