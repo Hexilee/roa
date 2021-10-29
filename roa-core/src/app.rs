@@ -27,7 +27,7 @@ use crate::{
 /// ### Example
 /// ```rust,no_run
 /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
-/// use log::info;
+/// use tracing::info;
 /// use async_std::fs::File;
 ///
 /// let app = App::new().gate(gate).end(end);
@@ -48,8 +48,9 @@ use crate::{
 ///
 /// ```rust
 /// use roa_core::{App, Context, Next, Result};
-/// use log::info;
+/// use tracing::info;
 /// use futures::lock::Mutex;
+/// 
 /// use std::sync::Arc;
 /// use std::collections::HashMap;
 ///
@@ -263,7 +264,7 @@ impl<S, E> HttpService<S, E> {
                 ctx.resp.write(status.message);
             } else {
                 ctx.exec
-                    .spawn_blocking(move || log::error!("Uncaught status: {}", status))
+                    .spawn_blocking(move || tracing::error!("Uncaught status: {}", status))
                     .await;
             }
         }

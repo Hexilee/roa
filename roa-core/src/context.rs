@@ -19,7 +19,7 @@ use crate::{status, Executor, Request, Response};
 ///
 /// ```rust
 /// use roa_core::{App, Context, Next, Result};
-/// use log::info;
+/// use tracing::info;
 /// use async_std::fs::File;
 ///
 /// let app = App::new().gate(gate).end(end);

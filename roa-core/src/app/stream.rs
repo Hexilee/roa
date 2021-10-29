@@ -1,11 +1,11 @@
 use std::io;
-use std::mem::MaybeUninit;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::task::{self, Poll};
 
 use futures::io::{AsyncRead, AsyncWrite};
-use tokio::io::{AsyncRead as TokioRead, AsyncWrite as TokioWrite};
+use futures::ready;
+use tokio::io::{AsyncRead as TokioRead, AsyncWrite as TokioWrite, ReadBuf};
 
 /// A transport returned yieled by `AddrIncoming`.
 pub struct AddrStream<IO> {
@@ -32,17 +32,15 @@ where
     IO: Unpin + AsyncRead,
 {
     #[inline]
-    unsafe fn prepare_uninitialized_buffer(&self, _buf: &mut [MaybeUninit<u8>]) -> bool {
-        false
-    }
-
-    #[inline]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.stream).poll_read(cx, buf)
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        let read_size =
+            ready!(Pin::new(&mut self.stream).poll_read(cx, buf.initialize_unfilled()))?;
+        buf.advance(read_size);
+        Poll::Ready(Ok(()))
     }
 }
 

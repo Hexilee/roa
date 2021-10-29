@@ -2,7 +2,7 @@ use std::mem;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use bytes::{Buf, Bytes, BytesMut};
+use bytes::{Bytes, BytesMut};
 use futures::future::ok;
 use futures::io::{self, AsyncRead};
 use futures::stream::{once, Stream, StreamExt};
@@ -174,7 +174,7 @@ where
         if bytes == 0 {
             Poll::Ready(None)
         } else {
-            Poll::Ready(Some(Ok(chunk.to_bytes().slice(0..bytes))))
+            Poll::Ready(Some(Ok(chunk.freeze().slice(0..bytes))))
         }
     }
 }

@@ -24,17 +24,17 @@ codecov = { repository = "Hexilee/roa" }
 
 [dependencies]
 futures = "0.3"
-bytes = "0.5"
+bytes = "1.1"
 http = "0.2"
-hyper = { version = "0.13", default-features = false, features = ["stream"] }
-log = "0.4"
-tokio = "0.2"
-async-trait = "0.1.24"
-async-std = { version = "1.6", features = ["unstable"], optional = true }
-crossbeam-queue = "0.2.1"
+hyper = { version = "0.14", default-features = false, features = ["stream", "server", "http1", "http2"] }
+tracing = "0.1"
+tokio = "1.12"
+async-trait = "0.1.51"
+async-std = { version = "1.10", features = ["unstable"], optional = true }
+crossbeam-queue = "0.3"
 
 [dev-dependencies]
-async-std = { version = "1.6", features = ["attributes", "unstable"] }
+async-std = { version = "1.10", features = ["attributes", "unstable"] }
 
 [features]
 runtime = ["async-std"]

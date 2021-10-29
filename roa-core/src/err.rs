@@ -30,10 +30,10 @@ pub type Result<R = ()> = StdResult<R, Status>;
 #[macro_export]
 macro_rules! status {
     ($status_code:expr) => {
-        $crate::status!($status_code, "");
+        $crate::status!($status_code, "")
     };
     ($status_code:expr, $message:expr) => {
-        $crate::status!($status_code, $message, true);
+        $crate::status!($status_code, $message, true)
     };
     ($status_code:expr, $message:expr, $expose:expr) => {
         $crate::Status::new($status_code, $message, $expose)
@@ -67,13 +67,13 @@ macro_rules! status {
 #[macro_export]
 macro_rules! throw {
     ($status_code:expr) => {
-        return core::result::Result::Err($crate::status!($status_code));
+        return core::result::Result::Err($crate::status!($status_code))
     };
     ($status_code:expr, $message:expr) => {
-        return core::result::Result::Err($crate::status!($status_code, $message));
+        return core::result::Result::Err($crate::status!($status_code, $message))
     };
     ($status_code:expr, $message:expr, $expose:expr) => {
-        return core::result::Result::Err($crate::status!($status_code, $message, $expose));
+        return core::result::Result::Err($crate::status!($status_code, $message, $expose))
     };
 }
 
