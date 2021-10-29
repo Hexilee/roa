@@ -15,7 +15,7 @@ categories = ["network-programming", "asynchronous",
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-roa = { path = "../roa", version = "0.5", default-features = false, features = ["json"] }
+roa = { path = "../roa", version = "0.6.0", default-features = false, features = ["json"] }
 futures = "0.3.4"
 
 [dependencies.juniper]
