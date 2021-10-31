@@ -9,7 +9,7 @@
 use std::ops::{Deref, DerefMut};
 
 use juniper::http::GraphQLRequest;
-use juniper::{GraphQLTypeAsync, RootNode, ScalarValue};
+use juniper::{GraphQLType, GraphQLTypeAsync, RootNode, ScalarValue};
 use roa::preload::*;
 use roa::{async_trait, Context, Endpoint, Result, State};
 
@@ -34,25 +34,27 @@ impl<S> DerefMut for JuniperContext<S> {
 }
 
 /// An endpoint.
-pub struct GraphQL<QueryT, MutationT, Sca>(pub RootNode<'static, QueryT, MutationT, Sca>)
+pub struct GraphQL<QueryT, MutationT, SubscriptionT, Sca>(
+    pub RootNode<'static, QueryT, MutationT, SubscriptionT, Sca>,
+)
 where
-    Sca: 'static + ScalarValue + Send + Sync,
-    QueryT: GraphQLTypeAsync<Sca> + Send + Sync + 'static,
-    MutationT: GraphQLTypeAsync<Sca> + Send + Sync + 'static,
-    QueryT::Context: Send + Sync + 'static,
-    MutationT::Context: Send + Sync + 'static,
-    QueryT::TypeInfo: Send + Sync,
-    MutationT::TypeInfo: Send + Sync;
+    QueryT: GraphQLType<Sca>,
+    MutationT: GraphQLType<Sca>,
+    SubscriptionT: GraphQLType<Sca>,
+    Sca: ScalarValue;
 
 #[async_trait(?Send)]
-impl<'a, S, QueryT, MutationT, Sca> Endpoint<'a, S> for GraphQL<QueryT, MutationT, Sca>
+impl<'a, S, QueryT, MutationT, SubscriptionT, Sca> Endpoint<'a, S>
+    for GraphQL<QueryT, MutationT, SubscriptionT, Sca>
 where
     S: State,
-    Sca: 'static + ScalarValue + Send + Sync,
     QueryT: GraphQLTypeAsync<Sca, Context = JuniperContext<S>> + Send + Sync + 'static,
-    MutationT: GraphQLTypeAsync<Sca, Context = JuniperContext<S>> + Send + Sync + 'static,
     QueryT::TypeInfo: Send + Sync,
+    MutationT: GraphQLTypeAsync<Sca, Context = QueryT::Context> + Send + Sync + 'static,
     MutationT::TypeInfo: Send + Sync,
+    SubscriptionT: GraphQLType<Sca, Context = QueryT::Context> + Send + Sync + 'static,
+    SubscriptionT::TypeInfo: Send + Sync,
+    Sca: ScalarValue + Send + Sync + 'static,
 {
     #[inline]
     async fn call(&'a self, ctx: &'a mut Context<S>) -> Result {

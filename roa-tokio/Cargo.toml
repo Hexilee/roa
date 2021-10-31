@@ -23,9 +23,9 @@ rustdoc-args = ["--cfg", "feature=\"docs\""]
 
 [dependencies]
 futures = "0.3"
-log = "0.4"
+tracing = "0.1"
 roa = {path = "../roa", version = "0.6.0", default-features = false}
-tokio = {version = "0.2", features = ["full"]}
+tokio = {version = "1.13", features = ["full"]}
 
 [dev-dependencies]
 reqwest = "0.10"

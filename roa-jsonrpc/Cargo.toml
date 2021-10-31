@@ -1,6 +1,6 @@
 [package]
 name = "roa-jsonrpc"
-version = "0.5.0-alpha"
+version = "0.6.0-alpha"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 license = "MIT"
@@ -18,6 +18,6 @@ categories = ["network-programming", "asynchronous",
 [dependencies]
 roa = { path = "../roa", version = "0.6.0", default-features = false, features = ["json"] }
 futures = "0.3"
-jsonrpc-v2 = { version = "0.5", default-features = false }
-bytes = "0.5"
+jsonrpc-v2 = { version = "0.10", default-features = false }
+bytes = "1.1"
 

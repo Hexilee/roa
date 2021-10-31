@@ -54,6 +54,8 @@ askama = { version = "0.10", optional = true }
 doc-comment = { version = "0.3.3", optional = true }
 serde_urlencoded = { version = "0.7", optional = true }
 mime_guess = { version = "2.0", optional = true }
+multer = { version = "2.0", optional = true }
+mime = { version = "0.3", optional = true }
 
 # websocket
 tokio-tungstenite = { version = "0.15.0", default-features = false, optional = true }
@@ -69,7 +71,7 @@ async-tls = { version = "0.11", optional = true }
 tokio = { version = "1.13", features = ["full"] }
 tokio-native-tls = "0.3"
 hyper-tls = "0.5"
-reqwest = { version = "0.11", features = ["json", "cookies", "gzip"] }
+reqwest = { version = "0.11", features = ["json", "cookies", "gzip", "multipart"] }
 async-std = { version = "1.10", features = ["attributes"] }
 pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }
@@ -89,6 +91,7 @@ full = [
     "json",
     "urlencoded",
     "file",
+    "multipart",
     "template",
     "tls",
     "router",
@@ -101,6 +104,7 @@ full = [
 docs = ["full", "roa-core/docs"]
 runtime = ["roa-core/runtime"]
 json = ["serde", "serde_json"]
+multipart = ["multer", "mime"]
 urlencoded = ["serde", "serde_urlencoded"]
 file = ["mime_guess", "async-std"]
 template = ["askama"]

@@ -96,6 +96,8 @@ pub use file::DispositionType;
 #[cfg(feature = "file")]
 use file::{write_file, Path};
 use http::{header, HeaderValue};
+#[cfg(feature = "json")]
+pub use multer::Multipart;
 #[cfg(any(feature = "json", feature = "urlencoded"))]
 use serde::de::DeserializeOwned;
 #[cfg(feature = "json")]
@@ -120,6 +122,11 @@ pub trait PowerBody {
     async fn read_form<B>(&mut self) -> Result<B>
     where
         B: DeserializeOwned;
+
+    /// read request body as "multipart form".
+    #[cfg(feature = "multipart")]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "multipart")))]
+    async fn read_multipart(&mut self) -> Result<Multipart>;
 
     /// write object to response body as "application/json"
     #[cfg(feature = "json")]
@@ -197,6 +204,25 @@ impl<S: State> PowerBody for Context<S> {
         use crate::status;
         let data = self.read().await?;
         serde_urlencoded::from_bytes(&data).map_err(|err| status!(StatusCode::BAD_REQUEST, err))
+    }
+
+    #[cfg(feature = "multipart")]
+    async fn read_multipart(&mut self) -> Result<Multipart> {
+        use headers::{ContentType, HeaderMapExt};
+        // Verify that the request is 'Content-Type: multipart/*'.
+        let typ: mime::Mime = self
+            .req
+            .headers
+            .typed_get::<ContentType>()
+            .ok_or_else(|| {
+                crate::status!(http::StatusCode::BAD_REQUEST, "fail to get content-type")
+            })?
+            .into();
+        let boundary = typ
+            .get_param(mime::BOUNDARY)
+            .ok_or_else(|| crate::status!(http::StatusCode::BAD_REQUEST, "fail to get boundary"))?
+            .as_str();
+        Ok(Multipart::new(self.req.stream(), boundary))
     }
 
     #[cfg(feature = "json")]
@@ -384,5 +410,73 @@ mod tests {
         );
         assert_eq!("Hexilee", resp.text().await?);
         Ok(())
+    }
+
+    #[cfg(feature = "multipart")]
+    mod multipart {
+        use std::error::Error as StdError;
+
+        use async_std::fs::read;
+        use reqwest::multipart::{Form, Part};
+        use reqwest::Client;
+
+        use crate::body::PowerBody;
+        use crate::http::header::CONTENT_TYPE;
+        use crate::http::StatusCode;
+        use crate::router::{post, Router};
+        use crate::tcp::Listener;
+        use crate::{throw, App, Context};
+
+        const FILE_PATH: &str = "../assets/author.txt";
+        const FILE_NAME: &str = "author.txt";
+        const FIELD_NAME: &str = "file";
+
+        async fn post_file(ctx: &mut Context) -> crate::Result {
+            let mut form = ctx.read_multipart().await?;
+            while let Some(field) = form.next_field().await? {
+                match (field.file_name(), field.name()) {
+                    (Some(filename), Some(name)) => {
+                        assert_eq!(FIELD_NAME, name);
+                        assert_eq!(FILE_NAME, filename);
+                        let content = field.bytes().await?;
+                        let expected_content = read(FILE_PATH).await?;
+                        assert_eq!(&expected_content, &content);
+                    }
+                    _ => throw!(
+                        StatusCode::BAD_REQUEST,
+                        format!("invalid field: {:?}", field)
+                    ),
+                }
+            }
+            Ok(())
+        }
+
+        #[tokio::test]
+        async fn upload() -> Result<(), Box<dyn StdError>> {
+            let router = Router::new().on("/file", post(post_file));
+            let app = App::new().end(router.routes("/")?);
+            let (addr, server) = app.run()?;
+            async_std::task::spawn(server);
+
+            // client
+            let url = format!("http://{}/file", addr);
+            let client = Client::new();
+            let form = Form::new().part(
+                FIELD_NAME,
+                Part::bytes(read(FILE_PATH).await?).file_name(FILE_NAME),
+            );
+            let boundary = form.boundary().to_string();
+            let resp = client
+                .post(&url)
+                .multipart(form)
+                .header(
+                    CONTENT_TYPE,
+                    format!(r#"multipart/form-data; boundary="{}""#, boundary),
+                )
+                .send()
+                .await?;
+            assert_eq!(StatusCode::OK, resp.status());
+            Ok(())
+        }
     }
 }

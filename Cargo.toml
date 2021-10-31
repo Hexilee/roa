@@ -1,6 +1,6 @@
 [package]
 name = "roa-root"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Hexilee <hexileee@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -13,7 +13,6 @@ members = [
     "roa-core",
     "roa-diesel",
     "roa-tokio",
-    "roa-multipart",
     "roa-juniper",
     "roa-jsonrpc",
     "integration/diesel-example",

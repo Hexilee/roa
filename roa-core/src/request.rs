@@ -25,6 +25,7 @@ pub struct Request {
 
 impl Request {
     /// Take raw hyper request.
+    /// This method will consume inner body.
     #[inline]
     pub fn take_raw(&mut self) -> http::Request<Body> {
         let mut builder = http::Request::builder()
@@ -37,6 +38,7 @@ impl Request {
     }
 
     /// Gake raw hyper body.
+    /// This method will consume inner body.
     #[inline]
     pub fn raw_body(&mut self) -> Body {
         std::mem::take(&mut self.body)

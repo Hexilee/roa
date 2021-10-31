@@ -10,8 +10,8 @@ use roa::{async_trait, Context, Endpoint, Result, State};
 
 /// A wrapper for [`jsonrpc_v2::Server`], implemented [`roa::Endpoint`].
 ///
-/// [`jsonrpc_v2::Server`]: https://docs.rs/jsonrpc-v2/0.5.2/jsonrpc_v2/struct.Server.html
-/// [`roa::Endpoint`]: https://docs.rs/roa/0.5.2/roa/trait.Endpoint.html
+/// [`jsonrpc_v2::Server`]: https://docs.rs/jsonrpc-v2/0.10.1/jsonrpc_v2/struct.Server.html
+/// [`roa::Endpoint`]: https://docs.rs/roa/0.6.0/roa/trait.Endpoint.html
 pub struct RpcEndpoint<R>(pub Server<R>);
 
 #[async_trait(? Send)]

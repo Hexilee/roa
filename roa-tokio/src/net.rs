@@ -5,11 +5,11 @@ use std::task::{self, Poll};
 use std::time::Duration;
 use std::{fmt, io};
 
-use log::{debug, error, trace};
 use roa::stream::AsyncStream;
 use roa::{Accept, AddrStream};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::time::{delay_for, Delay};
+use tokio::time::{sleep, Sleep};
+use tracing::{debug, error, trace};
 
 /// A stream of connections from binding to an address.
 /// As an implementation of roa_core::Accept.
@@ -20,7 +20,7 @@ pub struct TcpIncoming {
     tcp_keepalive_timeout: Option<Duration>,
     sleep_on_errors: bool,
     tcp_nodelay: bool,
-    timeout: Option<Pin<Box<Delay>>>,
+    timeout: Option<Pin<Box<Sleep>>>,
 }
 
 impl TcpIncoming {
@@ -114,7 +114,7 @@ impl TcpIncoming {
                         error!("accept error: {}", e);
 
                         // Sleep 1s.
-                        let mut timeout = Box::pin(delay_for(Duration::from_secs(1)));
+                        let mut timeout = Box::pin(sleep(Duration::from_secs(1)));
 
                         match timeout.as_mut().poll(cx) {
                             Poll::Ready(()) => {
