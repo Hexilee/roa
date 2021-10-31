@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "docs", feature(doc_cfg, external_doc))]
+#![cfg_attr(feature = "docs", feature(doc_cfg))]
 #![cfg_attr(feature = "docs", doc(include = "../README.md"))]
 #![cfg_attr(feature = "docs", warn(missing_docs))]
 
@@ -31,6 +31,10 @@ pub mod jwt;
 #[cfg(feature = "compress")]
 #[cfg_attr(feature = "docs", doc(cfg(feature = "compress")))]
 pub mod compress;
+
+#[cfg(feature = "jsonrpc")]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "jsonrpc")))]
+pub mod jsonrpc;
 
 pub mod body;
 pub mod cors;
