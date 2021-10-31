@@ -24,7 +24,19 @@ pub struct Request {
 }
 
 impl Request {
-    /// Get raw hyper body.
+    /// Take raw hyper request.
+    #[inline]
+    pub fn take_raw(&mut self) -> http::Request<Body> {
+        let mut builder = http::Request::builder()
+            .method(self.method.clone())
+            .uri(self.uri.clone());
+        *builder.headers_mut().expect("fail to get headers") = self.headers.clone();
+        builder
+            .body(self.raw_body())
+            .expect("fail to build raw body")
+    }
+
+    /// Gake raw hyper body.
     #[inline]
     pub fn raw_body(&mut self) -> Body {
         std::mem::take(&mut self.body)

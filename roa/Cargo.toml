@@ -43,7 +43,7 @@ cookie = { version = "0.15", features = ["percent-encode"], optional = true }
 jsonwebtoken = { version = "7.2", optional = true }
 serde = { version = "1", optional = true }
 serde_json = { version = "1.0", optional = true }
-async-compression = { version = "0.3.8", features = ["all-algorithms", "stream"], optional = true }
+async-compression = { version = "0.3.8", features = ["all-algorithms", "futures-io"], optional = true }
 
 # router
 radix_trie = { version = "0.2.1", optional = true }
@@ -62,12 +62,12 @@ tokio-tungstenite = { version = "0.15.0", default-features = false, optional = t
 futures-timer = { version = "3.0", optional = true }
 
 # tls
-rustls = { version = "0.20", optional = true }
+rustls = { version = "0.19", optional = true }
 async-tls = { version = "0.11", optional = true }
 
 [dev-dependencies]
-tokio = { version = "1.12", features = ["full"] }
-tokio-tls = "0.3.1"
+tokio = { version = "1.13", features = ["full"] }
+tokio-native-tls = "0.3"
 hyper-tls = "0.5"
 reqwest = { version = "0.11", features = ["json", "cookies", "gzip"] }
 async-std = { version = "1.10", features = ["attributes"] }

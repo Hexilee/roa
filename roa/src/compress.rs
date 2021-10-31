@@ -21,8 +21,9 @@
 //! # }
 //! ```
 
-use async_compression::stream::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
+use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 pub use async_compression::Level;
+use futures::stream::TryStreamExt;
 
 use crate::http::header::{HeaderMap, ACCEPT_ENCODING, CONTENT_ENCODING};
 use crate::http::{HeaderValue, StatusCode};
@@ -150,22 +151,22 @@ impl<'a, S> Middleware<'a, S> for Compress {
         let content_encoding = match best_encoding {
             None | Some(Encoding::Gzip) => {
                 ctx.resp
-                    .write_stream(GzipEncoder::with_quality(body, level));
+                    .write_reader(GzipEncoder::with_quality(body.into_async_read(), level));
                 Encoding::Gzip.to_header_value()
             }
             Some(Encoding::Deflate) => {
                 ctx.resp
-                    .write_stream(ZlibEncoder::with_quality(body, level));
+                    .write_reader(ZlibEncoder::with_quality(body.into_async_read(), level));
                 Encoding::Deflate.to_header_value()
             }
             Some(Encoding::Brotli) => {
                 ctx.resp
-                    .write_stream(BrotliEncoder::with_quality(body, level));
+                    .write_reader(BrotliEncoder::with_quality(body.into_async_read(), level));
                 Encoding::Brotli.to_header_value()
             }
             Some(Encoding::Zstd) => {
                 ctx.resp
-                    .write_stream(ZstdEncoder::with_quality(body, level));
+                    .write_reader(ZstdEncoder::with_quality(body.into_async_read(), level));
                 Encoding::Zstd.to_header_value()
             }
             Some(Encoding::Identity) => {

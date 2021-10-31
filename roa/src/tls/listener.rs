@@ -111,7 +111,7 @@ mod tests {
     use hyper::client::{Client, HttpConnector};
     use hyper::Body;
     use hyper_tls::{native_tls, HttpsConnector};
-    use tokio_tls::TlsConnector;
+    use tokio_native_tls::TlsConnector;
 
     use crate::http::StatusCode;
     use crate::tls::internal::pemfile::{certs, rsa_private_keys};

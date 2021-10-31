@@ -28,7 +28,7 @@ use std::sync::Arc;
 use headers::{
     Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, SecWebsocketVersion, Upgrade,
 };
-use hyper::upgrade::Upgraded;
+use hyper::upgrade::{self, Upgraded};
 pub use tokio_tungstenite::tungstenite;
 pub use tokio_tungstenite::tungstenite::protocol::{Message, WebSocketConfig};
 use tokio_tungstenite::WebSocketStream;
@@ -165,7 +165,7 @@ where
         match key {
             None => throw!(StatusCode::BAD_REQUEST, "invalid websocket upgrade request"),
             Some(key) => {
-                let body = ctx.req.raw_body();
+                let raw_req = ctx.req.take_raw();
                 let context = ctx.clone();
                 let task = self.task.clone();
                 let config = self.config;
@@ -177,8 +177,8 @@ where
                 // is returned below, so it's better to spawn this future instead
                 // waiting for it to complete to then return a response.
                 ctx.exec.spawn(async move {
-                    match body.on_upgrade().await {
-                        Err(err) => log::error!("websocket upgrade error: {}", err),
+                    match upgrade::on(raw_req).await {
+                        Err(err) => tracing::error!("websocket upgrade error: {}", err),
                         Ok(upgraded) => {
                             let websocket = WebSocketStream::from_raw_socket(
                                 upgraded,

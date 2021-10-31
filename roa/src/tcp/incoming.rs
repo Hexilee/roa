@@ -8,8 +8,8 @@ use std::{fmt, io, matches};
 
 use async_std::net::{SocketAddr, TcpListener, TcpStream};
 use futures_timer::Delay;
-use log::{debug, error, trace};
 use roa_core::{Accept, AddrStream};
+use tracing::{debug, error, trace};
 
 /// A stream of connections from binding to an address.
 /// As an implementation of roa_core::Accept.

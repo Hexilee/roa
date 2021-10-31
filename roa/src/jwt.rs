@@ -82,9 +82,8 @@ use crate::{async_trait, throw, Context, Middleware, Next, Result, Status};
 /// A private scope.
 struct JwtScope;
 
-lazy_static::lazy_static!(
-    static ref INVALID_TOKEN: HeaderValue = HeaderValue::from_static(r#"Bearer realm="<jwt>", error="invalid_token""#);
-);
+const INVALID_TOKEN: HeaderValue =
+    HeaderValue::from_static(r#"Bearer realm="<jwt>", error="invalid_token""#);
 
 /// A function to set value of WWW_AUTHENTICATE.
 #[inline]
@@ -262,7 +261,7 @@ mod tests {
         spawn(server);
         let resp = reqwest::get(&format!("http://{}", addr)).await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
+        assert_eq!(&INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         // non-string header value
         let client = reqwest::Client::new();
@@ -272,7 +271,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
+        assert_eq!(&INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         // non-Bearer header value
         let resp = client
@@ -281,7 +280,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
+        assert_eq!(&INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         // invalid token
         let resp = client
@@ -290,7 +289,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
+        assert_eq!(&INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         // expired token
         let mut user = User {
@@ -314,7 +313,7 @@ mod tests {
             .send()
             .await?;
         assert_eq!(StatusCode::UNAUTHORIZED, resp.status());
-        assert_eq!(&*INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
+        assert_eq!(&INVALID_TOKEN, &resp.headers()[WWW_AUTHENTICATE]);
 
         user.exp = (SystemTime::now() + Duration::from_millis(60))
             .duration_since(UNIX_EPOCH)?

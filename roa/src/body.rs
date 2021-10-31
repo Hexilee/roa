@@ -87,7 +87,6 @@
 use askama::Template;
 use bytes::Bytes;
 use futures::{AsyncRead, AsyncReadExt};
-use lazy_static::lazy_static;
 
 use crate::{async_trait, http, Context, Result, State};
 #[cfg(feature = "file")]
@@ -154,15 +153,10 @@ pub trait PowerBody {
         P: Send + AsRef<Path>;
 }
 
-// Static header value.
-lazy_static! {
-    static ref APPLICATION_JSON: HeaderValue =
-        HeaderValue::from_static("application/json; charset=utf-8");
-    static ref TEXT_HTML: HeaderValue = HeaderValue::from_static("text/html; charset=utf-8");
-    static ref TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
-    static ref APPLICATION_OCTET_STREM: HeaderValue =
-        HeaderValue::from_static("application/octet-stream");
-}
+const APPLICATION_JSON: HeaderValue = HeaderValue::from_static("application/json; charset=utf-8");
+const TEXT_HTML: HeaderValue = HeaderValue::from_static("text/html; charset=utf-8");
+const TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
+const APPLICATION_OCTET_STREM: HeaderValue = HeaderValue::from_static("application/octet-stream");
 
 #[async_trait]
 impl<S: State> PowerBody for Context<S> {

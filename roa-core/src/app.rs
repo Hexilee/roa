@@ -50,7 +50,7 @@ use crate::{
 /// use roa_core::{App, Context, Next, Result};
 /// use tracing::info;
 /// use futures::lock::Mutex;
-/// 
+///
 /// use std::sync::Arc;
 /// use std::collections::HashMap;
 ///
