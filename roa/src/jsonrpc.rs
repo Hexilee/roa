@@ -8,7 +8,8 @@
 //! ```rust,no_run
 //! use roa::App;
 //! use roa::jsonrpc::{RpcEndpoint, Data, Error, Params, Server};
-//! use std::error::Error as StdError;
+//! use roa::tcp::Listener;
+//! use tracing::info;
 //!
 //! #[derive(serde::Deserialize)]
 //! struct TwoNums {
@@ -29,12 +30,12 @@
 //! }
 //!
 //! #[async_std::main]
-//! async fn main() -> std::io::Result<()> {
+//! async fn main() -> anyhow::Result<()> {
 //!     let rpc = Server::new()
 //!         .with_data(Data::new(String::from("Hello!")))
 //!         .with_method("sub", sub)
 //!         .with_method("message", message)
-//!         .finish();
+//!         .finish_unwrapped();
 //!
 //!     let app = App::new().end(RpcEndpoint(rpc));
 //!     app.listen("127.0.0.1:8000", |addr| {

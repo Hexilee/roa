@@ -86,6 +86,7 @@ chrono = "0.4"
 mime = "0.3"
 encoding = "0.2"
 askama = "0.10"
+anyhow = "1.0"
 
 [features]
 default = ["async_rt"]
