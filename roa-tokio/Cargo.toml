@@ -14,7 +14,7 @@ license = "MIT"
 name = "roa-tokio"
 readme = "./README.md"
 repository = "https://github.com/Hexilee/roa"
-version = "0.6.0"
+version = "0.6.0-alpha"
 
 [package.metadata.docs.rs]
 features = ["docs"]
