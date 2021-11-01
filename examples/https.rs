@@ -12,6 +12,7 @@ use roa::preload::*;
 use roa::tls::internal::pemfile::{certs, rsa_private_keys};
 use roa::tls::{NoClientAuth, ServerConfig};
 use roa::{App, Context};
+use tracing_subscriber::EnvFilter;
 
 async fn serve_file(ctx: &mut Context) -> roa::Result {
     ctx.write_file("assets/welcome.html", DispositionType::Inline)
@@ -20,7 +21,10 @@ async fn serve_file(ctx: &mut Context) -> roa::Result {
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .map_err(|err| anyhow::anyhow!("fail to init tracing subscriber: {}", err))?;
 
     let mut config = ServerConfig::new(NoClientAuth::new());
     let mut cert_file = BufReader::new(File::open("assets/cert.pem")?);

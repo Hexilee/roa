@@ -23,9 +23,9 @@ jobs:
             registryName: roa
             path: roa
             publishPath: /target/package
-          - name: roa-multipart
-            registryName: roa-multipart
-            path: roa-multipart
+          - name: roa-juniper
+            registryName: roa-juniper
+            path: roa-juniper
             publishPath: /target/package
           - name: roa-diesel
             registryName: roa-diesel
@@ -35,10 +35,7 @@ jobs:
             registryName: roa-tokio
             path: roa-tokio
             publishPath: /target/package
-          - name: roa-jsonrpc
-            registryName: roa-jsonrpc
-            path: roa-jsonrpc
-            publishPath: /target/package
+
     steps:
       - uses: actions/checkout@v2
       - name: Install Toolchain

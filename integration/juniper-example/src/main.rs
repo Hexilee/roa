@@ -9,8 +9,9 @@ use diesel::prelude::*;
 use diesel::result::Error;
 use diesel_example::{create_pool, State};
 use juniper::http::playground::playground_source;
-use juniper::{graphql_value, FieldError, FieldResult, GraphQLInputObject, RootNode};
-use log::info;
+use juniper::{
+    graphql_value, EmptySubscription, FieldError, FieldResult, GraphQLInputObject, RootNode,
+};
 use roa::http::Method;
 use roa::logger::logger;
 use roa::preload::*;
@@ -19,6 +20,8 @@ use roa::App;
 use roa_diesel::preload::*;
 use roa_juniper::{GraphQL, JuniperContext};
 use serde::Serialize;
+use tracing::info;
+use tracing_subscriber::EnvFilter;
 
 use crate::models::Post;
 use crate::schema::posts;
@@ -131,14 +134,20 @@ impl Mutation {
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    pretty_env_logger::init();
-    let router = Router::new().on("/", get(playground_source("/api"))).on(
-        "/api",
-        allow(
-            [Method::GET, Method::POST],
-            GraphQL(RootNode::new(Query, Mutation)),
-        ),
-    );
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .map_err(|err| anyhow::anyhow!("fail to init tracing subscriber: {}", err))?;
+
+    let router = Router::new()
+        .on("/", get(playground_source("/api", None)))
+        .on(
+            "/api",
+            allow(
+                [Method::GET, Method::POST],
+                GraphQL(RootNode::new(Query, Mutation, EmptySubscription::new())),
+            ),
+        );
     let app = App::state(create_pool()?)
         .gate(logger)
         .end(router.routes("/")?);

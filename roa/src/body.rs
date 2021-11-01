@@ -87,6 +87,7 @@
 use askama::Template;
 use bytes::Bytes;
 use futures::{AsyncRead, AsyncReadExt};
+use headers::{ContentLength, ContentType, HeaderMapExt};
 
 use crate::{async_trait, http, Context, Result, State};
 #[cfg(feature = "file")]
@@ -95,7 +96,6 @@ mod file;
 pub use file::DispositionType;
 #[cfg(feature = "file")]
 use file::{write_file, Path};
-use http::{header, HeaderValue};
 #[cfg(feature = "json")]
 pub use multer::Multipart;
 #[cfg(any(feature = "json", feature = "urlencoded"))]
@@ -160,20 +160,12 @@ pub trait PowerBody {
         P: Send + AsRef<Path>;
 }
 
-const APPLICATION_JSON: HeaderValue = HeaderValue::from_static("application/json; charset=utf-8");
-const TEXT_HTML: HeaderValue = HeaderValue::from_static("text/html; charset=utf-8");
-const TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
-const APPLICATION_OCTET_STREM: HeaderValue = HeaderValue::from_static("application/octet-stream");
-
 #[async_trait]
 impl<S: State> PowerBody for Context<S> {
     #[inline]
     async fn read(&mut self) -> Result<Vec<u8>> {
-        let size_hint = self
-            .get(header::CONTENT_LENGTH)
-            .and_then(|value| value.parse().ok());
-        let mut data = match size_hint {
-            Some(hint) => Vec::with_capacity(hint),
+        let mut data = match self.req.headers.typed_get::<ContentLength>() {
+            Some(hint) => Vec::with_capacity(hint.0 as usize),
             None => Vec::new(),
         };
         self.req.reader().read_to_end(&mut data).await?;
@@ -232,9 +224,7 @@ impl<S: State> PowerBody for Context<S> {
         B: Serialize,
     {
         self.resp.write(serde_json::to_vec(data)?);
-        self.resp
-            .headers
-            .insert(header::CONTENT_TYPE, APPLICATION_JSON.clone());
+        self.resp.headers.typed_insert(ContentType::json());
         Ok(())
     }
 
@@ -247,7 +237,7 @@ impl<S: State> PowerBody for Context<S> {
         self.resp.write(data.render()?);
         self.resp
             .headers
-            .insert(header::CONTENT_TYPE, TEXT_HTML.clone());
+            .typed_insert::<ContentType>(mime::TEXT_HTML_UTF_8.into());
         Ok(())
     }
 
@@ -257,9 +247,7 @@ impl<S: State> PowerBody for Context<S> {
         B: Into<Bytes>,
     {
         self.resp.write(data);
-        self.resp
-            .headers
-            .insert(header::CONTENT_TYPE, TEXT_PLAIN.clone());
+        self.resp.headers.typed_insert(ContentType::text());
     }
 
     #[inline]
@@ -268,9 +256,7 @@ impl<S: State> PowerBody for Context<S> {
         B: 'static + AsyncRead + Unpin + Sync + Send,
     {
         self.resp.write_reader(reader);
-        self.resp
-            .headers
-            .insert(header::CONTENT_TYPE, APPLICATION_OCTET_STREM.clone());
+        self.resp.headers.typed_insert(ContentType::octet_stream());
     }
 
     #[cfg(feature = "file")]

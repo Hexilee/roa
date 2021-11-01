@@ -19,6 +19,7 @@ use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{get, Router};
 use roa::{throw, App, Context, Next, Result};
+use tracing_subscriber::EnvFilter;
 
 #[derive(Template)]
 #[template(path = "directory.html")]
@@ -122,7 +123,11 @@ fn format_time(time: SystemTime) -> String {
 
 #[async_std::main]
 async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .map_err(|err| anyhow::anyhow!("fail to init tracing subscriber: {}", err))?;
+
     let wildcard_router = Router::new().gate(path_checker).on("/", get(serve_path));
     let router = Router::new()
         .on("/", serve_root)
