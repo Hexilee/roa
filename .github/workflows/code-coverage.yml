@@ -33,7 +33,7 @@ jobs:
         uses: actions-rs/tarpaulin@v0.1
         with:
           version: '0.18.3'
-          args: --out Xml --all --all-features
+          args: --avoid-cfg-tarpaulin --out Xml --all --all-features
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1.0.2
         with:
