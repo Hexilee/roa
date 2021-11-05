@@ -9,7 +9,7 @@
 [![Rust Docs](https://docs.rs/roa/badge.svg)](https://docs.rs/roa)
 [![Crate version](https://img.shields.io/crates/v/roa.svg)](https://crates.io/crates/roa)
 [![Download](https://img.shields.io/crates/d/roa.svg)](https://crates.io/crates/roa)
-[![MSRV-1.46](https://img.shields.io/badge/MSRV-1.46-blue.svg)](https://blog.rust-lang.org/2020/08/27/Rust-1.46.0.html)
+[![MSRV-1.47](https://img.shields.io/badge/MSRV-1.47-blue.svg)](https://blog.rust-lang.org/2020/10/08/Rust-1.47.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Hexilee/roa/blob/master/LICENSE)
 
   </p>
