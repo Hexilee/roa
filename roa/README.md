@@ -18,7 +18,7 @@ The obligatory hello world application:
 ```rust,no_run
 use roa::App;
 use roa::preload::*;
-use log::info;
+use tracing::info;
 use std::error::Error as StdError;
 
 #[async_std::main]
@@ -109,7 +109,7 @@ its upstream behaviour.
 ```rust,no_run
 use roa::{App, Context, Next};
 use roa::preload::*;
-use log::info;
+use tracing::info;
 use std::error::Error as StdError;
 use std::time::Instant;
 
@@ -152,7 +152,7 @@ use roa::{App, Context, Next, status};
 use roa::preload::*;
 use roa::http::StatusCode;
 use async_std::task::spawn;
-use log::info;
+use tracing::info;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -208,7 +208,7 @@ use roa::preload::*;
 use roa::router::{Router, get};
 use roa::{App, Context};
 use async_std::task::spawn;
-use log::info;
+use tracing::info;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -241,7 +241,7 @@ use roa::preload::*;
 use roa::query::query_parser;
 use roa::{App, Context};
 use async_std::task::spawn;
-use log::info;
+use tracing::info;
 
 async fn must(ctx: &mut Context) -> roa::Result {
     // request "/?id=1", then id == 1.
