@@ -140,7 +140,7 @@ pub trait Query {
 pub async fn query_parser<S>(ctx: &mut Context<S>, next: Next<'_>) -> Result {
     let query_string = ctx.uri().query().unwrap_or("");
     let pairs: Vec<(String, String)> = parse(query_string.as_bytes()).into_owned().collect();
-    for (key, value) in pairs.into_iter() {
+    for (key, value) in pairs {
         ctx.store_scoped(QueryScope, key, value);
     }
     next.await

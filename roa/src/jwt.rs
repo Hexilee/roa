@@ -82,7 +82,7 @@ use crate::{async_trait, throw, Context, Middleware, Next, Result, Status};
 /// A private scope.
 struct JwtScope;
 
-const INVALID_TOKEN: HeaderValue =
+static INVALID_TOKEN: HeaderValue =
     HeaderValue::from_static(r#"Bearer realm="<jwt>", error="invalid_token""#);
 
 /// A function to set value of WWW_AUTHENTICATE.
