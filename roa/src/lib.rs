@@ -1,5 +1,5 @@
 #![cfg_attr(feature = "docs", feature(doc_cfg))]
-#![cfg_attr(feature = "docs", doc(include = "../README.md"))]
+#![cfg_attr(feature = "docs", doc = include_str!("../README.md"))]
 #![cfg_attr(feature = "docs", warn(missing_docs))]
 
 pub use roa_core::*;
