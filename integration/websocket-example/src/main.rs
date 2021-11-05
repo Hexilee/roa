@@ -91,7 +91,7 @@ fn route(prefix: &'static str) -> Result<RouteTable<SyncChannel>, RouterError> {
                             })))
                             .await;
                         if let Err(err) = result {
-                            error!("send close message error: {}", err)
+                            warn!("send close message error: {}", err)
                         }
                     }
                 }),

@@ -3,7 +3,7 @@ use std::io;
 use bytes::Bytes;
 use futures::stream::TryStreamExt;
 use futures::{AsyncRead, Stream};
-use http::{HeaderMap, HeaderValue, Method, Uri, Version};
+use http::{Extensions, HeaderMap, HeaderValue, Method, Uri, Version};
 use hyper::Body;
 
 /// Http request type of roa.
@@ -20,17 +20,21 @@ pub struct Request {
     /// The request's headers
     pub headers: HeaderMap<HeaderValue>,
 
+    extensions: Extensions,
+
     body: Body,
 }
 
 impl Request {
     /// Take raw hyper request.
-    /// This method will consume inner body.
+    /// This method will consume inner body and extensions.
     #[inline]
     pub fn take_raw(&mut self) -> http::Request<Body> {
         let mut builder = http::Request::builder()
             .method(self.method.clone())
             .uri(self.uri.clone());
+        *builder.extensions_mut().expect("fail to get extensions") =
+            std::mem::take(&mut self.extensions);
         *builder.headers_mut().expect("fail to get headers") = self.headers.clone();
         builder
             .body(self.raw_body())
@@ -70,6 +74,7 @@ impl From<http::Request<Body>> for Request {
             uri: parts.uri,
             version: parts.version,
             headers: parts.headers,
+            extensions: parts.extensions,
             body,
         }
     }
