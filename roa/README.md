@@ -195,7 +195,7 @@ pub fn status_handler<S>(ctx: &mut Context<S>, status: Status) {
     if status.expose {
         ctx.resp.write(status.message);
     } else {
-        log::error!("{}", status);
+        tracing::error!("{}", status);
     }
 }
 ```
