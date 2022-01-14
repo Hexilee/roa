@@ -89,7 +89,7 @@ use bytes::Bytes;
 use futures::{AsyncRead, AsyncReadExt};
 use headers::{ContentLength, ContentType, HeaderMapExt};
 
-use crate::{async_trait, http, Context, Result, State};
+use crate::{async_trait, Context, Result, State};
 #[cfg(feature = "file")]
 mod file;
 #[cfg(feature = "file")]
@@ -178,9 +178,9 @@ impl<S: State> PowerBody for Context<S> {
     where
         B: DeserializeOwned,
     {
-        use http::StatusCode;
-
+        use crate::http::StatusCode;
         use crate::status;
+
         let data = self.read().await?;
         serde_json::from_slice(&data).map_err(|err| status!(StatusCode::BAD_REQUEST, err))
     }
@@ -191,7 +191,7 @@ impl<S: State> PowerBody for Context<S> {
     where
         B: DeserializeOwned,
     {
-        use http::StatusCode;
+        use crate::http::StatusCode;
 
         use crate::status;
         let data = self.read().await?;
@@ -201,18 +201,20 @@ impl<S: State> PowerBody for Context<S> {
     #[cfg(feature = "multipart")]
     async fn read_multipart(&mut self) -> Result<Multipart> {
         use headers::{ContentType, HeaderMapExt};
+        use crate::http::StatusCode;
+
         // Verify that the request is 'Content-Type: multipart/*'.
         let typ: mime::Mime = self
             .req
             .headers
             .typed_get::<ContentType>()
             .ok_or_else(|| {
-                crate::status!(http::StatusCode::BAD_REQUEST, "fail to get content-type")
+                crate::status!(StatusCode::BAD_REQUEST, "fail to get content-type")
             })?
             .into();
         let boundary = typ
             .get_param(mime::BOUNDARY)
-            .ok_or_else(|| crate::status!(http::StatusCode::BAD_REQUEST, "fail to get boundary"))?
+            .ok_or_else(|| crate::status!(StatusCode::BAD_REQUEST, "fail to get boundary"))?
             .as_str();
         Ok(Multipart::new(self.req.stream(), boundary))
     }
