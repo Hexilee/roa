@@ -1,8 +1,8 @@
 [![Stable Test](https://github.com/Hexilee/roa/workflows/Stable%20Test/badge.svg)](https://github.com/Hexilee/roa/actions)
 [![codecov](https://codecov.io/gh/Hexilee/roa/branch/master/graph/badge.svg)](https://codecov.io/gh/Hexilee/roa)
-[![Rust Docs](https://docs.rs/roa-tokio/badge.svg)](https://docs.rs/roa-tokio)
-[![Crate version](https://img.shields.io/crates/v/roa-tokio.svg)](https://crates.io/crates/roa-tokio)
-[![Download](https://img.shields.io/crates/d/roa-tokio.svg)](https://crates.io/crates/roa-tokio)
+[![Rust Docs](https://docs.rs/roa-async-std/badge.svg)](https://docs.rs/roa-async-std)
+[![Crate version](https://img.shields.io/crates/v/roa-async-std.svg)](https://crates.io/crates/roa-async-std)
+[![Download](https://img.shields.io/crates/d/roa-async-std.svg)](https://crates.io/crates/roa-async-std)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Hexilee/roa/blob/master/LICENSE)
 
 This crate provides async-std-based runtime and acceptor for roa.
