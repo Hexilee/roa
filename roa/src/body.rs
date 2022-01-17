@@ -95,7 +95,7 @@ mod file;
 use file::write_file;
 #[cfg(feature = "file")]
 pub use file::DispositionType;
-#[cfg(feature = "json")]
+#[cfg(feature = "multipart")]
 pub use multer::Multipart;
 #[cfg(any(feature = "json", feature = "urlencoded"))]
 use serde::de::DeserializeOwned;
