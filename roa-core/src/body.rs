@@ -4,7 +4,7 @@ use std::task::{Context, Poll};
 
 use bytes::{Bytes, BytesMut};
 use futures::future::ok;
-use futures::io::{self, AsyncRead};
+use tokio::io::{self, AsyncRead, ReadBuf};
 use futures::stream::{once, Stream, StreamExt};
 
 const DEFAULT_CHUNK_SIZE: usize = 4096;
@@ -170,11 +170,13 @@ where
         let chunk_size = self.chunk_size;
         let mut chunk = BytesMut::with_capacity(chunk_size);
         unsafe { chunk.set_len(chunk_size) };
-        let bytes = futures::ready!(Pin::new(&mut self.reader).poll_read(cx, &mut *chunk))?;
-        if bytes == 0 {
+        let mut buf = ReadBuf::new(&mut *chunk);
+        futures::ready!(Pin::new(&mut self.reader).poll_read(cx, &mut buf))?;
+        let filled_len = buf.filled().len();
+        if filled_len == 0 {
             Poll::Ready(None)
         } else {
-            Poll::Ready(Some(Ok(chunk.freeze().slice(0..bytes))))
+            Poll::Ready(Some(Ok(chunk.freeze().slice(0..filled_len))))
         }
     }
 }
@@ -210,7 +212,7 @@ impl Stream for Segment {
 mod tests {
     use std::io;
 
-    use async_std::fs::File;
+    use tokio::fs::File;
     use futures::{AsyncReadExt, TryStreamExt};
 
     use super::Body;
@@ -221,14 +223,14 @@ mod tests {
         Ok(data)
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_empty() -> std::io::Result<()> {
         let body = Body::default();
         assert_eq!("", read_body(body).await?);
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_single() -> std::io::Result<()> {
         let mut body = Body::default();
         body.write("Hello, World");
@@ -236,7 +238,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_multiple() -> std::io::Result<()> {
         let mut body = Body::default();
         body.write("He").write("llo, ").write("World");
@@ -244,7 +246,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_composed() -> std::io::Result<()> {
         let mut body = Body::empty();
         body.write("He")

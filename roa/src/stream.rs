@@ -7,6 +7,7 @@ use std::task::{Context, Poll};
 use futures::io::{AsyncRead as Read, AsyncWrite as Write};
 use futures::ready;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tracing::{instrument, trace};
 
 /// A adaptor between futures::io::{AsyncRead, AsyncWrite} and tokio::io::{AsyncRead, AsyncWrite}.
 pub struct AsyncStream<IO>(pub IO);
@@ -56,6 +57,7 @@ where
     IO: Unpin + AsyncRead,
 {
     #[inline]
+    #[instrument(skip(self, cx, buf))]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -63,6 +65,7 @@ where
     ) -> Poll<io::Result<usize>> {
         let mut read_buf = ReadBuf::new(buf);
         ready!(Pin::new(&mut self.0).poll_read(cx, &mut read_buf))?;
+        trace!("read {} bytes", read_buf.filled().len());
         Poll::Ready(Ok(read_buf.filled().len()))
     }
 }
@@ -72,12 +75,15 @@ where
     IO: Unpin + AsyncWrite,
 {
     #[inline]
+    #[instrument(skip(self, cx, buf))]
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.0).poll_write(cx, buf)
+        let size = ready!(Pin::new(&mut self.0).poll_write(cx, buf))?;
+        trace!("wrote {} bytes", size);
+        Poll::Ready(Ok(size))
     }
 
     #[inline]

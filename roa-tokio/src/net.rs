@@ -31,6 +31,7 @@ impl TcpIncoming {
     }
 
     /// Creates a new `TcpIncoming` from std TcpListener.
+    #[tracing::instrument]
     pub fn from_std(listener: StdListener) -> io::Result<Self> {
         let addr = listener.local_addr()?;
         Ok(TcpIncoming {
@@ -97,6 +98,7 @@ impl TcpIncoming {
         loop {
             match futures::ready!(self.listener.poll_accept(cx)) {
                 Ok((socket, addr)) => {
+                    debug!("accept connection from {}", addr);
                     if let Err(e) = socket.set_nodelay(self.tcp_nodelay) {
                         trace!("error trying to set TCP nodelay: {}", e);
                     }
@@ -177,24 +179,26 @@ impl fmt::Debug for TcpIncoming {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::error::Error;
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
 
-//     use roa::http::StatusCode;
-//     use roa::App;
+    use roa::http::StatusCode;
+    use roa::App;
+    use tracing_subscriber::{fmt, EnvFilter};
 
-//     use super::TcpIncoming;
-//     use crate::Exec;
+    use super::TcpIncoming;
+    use crate::Exec;
 
-//     #[tokio::test]
-//     async fn incoming() -> Result<(), Box<dyn Error>> {
-//         let app = App::with_exec((), Exec).end(());
-//         let incoming = TcpIncoming::bind("127.0.0.1:0")?;
-//         let addr = incoming.local_addr();
-//         tokio::spawn(app.accept(incoming));
-//         let resp = reqwest::get(&format!("http://{}", addr)).await?;
-//         assert_eq!(StatusCode::OK, resp.status());
-//         Ok(())
-//     }
-// }
+    #[tokio::test]
+    async fn incoming() -> Result<(), Box<dyn Error>> {
+        fmt().with_env_filter(EnvFilter::from_default_env()).init();
+        let app = App::with_exec((), Exec).end(());
+        let incoming = TcpIncoming::bind("127.0.0.1:0")?;
+        let addr = incoming.local_addr();
+        tokio::spawn(app.accept(incoming));
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
+    }
+}

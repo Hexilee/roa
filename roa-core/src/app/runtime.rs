@@ -31,11 +31,11 @@ pub struct Exec;
 impl Spawn for Exec {
     #[inline]
     fn spawn(&self, fut: FutureObj) {
-        async_std::task::spawn(fut);
+        tokio::task::spawn(fut);
     }
 
     #[inline]
     fn spawn_blocking(&self, task: BlockingObj) {
-        async_std::task::spawn_blocking(task);
+        tokio::task::spawn_blocking(task);
     }
 }

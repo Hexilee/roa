@@ -102,7 +102,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let app = App::new().end(test);
         let service = app.http_service();

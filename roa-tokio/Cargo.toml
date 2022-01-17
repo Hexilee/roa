@@ -25,11 +25,12 @@ rustdoc-args = ["--cfg", "feature=\"docs\""]
 futures = "0.3"
 tracing = "0.1"
 roa = {path = "../roa", version = "0.6.0", default-features = false}
-tokio = {version = "1.13", features = ["full"]}
+tokio = {version = "1.15", features = ["full"]}
 
 [dev-dependencies]
 reqwest = "0.11"
 roa = {path = "../roa", version = "0.6.0"}
+tracing-subscriber = { version = "0.3", features = ["env-filter"]}
 
 [features]
 docs = ["roa/docs"]

@@ -20,7 +20,7 @@ use crate::{status, Executor, Request, Response};
 /// ```rust
 /// use roa_core::{App, Context, Next, Result};
 /// use tracing::info;
-/// use async_std::fs::File;
+/// use tokio::fs::File;
 ///
 /// let app = App::new().gate(gate).end(end);
 /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
@@ -350,7 +350,7 @@ mod tests_with_runtime {
 
     use crate::{App, Context, Next, Request, Status};
 
-    #[async_std::test]
+    #[tokio::test]
     async fn status_and_version() -> Result<(), Box<dyn Error>> {
         async fn test(ctx: &mut Context) -> Result<(), Status> {
             assert_eq!(Version::HTTP_11, ctx.version());
@@ -367,7 +367,7 @@ mod tests_with_runtime {
         data: usize,
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn state() -> Result<(), Box<dyn Error>> {
         async fn gate(ctx: &mut Context<State>, next: Next<'_>) -> Result<(), Status> {
             ctx.data = 1;
@@ -386,7 +386,7 @@ mod tests_with_runtime {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn must_get() -> Result<(), Box<dyn Error>> {
         use http::header::{CONTENT_TYPE, HOST};
         async fn test(ctx: &mut Context) -> Result<(), Status> {

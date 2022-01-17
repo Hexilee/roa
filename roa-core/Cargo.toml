@@ -28,14 +28,13 @@ bytes = "1.1"
 http = "0.2"
 hyper = { version = "0.14", default-features = false, features = ["stream", "server", "http1", "http2"] }
 tracing = "0.1"
-tokio = "1.12"
+tokio = "1.15"
 async-trait = "0.1.51"
-async-std = { version = "1.10", features = ["unstable"], optional = true }
 crossbeam-queue = "0.3"
 
 [dev-dependencies]
-async-std = { version = "1.10", features = ["attributes", "unstable"] }
+tokio = { version = "1.15", features = ["fs", "macros", "rt"] }
 
 [features]
-runtime = ["async-std"]
+runtime = ["tokio/rt"]
 docs = ["runtime"]
