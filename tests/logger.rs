@@ -1,13 +1,13 @@
 use std::sync::RwLock;
 
-use async_std::fs::File;
-use async_std::task::spawn;
 use log::{Level, LevelFilter, Metadata, Record};
 use once_cell::sync::Lazy;
 use roa::http::StatusCode;
 use roa::logger::logger;
 use roa::preload::*;
 use roa::{throw, App, Context};
+use tokio::fs::File;
+use tokio::task::spawn;
 
 struct TestLogger {
     records: RwLock<Vec<(String, String)>>,

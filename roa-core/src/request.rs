@@ -1,11 +1,11 @@
 use std::io;
 
 use bytes::Bytes;
-use futures::stream::TryStreamExt;
-use futures::{AsyncRead, Stream};
+use futures::stream::{Stream, TryStreamExt};
 use http::{Extensions, HeaderMap, HeaderValue, Method, Uri, Version};
 use hyper::Body;
-
+use tokio::io::AsyncRead;
+use tokio_util::io::StreamReader;
 /// Http request type of roa.
 pub struct Request {
     /// The request's method
@@ -61,7 +61,7 @@ impl Request {
     /// This method will consume inner body.
     #[inline]
     pub fn reader(&mut self) -> impl AsyncRead + Sync + Send + Unpin + 'static {
-        self.stream().into_async_read()
+        StreamReader::new(self.stream())
     }
 }
 
@@ -89,9 +89,9 @@ impl Default for Request {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use futures::AsyncReadExt;
     use http::StatusCode;
     use hyper::Body;
+    use tokio::io::AsyncReadExt;
 
     use crate::{App, Context, Request, Status};
 

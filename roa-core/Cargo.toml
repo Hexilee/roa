@@ -29,6 +29,7 @@ http = "0.2"
 hyper = { version = "0.14", default-features = false, features = ["stream", "server", "http1", "http2"] }
 tracing = "0.1"
 tokio = "1.15"
+tokio-util = { version = "0.6.9", features = ["io"] }
 async-trait = "0.1.51"
 crossbeam-queue = "0.3"
 
