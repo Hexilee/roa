@@ -12,7 +12,7 @@ members = [
     "roa",
     "roa-core",
     "roa-diesel",
-    "roa-tokio",
+    "roa-async-std",
     "roa-juniper",
     "integration/diesel-example",
     "integration/multipart-example",

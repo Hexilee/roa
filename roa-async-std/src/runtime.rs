@@ -13,7 +13,7 @@ pub type BlockingObj = Box<dyn 'static + Send + FnOnce()>;
 ///
 /// ```
 /// use roa::App;
-/// use roa_tokio::Exec;
+/// use roa_async_std::Exec;
 ///
 /// let app = App::with_exec((), Exec);
 /// ```
@@ -22,12 +22,12 @@ pub struct Exec;
 impl Spawn for Exec {
     #[inline]
     fn spawn(&self, fut: FutureObj) {
-        tokio::spawn(fut);
+        async_std::task::spawn(fut);
     }
 
     #[inline]
     fn spawn_blocking(&self, task: BlockingObj) {
-        tokio::task::spawn_blocking(task);
+        async_std::task::spawn_blocking(task);
     }
 }
 

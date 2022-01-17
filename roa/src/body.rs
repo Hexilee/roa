@@ -82,8 +82,6 @@
 //! }
 //! ```
 
-use std::path::Path;
-
 #[cfg(feature = "template")]
 use askama::Template;
 use bytes::Bytes;
@@ -158,7 +156,7 @@ pub trait PowerBody {
     #[cfg_attr(feature = "docs", doc(cfg(feature = "file")))]
     async fn write_file<P>(&mut self, path: P, typ: DispositionType) -> Result
     where
-        P: Send + AsRef<Path>;
+        P: Send + AsRef<std::path::Path>;
 }
 
 #[async_trait]
@@ -264,7 +262,7 @@ impl<S: State> PowerBody for Context<S> {
     #[inline]
     async fn write_file<P>(&mut self, path: P, typ: DispositionType) -> Result
     where
-        P: Send + AsRef<Path>,
+        P: Send + AsRef<std::path::Path>,
     {
         write_file(self, path, typ).await
     }
