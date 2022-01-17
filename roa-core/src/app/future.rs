@@ -9,6 +9,7 @@ use futures::task::{Context, Poll};
 /// But how to ensure thread safety? Because the middleware and the context must be `Sync + Send`,
 /// which means the only factor causing future `!Send` is the variables generated in `Future::poll`.
 /// And these variable mustn't be accessed from other threads.
+#[allow(clippy::non_send_fields_in_send_ty)]
 pub struct SendFuture<F>(pub F);
 
 impl<F> Future for SendFuture<F>
