@@ -1,11 +1,10 @@
 use std::borrow::Cow;
 use std::error::Error as StdError;
+use std::sync::Arc;
 
-use async_std::sync::{Arc, Mutex, RwLock};
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use http::Method;
-use log::{debug, error, info, warn};
 use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{allow, RouteTable, Router, RouterError};
@@ -15,6 +14,9 @@ use roa::websocket::tungstenite::Error as WsError;
 use roa::websocket::{Message, SocketStream, Websocket};
 use roa::{App, Context};
 use slab::Slab;
+use tokio::sync::{Mutex, RwLock};
+use tracing::{debug, error, info, warn};
+use tracing_subscriber::EnvFilter;
 
 type Sender = SplitSink<SocketStream, Message>;
 type Channel = Slab<Mutex<Sender>>;
@@ -89,7 +91,7 @@ fn route(prefix: &'static str) -> Result<RouteTable<SyncChannel>, RouterError> {
                             })))
                             .await;
                         if let Err(err) = result {
-                            error!("send close message error: {}", err)
+                            warn!("send close message error: {}", err)
                         }
                     }
                 }),
@@ -98,9 +100,13 @@ fn route(prefix: &'static str) -> Result<RouteTable<SyncChannel>, RouterError> {
         .routes(prefix)
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .map_err(|err| anyhow::anyhow!("fail to init tracing subscriber: {}", err))?;
+
     let app = App::state(SyncChannel::new()).gate(logger).end(route("/")?);
     app.listen("127.0.0.1:8000", |addr| {
         info!("Server is listening on {}", addr)
@@ -113,20 +119,20 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 mod tests {
     use std::time::Duration;
 
-    use async_tungstenite::async_std::connect_async;
     use roa::preload::*;
+    use tokio_tungstenite::connect_async;
 
     use super::{route, App, Message, SinkExt, StdError, StreamExt, SyncChannel};
 
-    #[async_std::test]
+    #[tokio::test]
     async fn echo() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
         let app = App::state(channel.clone()).end(route("/")?);
         let (addr, server) = app.run()?;
-        async_std::task::spawn(server);
+        tokio::task::spawn(server);
         let (ws_stream, _) = connect_async(format!("ws://{}/chat", addr)).await?;
         let (mut sender, mut recv) = ws_stream.split();
-        async_std::task::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
         assert_eq!(1, channel.0.read().await.len());
 
         // ping
@@ -139,32 +145,32 @@ mod tests {
 
         // close
         sender.send(Message::Close(None)).await?;
-        async_std::task::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
         assert_eq!(0, channel.0.read().await.len());
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn broadcast() -> Result<(), Box<dyn StdError>> {
         let channel = SyncChannel::new();
         let app = App::state(channel.clone()).end(route("/")?);
         let (addr, server) = app.run()?;
-        async_std::task::spawn(server);
+        tokio::task::spawn(server);
         let url = format!("ws://{}/chat", addr);
         for _ in 0..100 {
             let url = url.clone();
-            async_std::task::spawn(async move {
+            tokio::task::spawn(async move {
                 if let Ok((ws_stream, _)) = connect_async(url).await {
                     let (mut sender, mut recv) = ws_stream.split();
                     if let Some(Ok(message)) = recv.next().await {
                         assert!(sender.send(message).await.is_ok());
                     }
-                    async_std::task::sleep(Duration::from_secs(1)).await;
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                     assert!(sender.send(Message::Close(None)).await.is_ok());
                 }
             });
         }
-        async_std::task::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
         assert_eq!(100, channel.0.read().await.len());
 
         let (ws_stream, _) = connect_async(url).await?;
@@ -173,7 +179,7 @@ mod tests {
             .send(Message::Text("Hello, World!".to_string()))
             .await
             .is_ok());
-        async_std::task::sleep(Duration::from_secs(2)).await;
+        tokio::time::sleep(Duration::from_secs(2)).await;
         assert_eq!(1, channel.0.read().await.len());
 
         let mut counter = 0i32;

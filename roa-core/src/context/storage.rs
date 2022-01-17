@@ -117,7 +117,7 @@ impl Storage {
         match self.0.get_mut(&id) {
             Some(bucket) => bucket
                 .insert(key.into(), Arc::new(value))
-                .and_then(|value| Some(value.downcast().ok()?)),
+                .and_then(|value| value.downcast().ok()),
             None => {
                 self.0.insert(id, HashMap::new());
                 self.insert(scope, key, value)

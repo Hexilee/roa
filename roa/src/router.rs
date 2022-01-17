@@ -8,7 +8,7 @@
 //! use roa::{App, Context, Status, MiddlewareExt, Next};
 //! use roa::http::{StatusCode, Method};
 //! use roa::tcp::Listener;
-//! use async_std::task::spawn;
+//! use tokio::task::spawn;
 //!
 //!
 //! async fn gate(_ctx: &mut Context, next: Next<'_>) -> Result<(), Status> {
@@ -83,7 +83,7 @@ struct RouterScope;
 /// use roa::{App, Context, Status};
 /// use roa::http::StatusCode;
 /// use roa::tcp::Listener;
-/// use async_std::task::spawn;
+/// use tokio::task::spawn;
 ///
 /// async fn test(ctx: &mut Context) -> Result<(), Status> {
 ///     let id: u64 = ctx.must_param("id")?.parse()?;
@@ -116,7 +116,7 @@ pub trait RouterParam {
     /// use roa::{App, Context, Status};
     /// use roa::http::StatusCode;
     /// use roa::tcp::Listener;
-    /// use async_std::task::spawn;
+    /// use tokio::task::spawn;
     ///
     /// async fn test(ctx: &mut Context) -> Result<(), Status> {
     ///     assert!(ctx.param("name").is_none());
@@ -311,9 +311,9 @@ impl<S> RouterParam for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
-    use async_std::task::spawn;
     use encoding::EncoderTrap;
     use percent_encoding::NON_ALPHANUMERIC;
+    use tokio::task::spawn;
 
     use super::Router;
     use crate::http::StatusCode;

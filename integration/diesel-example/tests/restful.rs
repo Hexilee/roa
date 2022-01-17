@@ -1,10 +1,11 @@
 use diesel_example::models::Post;
-use diesel_example::{create_pool, post_router, StdError};
-use log::{debug, info};
+use diesel_example::{create_pool, post_router};
 use roa::http::StatusCode;
 use roa::preload::*;
 use roa::App;
 use serde::Serialize;
+use tracing::{debug, info};
+use tracing_subscriber::EnvFilter;
 
 #[derive(Debug, Serialize, Copy, Clone)]
 pub struct NewPost<'a> {
@@ -20,12 +21,15 @@ impl PartialEq<Post> for NewPost<'_> {
 }
 
 #[tokio::test]
-async fn test() -> Result<(), Box<dyn StdError>> {
-    pretty_env_logger::init();
+async fn test() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .map_err(|err| anyhow::anyhow!("fail to init tracing subscriber: {}", err))?;
 
     let app = App::state(create_pool()?).end(post_router().routes("/post")?);
     let (addr, server) = app.run()?;
-    async_std::task::spawn(server);
+    tokio::task::spawn(server);
     info!("server is running on {}", addr);
     let base_url = format!("http://{}/post", addr);
     let client = reqwest::Client::new();

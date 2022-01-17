@@ -143,22 +143,20 @@ where
 ///
 /// ```rust
 /// use roa_core::{App, Endpoint, Context, Next, Result, async_trait};
-/// use async_std::sync::Arc;
-/// use std::time::Instant;
 ///
 /// fn is_endpoint(endpoint: impl for<'a> Endpoint<'a>) {
 /// }
 ///
-/// struct Logger;
+/// struct Service;
 ///
 /// #[async_trait(?Send)]
-/// impl <'a> Endpoint<'a> for Logger {
+/// impl <'a> Endpoint<'a> for Service {
 ///     async fn call(&'a self, ctx: &'a mut Context) -> Result {
 ///         Ok(())
 ///     }
 /// }
 ///
-/// let app = App::new().end(Logger);
+/// let app = App::new().end(Service);
 /// ```
 #[async_trait(?Send)]
 pub trait Endpoint<'a, S = ()>: 'static + Sync + Send {
@@ -322,7 +320,7 @@ mod tests {
 
     const HELLO: &str = "Hello, world";
 
-    #[async_std::test]
+    #[tokio::test]
     async fn status_endpoint() {
         let app = App::new().end(status!(StatusCode::BAD_REQUEST));
         let service = app.http_service();
@@ -330,7 +328,7 @@ mod tests {
         assert_eq!(StatusCode::BAD_REQUEST, resp.status);
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn string_endpoint() {
         let app = App::new().end(HELLO.to_owned());
         let service = app.http_service();
@@ -345,7 +343,7 @@ mod tests {
             .unwrap();
         assert_eq!(HELLO, data);
     }
-    #[async_std::test]
+    #[tokio::test]
     async fn static_slice_endpoint() {
         let app = App::new().end(HELLO);
         let service = app.http_service();
@@ -360,7 +358,7 @@ mod tests {
             .unwrap();
         assert_eq!(HELLO, data);
     }
-    #[async_std::test]
+    #[tokio::test]
     async fn redirect_endpoint() {
         let app = App::new().end("/target".parse::<Uri>().unwrap());
         let service = app.http_service();

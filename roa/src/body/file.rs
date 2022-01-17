@@ -1,11 +1,12 @@
 mod content_disposition;
 mod help;
-use std::convert::TryInto;
 
-use async_std::fs::File;
-pub use async_std::path::Path;
+use std::convert::TryInto;
+use std::path::Path;
+
 use content_disposition::ContentDisposition;
 pub use content_disposition::DispositionType;
+use tokio::fs::File;
 
 use crate::{http, Context, Result, State};
 

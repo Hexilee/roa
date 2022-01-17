@@ -1,11 +1,11 @@
-use async_std::fs::read_to_string;
-use async_std::task::spawn;
 use http::header::ACCEPT_ENCODING;
 use roa::body::DispositionType;
 use roa::compress::Compress;
 use roa::preload::*;
 use roa::router::{get, Router};
 use roa::{App, Context};
+use tokio::fs::read_to_string;
+use tokio::task::spawn;
 
 #[tokio::test]
 async fn serve_static_file() -> Result<(), Box<dyn std::error::Error>> {

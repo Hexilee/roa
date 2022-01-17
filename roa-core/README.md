@@ -96,7 +96,7 @@ its upstream behaviour.
 ```rust
 use roa_core::{App, Context, Result, Status, MiddlewareExt, Next};
 use std::time::Instant;
-use log::info;
+use tracing::info;
 
 let app = App::new().gate(logging).end("Hello, World");
 
@@ -149,7 +149,7 @@ pub fn status_handler<S: State>(ctx: &mut Context<S>, status: Status) {
     if status.expose {
         ctx.resp.write(status.message);
     } else {
-        log::error!("{}", status);
+        tracing::error!("{}", status);
     }
 }
 ```

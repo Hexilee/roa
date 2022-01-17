@@ -18,10 +18,10 @@ The obligatory hello world application:
 ```rust,no_run
 use roa::App;
 use roa::preload::*;
-use log::info;
+use tracing::info;
 use std::error::Error as StdError;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let app = App::new().end("Hello, World");
     app.listen("127.0.0.1:8000", |addr| {
@@ -109,11 +109,11 @@ its upstream behaviour.
 ```rust,no_run
 use roa::{App, Context, Next};
 use roa::preload::*;
-use log::info;
+use tracing::info;
 use std::error::Error as StdError;
 use std::time::Instant;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let app = App::new()
         .gate(logger)
@@ -151,10 +151,10 @@ You can catch or straightly throw a status returned by next.
 use roa::{App, Context, Next, status};
 use roa::preload::*;
 use roa::http::StatusCode;
-use async_std::task::spawn;
-use log::info;
+use tokio::task::spawn;
+use tracing::info;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = App::new()
         .gate(catch)
@@ -195,7 +195,7 @@ pub fn status_handler<S>(ctx: &mut Context<S>, status: Status) {
     if status.expose {
         ctx.resp.write(status.message);
     } else {
-        log::error!("{}", status);
+        tracing::error!("{}", status);
     }
 }
 ```
@@ -207,10 +207,10 @@ Roa provides a configurable and nestable router.
 use roa::preload::*;
 use roa::router::{Router, get};
 use roa::{App, Context};
-use async_std::task::spawn;
-use log::info;
+use tokio::task::spawn;
+use tracing::info;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let router = Router::new()
         .on("/:id", get(end)); // get dynamic "/:id"
@@ -240,8 +240,8 @@ Roa provides a middleware `query_parser`.
 use roa::preload::*;
 use roa::query::query_parser;
 use roa::{App, Context};
-use async_std::task::spawn;
-use log::info;
+use tokio::task::spawn;
+use tracing::info;
 
 async fn must(ctx: &mut Context) -> roa::Result {
     // request "/?id=1", then id == 1.
@@ -249,7 +249,7 @@ async fn must(ctx: &mut Context) -> roa::Result {
     Ok(())
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = App::new()
         .gate(query_parser)

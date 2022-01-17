@@ -4,10 +4,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{self, Context, Poll};
 
-use async_tls::server::TlsStream;
-use async_tls::TlsAcceptor;
-use futures::io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
 use futures::Future;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_rustls::server::TlsStream;
+use tokio_rustls::TlsAcceptor;
 
 use super::ServerConfig;
 use crate::{Accept, AddrStream};
@@ -50,27 +50,13 @@ where
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
         match &mut *self {
             Streaming(stream) => Pin::new(stream).poll_read(cx, buf),
             Handshaking(handshake) => {
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
                 self.poll_read(cx, buf)
-            }
-        }
-    }
-
-    fn poll_read_vectored(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &mut [IoSliceMut<'_>],
-    ) -> Poll<io::Result<usize>> {
-        match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_read_vectored(cx, bufs),
-            Handshaking(handshake) => {
-                *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
-                self.poll_read_vectored(cx, bufs)
             }
         }
     }
@@ -97,7 +83,7 @@ where
     fn poll_write_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        bufs: &[IoSlice<'_>],
+        bufs: &[io::IoSlice<'_>],
     ) -> Poll<io::Result<usize>> {
         match &mut *self {
             Streaming(stream) => Pin::new(stream).poll_write_vectored(cx, bufs),
@@ -118,12 +104,12 @@ where
         }
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut *self {
-            Streaming(stream) => Pin::new(stream).poll_close(cx),
+            Streaming(stream) => Pin::new(stream).poll_shutdown(cx),
             Handshaking(handshake) => {
                 *self = futures::ready!(Self::poll_handshake(handshake, cx))?;
-                self.poll_close(cx)
+                self.poll_shutdown(cx)
             }
         }
     }

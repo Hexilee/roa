@@ -9,7 +9,7 @@
 [![Rust Docs](https://docs.rs/roa/badge.svg)](https://docs.rs/roa)
 [![Crate version](https://img.shields.io/crates/v/roa.svg)](https://crates.io/crates/roa)
 [![Download](https://img.shields.io/crates/d/roa.svg)](https://crates.io/crates/roa)
-[![MSRV-1.46](https://img.shields.io/badge/MSRV-1.46-blue.svg)](https://blog.rust-lang.org/2020/08/27/Rust-1.46.0.html)
+[![MSRV-1.54](https://img.shields.io/badge/MSRV-1.54-blue.svg)](https://blog.rust-lang.org/2021/07/29/Rust-1.54.0.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Hexilee/roa/blob/master/LICENSE)
 
   </p>
@@ -34,8 +34,8 @@
     - Based on [`hyper`](https://github.com/hyperium/hyper), runtime-independent, you can chose async runtime as you like.
 - Many useful extensions.
     - Official runtime schemes:
-        - [async-std](https://github.com/async-rs/async-std) runtime and TcpStream;
-        - [tokio](https://github.com/tokio-rs/tokio) runtime and TcpStream.
+        - (Default) [tokio](https://github.com/tokio-rs/tokio) runtime and TcpStream.
+        - [async-std](https://github.com/async-rs/async-std) runtime and TcpStream.
     - Transparent content compression (br, gzip, deflate, zstd).
     - Configurable and nestable router.
     - Named uri parameters(query and router parameter).
@@ -55,17 +55,16 @@
 # Cargo.toml
 
 [dependencies]
-roa = "0.5"
-async-std = { version = "1.6", features = ["attributes"] }
+roa = "0.6"
+tokio = { version = "1.15", features = ["rt", "macro"] }
 ```
 
 ```rust,no_run
 use roa::App;
 use roa::preload::*;
-use std::error::Error as StdError;
 
-#[async_std::main]
-async fn main() -> Result<(), Box<dyn StdError>> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let app = App::new().end("Hello, World");
     app.listen("127.0.0.1:8000", |addr| {
         println!("Server is listening on {}", addr)

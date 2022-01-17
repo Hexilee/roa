@@ -7,7 +7,7 @@
 //! use roa::preload::*;
 //! use roa::App;
 //! use roa::http::StatusCode;
-//! use async_std::task::spawn;
+//! use tokio::task::spawn;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -31,8 +31,8 @@ use bytes::Bytes;
 use bytesize::ByteSize;
 use futures::task::{self, Poll};
 use futures::{Future, Stream};
-use log::{error, info};
 use roa_core::http::{Method, StatusCode};
+use tracing::{error, info};
 
 use crate::http::Uri;
 use crate::{Context, Executor, JoinHandle, Next, Result};

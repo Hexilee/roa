@@ -86,7 +86,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use async_std::sync::Arc;
+    use std::sync::Arc;
 
     use super::{BlockingObj, Executor, FutureObj, Spawn};
 
@@ -94,21 +94,21 @@ mod tests {
 
     impl Spawn for Exec {
         fn spawn(&self, fut: FutureObj) {
-            async_std::task::spawn(fut);
+            tokio::task::spawn(fut);
         }
 
         fn spawn_blocking(&self, task: BlockingObj) {
-            async_std::task::spawn_blocking(task);
+            tokio::task::spawn_blocking(task);
         }
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn spawn() {
         let exec = Executor(Arc::new(Exec));
         assert_eq!(1, exec.spawn(async { 1 }).await);
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn spawn_blocking() {
         let exec = Executor(Arc::new(Exec));
         assert_eq!(1, exec.spawn_blocking(|| 1).await);

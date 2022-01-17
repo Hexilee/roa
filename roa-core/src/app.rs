@@ -1,8 +1,8 @@
+mod future;
 #[cfg(feature = "runtime")]
 mod runtime;
-
-mod future;
 mod stream;
+
 use std::convert::Infallible;
 use std::error::Error;
 use std::future::Future;
@@ -12,12 +12,12 @@ use std::sync::Arc;
 use std::task::Poll;
 
 use future::SendFuture;
-use futures::io::{AsyncRead, AsyncWrite};
 use http::{Request as HttpRequest, Response as HttpResponse};
 use hyper::service::Service;
 use hyper::{Body as HyperBody, Server};
-pub use stream::AddrStream;
+use tokio::io::{AsyncRead, AsyncWrite};
 
+pub use self::stream::AddrStream;
 use crate::{
     Accept, Chain, Context, Endpoint, Executor, Middleware, MiddlewareExt, Request, Response,
     Spawn, State,
@@ -27,8 +27,8 @@ use crate::{
 /// ### Example
 /// ```rust,no_run
 /// use roa_core::{App, Context, Next, Result, MiddlewareExt};
-/// use log::info;
-/// use async_std::fs::File;
+/// use tracing::info;
+/// use tokio::fs::File;
 ///
 /// let app = App::new().gate(gate).end(end);
 /// async fn gate(ctx: &mut Context, next: Next<'_>) -> Result {
@@ -48,8 +48,9 @@ use crate::{
 ///
 /// ```rust
 /// use roa_core::{App, Context, Next, Result};
-/// use log::info;
+/// use tracing::info;
 /// use futures::lock::Mutex;
+///
 /// use std::sync::Arc;
 /// use std::collections::HashMap;
 ///
@@ -263,7 +264,7 @@ impl<S, E> HttpService<S, E> {
                 ctx.resp.write(status.message);
             } else {
                 ctx.exec
-                    .spawn_blocking(move || log::error!("Uncaught status: {}", status))
+                    .spawn_blocking(move || tracing::error!("Uncaught status: {}", status))
                     .await;
             }
         }
@@ -288,7 +289,7 @@ mod tests {
 
     use crate::{App, Request};
 
-    #[async_std::test]
+    #[tokio::test]
     async fn gate_simple() -> Result<(), Box<dyn std::error::Error>> {
         let service = App::new().end(()).http_service();
         let resp = service.serve(Request::default()).await;

@@ -8,14 +8,14 @@ use crate::{App, Endpoint, Executor, Server, State};
 
 impl TlsIncoming<TcpIncoming> {
     /// Bind a socket addr.
-    #[cfg_attr(feature = "docs", doc(cfg(feature = "tcp")))]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "tls")))]
     pub fn bind(addr: impl ToSocketAddrs, config: ServerConfig) -> io::Result<Self> {
         Ok(Self::new(TcpIncoming::bind(addr)?, config))
     }
 }
 
 /// An app extension.
-#[cfg_attr(feature = "docs", doc(cfg(feature = "tcp")))]
+#[cfg_attr(feature = "docs", doc(cfg(feature = "tls")))]
 pub trait TlsListener {
     /// http server
     type Server;
@@ -39,10 +39,10 @@ pub trait TlsListener {
     /// ### Example
     /// ```rust
     /// use roa::{App, Context, Status};
-    /// use roa::tls::{TlsIncoming, ServerConfig, NoClientAuth, TlsListener};
-    /// use roa::tls::internal::pemfile::{certs, rsa_private_keys};
+    /// use roa::tls::{TlsIncoming, ServerConfig, TlsListener, Certificate, PrivateKey};
+    /// use roa::tls::pemfile::{certs, rsa_private_keys};
     /// use roa_core::http::StatusCode;
-    /// use async_std::task::spawn;
+    /// use tokio::task::spawn;
     /// use std::time::Instant;
     /// use std::fs::File;
     /// use std::io::BufReader;
@@ -50,14 +50,16 @@ pub trait TlsListener {
     /// async fn end(_ctx: &mut Context) -> Result<(), Status> {
     ///     Ok(())
     /// }
-    ///
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut config = ServerConfig::new(NoClientAuth::new());
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
     /// let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-    /// let cert_chain = certs(&mut cert_file).unwrap();
-    /// let mut keys = rsa_private_keys(&mut key_file).unwrap();
-    /// config.set_single_cert(cert_chain, keys.remove(0))?;
+    /// let cert_chain = certs(&mut cert_file)?.into_iter().map(Certificate).collect();
+    ///
+    /// let config = ServerConfig::builder()
+    ///     .with_safe_defaults()
+    ///     .with_no_client_auth()
+    ///     .with_single_cert(cert_chain, PrivateKey(rsa_private_keys(&mut key_file)?.remove(0)))?;
     ///
     /// let server = App::new().end(end).listen_tls("127.0.0.1:8000", config, |addr| {
     ///     println!("Server is listening on https://localhost:{}", addr.port());
@@ -106,16 +108,16 @@ mod tests {
     use std::fs::File;
     use std::io::{self, BufReader};
 
-    use async_std::task::spawn;
     use futures::{AsyncReadExt, TryStreamExt};
     use hyper::client::{Client, HttpConnector};
     use hyper::Body;
     use hyper_tls::{native_tls, HttpsConnector};
-    use tokio_tls::TlsConnector;
+    use tokio::task::spawn;
+    use tokio_native_tls::TlsConnector;
 
     use crate::http::StatusCode;
-    use crate::tls::internal::pemfile::{certs, rsa_private_keys};
-    use crate::tls::{NoClientAuth, ServerConfig, TlsListener};
+    use crate::tls::pemfile::{certs, rsa_private_keys};
+    use crate::tls::{Certificate, PrivateKey, ServerConfig, TlsListener};
     use crate::{App, Context, Status};
 
     async fn end(ctx: &mut Context) -> Result<(), Status> {
@@ -125,12 +127,20 @@ mod tests {
 
     #[tokio::test]
     async fn run_tls() -> Result<(), Box<dyn std::error::Error>> {
-        let mut config = ServerConfig::new(NoClientAuth::new());
         let mut cert_file = BufReader::new(File::open("../assets/cert.pem")?);
         let mut key_file = BufReader::new(File::open("../assets/key.pem")?);
-        let cert_chain = certs(&mut cert_file).unwrap();
-        let mut keys = rsa_private_keys(&mut key_file).unwrap();
-        config.set_single_cert(cert_chain, keys.remove(0))?;
+        let cert_chain = certs(&mut cert_file)?
+            .into_iter()
+            .map(Certificate)
+            .collect();
+
+        let config = ServerConfig::builder()
+            .with_safe_defaults()
+            .with_no_client_auth()
+            .with_single_cert(
+                cert_chain,
+                PrivateKey(rsa_private_keys(&mut key_file)?.remove(0)),
+            )?;
 
         let app = App::new().end(end);
         let (addr, server) = app.run_tls(config)?;

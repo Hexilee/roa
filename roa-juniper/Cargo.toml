@@ -1,6 +1,6 @@
 [package]
 name = "roa-juniper"
-version = "0.5.0-alpha"
+version = "0.6.0"
 authors = ["Hexilee <i@hexilee.me>"]
 edition = "2018"
 readme = "./README.md"
@@ -15,11 +15,6 @@ categories = ["network-programming", "asynchronous",
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-roa = { path = "../roa", version = "0.5", default-features = false, features = ["json"] }
-futures = "0.3.4"
-
-[dependencies.juniper]
-git = "https://github.com/graphql-rust/juniper.git"
-version = "0.14.2"
-default-features = false
-rev = "27e00419b0637d58fc926325a668fa8b3c09ffa0"
+roa = { path = "../roa", version = "0.6.0", default-features = false, features = ["json"] }
+futures = "0.3"
+juniper = { version = "0.15", default-features = false }

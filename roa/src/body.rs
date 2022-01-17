@@ -6,9 +6,8 @@
 //!
 //! ```rust
 //! use roa::{Context, Result};
-//! use futures::AsyncReadExt;
-//! use futures::io::BufReader;
-//! use async_std::fs::File;
+//! use tokio::io::AsyncReadExt;
+//! use tokio::fs::File;
 //!
 //! async fn get(ctx: &mut Context) -> Result {
 //!     let mut data = String::new();
@@ -41,7 +40,7 @@
 //! use roa::body::{PowerBody, DispositionType::*};
 //! use serde::{Serialize, Deserialize};
 //! use askama::Template;
-//! use async_std::fs::File;
+//! use tokio::fs::File;
 //!
 //! #[derive(Debug, Serialize, Deserialize, Template)]
 //! #[template(path = "user.html")]
@@ -86,17 +85,18 @@
 #[cfg(feature = "template")]
 use askama::Template;
 use bytes::Bytes;
-use futures::{AsyncRead, AsyncReadExt};
-use lazy_static::lazy_static;
+use headers::{ContentLength, ContentType, HeaderMapExt};
+use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::{async_trait, http, Context, Result, State};
+use crate::{async_trait, Context, Result, State};
 #[cfg(feature = "file")]
 mod file;
 #[cfg(feature = "file")]
-pub use file::DispositionType;
+use file::write_file;
 #[cfg(feature = "file")]
-use file::{write_file, Path};
-use http::{header, HeaderValue};
+pub use file::DispositionType;
+#[cfg(feature = "json")]
+pub use multer::Multipart;
 #[cfg(any(feature = "json", feature = "urlencoded"))]
 use serde::de::DeserializeOwned;
 #[cfg(feature = "json")]
@@ -121,6 +121,11 @@ pub trait PowerBody {
     async fn read_form<B>(&mut self) -> Result<B>
     where
         B: DeserializeOwned;
+
+    /// read request body as "multipart form".
+    #[cfg(feature = "multipart")]
+    #[cfg_attr(feature = "docs", doc(cfg(feature = "multipart")))]
+    async fn read_multipart(&mut self) -> Result<Multipart>;
 
     /// write object to response body as "application/json"
     #[cfg(feature = "json")]
@@ -151,28 +156,15 @@ pub trait PowerBody {
     #[cfg_attr(feature = "docs", doc(cfg(feature = "file")))]
     async fn write_file<P>(&mut self, path: P, typ: DispositionType) -> Result
     where
-        P: Send + AsRef<Path>;
-}
-
-// Static header value.
-lazy_static! {
-    static ref APPLICATION_JSON: HeaderValue =
-        HeaderValue::from_static("application/json; charset=utf-8");
-    static ref TEXT_HTML: HeaderValue = HeaderValue::from_static("text/html; charset=utf-8");
-    static ref TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
-    static ref APPLICATION_OCTET_STREM: HeaderValue =
-        HeaderValue::from_static("application/octet-stream");
+        P: Send + AsRef<std::path::Path>;
 }
 
 #[async_trait]
 impl<S: State> PowerBody for Context<S> {
     #[inline]
     async fn read(&mut self) -> Result<Vec<u8>> {
-        let size_hint = self
-            .get(header::CONTENT_LENGTH)
-            .and_then(|value| value.parse().ok());
-        let mut data = match size_hint {
-            Some(hint) => Vec::with_capacity(hint),
+        let mut data = match self.req.headers.typed_get::<ContentLength>() {
+            Some(hint) => Vec::with_capacity(hint.0 as usize),
             None => Vec::new(),
         };
         self.req.reader().read_to_end(&mut data).await?;
@@ -185,9 +177,9 @@ impl<S: State> PowerBody for Context<S> {
     where
         B: DeserializeOwned,
     {
-        use http::StatusCode;
-
+        use crate::http::StatusCode;
         use crate::status;
+
         let data = self.read().await?;
         serde_json::from_slice(&data).map_err(|err| status!(StatusCode::BAD_REQUEST, err))
     }
@@ -198,11 +190,30 @@ impl<S: State> PowerBody for Context<S> {
     where
         B: DeserializeOwned,
     {
-        use http::StatusCode;
-
+        use crate::http::StatusCode;
         use crate::status;
         let data = self.read().await?;
         serde_urlencoded::from_bytes(&data).map_err(|err| status!(StatusCode::BAD_REQUEST, err))
+    }
+
+    #[cfg(feature = "multipart")]
+    async fn read_multipart(&mut self) -> Result<Multipart> {
+        use headers::{ContentType, HeaderMapExt};
+
+        use crate::http::StatusCode;
+
+        // Verify that the request is 'Content-Type: multipart/*'.
+        let typ: mime::Mime = self
+            .req
+            .headers
+            .typed_get::<ContentType>()
+            .ok_or_else(|| crate::status!(StatusCode::BAD_REQUEST, "fail to get content-type"))?
+            .into();
+        let boundary = typ
+            .get_param(mime::BOUNDARY)
+            .ok_or_else(|| crate::status!(StatusCode::BAD_REQUEST, "fail to get boundary"))?
+            .as_str();
+        Ok(Multipart::new(self.req.stream(), boundary))
     }
 
     #[cfg(feature = "json")]
@@ -212,9 +223,7 @@ impl<S: State> PowerBody for Context<S> {
         B: Serialize,
     {
         self.resp.write(serde_json::to_vec(data)?);
-        self.resp
-            .headers
-            .insert(header::CONTENT_TYPE, APPLICATION_JSON.clone());
+        self.resp.headers.typed_insert(ContentType::json());
         Ok(())
     }
 
@@ -227,7 +236,7 @@ impl<S: State> PowerBody for Context<S> {
         self.resp.write(data.render()?);
         self.resp
             .headers
-            .insert(header::CONTENT_TYPE, TEXT_HTML.clone());
+            .typed_insert::<ContentType>(mime::TEXT_HTML_UTF_8.into());
         Ok(())
     }
 
@@ -237,9 +246,7 @@ impl<S: State> PowerBody for Context<S> {
         B: Into<Bytes>,
     {
         self.resp.write(data);
-        self.resp
-            .headers
-            .insert(header::CONTENT_TYPE, TEXT_PLAIN.clone());
+        self.resp.headers.typed_insert(ContentType::text());
     }
 
     #[inline]
@@ -248,16 +255,14 @@ impl<S: State> PowerBody for Context<S> {
         B: 'static + AsyncRead + Unpin + Sync + Send,
     {
         self.resp.write_reader(reader);
-        self.resp
-            .headers
-            .insert(header::CONTENT_TYPE, APPLICATION_OCTET_STREM.clone());
+        self.resp.headers.typed_insert(ContentType::octet_stream());
     }
 
     #[cfg(feature = "file")]
     #[inline]
     async fn write_file<P>(&mut self, path: P, typ: DispositionType) -> Result
     where
-        P: Send + AsRef<Path>,
+        P: Send + AsRef<std::path::Path>,
     {
         write_file(self, path, typ).await
     }
@@ -268,11 +273,11 @@ mod tests {
     use std::error::Error;
 
     use askama::Template;
-    use async_std::fs::File;
-    use async_std::task::spawn;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
     use serde::{Deserialize, Serialize};
+    use tokio::fs::File;
+    use tokio::task::spawn;
 
     use super::PowerBody;
     use crate::tcp::Listener;
@@ -390,5 +395,73 @@ mod tests {
         );
         assert_eq!("Hexilee", resp.text().await?);
         Ok(())
+    }
+
+    #[cfg(feature = "multipart")]
+    mod multipart {
+        use std::error::Error as StdError;
+
+        use reqwest::multipart::{Form, Part};
+        use reqwest::Client;
+        use tokio::fs::read;
+
+        use crate::body::PowerBody;
+        use crate::http::header::CONTENT_TYPE;
+        use crate::http::StatusCode;
+        use crate::router::{post, Router};
+        use crate::tcp::Listener;
+        use crate::{throw, App, Context};
+
+        const FILE_PATH: &str = "../assets/author.txt";
+        const FILE_NAME: &str = "author.txt";
+        const FIELD_NAME: &str = "file";
+
+        async fn post_file(ctx: &mut Context) -> crate::Result {
+            let mut form = ctx.read_multipart().await?;
+            while let Some(field) = form.next_field().await? {
+                match (field.file_name(), field.name()) {
+                    (Some(filename), Some(name)) => {
+                        assert_eq!(FIELD_NAME, name);
+                        assert_eq!(FILE_NAME, filename);
+                        let content = field.bytes().await?;
+                        let expected_content = read(FILE_PATH).await?;
+                        assert_eq!(&expected_content, &content);
+                    }
+                    _ => throw!(
+                        StatusCode::BAD_REQUEST,
+                        format!("invalid field: {:?}", field)
+                    ),
+                }
+            }
+            Ok(())
+        }
+
+        #[tokio::test]
+        async fn upload() -> Result<(), Box<dyn StdError>> {
+            let router = Router::new().on("/file", post(post_file));
+            let app = App::new().end(router.routes("/")?);
+            let (addr, server) = app.run()?;
+            tokio::task::spawn(server);
+
+            // client
+            let url = format!("http://{}/file", addr);
+            let client = Client::new();
+            let form = Form::new().part(
+                FIELD_NAME,
+                Part::bytes(read(FILE_PATH).await?).file_name(FILE_NAME),
+            );
+            let boundary = form.boundary().to_string();
+            let resp = client
+                .post(&url)
+                .multipart(form)
+                .header(
+                    CONTENT_TYPE,
+                    format!(r#"multipart/form-data; boundary="{}""#, boundary),
+                )
+                .send()
+                .await?;
+            assert_eq!(StatusCode::OK, resp.status());
+            Ok(())
+        }
     }
 }

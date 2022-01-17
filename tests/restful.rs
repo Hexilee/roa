@@ -1,7 +1,6 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use async_std::sync::{Arc, RwLock};
-use async_std::task::spawn;
 use http::StatusCode;
 use multimap::MultiMap;
 use roa::preload::*;
@@ -11,6 +10,8 @@ use roa::{throw, App, Context};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use slab::Slab;
+use tokio::sync::RwLock;
+use tokio::task::spawn;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, Eq, PartialEq)]
 struct User {

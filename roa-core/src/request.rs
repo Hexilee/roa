@@ -1,11 +1,11 @@
 use std::io;
 
 use bytes::Bytes;
-use futures::stream::TryStreamExt;
-use futures::{AsyncRead, Stream};
-use http::{HeaderMap, HeaderValue, Method, Uri, Version};
+use futures::stream::{Stream, TryStreamExt};
+use http::{Extensions, HeaderMap, HeaderValue, Method, Uri, Version};
 use hyper::Body;
-
+use tokio::io::AsyncRead;
+use tokio_util::io::StreamReader;
 /// Http request type of roa.
 pub struct Request {
     /// The request's method
@@ -20,11 +20,29 @@ pub struct Request {
     /// The request's headers
     pub headers: HeaderMap<HeaderValue>,
 
+    extensions: Extensions,
+
     body: Body,
 }
 
 impl Request {
-    /// Get raw hyper body.
+    /// Take raw hyper request.
+    /// This method will consume inner body and extensions.
+    #[inline]
+    pub fn take_raw(&mut self) -> http::Request<Body> {
+        let mut builder = http::Request::builder()
+            .method(self.method.clone())
+            .uri(self.uri.clone());
+        *builder.extensions_mut().expect("fail to get extensions") =
+            std::mem::take(&mut self.extensions);
+        *builder.headers_mut().expect("fail to get headers") = self.headers.clone();
+        builder
+            .body(self.raw_body())
+            .expect("fail to build raw body")
+    }
+
+    /// Gake raw hyper body.
+    /// This method will consume inner body.
     #[inline]
     pub fn raw_body(&mut self) -> Body {
         std::mem::take(&mut self.body)
@@ -43,7 +61,7 @@ impl Request {
     /// This method will consume inner body.
     #[inline]
     pub fn reader(&mut self) -> impl AsyncRead + Sync + Send + Unpin + 'static {
-        self.stream().into_async_read()
+        StreamReader::new(self.stream())
     }
 }
 
@@ -56,6 +74,7 @@ impl From<http::Request<Body>> for Request {
             uri: parts.uri,
             version: parts.version,
             headers: parts.headers,
+            extensions: parts.extensions,
             body,
         }
     }
@@ -70,9 +89,9 @@ impl Default for Request {
 
 #[cfg(all(test, feature = "runtime"))]
 mod tests {
-    use futures::AsyncReadExt;
     use http::StatusCode;
     use hyper::Body;
+    use tokio::io::AsyncReadExt;
 
     use crate::{App, Context, Request, Status};
 
@@ -83,7 +102,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn body_read() -> Result<(), Box<dyn std::error::Error>> {
         let app = App::new().end(test);
         let service = app.http_service();

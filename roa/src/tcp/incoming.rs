@@ -1,15 +1,16 @@
+use std::convert::TryInto;
 use std::future::Future;
 use std::mem::transmute;
-use std::net::{TcpListener as StdListener, ToSocketAddrs};
+use std::net::{SocketAddr, TcpListener as StdListener, ToSocketAddrs};
 use std::pin::Pin;
 use std::task::{self, Poll};
 use std::time::Duration;
 use std::{fmt, io, matches};
 
-use async_std::net::{SocketAddr, TcpListener, TcpStream};
-use futures_timer::Delay;
-use log::{debug, error, trace};
 use roa_core::{Accept, AddrStream};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::time::{sleep, Sleep};
+use tracing::{debug, error, trace};
 
 /// A stream of connections from binding to an address.
 /// As an implementation of roa_core::Accept.
@@ -19,7 +20,7 @@ pub struct TcpIncoming {
     listener: Box<TcpListener>,
     sleep_on_errors: bool,
     tcp_nodelay: bool,
-    timeout: Option<Pin<Box<Delay>>>,
+    timeout: Option<Pin<Box<Sleep>>>,
     accept: Option<Pin<BoxedAccept<'static>>>,
 }
 
@@ -36,8 +37,9 @@ impl TcpIncoming {
     /// Creates a new `TcpIncoming` from std TcpListener.
     pub fn from_std(listener: StdListener) -> io::Result<Self> {
         let addr = listener.local_addr()?;
+        listener.set_nonblocking(true)?;
         Ok(TcpIncoming {
-            listener: Box::new(listener.into()),
+            listener: Box::new(listener.try_into()?),
             addr,
             sleep_on_errors: true,
             tcp_nodelay: false,
@@ -114,7 +116,7 @@ impl TcpIncoming {
                             error!("accept error: {}", e);
 
                             // Sleep 1s.
-                            let mut timeout = Box::pin(Delay::new(Duration::from_secs(1)));
+                            let mut timeout = Box::pin(sleep(Duration::from_secs(1)));
 
                             match timeout.as_mut().poll(cx) {
                                 Poll::Ready(()) => {

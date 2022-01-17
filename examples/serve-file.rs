@@ -2,12 +2,11 @@
 //! then request http://127.0.0.1:8000.
 
 use std::borrow::Cow;
+use std::path::Path;
 use std::result::Result as StdResult;
 use std::time::SystemTime;
 
 use askama::Template;
-use async_std::path::Path;
-use async_std::prelude::*;
 use bytesize::ByteSize;
 use chrono::offset::Local;
 use chrono::DateTime;
@@ -19,6 +18,8 @@ use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{get, Router};
 use roa::{throw, App, Context, Next, Result};
+use tokio::fs::{metadata, read_dir};
+use tracing_subscriber::EnvFilter;
 
 #[derive(Template)]
 #[template(path = "directory.html")]
@@ -65,9 +66,10 @@ async fn serve_path(ctx: &mut Context) -> Result {
     let path_value = ctx.must_param("path")?;
     let path = path_value.as_ref();
     let file_path = Path::new(".").join(path);
-    if file_path.is_file().await {
+    let meta = metadata(&file_path).await?;
+    if meta.is_file() {
         ctx.write_file(file_path, Inline).await
-    } else if file_path.is_dir().await {
+    } else if meta.is_dir() {
         serve_dir(ctx, path).await
     } else {
         throw!(StatusCode::NOT_FOUND, "path not found")
@@ -80,15 +82,14 @@ async fn serve_root(ctx: &mut Context) -> Result {
 
 async fn serve_dir(ctx: &mut Context, path: &str) -> Result {
     let uri_path = Path::new("/").join(path);
-    let mut entries = Path::new(".").join(path).read_dir().await?;
+    let mut entries = read_dir(Path::new(".").join(path)).await?;
     let title = uri_path
         .file_name()
         .map(|os_str| os_str.to_string_lossy())
         .unwrap_or(Cow::Borrowed("/"));
     let root_str = uri_path.to_string_lossy();
     let mut dir = Dir::new(&title, &root_str);
-    while let Some(res) = entries.next().await {
-        let entry = res?;
+    while let Some(entry) = entries.next_entry().await? {
         let metadata = entry.metadata().await?;
         if metadata.is_dir() {
             dir.dirs.push(DirInfo {
@@ -120,9 +121,13 @@ fn format_time(time: SystemTime) -> String {
     datetime.format("%d/%m/%Y %T").to_string()
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .map_err(|err| anyhow::anyhow!("fail to init tracing subscriber: {}", err))?;
+
     let wildcard_router = Router::new().gate(path_checker).on("/", get(serve_path));
     let router = Router::new()
         .on("/", serve_root)

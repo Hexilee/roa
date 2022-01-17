@@ -1,7 +1,7 @@
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 
-use roa_core::{App, Endpoint, Executor, Server, State};
+use roa::{App, Endpoint, Executor, Server, State};
 
 use super::TcpIncoming;
 
@@ -22,23 +22,21 @@ pub trait Listener {
 
     /// Listen on an unused port of 127.0.0.1, return a server and the real addr it binds.
     /// ### Example
-    /// ```rust
+    /// ```rust,no_run
     /// use roa::{App, Context, Status};
-    /// use roa::tcp::Listener;
+    /// use roa_async_std::{Exec, Listener};
     /// use roa::http::StatusCode;
-    /// use tokio::task::spawn;
+    /// use async_std::task::spawn;
     /// use std::time::Instant;
     ///
     /// async fn end(_ctx: &mut Context) -> Result<(), Status> {
     ///     Ok(())
     /// }
     ///
-    /// #[tokio::main]
+    /// #[async_std::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let (addr, server) = App::new().end(end).run()?;
-    ///     spawn(server);
-    ///     let resp = reqwest::get(&format!("http://{}", addr)).await?;
-    ///     assert_eq!(StatusCode::OK, resp.status());
+    ///     let (_, server) = App::with_exec((), Exec).end(end).run()?;
+    ///     server.await?;
     ///     Ok(())
     /// }
     /// ```
@@ -69,5 +67,25 @@ where
 
     fn run(self) -> std::io::Result<(SocketAddr, Self::Server)> {
         self.bind("127.0.0.1:0")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use roa::http::StatusCode;
+    use roa::App;
+
+    use super::Listener;
+    use crate::Exec;
+
+    #[tokio::test]
+    async fn incoming() -> Result<(), Box<dyn Error>> {
+        let (addr, server) = App::with_exec((), Exec).end(()).run()?;
+        tokio::task::spawn(server);
+        let resp = reqwest::get(&format!("http://{}", addr)).await?;
+        assert_eq!(StatusCode::OK, resp.status());
+        Ok(())
     }
 }

@@ -10,8 +10,8 @@
 //!     delete user where id=0
 
 use std::result::Result as StdResult;
+use std::sync::Arc;
 
-use async_std::sync::{Arc, RwLock};
 use roa::http::StatusCode;
 use roa::preload::*;
 use roa::router::{get, post, Router};
@@ -19,6 +19,7 @@ use roa::{throw, App, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use slab::Slab;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct User {
@@ -94,7 +95,7 @@ async fn delete_user(ctx: &mut Context<Database>) -> Result {
     ctx.write_json(&user)
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> StdResult<(), Box<dyn std::error::Error>> {
     let router = Router::new()
         .on("/", post(create_user))

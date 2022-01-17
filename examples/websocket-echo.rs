@@ -12,10 +12,15 @@ use roa::preload::*;
 use roa::router::{allow, Router};
 use roa::websocket::Websocket;
 use roa::App;
+use tracing_subscriber::EnvFilter;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .map_err(|err| anyhow::anyhow!("fail to init tracing subscriber: {}", err))?;
+
     let router = Router::new().on(
         "/chat",
         allow(

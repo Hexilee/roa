@@ -10,8 +10,8 @@
 //! async fn end(_ctx: &mut Context) -> Result {
 //!     Ok(())
 //! }
-//!
-//! # fn main() -> io::Result<()> {
+//! # #[tokio::main]
+//! # async fn main() -> io::Result<()> {
 //! let app = App::new().end(end);
 //! let incoming = TcpIncoming::bind("127.0.0.1:0")?;
 //! let server = app.accept(incoming);
@@ -30,8 +30,8 @@
 //! async fn end(_ctx: &mut Context) -> Result {
 //!     Ok(())
 //! }
-//!
-//! # fn main() -> io::Result<()> {
+//! # #[tokio::main]
+//! # async fn main() -> io::Result<()> {
 //! let app = App::new().end(end);
 //! let (addr, server) = app.bind("127.0.0.1:0")?;
 //! // server.await
