@@ -74,7 +74,7 @@ where
     }
 }
 
-impl <IO> Debug for AddrStream<IO> {
+impl<IO> Debug for AddrStream<IO> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AddrStream")
             .field("remote_addr", &self.remote_addr)

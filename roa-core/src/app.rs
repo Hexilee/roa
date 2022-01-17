@@ -1,6 +1,6 @@
+mod future;
 #[cfg(feature = "runtime")]
 mod runtime;
-mod future;
 mod stream;
 
 use std::convert::Infallible;

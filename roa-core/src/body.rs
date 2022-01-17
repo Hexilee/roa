@@ -4,8 +4,8 @@ use std::task::{Context, Poll};
 
 use bytes::{Bytes, BytesMut};
 use futures::future::ok;
-use tokio::io::{self, AsyncRead, ReadBuf};
 use futures::stream::{once, Stream, StreamExt};
+use tokio::io::{self, AsyncRead, ReadBuf};
 
 const DEFAULT_CHUNK_SIZE: usize = 4096;
 
@@ -212,8 +212,8 @@ impl Stream for Segment {
 mod tests {
     use std::io;
 
-    use tokio::fs::File;
     use futures::{AsyncReadExt, TryStreamExt};
+    use tokio::fs::File;
 
     use super::Body;
 

@@ -192,7 +192,6 @@ impl<S: State> PowerBody for Context<S> {
         B: DeserializeOwned,
     {
         use crate::http::StatusCode;
-
         use crate::status;
         let data = self.read().await?;
         serde_urlencoded::from_bytes(&data).map_err(|err| status!(StatusCode::BAD_REQUEST, err))
@@ -201,6 +200,7 @@ impl<S: State> PowerBody for Context<S> {
     #[cfg(feature = "multipart")]
     async fn read_multipart(&mut self) -> Result<Multipart> {
         use headers::{ContentType, HeaderMapExt};
+
         use crate::http::StatusCode;
 
         // Verify that the request is 'Content-Type: multipart/*'.
@@ -208,9 +208,7 @@ impl<S: State> PowerBody for Context<S> {
             .req
             .headers
             .typed_get::<ContentType>()
-            .ok_or_else(|| {
-                crate::status!(StatusCode::BAD_REQUEST, "fail to get content-type")
-            })?
+            .ok_or_else(|| crate::status!(StatusCode::BAD_REQUEST, "fail to get content-type"))?
             .into();
         let boundary = typ
             .get_param(mime::BOUNDARY)
