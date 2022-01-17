@@ -12,7 +12,7 @@ roa = { path = "../../roa", features = ["router"] }
 roa-diesel = { path = "../../roa-diesel" }
 roa-juniper = { path = "../../roa-juniper" }
 diesel-example = { path = "../diesel-example" }
-async-std = { version = "1.10", features = ["attributes"] }
+tokio = { version = "1.15", features = ["full"] }
 tracing = "0.1"
 serde = { version = "1", features = ["derive"] }
 futures = "0.3"

@@ -1,12 +1,16 @@
-use diesel_example::{create_pool, post_router, StdError};
-use log::info;
+use diesel_example::{create_pool, post_router};
 use roa::logger::logger;
 use roa::preload::*;
 use roa::App;
+use tracing::info;
+use tracing_subscriber::EnvFilter;
 
-#[async_std::main]
-async fn main() -> Result<(), Box<dyn StdError>> {
-    pretty_env_logger::init();
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init()
+        .map_err(|err| anyhow::anyhow!("fail to init tracing subscriber: {}", err))?;
     let app = App::state(create_pool()?)
         .gate(logger)
         .end(post_router().routes("/post")?);

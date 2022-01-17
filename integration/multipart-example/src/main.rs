@@ -1,13 +1,13 @@
 use std::error::Error as StdError;
+use std::path::Path;
 
-use async_std::fs::File;
-use async_std::path::Path;
-use futures::io::AsyncWriteExt;
 use roa::body::{DispositionType, PowerBody};
 use roa::logger::logger;
 use roa::preload::*;
 use roa::router::{get, post, Router};
 use roa::{App, Context};
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -34,7 +34,7 @@ async fn post_file(ctx: &mut Context) -> roa::Result {
     Ok(())
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())

@@ -19,9 +19,7 @@ impl AsRef<Pool<SqliteConnection>> for State {
     }
 }
 
-pub use std::error::Error as StdError;
-
-pub fn create_pool() -> Result<State, Box<dyn StdError>> {
+pub fn create_pool() -> anyhow::Result<State> {
     let pool = make_pool(":memory:")?;
     diesel::sql_query(
         r"

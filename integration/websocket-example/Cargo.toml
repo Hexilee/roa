@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 roa = { path = "../../roa", features = ["router", "file", "websocket"] }
-tokio = { version = "1.13", features = ["full"] }
+tokio = { version = "1.15", features = ["full"] }
 tracing = "0.1"
 futures = "0.3"
 http = "0.2"

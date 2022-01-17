@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 roa = { path = "../../roa", features = ["router", "file", "multipart"] }
-async-std = { version = "1.10", features = ["attributes"] }
+tokio = { version = "1.15", features = ["full"] }
 tracing = "0.1"
 futures = "0.3"
 tracing-futures = "0.2"
