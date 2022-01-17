@@ -8,7 +8,7 @@
 //! use roa::http::header::AUTHORIZATION;
 //! use roa::http::StatusCode;
 //! use roa::preload::*;
-//! use async_std::task::spawn;
+//! use tokio::task::spawn;
 //! use jsonwebtoken::{encode, Header, EncodingKey};
 //! use serde::{Deserialize, Serialize};
 //! use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -225,9 +225,9 @@ impl<S> JwtVerifier<S> for Context<S> {
 mod tests {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-    use async_std::task::spawn;
     use jsonwebtoken::{encode, EncodingKey, Header};
     use serde::{Deserialize, Serialize};
+    use tokio::task::spawn;
 
     use super::{guard, DecodingKey, INVALID_TOKEN};
     use crate::http::header::{AUTHORIZATION, WWW_AUTHENTICATE};

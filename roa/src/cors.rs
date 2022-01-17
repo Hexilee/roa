@@ -324,11 +324,11 @@ impl<'a, S> Middleware<'a, S> for Cors {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
-    use async_std::task::spawn;
     use headers::{
         AccessControlAllowCredentials, AccessControlAllowOrigin, AccessControlExposeHeaders,
         HeaderMapExt, HeaderName,
     };
+    use tokio::task::spawn;
 
     use super::Cors;
     use crate::http::header::{

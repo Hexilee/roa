@@ -1,6 +1,6 @@
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::Arc;
 
-use async_std::sync::Arc;
 use roa_core::{App, Endpoint, Executor, Server, State};
 
 use super::TcpIncoming;
@@ -26,7 +26,7 @@ pub trait Listener {
     /// use roa::{App, Context, Status};
     /// use roa::tcp::Listener;
     /// use roa::http::StatusCode;
-    /// use async_std::task::spawn;
+    /// use tokio::task::spawn;
     /// use std::time::Instant;
     ///
     /// async fn end(_ctx: &mut Context) -> Result<(), Status> {

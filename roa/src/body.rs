@@ -6,9 +6,8 @@
 //!
 //! ```rust
 //! use roa::{Context, Result};
-//! use futures::AsyncReadExt;
-//! use futures::io::BufReader;
-//! use async_std::fs::File;
+//! use tokio::io::AsyncReadExt;
+//! use tokio::fs::File;
 //!
 //! async fn get(ctx: &mut Context) -> Result {
 //!     let mut data = String::new();
@@ -41,7 +40,7 @@
 //! use roa::body::{PowerBody, DispositionType::*};
 //! use serde::{Serialize, Deserialize};
 //! use askama::Template;
-//! use async_std::fs::File;
+//! use tokio::fs::File;
 //!
 //! #[derive(Debug, Serialize, Deserialize, Template)]
 //! #[template(path = "user.html")]
@@ -83,19 +82,21 @@
 //! }
 //! ```
 
+use std::path::Path;
+
 #[cfg(feature = "template")]
 use askama::Template;
 use bytes::Bytes;
-use futures::{AsyncRead, AsyncReadExt};
 use headers::{ContentLength, ContentType, HeaderMapExt};
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{async_trait, Context, Result, State};
 #[cfg(feature = "file")]
 mod file;
 #[cfg(feature = "file")]
-pub use file::DispositionType;
+use file::write_file;
 #[cfg(feature = "file")]
-use file::{write_file, Path};
+pub use file::DispositionType;
 #[cfg(feature = "json")]
 pub use multer::Multipart;
 #[cfg(any(feature = "json", feature = "urlencoded"))]
@@ -274,11 +275,11 @@ mod tests {
     use std::error::Error;
 
     use askama::Template;
-    use async_std::fs::File;
-    use async_std::task::spawn;
     use http::header::CONTENT_TYPE;
     use http::StatusCode;
     use serde::{Deserialize, Serialize};
+    use tokio::fs::File;
+    use tokio::task::spawn;
 
     use super::PowerBody;
     use crate::tcp::Listener;
@@ -402,9 +403,9 @@ mod tests {
     mod multipart {
         use std::error::Error as StdError;
 
-        use async_std::fs::read;
         use reqwest::multipart::{Form, Part};
         use reqwest::Client;
+        use tokio::fs::read;
 
         use crate::body::PowerBody;
         use crate::http::header::CONTENT_TYPE;
@@ -442,7 +443,7 @@ mod tests {
             let router = Router::new().on("/file", post(post_file));
             let app = App::new().end(router.routes("/")?);
             let (addr, server) = app.run()?;
-            async_std::task::spawn(server);
+            tokio::task::spawn(server);
 
             // client
             let url = format!("http://{}/file", addr);

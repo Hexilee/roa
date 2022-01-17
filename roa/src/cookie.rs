@@ -12,8 +12,8 @@
 //!     assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
 //!     Ok(())
 //! }
-//!
-//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn Error>> {
 //! let app = App::new().gate(cookie_parser).end(end);
 //! let (addr, server) = app.run()?;
 //! // server.await
@@ -49,8 +49,8 @@ struct CookieScope;
 ///     assert_eq!("Hexilee", ctx.must_cookie("name")?.value());
 ///     Ok(())
 /// }
-///
-/// # fn main() -> Result<(), Box<dyn Error>> {
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn Error>> {
 /// let app = App::new().gate(cookie_parser).end(end);
 /// let (addr, server) = app.run()?;
 /// // server.await
@@ -75,8 +75,8 @@ pub trait CookieGetter {
     ///     assert!(ctx.cookie("name").is_none());
     ///     Ok(())
     /// }
-    ///
-    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn Error>> {
     /// let app = App::new().gate(cookie_parser).end(end);
     /// let (addr, server) = app.run()?;
     /// // server.await
@@ -101,8 +101,8 @@ pub trait CookieSetter {
     ///     ctx.set_cookie(Cookie::new("name", "Hexilee"));
     ///     Ok(())
     /// }
-    ///
-    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn Error>> {
     /// let app = App::new().gate(cookie_parser).end(end);
     /// let (addr, server) = app.run()?;
     /// // server.await
@@ -170,7 +170,7 @@ impl<S> CookieSetter for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
-    use async_std::task::spawn;
+    use tokio::task::spawn;
 
     use crate::cookie::{cookie_parser, Cookie};
     use crate::http::header::{COOKIE, WWW_AUTHENTICATE};

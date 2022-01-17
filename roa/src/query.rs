@@ -7,7 +7,7 @@
 //! use roa::{App, Context};
 //! use roa::http::StatusCode;
 //! use roa::preload::*;
-//! use async_std::task::spawn;
+//! use tokio::task::spawn;
 //!
 //! async fn must(ctx: &mut Context) -> roa::Result {
 //!     assert_eq!("Hexilee", &*ctx.must_query("name")?);
@@ -46,7 +46,7 @@ struct QueryScope;
 /// use roa::{App, Context};
 /// use roa::http::StatusCode;
 /// use roa::preload::*;
-/// use async_std::task::spawn;
+/// use tokio::task::spawn;
 ///
 /// async fn must(ctx: &mut Context) -> roa::Result {
 ///     assert_eq!("Hexilee", &*ctx.must_query("name")?);
@@ -82,7 +82,7 @@ pub trait Query {
     /// use roa::{App, Context};
     /// use roa::http::StatusCode;
     /// use roa::preload::*;
-    /// use async_std::task::spawn;
+    /// use tokio::task::spawn;
     ///
     /// async fn must(ctx: &mut Context) -> roa::Result {
     ///     assert_eq!("Hexilee", &*ctx.must_query("name")?);
@@ -112,7 +112,7 @@ pub trait Query {
     /// use roa::{App, Context};
     /// use roa::http::StatusCode;
     /// use roa::preload::*;
-    /// use async_std::task::spawn;
+    /// use tokio::task::spawn;
     ///
     /// async fn test(ctx: &mut Context) -> roa::Result {
     ///     assert!(ctx.query("name").is_none());
@@ -165,7 +165,7 @@ impl<S> Query for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
-    use async_std::task::spawn;
+    use tokio::task::spawn;
 
     use crate::http::StatusCode;
     use crate::preload::*;

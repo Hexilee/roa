@@ -29,7 +29,7 @@
 //!     Ok(String::from(&*data))
 //! }
 //!
-//! #[async_std::main]
+//! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let rpc = Server::new()
 //!         .with_data(Data::new(String::from("Hello!")))

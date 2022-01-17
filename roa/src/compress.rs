@@ -12,8 +12,8 @@
 //! async fn end(ctx: &mut Context) -> roa::Result {
 //!     ctx.write_file("../assets/welcome.html", Inline).await
 //! }
-//!
-//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn Error>> {
 //! let mut app = App::new().gate(Compress(Level::Fastest)).end(end);
 //! let (addr, server) = app.run()?;
 //! // server.await
@@ -21,9 +21,9 @@
 //! # }
 //! ```
 
-use async_compression::futures::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
+use async_compression::tokio::bufread::{BrotliEncoder, GzipEncoder, ZlibEncoder, ZstdEncoder};
 pub use async_compression::Level;
-use futures::stream::TryStreamExt;
+use tokio_util::io::StreamReader;
 
 use crate::http::header::{HeaderMap, ACCEPT_ENCODING, CONTENT_ENCODING};
 use crate::http::{HeaderValue, StatusCode};
@@ -151,22 +151,22 @@ impl<'a, S> Middleware<'a, S> for Compress {
         let content_encoding = match best_encoding {
             None | Some(Encoding::Gzip) => {
                 ctx.resp
-                    .write_reader(GzipEncoder::with_quality(body.into_async_read(), level));
+                    .write_reader(GzipEncoder::with_quality(StreamReader::new(body), level));
                 Encoding::Gzip.to_header_value()
             }
             Some(Encoding::Deflate) => {
                 ctx.resp
-                    .write_reader(ZlibEncoder::with_quality(body.into_async_read(), level));
+                    .write_reader(ZlibEncoder::with_quality(StreamReader::new(body), level));
                 Encoding::Deflate.to_header_value()
             }
             Some(Encoding::Brotli) => {
                 ctx.resp
-                    .write_reader(BrotliEncoder::with_quality(body.into_async_read(), level));
+                    .write_reader(BrotliEncoder::with_quality(StreamReader::new(body), level));
                 Encoding::Brotli.to_header_value()
             }
             Some(Encoding::Zstd) => {
                 ctx.resp
-                    .write_reader(ZstdEncoder::with_quality(body.into_async_read(), level));
+                    .write_reader(ZstdEncoder::with_quality(StreamReader::new(body), level));
                 Encoding::Zstd.to_header_value()
             }
             Some(Encoding::Identity) => {
@@ -185,9 +185,9 @@ mod tests {
     use std::pin::Pin;
     use std::task::{self, Poll};
 
-    use async_std::task::spawn;
     use bytes::Bytes;
     use futures::Stream;
+    use tokio::task::spawn;
 
     use crate::body::DispositionType::*;
     use crate::compress::{Compress, Level};

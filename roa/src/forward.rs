@@ -115,7 +115,7 @@ impl<S: State> Forward for Context<S> {
 
 #[cfg(all(test, feature = "tcp"))]
 mod tests {
-    use async_std::task::spawn;
+    use tokio::task::spawn;
 
     use super::Forward;
     use crate::http::header::HOST;

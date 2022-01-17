@@ -7,7 +7,7 @@
 //! use roa::preload::*;
 //! use roa::App;
 //! use roa::http::StatusCode;
-//! use async_std::task::spawn;
+//! use tokio::task::spawn;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
