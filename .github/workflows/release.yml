@@ -31,9 +31,9 @@ jobs:
             registryName: roa-diesel
             path: roa-diesel
             publishPath: /target/package
-          - name: roa-tokio
-            registryName: roa-tokio
-            path: roa-tokio
+          - name: roa-async-std
+            registryName: roa-async-std
+            path: roa-async-std
             publishPath: /target/package
 
     steps:
