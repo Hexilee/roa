@@ -21,9 +21,8 @@ members = [
 ]
 
 [dev-dependencies]
-tokio = { version = "1.13", features = ["full"] }
+tokio = { version = "1.15", features = ["full"] }
 reqwest = { version = "0.11", features = ["json", "cookies", "gzip"] }
-async-std = { version = "1.10", features = ["attributes"] }
 serde = { version = "1", features = ["derive"] }
 roa = { path = "./roa", features = ["full"] }
 test-case = "1.2"
